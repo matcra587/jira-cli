@@ -23,8 +23,8 @@ while read -r path current; do
 		patch_prefix="${BASH_REMATCH[1]}"
 
 		while read -r version; do
-			version_core="${version%%-*}"
-			[[ "$version_core" == "$patch_prefix"* ]] && update="$version"
+			[[ "$version" == *-* ]] && continue
+			[[ "$version" == "$patch_prefix"* ]] && update="$version"
 		done < <(go list -m -versions -f '{{ range .Versions }}{{ . }}{{ "\n" }}{{ end }}' "$path")
 		;;
 	latest)
@@ -34,7 +34,7 @@ while read -r path current; do
 
 	[[ -n "$update" && "$update" != "$current" ]] || continue
 	mods+=("${path}@${update}")
-done < <(go list -m -f '{{ if and (not .Main) (not .Indirect) }}{{ .Path }} {{ .Version }}{{ end }}' all)
+done < <(go list -m -e -f '{{ if and (not .Main) (not .Indirect) }}{{ .Path }} {{ .Version }}{{ end }}' all)
 
 if ((${#mods[@]} > 0)); then
 	go get "${mods[@]}"

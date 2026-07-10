@@ -3,7 +3,7 @@ module github.com/matcra587/jira-cli
 go 1.26.5
 
 require (
-	charm.land/bubbles/v2 v2.1.0
+	charm.land/bubbles/v2 v2.1.1
 	charm.land/bubbletea/v2 v2.0.8
 	charm.land/glamour/v2 v2.0.1
 	charm.land/huh/v2 v2.0.3
@@ -13,10 +13,10 @@ require (
 	github.com/agnivade/levenshtein v1.2.1
 	github.com/charmbracelet/x/ansi v0.11.7
 	github.com/charmbracelet/x/exp/teatest/v2 v2.0.0-20260608090822-c3ad58c6c9e5
-	github.com/gechr/clib v0.5.9
-	github.com/gechr/clive v0.2.6
-	github.com/gechr/clog v0.11.15
-	github.com/gechr/primer v0.1.1
+	github.com/gechr/clib v0.5.13
+	github.com/gechr/clive v0.2.10
+	github.com/gechr/clog v0.11.20
+	github.com/gechr/primer v0.1.2
 	github.com/gechr/x v0.2.14
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/google/uuid v1.6.0
@@ -224,7 +224,7 @@ require (
 	github.com/openai/openai-go/v3 v3.39.0 // indirect
 	github.com/pb33f/ordered-map/v2 v2.3.1 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
-	github.com/pelletier/go-toml/v2 v2.4.2 // indirect
+	github.com/pelletier/go-toml/v2 v2.4.3 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_golang v1.23.2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
