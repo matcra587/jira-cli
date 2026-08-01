@@ -14,11 +14,11 @@ require (
 	github.com/agnivade/levenshtein v1.2.1
 	github.com/charmbracelet/x/ansi v0.11.7
 	github.com/charmbracelet/x/exp/teatest/v2 v2.0.0-20260608090822-c3ad58c6c9e5
-	github.com/gechr/clib v0.6.6
-	github.com/gechr/clive v0.4.2
-	github.com/gechr/clog v0.13.1
-	github.com/gechr/primer v0.1.2
-	github.com/gechr/x v0.4.0
+	github.com/gechr/clib v0.7.11
+	github.com/gechr/clive v0.4.9
+	github.com/gechr/clog v0.15.5
+	github.com/gechr/primer v0.1.4
+	github.com/gechr/x v0.5.6
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/google/uuid v1.6.0
 	github.com/itchyny/gojq v0.12.19
@@ -31,11 +31,11 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
-	github.com/yuin/goldmark v1.8.2
+	github.com/yuin/goldmark v1.8.4
 	github.com/zalando/go-keyring v0.2.8
 	go.uber.org/goleak v1.3.0
-	golang.org/x/mod v0.37.0
-	golang.org/x/sync v0.21.0
+	golang.org/x/mod v0.38.0
+	golang.org/x/sync v0.22.0
 	golang.org/x/term v0.45.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -267,7 +267,7 @@ require (
 	github.com/timonwong/loggercheck v0.11.0 // indirect
 	github.com/tomarrell/wrapcheck/v2 v2.12.0 // indirect
 	github.com/tommy-muehle/go-mnd/v2 v2.5.1 // indirect
-	github.com/ulikunitz/xz v0.5.15 // indirect
+	github.com/ulikunitz/xz v0.5.16 // indirect
 	github.com/ultraware/funlen v0.2.0 // indirect
 	github.com/ultraware/whitespace v0.2.0 // indirect
 	github.com/uudashr/gocognit v1.2.1 // indirect
@@ -294,13 +294,13 @@ require (
 	go.uber.org/zap v1.28.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	go.yaml.in/yaml/v4 v4.0.0-rc.5 // indirect
-	golang.org/x/crypto v0.53.0 // indirect
+	golang.org/x/crypto v0.54.0 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20260611194520-c48552f49976 // indirect
-	golang.org/x/net v0.56.0 // indirect
+	golang.org/x/net v0.57.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
-	golang.org/x/telemetry v0.0.0-20260625142307-59b4966ccb57 // indirect
-	golang.org/x/text v0.39.0 // indirect
-	golang.org/x/tools v0.47.0 // indirect
+	golang.org/x/telemetry v0.0.0-20260708182218-49f421fb7959 // indirect
+	golang.org/x/text v0.40.0 // indirect
+	golang.org/x/tools v0.48.0 // indirect
 	golang.org/x/vuln v1.3.0 // indirect
 	google.golang.org/api v0.285.0 // indirect
 	google.golang.org/genai v1.60.0 // indirect
