@@ -1,0 +1,3 @@
+kind: removed
+body: "Retire the deferred TUI dashboard. Legacy `tui` and `-i` entry points report its removal rather than opening the dashboard; legacy TUI settings are not executed."
+time: 2026-08-02T00:03:00-04:00

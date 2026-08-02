@@ -34,7 +34,7 @@ internal/config      koanf loader, profiles, credential store selection
 internal/cache       per-profile metadata cache
 internal/pipeline    5-stage mutation validation (validate-and-encode)
 internal/{browser,editor,issuekey,jql,refresh,version}
-internal/tui/*       persistent dashboard
+internal/tui/components/markdown  shared release-note rendering (dashboard deferred)
 ```
 
 Every package lives under `internal/` — this module exports no public API.

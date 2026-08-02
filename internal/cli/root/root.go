@@ -48,14 +48,11 @@ func newRootCommand(rt *runtime.Runtime) *cobra.Command {
 		Use:   "jira",
 		Short: "Run Jira developer workflows",
 		Long: "Run Jira developer workflows from a terminal. Use it to read issues, build JQL, " +
-			"update work, manage authentication, and open the persistent dashboard.\n\n" +
+			"update work, and manage authentication. The dashboard runtime is deferred.\n\n" +
 			"With stdout attached to a terminal, bare `jira` prints help. In non-TTY or " +
 			"agent-detected output, bare `jira` emits the command schema as JSON; use " +
 			"`jira agent schema` when you want explicit discovery.",
-		Example: `# Use the global interactive flag to open the dashboard
-$ jira -i
-
-# Structured output for scripts and agents
+		Example: `# Structured output for scripts and agents
 $ jira issue list --output=json
 
 $ jira search saved my-open-bugs`,
@@ -251,16 +248,12 @@ func validateNumericFlags(cmd *cobra.Command) error {
 	return nil
 }
 
-// rootRun is the bare `jira` behavior: launch the dashboard when
-// interactive, print help for a human TTY, or emit JSON discovery for a
-// pipe/agent.
+// rootRun prints help for a human TTY or emits JSON discovery for a pipe/agent.
+// The former interactive entry point reports the deferred dashboard runtime.
 func rootRun(cmd *cobra.Command, rt *runtime.Runtime) error {
 	det := cmdutil.DetectorFromContext(cmd)
 	interactive := cmdutil.BoolValue(cmd.Root().PersistentFlags(), "interactive")
-	if interactive && !runtimeStdoutIsTTY(rt) {
-		return fmt.Errorf("tui requires an interactive terminal")
-	}
-	if interactive && det.Mode == cli.ModeTUI {
+	if interactive {
 		return tui.Run(cmd)
 	}
 	// Bare `jira` behavior:
@@ -286,14 +279,6 @@ func detectOutput(rt *runtime.Runtime) cli.Detection {
 		return cli.Detect(f)
 	}
 	return cli.Detect(os.Stdout)
-}
-
-// runtimeStdoutIsTTY reports whether the runtime stdout writer is an
-// interactive terminal. A non-*os.File writer (test buffer) is never a
-// TTY.
-func runtimeStdoutIsTTY(rt *runtime.Runtime) bool {
-	f, ok := rt.Stdout().(*os.File)
-	return ok && terminal.Is(f)
 }
 
 // runtimeStdinIsTTY reports whether the runtime stdin reader is an
@@ -419,8 +404,8 @@ func configureRootFlags(root *cobra.Command) {
 			Placeholder: "EXPR",
 			Terse:       "jq filter",
 		})
-	cmdutil.AddBoolP(pf, "interactive", "i", false, "Launch persistent dashboard from root command",
-		clib.FlagExtra{Group: "Dashboard", Terse: "launch dashboard"})
+	cmdutil.AddBoolP(pf, "interactive", "i", false, "Report the deferred dashboard runtime",
+		clib.FlagExtra{Group: "Dashboard", Terse: "dashboard deferred"})
 	cmdutil.AddBoolP(pf, "debug", "d", false, "Enable debug output",
 		clib.FlagExtra{Group: "Output", Terse: "debug output"})
 	cmdutil.AddBool(pf, "no-input", false,

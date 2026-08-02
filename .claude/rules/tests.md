@@ -51,8 +51,9 @@ then unmarshal stdout as the envelope:
 
 ## Goldens
 
-*   TUI: teatest snapshots under `internal/tui/goldens/`, driven by a manual
-    Update loop — never real timers; spinner frames flake.
+*   The dashboard runtime is deferred. Its former entry points report a refusal;
+    no TUI runtime or golden suite remains. The Markdown renderer still serves
+    CLI release notes until that consumer migrates.
 *   ADF: JSON fixtures in `internal/adf` (`golden_test.go`) pin rendered
     output. Update goldens deliberately and review the diff — a golden churn
     is a behavior change.

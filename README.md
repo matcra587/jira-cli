@@ -108,25 +108,10 @@ stored `cloud_id`. See [docs/auth.md](docs/auth.md).
 
 ## TUI
 
-> [!WARNING]
-> The dashboard is in **alpha**: actively developed, and keybindings or
-> configuration may still change between releases. The headless CLI
-> commands remain the stable surface for scripts and agents.
-
-Run `jira -i` or `jira tui` in a terminal for a persistent, full-screen
-dashboard: tabbed JQL views with live counts, quick-filter lenses, an
-always-visible issue preview, single-key triage verbs with optimistic
-updates, multi-select bulk actions, and a JQL search workbench with
-autocomplete and saved-query presets. Tabs, lenses, sections, the preview
-dock and every keybinding are configurable under `[tui]` in `config.toml`.
-
-Core keys: `j/k` move, `enter` open, `/` filter, `f` facet, `]`/`[` lens,
-`t` transition, `a`/`A` assign, `c` comment, `e` edit, `w` worklog,
-`space` select, `ctrl+o` recent, `?` help, `q` quit.
-
-See the [TUI documentation](https://matcra587.github.io/jira-cli/tui/) for
-the full tour and configuration reference. Prefer the regular CLI commands
-for scripts and agent workflows.
+The persistent dashboard runtime is deferred during the CLI migration.
+`jira tui` and `jira -i` report this explicitly. Use the issue and search
+commands for terminal workflows. Existing `[tui]` settings remain stored but
+are not executed. See [the dashboard status](docs/tui.md).
 
 ## Output
 

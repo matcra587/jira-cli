@@ -10,9 +10,8 @@ Manage your Jira issues from the command line.
 
 jira-cli brings Jira into your terminal: read and search issues, create and edit
 them, move them through their workflow, and add comments, links, and
-attachments, all without switching to the browser. Drop into a full-screen
-dashboard to work a whole queue, or run a single command in a script. Both go
-through the same commands.
+attachments, all without switching to the browser. Run individual commands
+or compose them in scripts. The persistent dashboard runtime is deferred.
 
 Every command can also return a stable JSON envelope with typed exit codes, so a
 script or an AI agent reads the result exactly as a person would. That makes
@@ -61,11 +60,11 @@ See [Authenticate](auth.md) for the 1Password backend and the headless (CI) flow
 
     Read, create, edit, transition, comment, link, and attach.
 
-*   :desktop_computer:{ .lg .middle } [**Use the TUI dashboard**](tui.md)
+*   :desktop_computer:{ .lg .middle } [**Dashboard status**](tui.md)
 
     ---
 
-    Triage interactively with tabbed views, quick-filter lenses, and single-key verbs.
+    The persistent dashboard runtime is deferred during the CLI migration.
 
 *   :mag:{ .lg .middle } [**Search and JQL**](search.md)
 
