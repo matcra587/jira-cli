@@ -75,8 +75,8 @@ func TestDefaultBoardPerProfileSemantics(t *testing.T) {
 	if err != nil {
 		t.Fatalf("issue list (default profile) error = %v\n%s", err, out)
 	}
-	if !strings.Contains(srv.lastJQL, "project in (ENG)") {
-		t.Errorf("default profile JQL = %q; want project in (ENG)", srv.lastJQL)
+	if !strings.Contains(srv.lastJQL.Last(), "project in (ENG)") {
+		t.Errorf("default profile JQL = %q; want project in (ENG)", srv.lastJQL.Last())
 	}
 	var env1 map[string]any
 	_ = json.Unmarshal(out, &env1)
@@ -97,8 +97,8 @@ func TestDefaultBoardPerProfileSemantics(t *testing.T) {
 	if err != nil {
 		t.Fatalf("issue list (work profile) error = %v\n%s", err, out)
 	}
-	if !strings.Contains(srv.lastJQL, "project in (PLAT)") {
-		t.Errorf("work profile JQL = %q; want project in (PLAT)", srv.lastJQL)
+	if !strings.Contains(srv.lastJQL.Last(), "project in (PLAT)") {
+		t.Errorf("work profile JQL = %q; want project in (PLAT)", srv.lastJQL.Last())
 	}
 	var env2 map[string]any
 	_ = json.Unmarshal(out, &env2)

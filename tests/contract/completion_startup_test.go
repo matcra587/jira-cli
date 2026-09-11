@@ -115,7 +115,7 @@ func TestLinkTypeCompletionInsertsTypeName(t *testing.T) {
 }
 
 func TestAliasExpansionSkipsValueTakingGlobalFlags(t *testing.T) {
-	var seenJQL string
+	var seenJQL requestCapture[string]
 	srv := newJQLCaptureServer(t, &seenJQL)
 	cfg := jiraConfig(t, srv.URL)
 	bin := buildJiraBinary(t)
@@ -130,18 +130,18 @@ func TestAliasExpansionSkipsValueTakingGlobalFlags(t *testing.T) {
 	if err != nil {
 		t.Fatalf("alias expansion after global flags: %v\n%s", err, out)
 	}
-	if seenJQL != "project = PROJ ORDER BY updated DESC" {
-		t.Fatalf("alias expansion sent JQL %q, want project = PROJ ORDER BY updated DESC\n%s", seenJQL, out)
+	if seenJQL.Last() != "project = PROJ ORDER BY updated DESC" {
+		t.Fatalf("alias expansion sent JQL %q, want project = PROJ ORDER BY updated DESC\n%s", seenJQL.Last(), out)
 	}
 
-	seenJQL = ""
+	seenJQL.Reset()
 	cmd = exec.Command(bin, "mine", "--config", cfg, "--output=compact")
 	out, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("alias expansion with post-command --config: %v\n%s", err, out)
 	}
-	if seenJQL != "project = PROJ ORDER BY updated DESC" {
-		t.Fatalf("post-command --config alias expansion sent JQL %q, want project = PROJ ORDER BY updated DESC\n%s", seenJQL, out)
+	if seenJQL.Last() != "project = PROJ ORDER BY updated DESC" {
+		t.Fatalf("post-command --config alias expansion sent JQL %q, want project = PROJ ORDER BY updated DESC\n%s", seenJQL.Last(), out)
 	}
 }
 
@@ -174,7 +174,7 @@ workday_seconds = 28800
 	return path
 }
 
-func newJQLCaptureServer(t *testing.T, seen *string) *httptest.Server {
+func newJQLCaptureServer(t *testing.T, seen *requestCapture[string]) *httptest.Server {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || r.URL.Path != "/rest/api/3/search/jql" {
@@ -186,7 +186,7 @@ func newJQLCaptureServer(t *testing.T, seen *string) *httptest.Server {
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			t.Fatalf("decode search body: %v", err)
 		}
-		*seen = body.JQL
+		seen.Add(body.JQL)
 		_, _ = w.Write([]byte(`{"isLast":true,"issues":[{"key":"PROJ-1","fields":{"summary":"Alias hit"}}]}`))
 	}))
 	t.Cleanup(srv.Close)

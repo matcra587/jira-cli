@@ -118,7 +118,7 @@ func TestSearchJQLCursorResumesWalk(t *testing.T) {
 // requested page size, --cursor resumes, and --all drains to a known
 // total.
 func TestIssueListPaginationFlags(t *testing.T) {
-	var sawMaxResults []float64
+	var capturedMaxResults requestCapture[float64]
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /rest/api/3/search/jql", func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
@@ -127,7 +127,7 @@ func TestIssueListPaginationFlags(t *testing.T) {
 			NextPageToken string  `json:"nextPageToken"`
 		}
 		_ = json.Unmarshal(body, &req)
-		sawMaxResults = append(sawMaxResults, req.MaxResults)
+		capturedMaxResults.Add(req.MaxResults)
 		w.Header().Set("Content-Type", "application/json")
 		if req.NextPageToken == "" {
 			_, _ = w.Write([]byte(`{"issues":[{"key":"PROJ-1","fields":{"summary":"one"}}],"isLast":false,"nextPageToken":"PAGE2"}`))
@@ -143,6 +143,7 @@ func TestIssueListPaginationFlags(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("--limit exit=%d\nstderr=%s\nstdout=%s", code, stderr, stdout)
 	}
+	sawMaxResults := capturedMaxResults.Values()
 	if len(sawMaxResults) != 1 || sawMaxResults[0] != 7 {
 		t.Fatalf("--limit 7 must reach the wire as maxResults, saw %v", sawMaxResults)
 	}

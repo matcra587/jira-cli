@@ -17,7 +17,7 @@ import (
 )
 
 func TestCommandsUseConfiguredJiraServices(t *testing.T) {
-	var seenJQL []string
+	var seenJQL requestCapture[string]
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.Method == http.MethodPost && r.URL.Path == "/rest/api/3/search/jql":
@@ -27,7 +27,7 @@ func TestCommandsUseConfiguredJiraServices(t *testing.T) {
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 				t.Fatalf("decode search body: %v", err)
 			}
-			seenJQL = append(seenJQL, body.JQL)
+			seenJQL.Add(body.JQL)
 			switch body.JQL {
 			case jql.DefaultIssueListJQL:
 				_, _ = w.Write([]byte(`{"isLast":true,"issues":[{"key":"PROJ-1","fields":{"summary":"From server","status":{"name":"To Do"},"priority":{"name":"High"},"updated":"2026-05-03T10:00:00Z"}}]}`))
@@ -67,8 +67,8 @@ func TestCommandsUseConfiguredJiraServices(t *testing.T) {
 		}
 	}
 	for _, want := range []string{jql.DefaultIssueListJQL, "project = CUSTOM ORDER BY updated DESC", "project = PROJ"} {
-		if !slices.Contains(seenJQL, want) {
-			t.Fatalf("missing JQL %q in %v", want, seenJQL)
+		if !slices.Contains(seenJQL.Values(), want) {
+			t.Fatalf("missing JQL %q in %v", want, seenJQL.Values())
 		}
 	}
 }

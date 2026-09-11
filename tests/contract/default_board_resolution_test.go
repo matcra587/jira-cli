@@ -67,7 +67,7 @@ default_board = "` + defaultBoard + `"
 // invocation.
 type fakeSearchServer struct {
 	srv     *httptest.Server
-	lastJQL string
+	lastJQL requestCapture[string]
 }
 
 func newFakeSearchServer(t *testing.T) *fakeSearchServer {
@@ -83,7 +83,7 @@ func newFakeSearchServer(t *testing.T) *fakeSearchServer {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
-			f.lastJQL = body.JQL
+			f.lastJQL.Add(body.JQL)
 			_, _ = w.Write([]byte(`{"isLast":true,"issues":[{"key":"ENG-1","fields":{"summary":"hit"}}]}`))
 			return
 		}
@@ -117,8 +117,8 @@ func TestDefaultBoardAppliedWhenNoFlag(t *testing.T) {
 		t.Fatalf("issue list error = %v\n%s", err, out)
 	}
 
-	if !strings.Contains(srv.lastJQL, "project in (ENG)") {
-		t.Errorf("emitted JQL did not contain board scope: %q", srv.lastJQL)
+	if !strings.Contains(srv.lastJQL.Last(), "project in (ENG)") {
+		t.Errorf("emitted JQL did not contain board scope: %q", srv.lastJQL.Last())
 	}
 
 	var env map[string]any
@@ -155,8 +155,8 @@ func TestDefaultBoardOverriddenByExplicitFlag(t *testing.T) {
 		t.Fatalf("issue list error = %v\n%s", err, out)
 	}
 
-	if !strings.Contains(srv.lastJQL, "project in (PLAT)") {
-		t.Errorf("emitted JQL did not contain flag-supplied scope: %q", srv.lastJQL)
+	if !strings.Contains(srv.lastJQL.Last(), "project in (PLAT)") {
+		t.Errorf("emitted JQL did not contain flag-supplied scope: %q", srv.lastJQL.Last())
 	}
 
 	var env map[string]any
@@ -187,8 +187,8 @@ func TestDefaultBoardSuppressedByEmptyFlag(t *testing.T) {
 		t.Fatalf("issue list error = %v\n%s", err, out)
 	}
 
-	if strings.Contains(srv.lastJQL, "project in (") {
-		t.Errorf("emitted JQL contained scope when --board='' should suppress it: %q", srv.lastJQL)
+	if strings.Contains(srv.lastJQL.Last(), "project in (") {
+		t.Errorf("emitted JQL contained scope when --board='' should suppress it: %q", srv.lastJQL.Last())
 	}
 
 	var env map[string]any

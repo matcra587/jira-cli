@@ -12,7 +12,7 @@ import (
 )
 
 func TestAliasSetListDeleteAndExpansion(t *testing.T) {
-	var seenJQL string
+	var seenJQL requestCapture[string]
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || r.URL.Path != "/rest/api/3/search/jql" {
 			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
@@ -23,7 +23,7 @@ func TestAliasSetListDeleteAndExpansion(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			t.Fatalf("decode search body: %v", err)
 		}
-		seenJQL = body.JQL
+		seenJQL.Add(body.JQL)
 		_, _ = w.Write([]byte(`{"isLast":true,"issues":[{"key":"PROJ-1","fields":{"summary":"Alias hit"}}]}`))
 	}))
 	defer srv.Close()
@@ -52,8 +52,8 @@ func TestAliasSetListDeleteAndExpansion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("alias expansion error = %v\n%s", err, out)
 	}
-	if seenJQL != "project = PROJ ORDER BY updated DESC" || !envelopeHasKV(t, out, "key", "PROJ-1") {
-		t.Fatalf("alias expansion seenJQL=%q output=%s", seenJQL, out)
+	if seenJQL.Last() != "project = PROJ ORDER BY updated DESC" || !envelopeHasKV(t, out, "key", "PROJ-1") {
+		t.Fatalf("alias expansion seenJQL=%q output=%s", seenJQL.Last(), out)
 	}
 
 	// The test harness is non-TTY, so alias delete is headless and needs --force.
@@ -68,7 +68,7 @@ func TestAliasSetListDeleteAndExpansion(t *testing.T) {
 }
 
 func TestAliasSetSingleStringExpansionStoresVerbatimAndDispatches(t *testing.T) {
-	var seenJQL string
+	var seenJQL requestCapture[string]
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || r.URL.Path != "/rest/api/3/search/jql" {
 			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
@@ -79,7 +79,7 @@ func TestAliasSetSingleStringExpansionStoresVerbatimAndDispatches(t *testing.T) 
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			t.Fatalf("decode search body: %v", err)
 		}
-		seenJQL = body.JQL
+		seenJQL.Add(body.JQL)
 		_, _ = w.Write([]byte(
 			`{"isLast":true,"issues":[{"key":"PROJ-1","fields":{"summary":"Alias hit"}}]}`,
 		))
@@ -107,9 +107,9 @@ func TestAliasSetSingleStringExpansionStoresVerbatimAndDispatches(t *testing.T) 
 	if err != nil {
 		t.Fatalf("alias dispatch error = %v\n%s", err, out)
 	}
-	if seenJQL != "assignee = currentUser() ORDER BY updated DESC" ||
+	if seenJQL.Last() != "assignee = currentUser() ORDER BY updated DESC" ||
 		!envelopeHasKV(t, out, "key", "PROJ-1") {
-		t.Fatalf("alias dispatch seenJQL=%q output=%s", seenJQL, out)
+		t.Fatalf("alias dispatch seenJQL=%q output=%s", seenJQL.Last(), out)
 	}
 }
 

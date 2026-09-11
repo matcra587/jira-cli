@@ -64,13 +64,13 @@ func TestDefaultBoardWinsExclusivelyOverDefaultProject(t *testing.T) {
 	}
 
 	// Board's projects (ENG) drive the JQL.
-	if !strings.Contains(srv.lastJQL, "project in (ENG)") {
-		t.Errorf("emitted JQL missing board scope: %q", srv.lastJQL)
+	if !strings.Contains(srv.lastJQL.Last(), "project in (ENG)") {
+		t.Errorf("emitted JQL missing board scope: %q", srv.lastJQL.Last())
 	}
 
 	// default_project must NOT bleed into the JQL.
-	if strings.Contains(srv.lastJQL, "UNRELATED") {
-		t.Errorf("default_project bled into JQL — board should win exclusively: %q", srv.lastJQL)
+	if strings.Contains(srv.lastJQL.Last(), "UNRELATED") {
+		t.Errorf("default_project bled into JQL — board should win exclusively: %q", srv.lastJQL.Last())
 	}
 
 	var env map[string]any
