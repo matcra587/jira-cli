@@ -18,8 +18,6 @@ import (
 // because every existing test fed a hand-built map. Helper strings assume the
 // default no-TTY config (bare text, no ANSI), so substring checks are stable.
 
-func ptr[T any](v T) *T { return &v }
-
 func renderCommand(t *testing.T, command string, data any) string {
 	t.Helper()
 	var buf bytes.Buffer
@@ -169,7 +167,7 @@ func TestWatcherListPlainRendersTypedStruct(t *testing.T) {
 		Watchers: []envelope.WatcherItem{{
 			DisplayName:  "Alice",
 			AccountID:    "5e0000000000000000000001",
-			EmailAddress: ptr("alice@example.com"),
+			EmailAddress: new("alice@example.com"),
 		}},
 		IsWatching: true,
 		WatchCount: 1,
@@ -198,7 +196,7 @@ func TestIssueTransitionsPlainRendersTypedStruct(t *testing.T) {
 	got := renderCommand(t, "issue.transitions", envelope.IssueTransitionsOutput{
 		Issue: envelope.IssueRef{Key: "PROJ-1"},
 		Transitions: []*jira.Transition{
-			{ID: ptr("21"), Name: ptr("In Review")},
+			{ID: new("21"), Name: new("In Review")},
 		},
 	})
 	requireContains(t, got, "Transitions on PROJ-1", "21", "In Review")

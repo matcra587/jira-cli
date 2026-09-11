@@ -6,8 +6,6 @@ import (
 	"github.com/matcra587/jira-cli/internal/jira"
 )
 
-func strptr(s string) *string { return &s }
-
 // splitTransitionTarget reads a trailing status name/id off the argument list
 // when --transition is not used, but leaves an all-key list alone (so bulk
 // listing still works) and an explicit flag wins.
@@ -49,8 +47,8 @@ func TestSplitTransitionTarget(t *testing.T) {
 // transition id, preferring a name match, and errors when nothing matches.
 func TestMatchTransition(t *testing.T) {
 	transitions := []*jira.Transition{
-		{ID: strptr("21"), Name: strptr("In Progress")},
-		{ID: strptr("31"), Name: strptr("Code Review")},
+		{ID: new("21"), Name: new("In Progress")},
+		{ID: new("31"), Name: new("Code Review")},
 	}
 	for _, tc := range []struct {
 		name   string

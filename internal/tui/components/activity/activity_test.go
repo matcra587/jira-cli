@@ -154,7 +154,7 @@ func TestLogCappedAtMaxLog(t *testing.T) {
 	const extra = 5
 	total := maxLog + extra
 	var lastID uint64
-	for i := 0; i < total; i++ {
+	for range total {
 		lastID = r.Start("op")
 	}
 

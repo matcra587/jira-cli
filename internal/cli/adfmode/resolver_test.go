@@ -39,13 +39,13 @@ func TestResolveHonoursPrecedence(t *testing.T) {
 		{
 			name:     "profile overrides default",
 			path:     adfmode.PathRead,
-			profile:  ptrBool(true),
+			profile:  new(true),
 			expected: adfmode.ModeStrict,
 		},
 		{
 			name:     "env overrides profile",
 			path:     adfmode.PathMutationSubmit,
-			profile:  ptrBool(true),
+			profile:  new(true),
 			env:      "false",
 			expected: adfmode.ModeBestEffort,
 		},
@@ -97,7 +97,7 @@ func TestResolveHonoursPrecedence(t *testing.T) {
 			path:     adfmode.PathMutationSubmit,
 			flag:     adfmode.FlagBestEffort,
 			env:      "true",
-			profile:  ptrBool(true),
+			profile:  new(true),
 			expected: adfmode.ModeBestEffort,
 		},
 	}
@@ -143,5 +143,3 @@ func TestResolveRejectsUnparseableEnv(t *testing.T) {
 		t.Fatalf("expected error for unparseable env, got nil")
 	}
 }
-
-func ptrBool(b bool) *bool { return &b }

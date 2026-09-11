@@ -37,7 +37,6 @@ func TestJSONFlagForcesEnvelopeEvenForDetectedAgents(t *testing.T) {
 func TestRemovedLegacyOutputFlagsAreUnknownFlags(t *testing.T) {
 	bin := buildJiraBinary(t)
 	for _, removed := range []string{"--json", "--compact", "--plain", "--raw"} {
-		removed := removed
 		t.Run(removed, func(t *testing.T) {
 			cmd := exec.Command(bin, "agent", "schema", removed)
 			var stdout, stderr bytes.Buffer

@@ -1,5 +1,7 @@
 package config
 
+import "slices"
+
 import "testing"
 
 // TestIsAutoTheme covers the opt-in gate, including case and surrounding space.
@@ -22,13 +24,7 @@ func TestAutoThemeValidatesAndIsAdvertised(t *testing.T) {
 	if err := ValidateThemeName("auto"); err != nil {
 		t.Errorf("ValidateThemeName(\"auto\") = %v, want nil", err)
 	}
-	found := false
-	for _, name := range ThemeNameValues {
-		if name == "auto" {
-			found = true
-			break
-		}
-	}
+	found := slices.Contains(ThemeNameValues, "auto")
 	if !found {
 		t.Error("ThemeNameValues does not advertise \"auto\"")
 	}

@@ -80,8 +80,7 @@ func TestSuccessfulCommandOutputFailureUsesLocalIOTaxonomy(t *testing.T) {
 	if !errors.Is(execErr, writeErr) {
 		t.Fatalf("execute version error = %v, want writer failure", execErr)
 	}
-	var outputErr *cli.OutputError
-	if !errors.As(execErr, &outputErr) {
+	if _, ok := errors.AsType[*cli.OutputError](execErr); !ok {
 		t.Fatalf("execute version error type = %T, want *cli.OutputError", execErr)
 	}
 	mapped := cli.MapError(execErr)
@@ -129,8 +128,7 @@ func TestHumanCommandWritesUseLocalIOTaxonomy(t *testing.T) {
 			if !errors.Is(execErr, writeErr) {
 				t.Fatalf("ExecuteContextC() error = %v, want writer failure", execErr)
 			}
-			var outputErr *cli.OutputError
-			if !errors.As(execErr, &outputErr) {
+			if _, ok := errors.AsType[*cli.OutputError](execErr); !ok {
 				t.Fatalf("ExecuteContextC() error type = %T, want *cli.OutputError", execErr)
 			}
 			mapped := cli.MapError(execErr)
@@ -175,8 +173,7 @@ func TestHumanCommandsNormalizeShortWrites(t *testing.T) {
 			if !errors.Is(execErr, io.ErrShortWrite) {
 				t.Fatalf("ExecuteContextC() error = %v, want io.ErrShortWrite", execErr)
 			}
-			var outputErr *cli.OutputError
-			if !errors.As(execErr, &outputErr) {
+			if _, ok := errors.AsType[*cli.OutputError](execErr); !ok {
 				t.Fatalf("ExecuteContextC() error type = %T, want *cli.OutputError", execErr)
 			}
 			if stdout.writes != 1 {
@@ -238,8 +235,7 @@ func TestHelpOutputFailuresUseLocalIOTaxonomy(t *testing.T) {
 			if !errors.Is(execErr, tt.wantCause) {
 				t.Fatalf("ExecuteContextC() error = %v, want %v", execErr, tt.wantCause)
 			}
-			var outputErr *cli.OutputError
-			if !errors.As(execErr, &outputErr) {
+			if _, ok := errors.AsType[*cli.OutputError](execErr); !ok {
 				t.Fatalf("ExecuteContextC() error type = %T, want *cli.OutputError", execErr)
 			}
 			if got := cli.MapError(execErr); got.Code != "output_write_failed" ||
@@ -294,8 +290,7 @@ func TestDebugOutputFailuresUseLocalIOTaxonomy(t *testing.T) {
 			if !errors.Is(execErr, tt.wantCause) {
 				t.Fatalf("ExecuteContextC() error = %v, want %v", execErr, tt.wantCause)
 			}
-			var outputErr *cli.OutputError
-			if !errors.As(execErr, &outputErr) {
+			if _, ok := errors.AsType[*cli.OutputError](execErr); !ok {
 				t.Fatalf("ExecuteContextC() error type = %T, want *cli.OutputError", execErr)
 			}
 			if got := cli.MapError(execErr); got.Code != "output_write_failed" ||
@@ -451,8 +446,7 @@ func TestCompletionPreflightReturnsCandidateWriteFailure(t *testing.T) {
 	if !errors.Is(err, writeErr) {
 		t.Fatalf("handleCompletionPreflight() error = %v, want writer failure", err)
 	}
-	var outputErr *cli.OutputError
-	if !errors.As(err, &outputErr) {
+	if _, ok := errors.AsType[*cli.OutputError](err); !ok {
 		t.Fatalf("handleCompletionPreflight() error type = %T, want *cli.OutputError", err)
 	}
 	if stdout.writes != 1 {
@@ -480,8 +474,7 @@ func TestCompletionCommandReturnsScriptWriteFailure(t *testing.T) {
 	if !errors.Is(execErr, writeErr) {
 		t.Fatalf("execute completion error = %v, want writer failure", execErr)
 	}
-	var outputErr *cli.OutputError
-	if !errors.As(execErr, &outputErr) {
+	if _, ok := errors.AsType[*cli.OutputError](execErr); !ok {
 		t.Fatalf("execute completion error type = %T, want *cli.OutputError", execErr)
 	}
 	if stdout.writes != 1 {

@@ -132,9 +132,9 @@ func TestIssueUnmarshalPromotesCopiedSliceContainers(t *testing.T) {
 		t.Fatalf("Unmarshal() error = %v", err)
 	}
 
-	issue.Comments[0] = &Comment{ID: String("changed")}
-	issue.Worklogs[0] = &Worklog{ID: String("changed")}
-	issue.Subtasks[0] = &Issue{Key: String("changed")}
+	issue.Comments[0] = &Comment{ID: new("changed")}
+	issue.Worklogs[0] = &Worklog{ID: new("changed")}
+	issue.Subtasks[0] = &Issue{Key: new("changed")}
 
 	if got := *issue.Fields.Comment.Comments[0].ID; got != "c1" {
 		t.Fatalf("nested comment id = %q, want c1", got)

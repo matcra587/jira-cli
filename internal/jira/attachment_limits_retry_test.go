@@ -11,9 +11,9 @@ import (
 )
 
 func TestAttachmentAddRejectsOversizedSourceBeforeHTTP(t *testing.T) {
-	var hits int32
+	var hits atomic.Int32
 	client := newHTTPHandlerClient(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
-		atomic.AddInt32(&hits, 1)
+		hits.Add(1)
 	}))
 
 	service := NewAttachmentService(client)
@@ -28,7 +28,7 @@ func TestAttachmentAddRejectsOversizedSourceBeforeHTTP(t *testing.T) {
 	if !strings.Contains(err.Error(), "exceeds") {
 		t.Fatalf("Add() error = %v, want size context", err)
 	}
-	if got := atomic.LoadInt32(&hits); got != 0 {
+	if got := hits.Load(); got != 0 {
 		t.Fatalf("server hits = %d, want 0", got)
 	}
 }

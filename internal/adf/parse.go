@@ -77,8 +77,7 @@ var _ errtax.Coded = (*InvalidDocumentError)(nil) //nolint:errcheck // compile-t
 func Parse(data []byte) (Document, []Warning, error) {
 	var doc Document
 	if err := json.Unmarshal(data, &doc); err != nil {
-		var typeErr *json.UnmarshalTypeError
-		if errors.As(err, &typeErr) {
+		if typeErr, ok := errors.AsType[*json.UnmarshalTypeError](err); ok {
 			return Document{}, nil, &InvalidDocumentError{Got: typeErr.Value, Field: typeErr.Field}
 		}
 		return Document{}, nil, fmt.Errorf("adf parse: %w", err)

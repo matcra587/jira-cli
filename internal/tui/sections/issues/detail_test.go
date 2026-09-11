@@ -15,8 +15,6 @@ import (
 	"github.com/matcra587/jira-cli/internal/tui/core"
 )
 
-func sp(s string) *string { return &s }
-
 // mdr builds a fresh themed markdown renderer for render tests.
 func mdr() *markdown.Renderer {
 	return markdown.NewRenderer(markdown.StyleFromTheme(config.DefaultTheme()))
@@ -35,7 +33,7 @@ func adfDoc(text string) *adf.Document {
 // overflow a small preview pane.
 func adfParagraphs(n int) *adf.Document {
 	doc := &adf.Document{Type: "doc", Version: 1}
-	for i := 0; i < n; i++ {
+	for range n {
 		doc.Content = append(doc.Content, adf.Node{
 			Type:    "paragraph",
 			Content: []adf.Node{{Type: "text", Text: "line"}},
@@ -157,7 +155,7 @@ func TestRenderDetailSubTabs(t *testing.T) {
 	iss := mkIssue("JCT-1", "To Do", "the summary")
 	iss.Fields.Description = adfDoc("the full body text")
 	iss.Fields.Comment = &jira.CommentPage{Comments: []*jira.Comment{
-		{Author: &jira.User{DisplayName: sp("Bob")}, Body: adfDoc("first comment"), Created: sp("2026-01-02")},
+		{Author: &jira.User{DisplayName: new("Bob")}, Body: adfDoc("first comment"), Created: new("2026-01-02")},
 	}}
 
 	overview := ansi.Strip(renderDetail(iss, false, 80, detailOverview, mdr(), "", ""))
@@ -193,7 +191,7 @@ func TestEnterOpensDetailThenEscCloses(t *testing.T) {
 	full := mkIssue("JCT-1", "To Do", "the summary")
 	full.Fields.Description = adfDoc("body")
 	full.Fields.Comment = &jira.CommentPage{Comments: []*jira.Comment{
-		{Author: &jira.User{DisplayName: sp("Ann")}, Body: adfDoc("hi"), Created: sp("2026-01-01")},
+		{Author: &jira.User{DisplayName: new("Ann")}, Body: adfDoc("hi"), Created: new("2026-01-01")},
 	}}
 	ctx := newTestCtx(fakeServices{issue: fakeIssueSvc{full: full}})
 	m := New(ctx).(*Model)

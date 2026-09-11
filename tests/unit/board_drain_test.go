@@ -28,10 +28,7 @@ func pagedBoardServer(total, pageSize int) *httptest.Server {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/rest/agile/1.0/board", func(w http.ResponseWriter, r *http.Request) {
 		startAt, _ := strconv.Atoi(r.URL.Query().Get("startAt"))
-		end := startAt + pageSize
-		if end > total {
-			end = total
-		}
+		end := min(startAt+pageSize, total)
 		values := []map[string]any{}
 		for i := startAt; i < end; i++ {
 			values = append(values, map[string]any{

@@ -55,9 +55,9 @@ func TestCoreContractDocumentsEveryExitCode(t *testing.T) {
 // the contract's errors[] field list.
 func TestCoreContractDocumentsEveryErrorField(t *testing.T) {
 	doc := coreContractText(t)
-	typ := reflect.TypeOf(cli.Error{})
-	for i := range typ.NumField() {
-		tag := typ.Field(i).Tag.Get("json")
+	typ := reflect.TypeFor[cli.Error]()
+	for field := range typ.Fields() {
+		tag := field.Tag.Get("json")
 		name, _, _ := strings.Cut(tag, ",")
 		if name == "" || name == "-" {
 			continue

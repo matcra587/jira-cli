@@ -64,8 +64,8 @@ func ParseExpressions(inputs []string, opts Options) ([]string, error) {
 	out := make([]string, 0, len(inputs))
 	seen := map[string]bool{}
 	for _, input := range inputs {
-		parts := strings.Split(input, ",")
-		for _, part := range parts {
+		parts := strings.SplitSeq(input, ",")
+		for part := range parts {
 			remaining := maxExpansion - len(out)
 			if remaining <= 0 {
 				return nil, &ExpansionLimitError{Max: maxExpansion}

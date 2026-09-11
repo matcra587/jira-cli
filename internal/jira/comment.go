@@ -325,7 +325,7 @@ func (s *commentService) ListAll(ctx context.Context, key string, opts CommentDr
 	)
 	for {
 		comments, resp, err := s.List(ctx, key, &ListCommentsOptions{
-			ListOptions: ListOptions{StartAt: offset, MaxResults: pageSize},
+			StartAt: offset, MaxResults: pageSize,
 		})
 		if err != nil {
 			var apiErr *APIError
@@ -374,7 +374,7 @@ func (s *commentService) Add(ctx context.Context, key string, body *CommentBody)
 		return nil, nil, err
 	}
 	if body.DryRun {
-		return &Comment{ID: String("DRY-RUN")}, &Response{IsLast: true}, nil
+		return &Comment{ID: new("DRY-RUN")}, &Response{IsLast: true}, nil
 	}
 	// Add never carries visibility-clear in normal use, but the cmd layer
 	// MAY pass a VisibilityChange to plumb a Replace through — accepted via
@@ -398,7 +398,7 @@ func (s *commentService) AddWithVisibility(ctx context.Context, key string, body
 		return nil, nil, err
 	}
 	if body.DryRun {
-		return &Comment{ID: String("DRY-RUN")}, &Response{IsLast: true}, nil
+		return &Comment{ID: new("DRY-RUN")}, &Response{IsLast: true}, nil
 	}
 	payload := commentPayload(body, vis)
 	req, err := s.client.NewRequest(ctx, http.MethodPost, RESTPath("issue", key, "comment"), payload)

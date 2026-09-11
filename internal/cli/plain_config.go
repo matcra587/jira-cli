@@ -2,6 +2,7 @@ package cli
 
 import (
 	"io"
+	"slices"
 	"strings"
 
 	clibtheme "github.com/gechr/clib/theme"
@@ -55,8 +56,8 @@ func writeConfigGetPlain(w io.Writer, data any, cfg plainConfig) error {
 	}
 	doc := value
 	parts := strings.Split(key, ".")
-	for i := len(parts) - 1; i >= 0; i-- {
-		doc = map[string]any{parts[i]: doc}
+	for _, part := range slices.Backward(parts) {
+		doc = map[string]any{part: doc}
 	}
 	return WriteHumanTOML(w, doc, printThemeFor(cfg.theme))
 }

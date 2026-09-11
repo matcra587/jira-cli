@@ -43,10 +43,7 @@ func vpContent(lines []string, vp viewport.Model) string {
 
 // detailWidth is the detail content width, leaving one column for the scrollbar.
 func (r *results) detailWidth() int {
-	w := r.ctx.ScreenWidth - 1
-	if w < 1 {
-		w = 1
-	}
+	w := max(r.ctx.ScreenWidth-1, 1)
 	return w
 }
 

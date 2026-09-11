@@ -82,11 +82,11 @@ func TestIssueCreateMarkdownDescriptionSubmittedAsValidatedADF(t *testing.T) {
 // not converted past it. If the description bypassed stage 2, the POST
 // would reach the server.
 func TestIssueCreateRawADFDescriptionStrictRejectsBeforeWire(t *testing.T) {
-	var posts int32
+	var posts atomic.Int32
 	mux := http.NewServeMux()
 	registerCreatemeta(mux, "PROJ", "Task", "10002", createmetaDescriptionFields)
 	mux.HandleFunc("POST /rest/api/3/issue", func(w http.ResponseWriter, _ *http.Request) {
-		atomic.AddInt32(&posts, 1)
+		posts.Add(1)
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"id":"1","key":"PROJ-1","self":"x"}`))
 	})
@@ -105,7 +105,7 @@ func TestIssueCreateRawADFDescriptionStrictRejectsBeforeWire(t *testing.T) {
 	if code == 0 {
 		t.Fatalf("strict mode accepted an unknown ADF node in description; want abort\nstdout=%s", stdout)
 	}
-	if n := atomic.LoadInt32(&posts); n != 0 {
+	if n := posts.Load(); n != 0 {
 		t.Fatalf("description bypassed the pipeline — %d POST(s) reached the wire despite an invalid node", n)
 	}
 	var env struct {

@@ -86,15 +86,13 @@ func MapError(err error) Error {
 	if err == nil {
 		return Error{}
 	}
-	var primaryErr *PrimaryError
-	if errors.As(err, &primaryErr) {
+	if primaryErr, ok := errors.AsType[*PrimaryError](err); ok {
 		return MapError(primaryErr.primary)
 	}
 	if out, ok := mapPromptError(err); ok {
 		return out
 	}
-	var outputErr *OutputError
-	if errors.As(err, &outputErr) {
+	if outputErr, ok := errors.AsType[*OutputError](err); ok {
 		return assemble(err, outputErr)
 	}
 	if out, ok := mapContextError(err); ok {
@@ -109,8 +107,7 @@ func MapError(err error) Error {
 	if out, ok := mapDocentDiscoveryErrors(err); ok {
 		return out
 	}
-	var coded errtax.Coded
-	if errors.As(err, &coded) {
+	if coded, ok := errors.AsType[errtax.Coded](err); ok {
 		return assemble(err, coded)
 	}
 	return classifyUntyped(err)
@@ -161,12 +158,10 @@ func (e *agentTopicError) Code() errtax.Code { return errtax.CodeAgentTopicUnkno
 // ranked while the named entries did not. Both are validation-class with
 // stable codes; the per-issue details ride the message, never the hint.
 func mapRankErrors(err error) (Error, bool) {
-	var rejected *jira.RankRejectedError
-	if errors.As(err, &rejected) {
+	if rejected, ok := errors.AsType[*jira.RankRejectedError](err); ok {
 		return assemble(err, &rankCodedError{err: rejected, code: errtax.CodeRankRejected}), true
 	}
-	var partial *jira.RankPartialError
-	if errors.As(err, &partial) {
+	if partial, ok := errors.AsType[*jira.RankPartialError](err); ok {
 		return assemble(err, &rankCodedError{err: partial, code: errtax.CodeRankPartial}), true
 	}
 	return Error{}, false

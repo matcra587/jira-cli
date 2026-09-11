@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"maps"
 	"strings"
 
 	"github.com/matcra587/jira-cli/internal/cli/cache/registry"
@@ -531,12 +532,8 @@ func outputSchemas() map[string]any {
 // other.
 func mergeProperties(own, shared map[string]any) map[string]any {
 	merged := make(map[string]any, len(own)+len(shared))
-	for k, v := range shared {
-		merged[k] = v
-	}
-	for k, v := range own {
-		merged[k] = v
-	}
+	maps.Copy(merged, shared)
+	maps.Copy(merged, own)
 	return merged
 }
 

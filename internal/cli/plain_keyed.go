@@ -139,10 +139,7 @@ const failedKeysPlainLimit = 5
 const failedKeysSummary = "Failed keys"
 
 func shownFailureKeys(keys []string) ([]string, int) {
-	limit := failedKeysPlainLimit
-	if len(keys) < limit {
-		limit = len(keys)
-	}
+	limit := min(len(keys), failedKeysPlainLimit)
 	return keys[:limit], len(keys) - limit
 }
 

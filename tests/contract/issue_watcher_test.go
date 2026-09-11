@@ -299,19 +299,19 @@ func TestWatchersAddIdempotentWhenAlreadyWatching(t *testing.T) {
 // --no-readback skips the follow-up GET and emits the bare {account_id, attempted}
 // shape per envelope-shapes.md.
 func TestWatchersAddNoReadbackBareShape(t *testing.T) {
-	var getAfterPost int32
-	var sawPost int32
+	var getAfterPost atomic.Int32
+	var sawPost atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/rest/api/3/myself":
 			_, _ = w.Write([]byte(myselfBody))
 		case r.Method == http.MethodPost && r.URL.Path == "/rest/api/3/issue/JCT-1/watchers":
-			atomic.StoreInt32(&sawPost, 1)
+			sawPost.Store(1)
 			w.WriteHeader(http.StatusNoContent)
 		case r.Method == http.MethodGet && r.URL.Path == "/rest/api/3/issue/JCT-1/watchers":
-			if atomic.LoadInt32(&sawPost) == 1 {
-				atomic.AddInt32(&getAfterPost, 1)
+			if sawPost.Load() == 1 {
+				getAfterPost.Add(1)
 			}
 			body := watchersBody(false, 0)
 			_, _ = w.Write([]byte(body))
@@ -329,8 +329,8 @@ func TestWatchersAddNoReadbackBareShape(t *testing.T) {
 	if err != nil {
 		t.Fatalf("watchers add --no-readback error = %v\n%s", err, out)
 	}
-	if atomic.LoadInt32(&getAfterPost) != 0 {
-		t.Fatalf("--no-readback issued %d follow-up GETs, want 0", atomic.LoadInt32(&getAfterPost))
+	if getAfterPost.Load() != 0 {
+		t.Fatalf("--no-readback issued %d follow-up GETs, want 0", getAfterPost.Load())
 	}
 	var env map[string]any
 	if err := json.Unmarshal(out, &env); err != nil {
@@ -355,14 +355,14 @@ func TestWatchersAddNoReadbackBareShape(t *testing.T) {
 
 func TestWatchersRemoveDeletesByAccountIDAndReadsBack(t *testing.T) {
 	var deleteQuery atomic.Value
-	var deleteHits int32
+	var deleteHits atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/rest/api/3/myself":
 			_, _ = w.Write([]byte(myselfBody))
 		case r.Method == http.MethodDelete && r.URL.Path == "/rest/api/3/issue/JCT-1/watchers":
-			atomic.AddInt32(&deleteHits, 1)
+			deleteHits.Add(1)
 			deleteQuery.Store(r.URL.RawQuery)
 			w.WriteHeader(http.StatusNoContent)
 		case r.Method == http.MethodGet && r.URL.Path == "/rest/api/3/issue/JCT-1/watchers":
@@ -382,8 +382,8 @@ func TestWatchersRemoveDeletesByAccountIDAndReadsBack(t *testing.T) {
 	if err != nil {
 		t.Fatalf("watchers remove error = %v\n%s", err, out)
 	}
-	if atomic.LoadInt32(&deleteHits) != 1 {
-		t.Errorf("DELETE /watchers hit %d times, want 1", atomic.LoadInt32(&deleteHits))
+	if deleteHits.Load() != 1 {
+		t.Errorf("DELETE /watchers hit %d times, want 1", deleteHits.Load())
 	}
 	q, _ := deleteQuery.Load().(string)
 	values, _ := url.ParseQuery(q)
@@ -408,12 +408,12 @@ func TestWatchersRemoveDeletesByAccountIDAndReadsBack(t *testing.T) {
 // ----- resolution paths ----------
 
 func TestWatchersAddUserMeSkipsUserSearch(t *testing.T) {
-	var sawSearch int32
+	var sawSearch atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch {
 		case strings.HasPrefix(r.URL.Path, "/rest/api/3/user/search"):
-			atomic.StoreInt32(&sawSearch, 1)
+			sawSearch.Store(1)
 			_, _ = w.Write([]byte(`[]`))
 		case r.URL.Path == "/rest/api/3/myself":
 			_, _ = w.Write([]byte(myselfBody))
@@ -434,19 +434,19 @@ func TestWatchersAddUserMeSkipsUserSearch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error = %v\n%s", err, out)
 	}
-	if atomic.LoadInt32(&sawSearch) != 0 {
+	if sawSearch.Load() != 0 {
 		t.Fatal("--user me triggered /user/search; expected /myself only")
 	}
 }
 
 func TestWatchersAddAccountIDPrefixSkipsUserSearch(t *testing.T) {
-	var sawSearch int32
+	var sawSearch atomic.Int32
 	var postBody atomic.Value
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch {
 		case strings.HasPrefix(r.URL.Path, "/rest/api/3/user/search"):
-			atomic.StoreInt32(&sawSearch, 1)
+			sawSearch.Store(1)
 			_, _ = w.Write([]byte(`[]`))
 		case r.URL.Path == "/rest/api/3/myself":
 			_, _ = w.Write([]byte(myselfBody))
@@ -470,7 +470,7 @@ func TestWatchersAddAccountIDPrefixSkipsUserSearch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error = %v\n%s", err, out)
 	}
-	if atomic.LoadInt32(&sawSearch) != 0 {
+	if sawSearch.Load() != 0 {
 		t.Fatal("accountId: prefix triggered /user/search; expected local parse only")
 	}
 	if got, _ := postBody.Load().(string); got != `"712020:abc"` {
@@ -674,8 +674,7 @@ func TestUnwatchShortcutEquivalentToWatchersRemoveMe(t *testing.T) {
 // exitCodeOf extracts the exit code from an *exec.ExitError-shaped error.
 // Returns ok=false if the error isn't an exit error (e.g. command-not-found).
 func exitCodeOf(err error) (int, bool) {
-	var ee *exec.ExitError
-	if stdlibErrors.As(err, &ee) {
+	if ee, ok := stdlibErrors.AsType[*exec.ExitError](err); ok {
 		return ee.ExitCode(), true
 	}
 	return 0, false

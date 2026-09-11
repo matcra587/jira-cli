@@ -505,7 +505,7 @@ func parseExampleBlocks(example string) []exampleBlock {
 			cur = exampleBlock{}
 		}
 	}
-	for _, raw := range strings.Split(example, "\n") {
+	for raw := range strings.SplitSeq(example, "\n") {
 		line := strings.TrimSpace(raw)
 		switch {
 		case line == "":

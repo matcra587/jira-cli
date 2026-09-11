@@ -61,7 +61,7 @@ func TestStackSelfFramed(t *testing.T) {
 
 	t.Run("self-framed dialog is placed verbatim", func(t *testing.T) {
 		s := New(bordered)
-		s.Push(selfFramedStub{stubDialog: stubDialog{body: "PAYLOAD"}, self: true})
+		s.Push(selfFramedStub{body: "PAYLOAD", self: true})
 		got := s.View(backdrop, 40, 12)
 		if !strings.Contains(got, "PAYLOAD") {
 			t.Fatalf("self-framed content missing:\n%s", got)
@@ -151,8 +151,8 @@ func TestShellTooNarrowShowsNoticeNotGarbage(t *testing.T) {
 	t.Run("footered frame", func(t *testing.T) {
 		s := New(shell)
 		s.Push(footeredStub{
-			scrollHintStub: scrollHintStub{stubDialog: stubDialog{body: wide}},
-			footer:         "hints",
+			body:   wide,
+			footer: "hints",
 		})
 		got := s.View(backdrop, 40, 12)
 		if !strings.Contains(got, "too narrow") {
@@ -358,7 +358,7 @@ func TestStackInputGrace(t *testing.T) {
 		closeGraced(s, c, stubDialog{result: ResultClose})
 
 		c.advance(100 * time.Millisecond)
-		s.PushWithGrace(selfFramedStub{stubDialog: stubDialog{seen: &seen}})
+		s.PushWithGrace(selfFramedStub{seen: &seen})
 		c.advance(10 * time.Millisecond)
 		s.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
 		if len(seen) != 0 {
@@ -491,7 +491,7 @@ func TestShellFollowsFocus(t *testing.T) {
 
 	t.Run("a hint scrolls the region into view", func(t *testing.T) {
 		s := New(shell)
-		s.Push(scrollHintStub{stubDialog: stubDialog{body: body}, top: 27, height: 1})
+		s.Push(scrollHintStub{body: body, top: 27, height: 1})
 		got := s.View(backdrop, 40, 40)
 		if !strings.Contains(got, "L27") {
 			t.Fatalf("hinted line should scroll into view:\n%s", got)
@@ -526,8 +526,8 @@ func TestShellPinsFooterWhileBodyScrolls(t *testing.T) {
 	s := New(shell)
 	// Focus is on the last body line; the footer must still be pinned on screen.
 	s.Push(footeredStub{
-		scrollHintStub: scrollHintStub{stubDialog: stubDialog{body: strings.Join(lines, "\n")}, top: 29, height: 1},
-		footer:         "PINNED-FOOT",
+		body: strings.Join(lines, "\n"), top: 29, height: 1,
+		footer: "PINNED-FOOT",
 	})
 	got := s.View(backdrop, 40, 40)
 	if !strings.Contains(got, "PINNED-FOOT") {

@@ -57,7 +57,9 @@ type Pagination = envelope.Pagination
 
 // KnownTotal wraps an authoritative total for Pagination.Total. Only call
 // it with a value the endpoint actually reported.
-func KnownTotal(total int) *int { return &total }
+//
+//go:fix inline
+func KnownTotal(total int) *int { return new(total) }
 
 // Error is one structured failure entry in the envelope errors slice.
 // type, code, message, hint, and retryable are always present; agents

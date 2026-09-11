@@ -212,7 +212,7 @@ func TestCachePathTraversalSafe(t *testing.T) {
 // missing OR a fully-decodable Entry — never a stray temp-file.
 func TestCacheAtomicWrite(t *testing.T) {
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		if _, err := cache.Write("default", "labels", json.RawMessage(`["x"]`)); err != nil {
 			t.Fatalf("Write iter %d: %v", i, err)
 		}

@@ -38,7 +38,7 @@ func TestIssueServiceListGetPaginationAndRateLimit(t *testing.T) {
 	defer srv.Close()
 
 	service := jira.NewIssueService(jira.NewClient(jira.WithBaseURL(srv.URL + "/")))
-	issues, resp, err := service.List(context.Background(), &jira.IssueListOptions{ListOptions: jira.ListOptions{MaxResults: 50}})
+	issues, resp, err := service.List(context.Background(), &jira.IssueListOptions{MaxResults: 50})
 	if err != nil {
 		t.Fatalf("List() error = %v", err)
 	}

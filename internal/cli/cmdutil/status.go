@@ -83,8 +83,7 @@ func spinVerb(cmd *cobra.Command, verb cli.OperationVerb, fn func(context.Contex
 		event := logger.Debug().Duration("time", elapsed, duration.WithMinimum(0), duration.WithGradientMax(debugTimeGradientMax))
 		// Surface the HTTP status as its own field rather than burying it in
 		// the reason string, so failures stay greppable (status=403).
-		var apiErr *jira.APIError
-		if errors.As(err, &apiErr) {
+		if apiErr, ok := errors.AsType[*jira.APIError](err); ok {
 			event = event.Int("status", apiErr.StatusCode)
 		}
 		// The error text embeds Jira-supplied messages, so the reason field

@@ -25,7 +25,6 @@ func TestNonDryRunMutationsRequireConfiguredJiraClient(t *testing.T) {
 		{"epic add", []string{"epic", "add", "PROJ-1", "EPIC-1", "--no-input", "--output=json"}},
 		{"epic remove", []string{"epic", "remove", "PROJ-1", "--no-input", "--output=json"}},
 	} {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			cmd := exec.Command(bin, append([]string{"--config", cfg}, tc.args...)...)
 			var stdout, stderr bytes.Buffer

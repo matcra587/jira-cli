@@ -3,6 +3,7 @@ package contract
 import (
 	"encoding/json"
 	"os/exec"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -83,10 +84,5 @@ func keysOf(m map[string]any) []string {
 }
 
 func contains(s []string, v string) bool {
-	for _, x := range s {
-		if x == v {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(s, v)
 }

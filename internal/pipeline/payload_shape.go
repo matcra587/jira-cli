@@ -1,5 +1,7 @@
 package pipeline
 
+import "maps"
+
 // FieldsFromPayload accepts both --json-input payload shapes and returns
 // the field set. The Jira-native form nests everything under a top-level
 // "fields" object, matching the REST API; the flat convenience form puts
@@ -18,9 +20,7 @@ func FieldsFromPayload(payload map[string]any) map[string]any {
 		return payload
 	}
 	merged := make(map[string]any, len(fields)+len(payload))
-	for k, v := range fields {
-		merged[k] = v
-	}
+	maps.Copy(merged, fields)
 	for k, v := range payload {
 		if k == "fields" {
 			continue

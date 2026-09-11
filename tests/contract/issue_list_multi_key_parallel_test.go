@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -124,11 +125,11 @@ func TestIssueListKeyRangesKeepRequestedOrderWhenJiraReturnsChunkOutOfOrder(t *t
 		keys := keyPattern.FindAllString(payload.JQL, -1)
 		var body strings.Builder
 		body.WriteString(`{"isLast":true,"issues":[`)
-		for i := len(keys) - 1; i >= 0; i-- {
+		for i, key := range slices.Backward(keys) {
 			if i != len(keys)-1 {
 				body.WriteByte(',')
 			}
-			key := keys[i]
+
 			_, _ = fmt.Fprintf(&body, `{"id":"%[1]s","key":"%[1]s","fields":{"summary":"%[1]s summary"}}`, key)
 		}
 		body.WriteString(`]}`)

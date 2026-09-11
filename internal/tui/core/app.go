@@ -415,10 +415,7 @@ func (a App) View() tea.View {
 	// Pin the body to the exact region between chrome so the footer stays anchored
 	// to the bottom and a short section can't let it float up (or a tall one push
 	// it off-screen).
-	bodyH := a.ctx.ScreenHeight - chromeRows
-	if bodyH < 0 {
-		bodyH = 0
-	}
+	bodyH := max(a.ctx.ScreenHeight-chromeRows, 0)
 	body = lipgloss.NewStyle().
 		Width(a.ctx.ScreenWidth).
 		Height(bodyH).

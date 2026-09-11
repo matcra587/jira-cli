@@ -2,6 +2,7 @@ package contract
 
 import (
 	"encoding/json"
+	"slices"
 	"testing"
 )
 
@@ -110,10 +111,5 @@ func decodeSchemaObjectMap(t *testing.T, value any) map[string]schemaObject {
 }
 
 func containsString(values []string, want string) bool {
-	for _, value := range values {
-		if value == want {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(values, want)
 }

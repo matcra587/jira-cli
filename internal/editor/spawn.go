@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/gechr/x/shell"
@@ -53,10 +54,8 @@ func refuseIfNonBlocking(parts []string) error {
 		return nil
 	}
 	for _, arg := range parts[1:] {
-		for _, wf := range waitFlags {
-			if arg == wf {
-				return nil
-			}
+		if slices.Contains(waitFlags, arg) {
+			return nil
 		}
 	}
 	canonical := waitFlags[0]

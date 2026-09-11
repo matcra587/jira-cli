@@ -18,9 +18,9 @@ import (
 )
 
 func TestClientDryRunRefusesMutatingMethods(t *testing.T) {
-	var hits int32
+	var hits atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		atomic.AddInt32(&hits, 1)
+		hits.Add(1)
 		t.Errorf("dry-run client reached the server: %s %s", r.Method, r.URL.Path)
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -41,15 +41,15 @@ func TestClientDryRunRefusesMutatingMethods(t *testing.T) {
 			t.Fatalf("Do(%s) error = %v; want a dry-run refusal", method, err)
 		}
 	}
-	if n := atomic.LoadInt32(&hits); n != 0 {
+	if n := hits.Load(); n != 0 {
 		t.Fatalf("dry-run client made %d live request(s); want 0", n)
 	}
 }
 
 func TestClientDryRunAllowsSafeReads(t *testing.T) {
-	var gets int32
+	var gets atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		atomic.AddInt32(&gets, 1)
+		gets.Add(1)
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{}`))
 	}))
@@ -63,7 +63,7 @@ func TestClientDryRunAllowsSafeReads(t *testing.T) {
 	if _, err := client.Do(req, nil); err != nil {
 		t.Fatalf("Do(GET) under dry-run error = %v; reads must still be allowed", err)
 	}
-	if n := atomic.LoadInt32(&gets); n != 1 {
+	if n := gets.Load(); n != 1 {
 		t.Fatalf("expected the GET to reach the server, got %d hits", n)
 	}
 }

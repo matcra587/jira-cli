@@ -65,7 +65,7 @@ func walkCommandTree(cmd *cobra.Command, into map[string]string) {
 // any. The directive is a comma list of tokens (e.g. "predictor=cachefield,comma");
 // only the predictor= token identifies a handler the CLI must implement.
 func predictorFromDirective(directive string) (string, bool) {
-	for _, part := range strings.Split(directive, ",") {
+	for part := range strings.SplitSeq(directive, ",") {
 		if rest, ok := strings.CutPrefix(part, "predictor="); ok {
 			return rest, true
 		}
@@ -77,14 +77,14 @@ func predictorFromDirective(directive string) (string, bool) {
 // annotation, e.g. "dynamic-args='configkey,configvalue'" -> [configkey configvalue].
 func dynamicArgsPredictors(annotation string) []string {
 	const key = "dynamic-args='"
-	start := strings.Index(annotation, key)
-	if start < 0 {
+	_, after, ok := strings.Cut(annotation, key)
+	if !ok {
 		return nil
 	}
-	rest := annotation[start+len(key):]
-	end := strings.IndexByte(rest, '\'')
-	if end < 0 {
+	rest := after
+	before0, _, ok0 := strings.Cut(rest, "'")
+	if !ok0 {
 		return nil
 	}
-	return strings.Split(rest[:end], ",")
+	return strings.Split(before0, ",")
 }

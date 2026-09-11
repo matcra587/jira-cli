@@ -19,7 +19,7 @@ func TestEpicServiceListMembershipAndStatusCounts(t *testing.T) {
 	if err != nil || len(epics) != 1 {
 		t.Fatalf("List() = %+v err=%v", epics, err)
 	}
-	counts := jira.StatusCounts([]*jira.Issue{{Fields: &jira.IssueFields{Status: &jira.Status{Name: jira.String("Done")}}}})
+	counts := jira.StatusCounts([]*jira.Issue{{Fields: &jira.IssueFields{Status: &jira.Status{Name: new("Done")}}}})
 	if counts["Done"] != 1 {
 		t.Fatalf("counts = %+v", counts)
 	}

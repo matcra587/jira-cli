@@ -203,8 +203,7 @@ func ClassifyCredentialError(err error, backend string) *CredentialError {
 	if err == nil {
 		return nil
 	}
-	var alreadyTyped *CredentialError
-	if errors.As(err, &alreadyTyped) {
+	if alreadyTyped, ok := errors.AsType[*CredentialError](err); ok {
 		return alreadyTyped
 	}
 	if errors.Is(err, ErrCredentialNotFound) {

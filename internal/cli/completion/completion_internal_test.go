@@ -89,7 +89,7 @@ func TestHandlerWritesDynamicCandidatesToInjectedWriter(t *testing.T) {
 	if got == "" {
 		t.Fatal("dynamic completion emitted no candidates")
 	}
-	for _, line := range strings.Split(strings.TrimSpace(got), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSpace(got), "\n") {
 		if strings.ContainsAny(line, "\r\t") {
 			t.Fatalf("dynamic completion emitted non-candidate text %q", line)
 		}
@@ -105,8 +105,7 @@ func TestHandlerReturnsFirstDynamicCandidateWriteFailure(t *testing.T) {
 	if !errors.Is(handler.Err(), writeErr) {
 		t.Fatalf("handler.Err() = %v, want writer failure", handler.Err())
 	}
-	var outputErr *cli.OutputError
-	if !errors.As(handler.Err(), &outputErr) {
+	if _, ok := errors.AsType[*cli.OutputError](handler.Err()); !ok {
 		t.Fatalf("handler.Err() type = %T, want *cli.OutputError", handler.Err())
 	}
 	if stdout.writes != 1 {
@@ -121,8 +120,7 @@ func TestHandlerReturnsDynamicCandidateShortWrite(t *testing.T) {
 	if !errors.Is(handler.Err(), io.ErrShortWrite) {
 		t.Fatalf("handler.Err() = %v, want io.ErrShortWrite", handler.Err())
 	}
-	var outputErr *cli.OutputError
-	if !errors.As(handler.Err(), &outputErr) {
+	if _, ok := errors.AsType[*cli.OutputError](handler.Err()); !ok {
 		t.Fatalf("handler.Err() type = %T, want *cli.OutputError", handler.Err())
 	}
 }

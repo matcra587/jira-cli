@@ -377,38 +377,38 @@ func applyEnv(cfg *Config) {
 			continue
 		}
 		name, field := rest[:idx], rest[idx+1:]
-		if strings.HasSuffix(rest, "_BASE_URL") {
-			name, field = strings.TrimSuffix(rest, "_BASE_URL"), "BASE_URL"
+		if before, ok0 := strings.CutSuffix(rest, "_BASE_URL"); ok0 {
+			name, field = before, "BASE_URL"
 		}
-		if strings.HasSuffix(rest, "_AUTH_TYPE") {
-			name, field = strings.TrimSuffix(rest, "_AUTH_TYPE"), "AUTH_TYPE"
+		if before, ok0 := strings.CutSuffix(rest, "_AUTH_TYPE"); ok0 {
+			name, field = before, "AUTH_TYPE"
 		}
-		if strings.HasSuffix(rest, "_REFRESH_INTERVAL") {
-			name, field = strings.TrimSuffix(rest, "_REFRESH_INTERVAL"), "REFRESH_INTERVAL"
+		if before, ok0 := strings.CutSuffix(rest, "_REFRESH_INTERVAL"); ok0 {
+			name, field = before, "REFRESH_INTERVAL"
 		}
-		if strings.HasSuffix(rest, "_SECRET_BACKEND") {
-			name, field = strings.TrimSuffix(rest, "_SECRET_BACKEND"), "SECRET_BACKEND"
+		if before, ok0 := strings.CutSuffix(rest, "_SECRET_BACKEND"); ok0 {
+			name, field = before, "SECRET_BACKEND"
 		}
-		if strings.HasSuffix(rest, "_WORKDAY_SECONDS") {
-			name, field = strings.TrimSuffix(rest, "_WORKDAY_SECONDS"), "WORKDAY_SECONDS"
+		if before, ok0 := strings.CutSuffix(rest, "_WORKDAY_SECONDS"); ok0 {
+			name, field = before, "WORKDAY_SECONDS"
 		}
-		if strings.HasSuffix(rest, "_ONEPASSWORD_ACCOUNT") {
-			name, field = strings.TrimSuffix(rest, "_ONEPASSWORD_ACCOUNT"), "ONEPASSWORD_ACCOUNT"
+		if before, ok0 := strings.CutSuffix(rest, "_ONEPASSWORD_ACCOUNT"); ok0 {
+			name, field = before, "ONEPASSWORD_ACCOUNT"
 		}
-		if strings.HasSuffix(rest, "_DEFAULT_PROJECT") {
-			name, field = strings.TrimSuffix(rest, "_DEFAULT_PROJECT"), "DEFAULT_PROJECT"
+		if before, ok0 := strings.CutSuffix(rest, "_DEFAULT_PROJECT"); ok0 {
+			name, field = before, "DEFAULT_PROJECT"
 		}
-		if strings.HasSuffix(rest, "_DEFAULT_ISSUE_TYPE") {
-			name, field = strings.TrimSuffix(rest, "_DEFAULT_ISSUE_TYPE"), "DEFAULT_ISSUE_TYPE"
+		if before, ok0 := strings.CutSuffix(rest, "_DEFAULT_ISSUE_TYPE"); ok0 {
+			name, field = before, "DEFAULT_ISSUE_TYPE"
 		}
-		if strings.HasSuffix(rest, "_DEFAULT_BOARD") {
-			name, field = strings.TrimSuffix(rest, "_DEFAULT_BOARD"), "DEFAULT_BOARD"
+		if before, ok0 := strings.CutSuffix(rest, "_DEFAULT_BOARD"); ok0 {
+			name, field = before, "DEFAULT_BOARD"
 		}
-		if strings.HasSuffix(rest, "_MTLS_CERT_REF") {
-			name, field = strings.TrimSuffix(rest, "_MTLS_CERT_REF"), "MTLS_CERT_REF"
+		if before, ok0 := strings.CutSuffix(rest, "_MTLS_CERT_REF"); ok0 {
+			name, field = before, "MTLS_CERT_REF"
 		}
-		if strings.HasSuffix(rest, "_MTLS_KEY_REF") {
-			name, field = strings.TrimSuffix(rest, "_MTLS_KEY_REF"), "MTLS_KEY_REF"
+		if before, ok0 := strings.CutSuffix(rest, "_MTLS_KEY_REF"); ok0 {
+			name, field = before, "MTLS_KEY_REF"
 		}
 		name = strings.ToLower(strings.ReplaceAll(name, "_", "-"))
 		setProfileEnv(cfg, name, field, val)

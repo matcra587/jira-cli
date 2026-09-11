@@ -99,8 +99,7 @@ func schemaOfType(t reflect.Type, visited map[reflect.Type]bool) map[string]any 
 }
 
 func collectStructFields(t reflect.Type, properties map[string]any, required *[]string, visited map[reflect.Type]bool) {
-	for i := range t.NumField() {
-		f := t.Field(i)
+	for f := range t.Fields() {
 		if !f.IsExported() {
 			continue
 		}

@@ -323,7 +323,7 @@ func (s *issueService) Create(ctx context.Context, reqBody *IssueCreateRequest) 
 		return nil, nil, errors.New("summary is required")
 	}
 	if reqBody.DryRun {
-		return &Issue{Key: String("DRY-RUN")}, &Response{IsLast: true}, nil
+		return &Issue{Key: new("DRY-RUN")}, &Response{IsLast: true}, nil
 	}
 	req, err := s.client.NewRequest(ctx, http.MethodPost, RESTPath("issue"), reqBody.payload())
 	if err != nil {
@@ -338,7 +338,7 @@ func (s *issueService) Create(ctx context.Context, reqBody *IssueCreateRequest) 
 // DryRun it returns a synthetic issue for the key without contacting Jira.
 func (s *issueService) Update(ctx context.Context, key string, reqBody *IssueUpdateRequest) (*Issue, *Response, error) {
 	if reqBody != nil && reqBody.DryRun {
-		return &Issue{Key: String(key)}, &Response{IsLast: true}, nil
+		return &Issue{Key: new(key)}, &Response{IsLast: true}, nil
 	}
 	req, err := s.client.NewRequest(ctx, http.MethodPut, RESTPath("issue", key), reqBody.payload())
 	if err != nil {
@@ -479,7 +479,7 @@ func (s *issueService) AddComment(ctx context.Context, key string, reqBody *Comm
 		return nil, nil, errors.New("comment body is required")
 	}
 	if reqBody.DryRun {
-		return &Comment{ID: String("DRY-RUN")}, &Response{IsLast: true}, nil
+		return &Comment{ID: new("DRY-RUN")}, &Response{IsLast: true}, nil
 	}
 	req, err := s.client.NewRequest(ctx, http.MethodPost, RESTPath("issue", key, "comment"), reqBody)
 	if err != nil {
@@ -594,7 +594,7 @@ func (s *issueService) Clone(ctx context.Context, sourceKey string, reqBody *Iss
 	merged := fieldsToClone(srcFields, overrides)
 
 	if reqBody != nil && reqBody.DryRun {
-		return &Issue{Key: String("DRY-RUN")}, &Response{IsLast: true}, nil
+		return &Issue{Key: new("DRY-RUN")}, &Response{IsLast: true}, nil
 	}
 
 	postReq, err := s.client.NewRequest(ctx, http.MethodPost, RESTPath("issue"), map[string]any{"fields": merged})

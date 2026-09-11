@@ -179,8 +179,7 @@ func FromFlags(cmd *cobra.Command) (jira.BoardScope, string, error) {
 // returned for explicit --board NAME / --board-id N remains classified as
 // not_found (exit 2) by the error mapper's default substring rules.
 func classifyErr(err error) error {
-	var ambig *jira.AmbiguousBoardError
-	if stdliberrors.As(err, &ambig) {
+	if ambig, ok := stdliberrors.AsType[*jira.AmbiguousBoardError](err); ok {
 		cands := make([]map[string]any, 0, len(ambig.Candidates))
 		for _, b := range ambig.Candidates {
 			row := map[string]any{}

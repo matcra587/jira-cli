@@ -153,12 +153,7 @@ func sectionHasFlagGroup(section help.Section) bool {
 }
 
 func helpSectionsContainFlags(sections []help.Section) bool {
-	for _, section := range sections {
-		if sectionHasFlagGroup(section) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(sections, sectionHasFlagGroup)
 }
 
 func markUsageWithOptions(sections []help.Section) {

@@ -18,9 +18,9 @@ import (
 // is local-only: a server that fails the test on ANY request must see
 // none. The previous behavior resolved the user via a live GET.
 func TestWatcherAddDryRunPerformsNoLiveCalls(t *testing.T) {
-	var hits int32
+	var hits atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		atomic.AddInt32(&hits, 1)
+		hits.Add(1)
 		t.Errorf("dry-run made a live request: %s %s", r.Method, r.URL.Path)
 		w.WriteHeader(http.StatusNotFound)
 	}))
@@ -32,7 +32,7 @@ func TestWatcherAddDryRunPerformsNoLiveCalls(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("watch --dry-run exit = %d\nstdout=%s\nstderr=%s", code, stdout, stderr)
 	}
-	if n := atomic.LoadInt32(&hits); n != 0 {
+	if n := hits.Load(); n != 0 {
 		t.Fatalf("watch --dry-run made %d live request(s); dry-run must be local-only", n)
 	}
 	var env struct {
@@ -48,9 +48,9 @@ func TestWatcherAddDryRunPerformsNoLiveCalls(t *testing.T) {
 
 // TestWatcherRemoveDryRunPerformsNoLiveCalls — same contract for unwatch.
 func TestWatcherRemoveDryRunPerformsNoLiveCalls(t *testing.T) {
-	var hits int32
+	var hits atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		atomic.AddInt32(&hits, 1)
+		hits.Add(1)
 		t.Errorf("dry-run made a live request: %s %s", r.Method, r.URL.Path)
 		w.WriteHeader(http.StatusNotFound)
 	}))
@@ -62,7 +62,7 @@ func TestWatcherRemoveDryRunPerformsNoLiveCalls(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("unwatch --dry-run exit = %d\nstdout=%s\nstderr=%s", code, stdout, stderr)
 	}
-	if n := atomic.LoadInt32(&hits); n != 0 {
+	if n := hits.Load(); n != 0 {
 		t.Fatalf("unwatch --dry-run made %d live request(s); dry-run must be local-only", n)
 	}
 }
@@ -71,7 +71,7 @@ func TestWatcherRemoveDryRunPerformsNoLiveCalls(t *testing.T) {
 // explicit --validate-remote flag uses a read-only path: it resolves
 // the user (a GET) but never POSTs the watcher.
 func TestWatcherAddValidateRemoteResolvesUserButDoesNotMutate(t *testing.T) {
-	var posts int32
+	var posts atomic.Int32
 	mux := http.NewServeMux()
 	mux.HandleFunc("/rest/api/3/myself", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -79,7 +79,7 @@ func TestWatcherAddValidateRemoteResolvesUserButDoesNotMutate(t *testing.T) {
 	})
 	mux.HandleFunc("/rest/api/3/issue/JCT-1/watchers", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
-			atomic.AddInt32(&posts, 1)
+			posts.Add(1)
 			t.Errorf("--validate-remote must not POST the watcher")
 		}
 		w.WriteHeader(http.StatusOK)
@@ -93,7 +93,7 @@ func TestWatcherAddValidateRemoteResolvesUserButDoesNotMutate(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("watch --dry-run --validate-remote exit = %d\nstdout=%s\nstderr=%s", code, stdout, stderr)
 	}
-	if n := atomic.LoadInt32(&posts); n != 0 {
+	if n := posts.Load(); n != 0 {
 		t.Fatalf("--validate-remote sent %d POST(s); it must be read-only", n)
 	}
 	var env struct {
@@ -108,11 +108,11 @@ func TestWatcherAddValidateRemoteResolvesUserButDoesNotMutate(t *testing.T) {
 }
 
 func TestWatcherAddValidateRemoteRejectsInactiveAccountID(t *testing.T) {
-	var posts int32
-	var userLookups int32
+	var posts atomic.Int32
+	var userLookups atomic.Int32
 	mux := http.NewServeMux()
 	mux.HandleFunc("/rest/api/3/user", func(w http.ResponseWriter, r *http.Request) {
-		atomic.AddInt32(&userLookups, 1)
+		userLookups.Add(1)
 		if got := r.URL.Query().Get("accountId"); got != "inactive" {
 			t.Fatalf("accountId query = %q, want inactive", got)
 		}
@@ -121,7 +121,7 @@ func TestWatcherAddValidateRemoteRejectsInactiveAccountID(t *testing.T) {
 	})
 	mux.HandleFunc("/rest/api/3/issue/JCT-1/watchers", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
-			atomic.AddInt32(&posts, 1)
+			posts.Add(1)
 			t.Errorf("--validate-remote must not POST the watcher")
 		}
 		w.WriteHeader(http.StatusOK)
@@ -135,10 +135,10 @@ func TestWatcherAddValidateRemoteRejectsInactiveAccountID(t *testing.T) {
 	if code == 0 {
 		t.Fatalf("watch --dry-run --validate-remote accepted inactive account\nstdout=%s\nstderr=%s", stdout, stderr)
 	}
-	if n := atomic.LoadInt32(&userLookups); n != 1 {
+	if n := userLookups.Load(); n != 1 {
 		t.Fatalf("--validate-remote made %d user lookup(s), want 1", n)
 	}
-	if n := atomic.LoadInt32(&posts); n != 0 {
+	if n := posts.Load(); n != 0 {
 		t.Fatalf("--validate-remote sent %d POST(s); it must be read-only", n)
 	}
 }
@@ -147,9 +147,9 @@ func TestWatcherAddValidateRemoteRejectsInactiveAccountID(t *testing.T) {
 // must do honest LOCAL validation. A syntactically invalid URL must be
 // caught without contacting Jira.
 func TestWeblinkDryRunRejectsMalformedURLLocally(t *testing.T) {
-	var hits int32
+	var hits atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		atomic.AddInt32(&hits, 1)
+		hits.Add(1)
 		t.Errorf("weblink --dry-run made a live request: %s %s", r.Method, r.URL.Path)
 		w.WriteHeader(http.StatusNotFound)
 	}))
@@ -161,7 +161,7 @@ func TestWeblinkDryRunRejectsMalformedURLLocally(t *testing.T) {
 	if code == 0 {
 		t.Fatalf("weblink --dry-run accepted a malformed URL; want local validation failure")
 	}
-	if n := atomic.LoadInt32(&hits); n != 0 {
+	if n := hits.Load(); n != 0 {
 		t.Fatalf("weblink --dry-run made %d live request(s); URL validation must be local-only", n)
 	}
 	assertWeblinkURLErrorEnvelope(t, stdout, stderr, []string{
@@ -171,9 +171,9 @@ func TestWeblinkDryRunRejectsMalformedURLLocally(t *testing.T) {
 }
 
 func TestWeblinkRejectsMissingURLWithSpecificCode(t *testing.T) {
-	var hits int32
+	var hits atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		atomic.AddInt32(&hits, 1)
+		hits.Add(1)
 		t.Errorf("weblink with missing --url made a live request: %s %s", r.Method, r.URL.Path)
 		w.WriteHeader(http.StatusNotFound)
 	}))
@@ -185,7 +185,7 @@ func TestWeblinkRejectsMissingURLWithSpecificCode(t *testing.T) {
 	if code == 0 {
 		t.Fatalf("weblink --dry-run accepted a missing --url; want required-flag failure")
 	}
-	if n := atomic.LoadInt32(&hits); n != 0 {
+	if n := hits.Load(); n != 0 {
 		t.Fatalf("weblink with missing --url made %d live request(s); required-flag validation must be local-only", n)
 	}
 	assertWeblinkURLErrorEnvelope(t, stdout, stderr, []string{

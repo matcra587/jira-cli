@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -301,12 +302,7 @@ func floatFront(order []core.SectionID, id core.SectionID) []core.SectionID {
 }
 
 func contains(ids []core.SectionID, id core.SectionID) bool {
-	for _, x := range ids {
-		if x == id {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(ids, id)
 }
 
 // servicesAdapter satisfies core.Services by delegating to the CLI's service

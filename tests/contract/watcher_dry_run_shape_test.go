@@ -20,9 +20,9 @@ import (
 // locally-derivable accountId:<id> populates account_id_resolved in the
 // dry-run preview WITHOUT any live request.
 func TestWatcherDryRunAccountIDPrefixResolvesLocally(t *testing.T) {
-	var hits int32
+	var hits atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		atomic.AddInt32(&hits, 1)
+		hits.Add(1)
 		t.Errorf("dry-run made a live request: %s %s", r.Method, r.URL.Path)
 		w.WriteHeader(http.StatusNotFound)
 	}))
@@ -34,7 +34,7 @@ func TestWatcherDryRunAccountIDPrefixResolvesLocally(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("watchers add --dry-run exit = %d\nstdout=%s\nstderr=%s", code, stdout, stderr)
 	}
-	if n := atomic.LoadInt32(&hits); n != 0 {
+	if n := hits.Load(); n != 0 {
 		t.Fatalf("accountId dry-run made %d live request(s); must be local-only", n)
 	}
 	var env struct {
@@ -65,9 +65,9 @@ func TestWatcherDryRunAccountIDPrefixResolvesLocally(t *testing.T) {
 // genuinely needs remote resolution — is echoed back unresolved in the
 // dry-run preview, with no account_id_resolved and no live call.
 func TestWatcherDryRunNameEchoesUnresolved(t *testing.T) {
-	var hits int32
+	var hits atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		atomic.AddInt32(&hits, 1)
+		hits.Add(1)
 		t.Errorf("dry-run made a live request: %s %s", r.Method, r.URL.Path)
 		w.WriteHeader(http.StatusNotFound)
 	}))
@@ -79,7 +79,7 @@ func TestWatcherDryRunNameEchoesUnresolved(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("watchers add --dry-run exit = %d\nstdout=%s\nstderr=%s", code, stdout, stderr)
 	}
-	if n := atomic.LoadInt32(&hits); n != 0 {
+	if n := hits.Load(); n != 0 {
 		t.Fatalf("name dry-run made %d live request(s); must be local-only", n)
 	}
 	var env struct {

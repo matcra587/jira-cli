@@ -59,8 +59,7 @@ func TestFailureDiagnosticsSurfaceDestinationFailures(t *testing.T) {
 			if !errors.Is(err, tt.cause) {
 				t.Fatalf("diagnostic error = %v, want %v", err, tt.cause)
 			}
-			var outputErr *OutputError
-			if !errors.As(err, &outputErr) {
+			if _, ok := errors.AsType[*OutputError](err); !ok {
 				t.Fatalf("diagnostic error type = %T, want *OutputError", err)
 			}
 		})

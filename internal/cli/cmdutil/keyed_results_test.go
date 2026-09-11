@@ -36,8 +36,7 @@ func TestWriteKeyedResultsEnvelopeKeepsPartialFailurePrimary(t *testing.T) {
 	if !errors.Is(err, writeErr) {
 		t.Fatalf("WriteKeyedResultsEnvelope() error = %v, want writer cause", err)
 	}
-	var outputErr *cli.OutputError
-	if !errors.As(err, &outputErr) {
+	if _, ok := errors.AsType[*cli.OutputError](err); !ok {
 		t.Fatalf("WriteKeyedResultsEnvelope() error type = %T, want *cli.OutputError", err)
 	}
 	mapped := cli.MapError(err)

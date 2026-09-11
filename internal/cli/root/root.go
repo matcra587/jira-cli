@@ -583,8 +583,7 @@ func trackRootCommandOutput(root *cobra.Command) func(error) error {
 
 	return func(commandErr error) error {
 		stderrErr := stderr.Err()
-		var attachedStderrErr *commandStderrWriteError
-		if errors.As(commandErr, &attachedStderrErr) {
+		if _, ok := errors.AsType[*commandStderrWriteError](commandErr); ok {
 			// A failed command diagnostic is already attached by
 			// writeCommandError through its render-local tracker. Do not add
 			// the same persistent stderr failure a second time.
@@ -732,12 +731,10 @@ func writeCommandError(ctx context.Context, cmd *cobra.Command, err error) error
 	if err == nil {
 		return nil
 	}
-	var reported cmdutil.DiagnosticWrittenError
-	if errors.As(err, &reported) {
+	if _, ok := errors.AsType[cmdutil.DiagnosticWrittenError](err); ok {
 		return nil
 	}
-	var outputErr *cli.OutputError
-	if errors.As(err, &outputErr) {
+	if _, ok := errors.AsType[*cli.OutputError](err); ok {
 		// The command already failed while writing its result. Re-rendering
 		// that failure would write to the same failed destination again.
 		return nil
@@ -751,8 +748,7 @@ func writeCommandError(ctx context.Context, cmd *cobra.Command, err error) error
 		// watcher add ambiguous-resolution) already wrote their own richer,
 		// data-bearing envelope to stdout and signal that with an
 		// EnvelopeWritten wrapper; don't write a second one over it.
-		var ew cmdutil.EnvelopeWrittenError
-		if !errors.As(err, &ew) {
+		if _, ok := errors.AsType[cmdutil.EnvelopeWrittenError](err); !ok {
 			return writeErrorEnvelopeToStdout(cmd, err) //nolint:contextcheck // the jq filter runs under the command context captured at resolve time
 		}
 		return nil

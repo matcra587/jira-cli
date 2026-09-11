@@ -97,8 +97,8 @@ func cutFrontmatter(body, delimiter string) (string, string, bool) {
 	if head, tail, ok := strings.Cut(rest, end); ok {
 		return head, tail, true
 	}
-	if strings.HasSuffix(rest, "\n"+delimiter) {
-		return strings.TrimSuffix(rest, "\n"+delimiter), "", true
+	if before, ok := strings.CutSuffix(rest, "\n"+delimiter); ok {
+		return before, "", true
 	}
 	return "", "", false
 }

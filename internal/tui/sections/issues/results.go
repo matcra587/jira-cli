@@ -280,18 +280,12 @@ func (r *results) busy() bool { return r.loading || r.loadingMore || r.detailLoa
 // status line and the column header.
 func (r *results) applySize(reservedHeaderRows int) {
 	r.headerRows = reservedHeaderRows // click hit-tests share the layout's header budget
-	h := r.ctx.MainHeight - reservedHeaderRows - 2
-	if h < 0 {
-		h = 0
-	}
+	h := max(r.ctx.MainHeight-reservedHeaderRows-2, 0)
 	r.list.SetSize(r.ctx.MainWidth, h)
 
 	// The detail view fills the body, reserving rows for its sub-tab pills and
 	// hint line, plus one column for the scrollbar.
-	dh := r.ctx.BodyHeight - reservedHeaderRows - 2
-	if dh < 0 {
-		dh = 0
-	}
+	dh := max(r.ctx.BodyHeight-reservedHeaderRows-2, 0)
 	r.detail.SetWidth(r.detailWidth())
 	r.detail.SetHeight(dh)
 	if r.detailIssue != nil {

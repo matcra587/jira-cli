@@ -117,7 +117,7 @@ $ jira search jql "project = PROJ AND status != Done" --fields key,summary,statu
 					// page boundary.
 					pagination := &cli.Pagination{
 						MaxResults: len(issues),
-						Total:      cli.KnownTotal(len(issues)),
+						Total:      new(len(issues)),
 						IsLast:     !info.Truncated,
 						NextCursor: info.NextPageToken, // pagination-exempt: opaque resume token from the drain
 					}

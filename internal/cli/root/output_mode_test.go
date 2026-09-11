@@ -150,8 +150,7 @@ func TestCommandFailureRemainsPrimaryWhenErrorEnvelopeWriteFails(t *testing.T) {
 	if !errors.Is(err, commandErr) || !errors.Is(err, writeErr) {
 		t.Fatalf("combined error = %v, want command and writer causes", err)
 	}
-	var outputErr *cli.OutputError
-	if !errors.As(err, &outputErr) {
+	if _, ok := errors.AsType[*cli.OutputError](err); !ok {
 		t.Fatalf("combined error type = %T, want discoverable *cli.OutputError", err)
 	}
 	mapped := outputErrorFor(err)

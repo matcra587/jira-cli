@@ -59,7 +59,7 @@ func TestIssueListPlainTableUsesPrimerFlexLinksAndStyles(t *testing.T) {
 		t.Fatalf("assignee cell was not color-styled by hash:\n%q", got)
 	}
 
-	for _, line := range strings.Split(stripped, "\n") {
+	for line := range strings.SplitSeq(stripped, "\n") {
 		if strings.Contains(line, "SAM1-7") && ansi.StringWidth(line) > 72 {
 			t.Fatalf("issue table row exceeded terminal width: width=%d line=%q", ansi.StringWidth(line), line)
 		}
@@ -73,12 +73,12 @@ func TestIssueListPlainDetailRendersFullIssuesAsTable(t *testing.T) {
 		"detail": true,
 		"issues": []*jira.Issue{
 			{
-				Key: jira.String("SAM1-7"),
+				Key: new("SAM1-7"),
 				Fields: &jira.IssueFields{
-					Summary:  jira.String("Create wallet integration"),
-					Status:   &jira.Status{Name: jira.String("In Progress")},
-					Assignee: &jira.User{DisplayName: jira.String("Riley Chen")},
-					Priority: &jira.Priority{Name: jira.String("High")},
+					Summary:  new("Create wallet integration"),
+					Status:   &jira.Status{Name: new("In Progress")},
+					Assignee: &jira.User{DisplayName: new("Riley Chen")},
+					Priority: &jira.Priority{Name: new("High")},
 				},
 			},
 		},

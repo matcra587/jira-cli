@@ -55,8 +55,8 @@ func resolverFixture(t *testing.T, profile string, boards []jira.Board) (*jira.C
 
 func TestResolveOneExactMatchCaseInsensitive(t *testing.T) {
 	client, cleanup := resolverFixture(t, "default", []jira.Board{
-		{ID: ptrInt(42), Name: ptrStr("Engineering Sprint"), Type: ptrStr("scrum"), ProjectKeys: []string{"ENG"}},
-		{ID: ptrInt(99), Name: ptrStr("Platform Roadmap"), Type: ptrStr("kanban"), ProjectKeys: []string{"PLAT"}},
+		{ID: new(42), Name: new("Engineering Sprint"), Type: new("scrum"), ProjectKeys: []string{"ENG"}},
+		{ID: new(99), Name: new("Platform Roadmap"), Type: new("kanban"), ProjectKeys: []string{"PLAT"}},
 	})
 	defer cleanup()
 	svc := jira.NewBoardService(client)
@@ -72,7 +72,7 @@ func TestResolveOneExactMatchCaseInsensitive(t *testing.T) {
 
 func TestResolveOneZeroMatchesReturnsErrBoardNotFound(t *testing.T) {
 	client, cleanup := resolverFixture(t, "default", []jira.Board{
-		{ID: ptrInt(42), Name: ptrStr("Engineering"), Type: ptrStr("scrum"), ProjectKeys: []string{"ENG"}},
+		{ID: new(42), Name: new("Engineering"), Type: new("scrum"), ProjectKeys: []string{"ENG"}},
 	})
 	defer cleanup()
 	svc := jira.NewBoardService(client)
@@ -85,8 +85,8 @@ func TestResolveOneZeroMatchesReturnsErrBoardNotFound(t *testing.T) {
 
 func TestResolveOneTwoOrMoreMatchesReturnsAmbiguousError(t *testing.T) {
 	client, cleanup := resolverFixture(t, "default", []jira.Board{
-		{ID: ptrInt(42), Name: ptrStr("Engineering"), Type: ptrStr("scrum"), ProjectKeys: []string{"ENG"}},
-		{ID: ptrInt(99), Name: ptrStr("engineering"), Type: ptrStr("kanban"), ProjectKeys: []string{"OPS"}},
+		{ID: new(42), Name: new("Engineering"), Type: new("scrum"), ProjectKeys: []string{"ENG"}},
+		{ID: new(99), Name: new("engineering"), Type: new("kanban"), ProjectKeys: []string{"OPS"}},
 	})
 	defer cleanup()
 	svc := jira.NewBoardService(client)
@@ -106,7 +106,7 @@ func TestResolveOneNoSubstringFallback(t *testing.T) {
 	// the link-type policy). Typing "eng" must NOT match "Engineering
 	// Sprint" — zero matches → not-found.
 	client, cleanup := resolverFixture(t, "default", []jira.Board{
-		{ID: ptrInt(42), Name: ptrStr("Engineering Sprint"), Type: ptrStr("scrum"), ProjectKeys: []string{"ENG"}},
+		{ID: new(42), Name: new("Engineering Sprint"), Type: new("scrum"), ProjectKeys: []string{"ENG"}},
 	})
 	defer cleanup()
 	svc := jira.NewBoardService(client)
@@ -121,7 +121,7 @@ func TestResolveOneUnicodeNamePreserved(t *testing.T) {
 	// Unicode in board names preserved verbatim through cache,
 	// completion, and resolver.
 	client, cleanup := resolverFixture(t, "default", []jira.Board{
-		{ID: ptrInt(42), Name: ptrStr("Café & Croissant 🥐"), Type: ptrStr("scrum"), ProjectKeys: []string{"FOOD"}},
+		{ID: new(42), Name: new("Café & Croissant 🥐"), Type: new("scrum"), ProjectKeys: []string{"FOOD"}},
 	})
 	defer cleanup()
 	svc := jira.NewBoardService(client)
@@ -136,5 +136,4 @@ func TestResolveOneUnicodeNamePreserved(t *testing.T) {
 }
 
 // ptr helpers — small *T = &T constructors for nullable fields.
-func ptrStr(s string) *string { return &s }
-func ptrInt(i int) *int       { return &i }
+//

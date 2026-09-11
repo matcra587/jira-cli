@@ -227,8 +227,7 @@ func TestDefaultBoardMissingExitsThreeWithPinnedWording(t *testing.T) {
 		t.Fatalf("expected non-zero exit; got success\nstdout:%s\nstderr:%s", stdout.String(), stderr.String())
 	}
 	exitCode := -1
-	var ee *exec.ExitError
-	if errors.As(err, &ee) {
+	if ee, ok := errors.AsType[*exec.ExitError](err); ok {
 		exitCode = ee.ExitCode()
 	}
 	if exitCode != 3 {

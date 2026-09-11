@@ -193,7 +193,7 @@ func TestIssueLifecycleEndToEnd(t *testing.T) {
 	if added.ID == nil || *added.ID != "500" {
 		t.Fatalf("comment.Add returned id %v", added.ID)
 	}
-	page, _, err := cs.List(ctx, "PROJ-1", &jira.ListCommentsOptions{ListOptions: jira.ListOptions{MaxResults: 50}})
+	page, _, err := cs.List(ctx, "PROJ-1", &jira.ListCommentsOptions{MaxResults: 50})
 	if err != nil {
 		t.Fatalf("comment.List: %v", err)
 	}

@@ -2,6 +2,7 @@ package issues
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 
@@ -88,10 +89,8 @@ func matchesFacet(i *jira.Issue, f facet) bool {
 	case "assignee":
 		return assigneeFacetValue(i) == f.value
 	case "label":
-		for _, l := range issueLabels(i) {
-			if l == f.value {
-				return true
-			}
+		if slices.Contains(issueLabels(i), f.value) {
+			return true
 		}
 	}
 	return false

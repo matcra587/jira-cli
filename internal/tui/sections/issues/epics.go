@@ -102,9 +102,9 @@ func (m *EpicsModel) fetchEpics() tea.Cmd {
 				return epicsResult{}, nil
 			}
 			issues, _, err := jira.ListIssuesPage(base, svc.Issues(), &jira.IssueListOptions{
-				JQL:         jql,
-				Fields:      fetchFields,
-				ListOptions: jira.ListOptions{MaxResults: epicFetchLimit},
+				JQL:        jql,
+				Fields:     fetchFields,
+				MaxResults: epicFetchLimit,
 			}, jira.PageCursor{})
 			if err != nil {
 				return nil, err
@@ -257,10 +257,7 @@ func (m *EpicsModel) View() string {
 // header is the two epic rows above the list: the key strip and a faint line
 // naming the active epic.
 func (m *EpicsModel) header() string {
-	w := m.ctx.MainWidth - 1
-	if w < 1 {
-		w = 1
-	}
+	w := max(m.ctx.MainWidth-1, 1)
 	if !m.epicsLoaded {
 		return theme.DetailDim.Render("loading epics…") + "\n"
 	}

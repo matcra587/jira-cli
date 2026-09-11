@@ -409,9 +409,9 @@ func frameFormLifecycle(t *testing.T, w, h int, writeErr error) (mid, settled st
 	t.Helper()
 	release := make(chan struct{})
 	svc := gatedIssueSvc{
-		fakeIssueSvc: fakeIssueSvc{issues: fixtureIssues()},
-		release:      release,
-		err:          writeErr,
+		issues:  fixtureIssues(),
+		release: release,
+		err:     writeErr,
 	}
 	var m tea.Model = buildAppWith(svc)
 	m = drive(t, m, m.(core.App).Init())
@@ -431,7 +431,7 @@ func opLogKey() tea.KeyPressMsg { return tea.KeyPressMsg{Text: "L", Code: 'L'} }
 func frameActivityLog(t *testing.T, w, h int) string {
 	t.Helper()
 	release := make(chan struct{})
-	svc := gatedIssueSvc{fakeIssueSvc: fakeIssueSvc{issues: fixtureIssues()}, release: release}
+	svc := gatedIssueSvc{issues: fixtureIssues(), release: release}
 	var m tea.Model = buildAppWith(svc)
 	m = drive(t, m, m.(core.App).Init())
 	m = drive(t, m, func() tea.Msg { return tea.WindowSizeMsg{Width: w, Height: h} })

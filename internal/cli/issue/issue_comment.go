@@ -189,7 +189,7 @@ func commentListEnvelopeData(ctx context.Context, svc jira.CommentService, key s
 		rateLimitHit = drained.RateLimitHit
 	} else {
 		comments, resp, err := svc.List(ctx, key, &jira.ListCommentsOptions{
-			ListOptions: jira.ListOptions{MaxResults: pageSize},
+			MaxResults: pageSize,
 		})
 		if err != nil {
 			return commentListReadResult{}, err
@@ -218,7 +218,7 @@ func commentListEnvelopeData(ctx context.Context, svc jira.CommentService, key s
 func commentListPagination(resp *jira.Response, all bool, rateLimitHit *jira.APIError) *cli.Pagination {
 	pagination := cmdutil.PaginationFromResponse(resp)
 	if pagination == nil {
-		return &cli.Pagination{IsLast: true, Total: cli.KnownTotal(0)}
+		return &cli.Pagination{IsLast: true, Total: new(0)}
 	}
 	switch {
 	case rateLimitHit != nil:

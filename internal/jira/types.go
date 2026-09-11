@@ -2,6 +2,7 @@ package jira
 
 import (
 	"encoding/json"
+	"maps"
 	"reflect"
 	"strings"
 
@@ -12,13 +13,19 @@ import (
 // this package use pointer fields to distinguish an absent field from a
 // zero-valued one (see the omitempty tags), so building a request payload needs
 // a way to take the address of a literal — these are that helper.
-func String(v string) *string { return &v }
+//
+//go:fix inline
+func String(v string) *string { return new(v) }
 
 // Int returns a pointer to v. See String for why these helpers exist.
-func Int(v int) *int { return &v }
+//
+//go:fix inline
+func Int(v int) *int { return new(v) }
 
 // Bool returns a pointer to v. See String for why these helpers exist.
-func Bool(v bool) *bool { return &v }
+//
+//go:fix inline
+func Bool(v bool) *bool { return new(v) }
 
 // Issue is the core issue resource returned by the issue and search endpoints.
 // Jira nests most data under fields, but this struct also hoists the commonly
@@ -306,9 +313,9 @@ func (f *IssueFields) OpenSchemaProperties() string {
 // other key is captured raw (CustomFields / Extra).
 var issueFieldsNamedKeys = func() map[string]bool {
 	keys := map[string]bool{}
-	t := reflect.TypeOf(IssueFields{})
-	for i := range t.NumField() {
-		tag, _, _ := strings.Cut(t.Field(i).Tag.Get("json"), ",")
+	t := reflect.TypeFor[IssueFields]()
+	for field := range t.Fields() {
+		tag, _, _ := strings.Cut(field.Tag.Get("json"), ",")
 		if tag != "" && tag != "-" {
 			keys[tag] = true
 		}
@@ -364,9 +371,7 @@ func (f IssueFields) MarshalJSON() ([]byte, error) {
 	}
 	delete(raw, "CustomFields")
 	delete(raw, "Extra")
-	for key, value := range f.CustomFields {
-		raw[key] = value
-	}
+	maps.Copy(raw, f.CustomFields)
 	for key, value := range f.Extra {
 		if _, named := raw[key]; !named {
 			raw[key] = value

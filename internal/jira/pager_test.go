@@ -25,8 +25,8 @@ func (f *fakePageLister) List(_ context.Context, opts *IssueListOptions) ([]*Iss
 func TestListIssuesPageThreadsCursor(t *testing.T) {
 	svc := &fakePageLister{
 		pages: [][]*Issue{
-			{{Key: String("A-1")}},
-			{{Key: String("A-2")}},
+			{{Key: new("A-1")}},
+			{{Key: new("A-2")}},
 		},
 		resps: []*Response{
 			{NextPageToken: "tok-2", IsLast: false},

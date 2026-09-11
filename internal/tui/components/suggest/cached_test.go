@@ -163,27 +163,23 @@ func TestGet(t *testing.T) {
 		c := New(ttl, source, clk.now)
 
 		var wg sync.WaitGroup
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			// Old, slow fetch: starts first (reserves the lower seq) but is
 			// released last.
 			if _, err := c.Get(ctx, "PROJ"); err != nil {
 				t.Errorf("old get error: %v", err)
 			}
-		}()
+		})
 
 		// Block until the old fetch has entered source and reserved its seq
 		// before starting the new one, so start order is deterministic.
 		<-entered[0]
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			if _, err := c.Get(ctx, "PROJ"); err != nil {
 				t.Errorf("new get error: %v", err)
 			}
-		}()
+		})
 		<-entered[1]
 
 		// Finish the NEW fetch first (commits "new"), then the OLD fetch

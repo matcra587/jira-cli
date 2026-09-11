@@ -97,8 +97,7 @@ func fanOutKeysProgressVerb[T any](
 			// duration.WithMinimum(0) keeps time= visible below clog's default
 			// 1s cutoff: this per-key debug lifecycle documents sub-second timings above.
 			event := logger.Debug().Str("key", key).Duration("time", elapsed, duration.WithMinimum(0), duration.WithGradientMax(debugTimeGradientMax))
-			var apiErr *jira.APIError
-			if errors.As(err, &apiErr) {
+			if apiErr, ok := errors.AsType[*jira.APIError](err); ok {
 				event = event.Int("status", apiErr.StatusCode)
 			}
 			// The error text embeds Jira-supplied messages, so the reason field
@@ -230,10 +229,7 @@ func FanOutKeys[T any](
 		return results, nil
 	}
 
-	workerCount := parallelism
-	if workerCount > len(keys) {
-		workerCount = len(keys)
-	}
+	workerCount := min(parallelism, len(keys))
 
 	jobs := make(chan int)
 	group, groupCtx := errgroup.WithContext(ctx)

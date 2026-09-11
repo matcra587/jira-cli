@@ -20,6 +20,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"testing"
 )
 
@@ -136,8 +137,8 @@ func jsonEnvelopeLineFromStream(t *testing.T, stream []byte, streamName string, 
 	t.Helper()
 
 	lines := bytes.Split(bytes.TrimSpace(stream), []byte("\n"))
-	for i := len(lines) - 1; i >= 0; i-- {
-		line := bytes.TrimSpace(lines[i])
+	for _, line := range slices.Backward(lines) {
+		line := bytes.TrimSpace(line)
 		if len(line) == 0 || line[0] != '{' {
 			continue
 		}

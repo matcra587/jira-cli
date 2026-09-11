@@ -423,7 +423,7 @@ func paginationFromResponse(resp *jira.Response) *cli.Pagination {
 		NextCursor: resp.NextCursor(),
 	}
 	if resp.TotalKnown {
-		p.Total = cli.KnownTotal(resp.Total)
+		p.Total = new(resp.Total)
 	}
 	return p
 }

@@ -104,7 +104,7 @@ $ jira boards list --refresh --unbounded --output=json`,
 			boards := boardsListEnvelope(items)
 			pagination := &cli.Pagination{
 				MaxResults: pageSize,
-				Total:      cli.KnownTotal(len(file.Items)),
+				Total:      new(len(file.Items)),
 				IsLast:     all || len(file.Items) <= pageSize,
 			}
 			out := envelope.BoardsListOutput{

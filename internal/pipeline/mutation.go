@@ -3,6 +3,7 @@ package pipeline
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"regexp"
 
 	"github.com/matcra587/jira-cli/internal/adf"
@@ -316,12 +317,8 @@ func splitScreenValidationFields(fields map[string]any, exempt map[string]bool) 
 
 func mergeScreenValidationExemptFields(fields, exempt map[string]any) map[string]any {
 	out := make(map[string]any, len(fields)+len(exempt))
-	for key, value := range fields {
-		out[key] = value
-	}
-	for key, value := range exempt {
-		out[key] = value
-	}
+	maps.Copy(out, fields)
+	maps.Copy(out, exempt)
 	return out
 }
 

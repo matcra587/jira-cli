@@ -58,8 +58,7 @@ func TestRankBadRequestIsTypedRejected(t *testing.T) {
 		_, _ = w.Write([]byte(`{"errorMessages":["Rank field not found for board"]}`))
 	})
 	_, err := service.Rank(context.Background(), []string{"PROJ-1"}, "PROJ-3", "")
-	var rejected *RankRejectedError
-	if !errors.As(err, &rejected) {
+	if _, ok := errors.AsType[*RankRejectedError](err); !ok {
 		t.Fatalf("Rank() error = %v, want RankRejectedError on a 400", err)
 	}
 }

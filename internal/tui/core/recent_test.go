@@ -21,7 +21,7 @@ func TestRecentTouchOrdersMostRecentFirstAndDedupes(t *testing.T) {
 
 func TestRecentListCapsLength(t *testing.T) {
 	r := NewRecentList()
-	for i := 0; i < recentCap+10; i++ {
+	for i := range recentCap + 10 {
 		r.Touch("JCT-"+string(rune('A'+i%26))+string(rune('a'+i/26)), "s")
 	}
 	if got := len(r.List()); got > recentCap {

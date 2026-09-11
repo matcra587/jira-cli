@@ -55,8 +55,7 @@ func classifySchemaError(err error) error {
 	// A bad --type value is a definite user error — fatal in every mode like a
 	// 404, but it stays a validation failure (exit 3), reclassified downstream
 	// by MapError. It carries no HTTP status, so match it explicitly.
-	var typeErr *jira.IssueTypeUnknownError
-	if errors.As(err, &typeErr) {
+	if _, ok := errors.AsType[*jira.IssueTypeUnknownError](err); ok {
 		return errors.Join(pipeline.ErrSchemaNotFound, err)
 	}
 	var apiErr *jira.APIError

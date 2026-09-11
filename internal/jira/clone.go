@@ -2,6 +2,7 @@ package jira
 
 import (
 	"encoding/json"
+	"maps"
 
 	xslices "github.com/gechr/x/slices"
 )
@@ -23,9 +24,7 @@ func cloneJSONValue(value any) any {
 		return cloneJSONMap(v)
 	case map[string]string:
 		out := make(map[string]string, len(v))
-		for key, value := range v {
-			out[key] = value
-		}
+		maps.Copy(out, v)
 		return out
 	case []any:
 		return xslices.Map(v, cloneJSONValue)

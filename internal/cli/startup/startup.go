@@ -51,8 +51,8 @@ func scanGlobals(args []string) Globals {
 		if arg == "--" {
 			break
 		}
-		if strings.HasPrefix(arg, "--") {
-			name, value, hasValue := strings.Cut(strings.TrimPrefix(arg, "--"), "=")
+		if after, ok := strings.CutPrefix(arg, "--"); ok {
+			name, value, hasValue := strings.Cut(after, "=")
 			switch name {
 			case "config":
 				globals.ConfigPath = flagValue(args, &i, value, hasValue)
@@ -75,8 +75,8 @@ func scanGlobals(args []string) Globals {
 
 func consumeGlobal(args []string, i *int, globals *Globals) bool {
 	arg := args[*i]
-	if strings.HasPrefix(arg, "--") {
-		name, value, hasValue := strings.Cut(strings.TrimPrefix(arg, "--"), "=")
+	if after, ok := strings.CutPrefix(arg, "--"); ok {
+		name, value, hasValue := strings.Cut(after, "=")
 		switch name {
 		case "config":
 			globals.ConfigPath = flagValue(args, i, value, hasValue)

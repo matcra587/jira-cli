@@ -110,8 +110,7 @@ func runJira(t *testing.T, args ...string) (stdout, stderr []byte, exitCode int)
 	cmd.Stderr = &se
 	err := cmd.Run()
 	if err != nil {
-		var ee *exec.ExitError
-		if errors.As(err, &ee) {
+		if ee, ok := errors.AsType[*exec.ExitError](err); ok {
 			return so.Bytes(), se.Bytes(), ee.ExitCode()
 		}
 		t.Fatalf("jira %v: %v\nstderr=%s", args, err, se.String())

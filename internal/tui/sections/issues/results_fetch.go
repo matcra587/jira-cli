@@ -50,9 +50,9 @@ func (r *results) runFetch(jql string) tea.Cmd {
 				return fetchResult{}, nil
 			}
 			issues, next, err := jira.ListIssuesPage(base, svc.Issues(), &jira.IssueListOptions{
-				JQL:         jql,
-				Fields:      fetchFields,
-				ListOptions: jira.ListOptions{MaxResults: 50},
+				JQL:        jql,
+				Fields:     fetchFields,
+				MaxResults: 50,
 			}, jira.PageCursor{})
 			if err != nil {
 				return nil, err
@@ -83,9 +83,9 @@ func (r *results) maybeFetchMore() tea.Cmd {
 				return fetchMoreResult{}, nil
 			}
 			issues, next, err := jira.ListIssuesPage(base, svc.Issues(), &jira.IssueListOptions{
-				JQL:         jql,
-				Fields:      fetchFields,
-				ListOptions: jira.ListOptions{MaxResults: 50},
+				JQL:        jql,
+				Fields:     fetchFields,
+				MaxResults: 50,
 			}, cur)
 			if err != nil {
 				return nil, err

@@ -249,7 +249,7 @@ func runIssueViewSingle(cmd *cobra.Command, key string, fields []string) error {
 		}
 		return cmdutil.WriteEnvelopeWithResponseAndWarnings(cmd, "issue.view", envelope.IssueViewOutput{Issue: issue}, resp, warnings)
 	}
-	return cmdutil.WriteEnvelope(cmd, "issue.view", envelope.IssueViewOutput{Issue: &jira.Issue{Key: jira.String(key)}})
+	return cmdutil.WriteEnvelope(cmd, "issue.view", envelope.IssueViewOutput{Issue: &jira.Issue{Key: new(key)}})
 }
 
 type issueViewManyData struct {
@@ -276,7 +276,7 @@ func runIssueViewMany(cmd *cobra.Command, keys []string, parallelism int, fields
 			data.Results = append(data.Results, issueViewResult{
 				Key:   key,
 				OK:    true,
-				Issue: &jira.Issue{Key: jira.String(key)},
+				Issue: &jira.Issue{Key: new(key)},
 			})
 		}
 		return cmdutil.WriteEnvelope(cmd, "issue.view", data)
@@ -615,7 +615,7 @@ func runIssueList(cmd *cobra.Command, opts issueListOptions) error {
 		}
 		pagination := &cli.Pagination{
 			MaxResults: len(issues),
-			Total:      cli.KnownTotal(len(issues)),
+			Total:      new(len(issues)),
 			IsLast:     !info.Truncated,
 			NextCursor: info.NextPageToken, // pagination-exempt: opaque resume token from the drain
 		}
@@ -631,10 +631,10 @@ func runIssueList(cmd *cobra.Command, opts issueListOptions) error {
 	if err := cmdutil.Spin(cmd, "issue.list", func(ctx context.Context) error {
 		var listErr error
 		issues, resp, listErr = service.List(ctx, &jira.IssueListOptions{
-			ListOptions: jira.ListOptions{MaxResults: limit, NextPageToken: opts.cursor}, // pagination-exempt: opaque --cursor pass-through
-			JQL:         query,
-			Fields:      fields,
-			Expand:      expand,
+			MaxResults: limit, NextPageToken: opts.cursor, // pagination-exempt: opaque --cursor pass-through
+			JQL:    query,
+			Fields: fields,
+			Expand: expand,
 		})
 		return listErr
 	}); err != nil {
@@ -674,10 +674,10 @@ func runIssueListKeyChunks(cmd *cobra.Command, in issueListKeyChunkInputs) error
 		}
 		query = boardscope.ApplyClauseToJQL(query, in.scope)
 		issues, _, err := in.service.List(ctx, &jira.IssueListOptions{
-			ListOptions: jira.ListOptions{MaxResults: issueListKeyChunkSize},
-			JQL:         query,
-			Fields:      in.fields,
-			Expand:      in.expand,
+			MaxResults: issueListKeyChunkSize,
+			JQL:        query,
+			Fields:     in.fields,
+			Expand:     in.expand,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("issue list key chunk %q: %w", keyExpr, err)
@@ -747,10 +747,7 @@ func issueListKeyChunks(inputs []string) ([]string, error) {
 	}
 	chunks := make([]string, 0, (len(keys)+issueListKeyChunkSize-1)/issueListKeyChunkSize)
 	for start := 0; start < len(keys); start += issueListKeyChunkSize {
-		end := start + issueListKeyChunkSize
-		if end > len(keys) {
-			end = len(keys)
-		}
+		end := min(start+issueListKeyChunkSize, len(keys))
 		chunks = append(chunks, strings.Join(keys[start:end], ","))
 	}
 	return chunks, nil
@@ -760,7 +757,7 @@ func issueListKeyOrder(chunks []string) map[string]int {
 	order := map[string]int{}
 	index := 0
 	for _, chunk := range chunks {
-		for _, key := range strings.Split(chunk, ",") {
+		for key := range strings.SplitSeq(chunk, ",") {
 			if key == "" {
 				continue
 			}

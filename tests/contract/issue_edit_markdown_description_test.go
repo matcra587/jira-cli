@@ -265,14 +265,14 @@ func TestIssueEditMarkdownExcludesJSONInput(t *testing.T) {
 // Markdown conversion (raw HTML has no ADF authoring path) aborts in the
 // default strict mode before any PUT reaches the server.
 func TestIssueEditDescriptionMarkdownStrictAbortsBeforeWire(t *testing.T) {
-	var puts int32
+	var puts atomic.Int32
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /rest/api/3/issue/PROJ-1/editmeta", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(editmetaFloatField))
 	})
 	mux.HandleFunc("PUT /rest/api/3/issue/PROJ-1", func(w http.ResponseWriter, _ *http.Request) {
-		atomic.AddInt32(&puts, 1)
+		puts.Add(1)
 		w.WriteHeader(http.StatusNoContent)
 	})
 	srv := httptest.NewServer(mux)
@@ -285,7 +285,7 @@ func TestIssueEditDescriptionMarkdownStrictAbortsBeforeWire(t *testing.T) {
 	if code == 0 {
 		t.Fatalf("strict mode accepted lossy raw HTML; want abort\nstdout=%s", stdout)
 	}
-	if n := atomic.LoadInt32(&puts); n != 0 {
+	if n := puts.Load(); n != 0 {
 		t.Fatalf("description bypassed strict abort — %d PUT(s) reached the wire", n)
 	}
 	var env struct {

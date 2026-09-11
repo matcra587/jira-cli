@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -87,8 +88,8 @@ func decodeWatcherErrorEnvelope(t *testing.T, stdout, stderr *bytes.Buffer, targ
 	// Machine mode: the failure envelope is on stdout, the same stream as
 	// success.
 	lines := bytes.Split(bytes.TrimSpace(stdout.Bytes()), []byte("\n"))
-	for i := len(lines) - 1; i >= 0; i-- {
-		line := bytes.TrimSpace(lines[i])
+	for _, line := range slices.Backward(lines) {
+		line := bytes.TrimSpace(line)
 		if len(line) == 0 || line[0] != '{' {
 			continue
 		}
@@ -318,12 +319,10 @@ func TestWatcherAmbiguityPreservesWriterFailureWithoutClaimingEnvelope(t *testin
 	if !errors.Is(err, ambiguity) || !errors.Is(err, writeErr) {
 		t.Fatalf("handleResolveErr() error = %v, want ambiguity and writer causes", err)
 	}
-	var outputErr *cli.OutputError
-	if !errors.As(err, &outputErr) {
+	if _, ok := errors.AsType[*cli.OutputError](err); !ok {
 		t.Fatalf("handleResolveErr() error type = %T, want *cli.OutputError", err)
 	}
-	var written cmdutil.EnvelopeWrittenError
-	if errors.As(err, &written) {
+	if _, ok := errors.AsType[cmdutil.EnvelopeWrittenError](err); ok {
 		t.Fatalf("handleResolveErr() claimed a written envelope after writer failure: %v", err)
 	}
 	mapped := cli.MapError(err)

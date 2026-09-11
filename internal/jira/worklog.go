@@ -73,7 +73,7 @@ func (s *worklogService) Add(ctx context.Context, issueKey string, reqBody *Work
 		return nil, nil, errors.New("positive time spent is required")
 	}
 	if reqBody.DryRun {
-		return &Worklog{ID: String("DRY-RUN"), TimeSpentSeconds: Int(reqBody.TimeSpentSeconds)}, &Response{IsLast: true}, nil
+		return &Worklog{ID: new("DRY-RUN"), TimeSpentSeconds: new(reqBody.TimeSpentSeconds)}, &Response{IsLast: true}, nil
 	}
 	req, err := s.client.NewRequest(ctx, http.MethodPost, RESTPath("issue", issueKey, "worklog"), reqBody)
 	if err != nil {

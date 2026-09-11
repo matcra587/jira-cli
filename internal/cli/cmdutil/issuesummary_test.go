@@ -8,11 +8,11 @@ import (
 
 func TestIssueSummaryAlwaysIncludesSpecKeys(t *testing.T) {
 	got := IssueSummary(&jira.Issue{
-		Key: jira.String("PROJ-1"),
+		Key: new("PROJ-1"),
 		Fields: &jira.IssueFields{
-			Summary: jira.String("Hello"),
-			Status:  &jira.Status{Name: jira.String("In Progress")},
-			Updated: jira.String("2026-05-03T10:00:00Z"),
+			Summary: new("Hello"),
+			Status:  &jira.Status{Name: new("In Progress")},
+			Updated: new("2026-05-03T10:00:00Z"),
 		},
 	})
 	for _, key := range []string{"key", "summary", "status", "status_category", "updated", "assignee", "priority"} {
@@ -27,10 +27,10 @@ func TestIssueSummaryAlwaysIncludesSpecKeys(t *testing.T) {
 func TestIssueSummaryStatusCategory(t *testing.T) {
 	withCat := IssueSummary(&jira.Issue{Fields: &jira.IssueFields{
 		Status: &jira.Status{
-			Name: jira.String("Done"),
+			Name: new("Done"),
 			StatusCategory: &jira.StatusCategory{
-				Key:       jira.String("done"),
-				ColorName: jira.String("green"),
+				Key:       new("done"),
+				ColorName: new("green"),
 			},
 		},
 	}})
@@ -43,7 +43,7 @@ func TestIssueSummaryStatusCategory(t *testing.T) {
 		t.Fatalf("status_color = %#v, want \"green\"", withCat["status_color"])
 	}
 	withoutCat := IssueSummary(&jira.Issue{Fields: &jira.IssueFields{
-		Status: &jira.Status{Name: jira.String("Open")},
+		Status: &jira.Status{Name: new("Open")},
 	}})
 	if withoutCat["status_category"] != "" {
 		t.Fatalf("status_category = %#v, want empty string", withoutCat["status_category"])
@@ -57,8 +57,8 @@ func TestIssueSummaryStatusCategory(t *testing.T) {
 
 func TestIssueSummaryAssigneeIsNilWhenUnassigned(t *testing.T) {
 	got := IssueSummary(&jira.Issue{
-		Key:    jira.String("PROJ-1"),
-		Fields: &jira.IssueFields{Summary: jira.String("Hi")},
+		Key:    new("PROJ-1"),
+		Fields: &jira.IssueFields{Summary: new("Hi")},
 	})
 	if got["assignee"] != nil {
 		t.Fatalf("assignee = %#v, want nil", got["assignee"])
@@ -67,12 +67,12 @@ func TestIssueSummaryAssigneeIsNilWhenUnassigned(t *testing.T) {
 
 func TestIssueSummaryAssigneeUsesOnlyAccountIDAndDisplayName(t *testing.T) {
 	got := IssueSummary(&jira.Issue{
-		Key: jira.String("PROJ-1"),
+		Key: new("PROJ-1"),
 		Fields: &jira.IssueFields{
 			Assignee: &jira.User{
-				AccountID:    jira.String("acc-1"),
-				DisplayName:  jira.String("Riley Chen"),
-				EmailAddress: jira.String("riley@example.com"),
+				AccountID:    new("acc-1"),
+				DisplayName:  new("Riley Chen"),
+				EmailAddress: new("riley@example.com"),
 			},
 		},
 	})
@@ -94,7 +94,7 @@ func TestIssueSummaryAssigneeUsesOnlyAccountIDAndDisplayName(t *testing.T) {
 }
 
 func TestIssueSummaryPriorityIsNilWhenAbsent(t *testing.T) {
-	got := IssueSummary(&jira.Issue{Key: jira.String("PROJ-1"), Fields: &jira.IssueFields{}})
+	got := IssueSummary(&jira.Issue{Key: new("PROJ-1"), Fields: &jira.IssueFields{}})
 	if got["priority"] != nil {
 		t.Fatalf("priority = %#v, want nil", got["priority"])
 	}
@@ -102,8 +102,8 @@ func TestIssueSummaryPriorityIsNilWhenAbsent(t *testing.T) {
 
 func TestIssueSummaryPriorityIsStringWhenPresent(t *testing.T) {
 	got := IssueSummary(&jira.Issue{
-		Key:    jira.String("PROJ-1"),
-		Fields: &jira.IssueFields{Priority: &jira.Priority{Name: jira.String("High")}},
+		Key:    new("PROJ-1"),
+		Fields: &jira.IssueFields{Priority: &jira.Priority{Name: new("High")}},
 	})
 	if got["priority"] != "High" {
 		t.Fatalf("priority = %#v, want \"High\"", got["priority"])

@@ -3,6 +3,7 @@ package adf
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/matcra587/jira-cli/internal/cli/adfmode"
@@ -412,12 +413,7 @@ func numericValue(raw any) (float64, bool) {
 }
 
 func inEnum(set []string, v string) bool {
-	for _, s := range set {
-		if s == v {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(set, v)
 }
 
 var (

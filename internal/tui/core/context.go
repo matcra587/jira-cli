@@ -175,10 +175,7 @@ func (c *ProgramContext) SetSize(w, h int) {
 	c.ScreenWidth = w
 	c.ScreenHeight = h
 
-	bodyH := h - chromeRows
-	if bodyH < 0 {
-		bodyH = 0
-	}
+	bodyH := max(h-chromeRows, 0)
 	c.BodyHeight = bodyH
 
 	if !c.SidebarOpen {

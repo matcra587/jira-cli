@@ -102,9 +102,9 @@ func stripFrontmatter(content string) string {
 		return strings.TrimSpace(content)
 	}
 	rest := strings.TrimPrefix(content, "---\n")
-	end := strings.Index(rest, "\n---\n")
-	if end < 0 {
+	_, after, ok := strings.Cut(rest, "\n---\n")
+	if !ok {
 		return strings.TrimSpace(content)
 	}
-	return strings.TrimSpace(rest[end+len("\n---\n"):])
+	return strings.TrimSpace(after)
 }

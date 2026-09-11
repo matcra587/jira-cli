@@ -135,9 +135,9 @@ func (s *SearchModel) fetch() tea.Cmd {
 				return nil, errors.New(parsed[0].Errors[0])
 			}
 			issues, next, err := jira.ListIssuesPage(base, svc.Issues(), &jira.IssueListOptions{
-				JQL:         jql,
-				Fields:      fetchFields,
-				ListOptions: jira.ListOptions{MaxResults: 50},
+				JQL:        jql,
+				Fields:     fetchFields,
+				MaxResults: 50,
 			}, jira.PageCursor{})
 			if err != nil {
 				return nil, err
@@ -452,10 +452,9 @@ func (s *SearchModel) View() string {
 	if s.editing {
 		border = theme.Theme.Blue.GetForeground()
 	}
-	w := s.ctx.MainWidth - 4 // rounded border (2) + horizontal padding (2)
-	if w < 1 {
-		w = 1
-	}
+	w := max(
+		// rounded border (2) + horizontal padding (2)
+		s.ctx.MainWidth-4, 1)
 	box := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(border).

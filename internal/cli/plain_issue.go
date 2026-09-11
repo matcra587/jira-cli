@@ -220,10 +220,7 @@ func issueViewFailureKeys(data any) []string {
 }
 
 func issueViewShownFailureKeys(keys []string) ([]string, int) {
-	limit := issueViewFailedKeysPlainLimit
-	if len(keys) < limit {
-		limit = len(keys)
-	}
+	limit := min(len(keys), issueViewFailedKeysPlainLimit)
 	return keys[:limit], len(keys) - limit
 }
 

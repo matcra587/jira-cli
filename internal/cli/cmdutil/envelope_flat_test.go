@@ -44,8 +44,8 @@ func TestWriteEnvelopeWithPaginationAndRawWarningsCarriesPagination(t *testing.T
 		wantLast   bool
 		wantTotal  float64
 	}{
-		{"complete drain", &cli.Pagination{MaxResults: 3, Total: cli.KnownTotal(3), IsLast: true}, true, 3},
-		{"truncated drain", &cli.Pagination{MaxResults: 2, Total: cli.KnownTotal(2), IsLast: false}, false, 2},
+		{"complete drain", &cli.Pagination{MaxResults: 3, Total: new(3), IsLast: true}, true, 3},
+		{"truncated drain", &cli.Pagination{MaxResults: 2, Total: new(2), IsLast: false}, false, 2},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

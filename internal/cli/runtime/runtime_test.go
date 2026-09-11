@@ -67,13 +67,13 @@ func TestRuntimeDoesNotStoreContext(t *testing.T) {
 		t.Fatalf("New: %v", err)
 	}
 	typ := reflect.TypeOf(*rt)
-	for i := range typ.NumField() {
-		ft := typ.Field(i).Type
+	for field := range typ.Fields() {
+		ft := field.Type
 		if ft.String() == "context.Context" {
-			t.Errorf("Runtime field %q stores a context.Context; runtime must not hold the root context", typ.Field(i).Name)
+			t.Errorf("Runtime field %q stores a context.Context; runtime must not hold the root context", field.Name)
 		}
 		if ft.Kind() == reflect.Interface && ft.Name() == "Context" {
-			t.Errorf("Runtime field %q stores a Context interface; runtime must not hold the root context", typ.Field(i).Name)
+			t.Errorf("Runtime field %q stores a Context interface; runtime must not hold the root context", field.Name)
 		}
 	}
 }

@@ -177,7 +177,7 @@ func guideJiraCommandExamples(body string) []string {
 	for _, match := range guideInlineCodeCommand.FindAllStringSubmatch(body, -1) {
 		add(match[1])
 	}
-	for _, line := range strings.Split(body, "\n") {
+	for line := range strings.SplitSeq(body, "\n") {
 		trimmed := strings.TrimSpace(strings.TrimPrefix(line, "$ "))
 		if strings.HasPrefix(trimmed, "jira ") {
 			add(trimmed)

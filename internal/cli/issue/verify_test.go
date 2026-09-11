@@ -8,21 +8,19 @@ import (
 	"github.com/matcra587/jira-cli/internal/jira"
 )
 
-func strp(s string) *string { return &s }
-
 // fetchedIssue builds the re-fetched issue the diverging-server tests share:
 // labels [gamma], no parent, assignee acc-1, priority High, one component,
 // and a select custom field with option id 10001.
 func fetchedIssue() *jira.Issue {
 	return &jira.Issue{
-		Key: strp("PROJ-1"),
+		Key: new("PROJ-1"),
 		Fields: &jira.IssueFields{
-			Summary:    strp("A summary"),
+			Summary:    new("A summary"),
 			Labels:     []string{"gamma"},
-			Assignee:   &jira.User{AccountID: strp("acc-1")},
-			Priority:   &jira.Priority{Name: strp("High")},
-			IssueType:  &jira.IssueType{Name: strp("Task")},
-			Components: []jira.Component{{Name: strp("core")}},
+			Assignee:   &jira.User{AccountID: new("acc-1")},
+			Priority:   &jira.Priority{Name: new("High")},
+			IssueType:  &jira.IssueType{Name: new("Task")},
+			Components: []jira.Component{{Name: new("core")}},
 			CustomFields: map[string]json.RawMessage{
 				"customfield_10010": json.RawMessage(`{"id":"10001","value":"Blue","self":"https://x"}`),
 			},
@@ -75,7 +73,7 @@ func TestVerifyAppliedFieldsSurfacesDrops(t *testing.T) {
 func TestVerifyAppliedFieldsMatchingResultHasZeroDrops(t *testing.T) {
 	issue := fetchedIssue()
 	issue.Fields.Labels = []string{"alpha", "beta", "automation-added"}
-	issue.Fields.Parent = &jira.Issue{Key: strp("PROJ-100")}
+	issue.Fields.Parent = &jira.Issue{Key: new("PROJ-100")}
 
 	requested := map[string]any{
 		"summary":           "A summary",

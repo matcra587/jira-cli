@@ -1,6 +1,7 @@
 package adf
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -329,8 +330,7 @@ func markdownChildren(node Node) string {
 
 func markdownText(node Node) string {
 	text := node.Text
-	for i := len(node.Marks) - 1; i >= 0; i-- {
-		mark := node.Marks[i]
+	for _, mark := range slices.Backward(node.Marks) {
 		switch mark.Type {
 		case "strong":
 			text = "**" + text + "**"

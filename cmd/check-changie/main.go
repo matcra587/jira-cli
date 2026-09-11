@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"slices"
 	"time"
 
 	"github.com/gechr/clog"
@@ -43,10 +44,8 @@ func main() {
 	if len(lines) == 0 || !featFix.MatchString(lines[0]) {
 		return
 	}
-	for _, line := range lines {
-		if skipTrailer.MatchString(line) {
-			return
-		}
+	if slices.ContainsFunc(lines, skipTrailer.MatchString) {
+		return
 	}
 
 	// Bound the subprocess so a stalled git (index lock, wedged filesystem)
@@ -57,10 +56,8 @@ func main() {
 	if err != nil {
 		fail(2, "check-changie: git diff failed: "+err.Error())
 	}
-	for _, path := range xstrings.SplitLines(string(out)) {
-		if fragment.MatchString(path) {
-			return
-		}
+	if slices.ContainsFunc(xstrings.SplitLines(string(out)), fragment.MatchString) {
+		return
 	}
 
 	fail(1, "This feat/fix needs a changelog fragment: run 'changie new' and stage it, "+

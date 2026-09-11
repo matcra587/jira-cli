@@ -35,8 +35,7 @@ func TestStrictAbortsOnLossyInlineCardDegrade(t *testing.T) {
 	}
 	// Strict aborts with the typed CompatibilityError so the calling CLI
 	// command can map it to exit 3 (validation).
-	var compatErr *adf.CompatibilityError
-	if !errors.As(err, &compatErr) {
+	if _, ok := errors.AsType[*adf.CompatibilityError](err); !ok {
 		t.Fatalf("expected *adf.CompatibilityError, got %T: %v", err, err)
 	}
 }

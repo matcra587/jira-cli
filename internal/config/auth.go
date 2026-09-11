@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 
@@ -456,8 +457,8 @@ func MigrateCredentials(ctx context.Context, migrations []CredentialMigration, s
 	// reported instead of masquerading as a clean one.
 	rollback := func() []string {
 		var failures []string
-		for i := len(done) - 1; i >= 0; i-- {
-			s := done[i]
+		for _, s := range slices.Backward(done) {
+
 			var rbErr error
 			if s.priorDestExisted {
 				rbErr = s.migration.Destination.Put(ctx, s.migration.DestRef, s.priorDestSecret)
@@ -564,8 +565,7 @@ func SanitizeCredentialError(err error) string {
 	// (an env-backend miss naming its JIRA_TOKEN_* variable, a keyring miss
 	// naming the profile) carries a more actionable message than the bare
 	// sentinel, so the sentinel check must not shadow it.
-	var ce *CredentialError
-	if errors.As(err, &ce) {
+	if ce, ok := errors.AsType[*CredentialError](err); ok {
 		return ce.Message
 	}
 	if errors.Is(err, ErrCredentialNotFound) {

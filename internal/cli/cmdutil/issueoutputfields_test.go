@@ -10,18 +10,18 @@ import (
 
 func projectionFixtureIssue() *jira.Issue {
 	return &jira.Issue{
-		Key: jira.String("PROJ-1"),
+		Key: new("PROJ-1"),
 		Fields: &jira.IssueFields{
-			Summary: jira.String("Hello"),
+			Summary: new("Hello"),
 			Status: &jira.Status{
-				Name: jira.String("Done"),
+				Name: new("Done"),
 				StatusCategory: &jira.StatusCategory{
-					Key:       jira.String("done"),
-					ColorName: jira.String("green"),
+					Key:       new("done"),
+					ColorName: new("green"),
 				},
 			},
-			Priority: &jira.Priority{Name: jira.String("High")},
-			Updated:  jira.String("2026-05-03T10:00:00Z"),
+			Priority: &jira.Priority{Name: new("High")},
+			Updated:  new("2026-05-03T10:00:00Z"),
 		},
 	}
 }
@@ -58,7 +58,7 @@ func TestIssueOutputFieldsDefaultFieldsMatchIssueSummary(t *testing.T) {
 // ids; a field Jira omitted is an explicit null, not a shape change.
 func TestIssueOutputFieldsCarriesNonSummaryFields(t *testing.T) {
 	issue := &jira.Issue{
-		Key: jira.String("PROJ-2"),
+		Key: new("PROJ-2"),
 		Fields: &jira.IssueFields{
 			Labels: []string{"regression"},
 			CustomFields: map[string]json.RawMessage{

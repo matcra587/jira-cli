@@ -14,11 +14,11 @@ import (
 
 func TestJiraServicesAreExportedInterfaces(t *testing.T) {
 	services := map[string]reflect.Kind{
-		"IssueService":   reflect.TypeOf((*jira.IssueService)(nil)).Elem().Kind(),
-		"EpicService":    reflect.TypeOf((*jira.EpicService)(nil)).Elem().Kind(),
-		"SearchService":  reflect.TypeOf((*jira.SearchService)(nil)).Elem().Kind(),
-		"WorklogService": reflect.TypeOf((*jira.WorklogService)(nil)).Elem().Kind(),
-		"ProjectService": reflect.TypeOf((*jira.ProjectService)(nil)).Elem().Kind(),
+		"IssueService":   reflect.TypeFor[jira.IssueService]().Kind(),
+		"EpicService":    reflect.TypeFor[jira.EpicService]().Kind(),
+		"SearchService":  reflect.TypeFor[jira.SearchService]().Kind(),
+		"WorklogService": reflect.TypeFor[jira.WorklogService]().Kind(),
+		"ProjectService": reflect.TypeFor[jira.ProjectService]().Kind(),
 	}
 	for name, kind := range services {
 		if kind != reflect.Interface {

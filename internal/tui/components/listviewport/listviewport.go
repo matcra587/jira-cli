@@ -100,10 +100,7 @@ func (m *Model) VisibleRange() (start, end int) {
 	if m.height <= 0 || len(m.rows) == 0 {
 		return 0, 0
 	}
-	end = m.offset + m.height
-	if end > len(m.rows) {
-		end = len(m.rows)
-	}
+	end = min(m.offset+m.height, len(m.rows))
 	return m.offset, end
 }
 
@@ -133,10 +130,7 @@ func (m *Model) clamp() {
 		m.offset = m.cursor - m.height + 1
 	}
 	// Never leave a gap at the bottom when enough rows exist to fill the view.
-	maxOffset := len(m.rows) - m.height
-	if maxOffset < 0 {
-		maxOffset = 0
-	}
+	maxOffset := max(len(m.rows)-m.height, 0)
 	if m.offset > maxOffset {
 		m.offset = maxOffset
 	}

@@ -117,11 +117,11 @@ func TestEditMarkdownDetectsNonBlockingSpawnAndPreservesFile(t *testing.T) {
 // message. Format pinned to "preserved at <path>".
 func extractPreservedPath(msg string) string {
 	const marker = "preserved at "
-	idx := strings.Index(msg, marker)
-	if idx < 0 {
+	_, after, ok := strings.Cut(msg, marker)
+	if !ok {
 		return ""
 	}
-	return strings.TrimSpace(msg[idx+len(marker):])
+	return strings.TrimSpace(after)
 }
 
 func TestEditMarkdownJiraEditorEnvOverridesEditor(t *testing.T) {

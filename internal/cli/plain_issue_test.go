@@ -18,11 +18,11 @@ func TestIssueViewPlainRendersReadableIssue(t *testing.T) {
 	var buf bytes.Buffer
 	err = WriteCommandPlain(&buf, "issue.view", map[string]any{
 		"issue": &jira.Issue{
-			Key: jira.String("PROJ-1"),
+			Key: new("PROJ-1"),
 			Fields: &jira.IssueFields{
-				Summary:     jira.String("Readable issue"),
-				Status:      &jira.Status{Name: jira.String("In Progress")},
-				Priority:    &jira.Priority{Name: jira.String("High")},
+				Summary:     new("Readable issue"),
+				Status:      &jira.Status{Name: new("In Progress")},
+				Priority:    &jira.Priority{Name: new("High")},
 				Description: &doc,
 			},
 		},
@@ -58,11 +58,11 @@ func TestIssueViewPlainRendersMultiKeySummary(t *testing.T) {
 				Key: "PROJ-1",
 				OK:  true,
 				Issue: &jira.Issue{
-					Key: jira.String("PROJ-1"),
+					Key: new("PROJ-1"),
 					Fields: &jira.IssueFields{
-						Summary:  jira.String("Readable issue"),
-						Status:   &jira.Status{Name: jira.String("Done")},
-						Priority: &jira.Priority{Name: jira.String("Medium")},
+						Summary:  new("Readable issue"),
+						Status:   &jira.Status{Name: new("Done")},
+						Priority: &jira.Priority{Name: new("Medium")},
 					},
 				},
 			},
@@ -102,8 +102,8 @@ func TestIssueTransitionsPlainRendersReadableTable(t *testing.T) {
 	err := WriteCommandPlain(&buf, "issue.transitions", map[string]any{
 		"issue": map[string]any{"key": "PROJ-1"},
 		"transitions": []*jira.Transition{
-			{ID: jira.String("11"), Name: jira.String("To Do")},
-			{ID: jira.String("21"), Name: jira.String("In Progress")},
+			{ID: new("11"), Name: new("To Do")},
+			{ID: new("21"), Name: new("In Progress")},
 		},
 	})
 	if err != nil {

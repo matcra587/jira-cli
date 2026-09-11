@@ -77,7 +77,7 @@ type CurrentUser struct {
 	Active       bool       `json:"active,omitempty"`
 	TimeZone     string     `json:"timeZone,omitempty"`
 	Locale       string     `json:"locale,omitempty"`
-	AvatarURLs   AvatarURLs `json:"avatarUrls,omitempty"`
+	AvatarURLs   AvatarURLs `json:"avatarUrls"`
 }
 
 // AvatarURLs maps Jira's standard avatar size keys to URLs.

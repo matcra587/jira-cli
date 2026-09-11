@@ -172,7 +172,7 @@ func TestCountReportsAfterFetch(t *testing.T) {
 func TestRowTextAssigneeColumn(t *testing.T) {
 	now := time.Date(2026, 6, 9, 12, 0, 0, 0, time.UTC)
 	iss := mkIssue("JCT-1", "To Do", "summary text")
-	iss.Fields.Assignee = &jira.User{DisplayName: sp("Ann Example")}
+	iss.Fields.Assignee = &jira.User{DisplayName: new("Ann Example")}
 	upd := "2026-06-09T10:00:00.000+0000"
 	iss.Fields.Updated = &upd
 

@@ -9,7 +9,7 @@ import (
 
 func TestPointerFieldsAndPaginationMetadata(t *testing.T) {
 	summary := "zero is meaningful"
-	issue := jira.Issue{Key: jira.String("PROJ-1"), Fields: &jira.IssueFields{Summary: &summary}}
+	issue := jira.Issue{Key: new("PROJ-1"), Fields: &jira.IssueFields{Summary: &summary}}
 	if issue.Key == nil || *issue.Key != "PROJ-1" {
 		t.Fatalf("issue key pointer not preserved")
 	}

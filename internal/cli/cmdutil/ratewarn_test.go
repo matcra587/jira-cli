@@ -50,12 +50,10 @@ func TestRecordRateNearLimitConcurrentTripDedupsToOne(t *testing.T) {
 	cmd := cmdWithRateSink(t)
 	ctx := cmd.Context()
 	var wg sync.WaitGroup
-	for i := 0; i < 32; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 32 {
+		wg.Go(func() {
 			RecordRateNearLimit(ctx, jira.Rate{NearLimit: true, Reason: "jira-burst-based"})
-		}()
+		})
 	}
 	wg.Wait()
 	if w := collectedRateWarnings(cmd); len(w) != 1 {

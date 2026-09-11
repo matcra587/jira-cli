@@ -137,7 +137,7 @@ func TestBulkMarkOutranksChangeDot(t *testing.T) {
 	m.marks = map[string]bool{"JCT-2": true}
 	m.applyFilter()
 	rows := ansi.Strip(m.list.View())
-	for _, row := range strings.Split(rows, "\n") {
+	for row := range strings.SplitSeq(rows, "\n") {
 		if strings.Contains(row, "JCT-2") && !strings.HasPrefix(row, "✓") {
 			t.Errorf("bulk selection mark must outrank the change dot: %q", row)
 		}

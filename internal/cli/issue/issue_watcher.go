@@ -694,8 +694,7 @@ func accountIDFromIdentifier(ident string) (string, bool) {
 //     Returns a cmdutil.EnvelopeWrittenError so the central error writer
 //     doesn't overwrite the richer envelope we already emitted.
 func handleResolveErr(cmd *cobra.Command, command string, err error) error {
-	var ambig *jira.AmbiguousUserError
-	if errors.As(err, &ambig) {
+	if _, ok := errors.AsType[*jira.AmbiguousUserError](err); ok {
 		// Route through the central error-envelope builder so the
 		// ambiguity failure carries a stable code, meta.exit_code, and
 		// the same shape as every other error envelope. cli.MapError

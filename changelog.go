@@ -133,7 +133,7 @@ func parseRelease(tag, markdown string) Release {
 
 // parseHeading extracts the release URL and date from the version heading.
 func parseHeading(markdown string) (url, date string) {
-	for _, line := range strings.Split(markdown, "\n") {
+	for line := range strings.SplitSeq(markdown, "\n") {
 		if strings.HasPrefix(line, "## ") {
 			if m := headingRe.FindStringSubmatch(line); len(m) == 3 {
 				return m[1], strings.TrimSpace(m[2])
@@ -149,7 +149,7 @@ func parseHeading(markdown string) (url, date string) {
 // (a continuation line) is folded back onto the change it belongs to.
 func parseSections(markdown string) []Section {
 	var sections []Section
-	for _, raw := range strings.Split(markdown, "\n") {
+	for raw := range strings.SplitSeq(markdown, "\n") {
 		line := strings.TrimRight(raw, " \t")
 		switch {
 		case strings.HasPrefix(line, "### "):

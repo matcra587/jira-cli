@@ -151,10 +151,7 @@ func (m *QueryModel) Update(msg tea.Msg) (core.Section, tea.Cmd) {
 // View renders the section's JQL as a faint one-line header above the results,
 // so the running query is always visible.
 func (m *QueryModel) View() string {
-	w := m.ctx.MainWidth - 1
-	if w < 1 {
-		w = 1
-	}
+	w := max(m.ctx.MainWidth-1, 1)
 	return m.view(lipgloss.NewStyle().Faint(true).Render(xstrings.Truncate(m.jql, w, "…")))
 }
 

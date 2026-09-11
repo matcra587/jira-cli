@@ -53,8 +53,7 @@ func TestMapErrorKeepsPrimaryTaxonomyForSecondaryOutputFailure(t *testing.T) {
 	if !errors.Is(err, primary) || !errors.Is(err, writeErr) {
 		t.Fatalf("PreservePrimaryError() = %v, want both causes", err)
 	}
-	var outputErr *cli.OutputError
-	if !errors.As(err, &outputErr) {
+	if _, ok := errors.AsType[*cli.OutputError](err); !ok {
 		t.Fatalf("PreservePrimaryError() type = %T, want discoverable *cli.OutputError", err)
 	}
 	got := cli.MapError(err)

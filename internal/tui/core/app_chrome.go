@@ -234,10 +234,7 @@ func (a App) labeledBorder(width int, left, right string) string {
 	if right != "" {
 		rightPart = gap + right + gap + rule + rule
 	}
-	fillW := width - lipgloss.Width(leftPart) - lipgloss.Width(rightPart)
-	if fillW < 0 {
-		fillW = 0
-	}
+	fillW := max(width-lipgloss.Width(leftPart)-lipgloss.Width(rightPart), 0)
 	return leftPart + a.ctx.Styles.FooterRule.Render(strings.Repeat("─", fillW)) + rightPart
 }
 

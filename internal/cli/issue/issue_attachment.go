@@ -160,7 +160,7 @@ func attachmentListEnvelopeData(key string, attachments []jira.Attachment, limit
 	// stays canonical: isLast honest, no fabricated cursor.
 	pagination := &cli.Pagination{
 		MaxResults: pageSize,
-		Total:      cli.KnownTotal(len(attachments)),
+		Total:      new(len(attachments)),
 		IsLast:     all || len(attachments) <= pageSize,
 	}
 	return envelope.IssueAttachmentListOutput{

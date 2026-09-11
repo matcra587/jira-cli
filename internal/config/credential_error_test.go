@@ -67,8 +67,7 @@ func TestCredentialErrorWrapsUpstream(t *testing.T) {
 		Message: "1Password CLI is unavailable",
 		Wrapped: upstream,
 	})
-	var ce *CredentialError
-	if !errors.As(err, &ce) {
+	if _, ok := errors.AsType[*CredentialError](err); !ok {
 		t.Fatal("errors.As did not recover *CredentialError")
 	}
 	if !errors.Is(err, upstream) {

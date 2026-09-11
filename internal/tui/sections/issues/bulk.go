@@ -192,7 +192,6 @@ func runBulkPool(base context.Context, verb string, keys []string, apply func(ct
 	g, ctx := errgroup.WithContext(base)
 	g.SetLimit(4)
 	for _, key := range keys {
-		key := key // defensive copy; safe on go ≥1.22 but explicit
 		g.Go(func() error {
 			err := apply(ctx, key)
 			mu.Lock()

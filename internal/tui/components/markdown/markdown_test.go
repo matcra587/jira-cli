@@ -19,7 +19,7 @@ func testRenderer() *Renderer {
 func TestRenderWrapsToWidth(t *testing.T) {
 	r := testRenderer()
 	out := r.Render("JCT-1", 30, strings.Repeat("wrap me please ", 20))
-	for _, line := range strings.Split(out, "\n") {
+	for line := range strings.SplitSeq(out, "\n") {
 		if w := lipgloss.Width(line); w > 30 {
 			t.Fatalf("line wider than wrap width: %d > 30 (%q)", w, line)
 		}

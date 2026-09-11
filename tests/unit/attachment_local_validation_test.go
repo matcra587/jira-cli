@@ -28,9 +28,9 @@ import (
 )
 
 func TestAttachmentAddRejectsMissingFileBeforeHTTP(t *testing.T) {
-	var hits int32
+	var hits atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
-		atomic.AddInt32(&hits, 1)
+		hits.Add(1)
 	}))
 	defer srv.Close()
 
@@ -58,7 +58,7 @@ func TestAttachmentAddRejectsMissingFileBeforeHTTP(t *testing.T) {
 	if exitErr.ExitCode() != 3 {
 		t.Fatalf("exit code = %d, want 3 (validation)", exitErr.ExitCode())
 	}
-	if got := atomic.LoadInt32(&hits); got != 0 {
+	if got := hits.Load(); got != 0 {
 		t.Fatalf("HTTP server received %d requests; want 0 (local validation BEFORE any HTTP call)", got)
 	}
 	combined := stdout.String() + stderr.String()
@@ -69,9 +69,9 @@ func TestAttachmentAddRejectsMissingFileBeforeHTTP(t *testing.T) {
 }
 
 func TestAttachmentDownloadClobberProtectExitsBeforeHTTP(t *testing.T) {
-	var hits int32
+	var hits atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
-		atomic.AddInt32(&hits, 1)
+		hits.Add(1)
 	}))
 	defer srv.Close()
 
@@ -105,7 +105,7 @@ func TestAttachmentDownloadClobberProtectExitsBeforeHTTP(t *testing.T) {
 	}
 	// Local pre-flight check: the existence check happens BEFORE the
 	// download HTTP call, so the server should not be hit.
-	if got := atomic.LoadInt32(&hits); got != 0 {
+	if got := hits.Load(); got != 0 {
 		t.Fatalf("HTTP server received %d requests; want 0 (clobber-protect must short-circuit before HTTP)", got)
 	}
 	got, err := os.ReadFile(existing)

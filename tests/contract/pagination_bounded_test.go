@@ -24,7 +24,7 @@ func TestSearchAllBoundedByDefaults(t *testing.T) {
 		page := pageCount.Add(1)
 		// Always return 10 issues per page and pretend more are available.
 		body := `{"issues":[`
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			if i > 0 {
 				body += ","
 			}

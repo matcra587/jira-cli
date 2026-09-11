@@ -23,8 +23,7 @@ import (
 // An unrecognized pflag variant still becomes a typed error so it carries
 // a code rather than reaching the substring classifier.
 func newFlagError(cmd *cobra.Command, err error) error {
-	var notExist *pflag.NotExistError
-	if errors.As(err, &notExist) {
+	if notExist, ok := errors.AsType[*pflag.NotExistError](err); ok {
 		fe := cli.NewCLIInputError(cli.InputFlagUnknown, err.Error())
 		fe.Flag = notExist.GetSpecifiedName()
 		// A shorthand group (-xyz) names single-character flags; the
@@ -40,22 +39,19 @@ func newFlagError(cmd *cobra.Command, err error) error {
 		return fe
 	}
 
-	var valueRequired *pflag.ValueRequiredError
-	if errors.As(err, &valueRequired) {
+	if valueRequired, ok := errors.AsType[*pflag.ValueRequiredError](err); ok {
 		fe := cli.NewCLIInputError(cli.InputFlagValueMissing, err.Error())
 		fe.Flag = flagName(valueRequired.GetFlag())
 		return fe
 	}
 
-	var invalidValue *pflag.InvalidValueError
-	if errors.As(err, &invalidValue) {
+	if invalidValue, ok := errors.AsType[*pflag.InvalidValueError](err); ok {
 		fe := cli.NewCLIInputError(cli.InputFlagValueInvalid, err.Error())
 		fe.Flag = flagName(invalidValue.GetFlag())
 		return fe
 	}
 
-	var invalidSyntax *pflag.InvalidSyntaxError
-	if errors.As(err, &invalidSyntax) {
+	if invalidSyntax, ok := errors.AsType[*pflag.InvalidSyntaxError](err); ok {
 		fe := cli.NewCLIInputError(cli.InputFlagSyntaxInvalid, err.Error())
 		fe.Flag = strings.TrimLeft(invalidSyntax.GetSpecifiedFlag(), "-")
 		return fe
