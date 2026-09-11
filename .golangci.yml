@@ -60,6 +60,9 @@ linters:
 
     errcheck:
       check-blank: true
+      # AsType returns a matched value and a boolean, not a new error to handle.
+      exclude-functions:
+        - errors.AsType
 
     gocritic:
       # gocritic is enabled solely to run the custom ruleguard rule. disable-all
@@ -174,4 +177,5 @@ formatters:
     - gofumpt
   settings:
     gofumpt:
-      extra-rules: true
+      extra:
+        group-params: true

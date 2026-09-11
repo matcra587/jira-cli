@@ -11,7 +11,7 @@ import (
 
 // withResolvedColorMode swaps the process-wide resolved --color mode for the
 // duration of a test and restores it afterward. The mode is a package global
-// (mirroring clog.Default), so a test that sets it must not run in parallel
+// (mirroring clog.Default()), so a test that sets it must not run in parallel
 // with siblings that read it.
 func withResolvedColorMode(t *testing.T, mode clog.ColorMode) {
 	t.Helper()
@@ -51,7 +51,7 @@ func TestStyleEnabledFoldsColorModeOverTTY(t *testing.T) {
 
 // newPlainLogger takes the resolved --color mode, so a mutation success line's
 // issue-key link honors --color even though this stdout logger is not
-// clog.Default. never renders plain text; always renders an OSC 8 link even
+// clog.Default(). never renders plain text; always renders an OSC 8 link even
 // though the writer is a non-TTY buffer.
 func TestNewPlainLoggerHonorsResolvedColorMode(t *testing.T) {
 	cfg := defaultPlainConfig()

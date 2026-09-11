@@ -7,6 +7,7 @@ import (
 
 	clibtheme "github.com/gechr/clib/theme"
 	xstrings "github.com/gechr/x/strings"
+	"github.com/gechr/x/terminal"
 )
 
 // EnvThemeName overrides the default theme process-wide. It matches the prefix
@@ -86,7 +87,7 @@ func ThemeForName(name string) *clibtheme.Theme {
 }
 
 // AutoTheme resolves the opt-in "auto" theme: clib's light or dark theme chosen
-// by the terminal background of out (the stream styled output goes to). The
+// by the terminal background when out supports terminal output. The
 // JIRA_THEME override still wins, matching every other resolution path. When
 // there is nothing to detect — out is not a terminal, e.g. --color=always piped
 // into a pager — it falls back to dark: dark matches the convention of every
@@ -96,7 +97,10 @@ func AutoTheme(out *os.File) *clibtheme.Theme {
 	if th := themeFromName(os.Getenv(EnvThemeName)); th != nil {
 		return th
 	}
-	bg, ok := clibtheme.DetectBackground(out)
+	if !terminal.Is(out) {
+		return clibtheme.Dark()
+	}
+	bg, ok := clibtheme.DetectBackground()
 	if !ok {
 		bg = clibtheme.BackgroundDark
 	}

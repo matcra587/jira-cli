@@ -14,8 +14,10 @@ import (
 // the fallback, not the renderer.
 
 func linkLogger(buf *bytes.Buffer, mode clog.ColorMode) *clog.Logger {
-	logger := clog.New(clog.NewOutput(buf, mode))
-	logger.SetOmitEmpty(true)
+	logger := newPlainLogger(buf)
+	logger.SetColorMode(mode)
+	// SetColorMode replaces the output, so restore the logger's link policy.
+	logger.SetFieldFormats(logger.FieldFormats())
 	return logger
 }
 
@@ -49,6 +51,9 @@ func TestGenericPlainKeyLinkDegradesWithoutColor(t *testing.T) {
 		t.Fatalf("writeGenericPlain: %v", err)
 	}
 	got := buf.String()
+	if strings.Contains(got, "https://") {
+		t.Fatalf("plain issue key must not expand into a URL: %q", got)
+	}
 	if strings.Contains(got, "\x1b]8;;") {
 		t.Fatalf("no OSC 8 escapes without color support, got %q", got)
 	}

@@ -230,7 +230,7 @@ func TestHyperlinkSanitizesInnerText(t *testing.T) {
 }
 
 func TestHyperlinkHonorsClogHyperlinkDisabled(t *testing.T) {
-	formats := clog.Default.FieldFormats()
+	formats := clog.Default().FieldFormats()
 	disabled := formats
 	disabled.HyperlinkEnabled = false
 	clog.SetFieldFormats(disabled)

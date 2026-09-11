@@ -40,6 +40,9 @@ func TestIssueListPlainTableUsesPrimerFlexLinksAndStyles(t *testing.T) {
 	}
 
 	got := buf.String()
+	if !strings.Contains(got, "\x1b[8m  \x1b[28m") {
+		t.Fatalf("terminal table spacing is not protected from tab conversion: %q", got)
+	}
 	stripped := ansi.Strip(got)
 	for _, want := range []string{"INF", "Listed issues", "KEY", "SUMMARY", "STATUS", "ASSIGNEE", "PRIORITY", "SAM1-7", "In Progress", "Riley Chen", "High"} {
 		if !strings.Contains(stripped, want) {
@@ -92,6 +95,9 @@ func TestIssueListPlainDetailRendersFullIssuesAsTable(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Fatalf("detail issue list missing %q:\n%s", want, got)
 		}
+	}
+	if strings.Contains(got, "\x1b[8m") {
+		t.Fatalf("piped table contains terminal padding escapes: %q", got)
 	}
 	for _, notWant := range []string{"issues=\"", "\"fields\"", "\"comments\"", "value="} {
 		if strings.Contains(got, notWant) {

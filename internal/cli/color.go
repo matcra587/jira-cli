@@ -8,16 +8,16 @@ import (
 
 // resolvedColorMode is the process-wide --color decision, published by root
 // before any command renders. Package cli owns human output on stdout through
-// fresh clog loggers that clog.Default (pinned to stderr) does not govern, and
+// fresh clog loggers that clog.Default() (pinned to stderr) does not govern, and
 // several of those surfaces — RouteWarnings, WriteHumanJSON — run without a
 // *cobra.Command in reach, so the resolved mode lives here as a package global,
-// mirroring clog.Default itself, rather than being threaded through every
+// mirroring clog.Default() itself, rather than being threaded through every
 // signature. ColorAuto (the zero value) preserves per-writer TTY/NO_COLOR
 // detection, so an unset mode behaves exactly as it did before root wires it.
 var resolvedColorMode = clog.ColorAuto
 
 // SetResolvedColorMode publishes the --color decision root resolved to the
-// stdout human surfaces. clog.Default carries the mode for stderr; this carries
+// stdout human surfaces. clog.Default() carries the mode for stderr; this carries
 // it for everything package cli writes to stdout.
 func SetResolvedColorMode(mode clog.ColorMode) { resolvedColorMode = mode }
 

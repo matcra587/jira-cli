@@ -3,6 +3,7 @@ package cli
 import (
 	"io"
 	"strings"
+	"time"
 
 	"github.com/gechr/clog"
 )
@@ -33,8 +34,8 @@ func WriteKeyedResultsPlain(w io.Writer, command string, data any, opts ...Plain
 	if cfg.threads > 0 {
 		event = event.Int("threads", cfg.threads)
 	}
-	if cfg.elapsed > 0 {
-		// The whole fan-out's wall time; clog's default 1s minimum hides
+	if cfg.elapsed >= time.Second {
+		// The whole fan-out's wall time; the 1s threshold hides
 		// fast batches. Child rows never repeat it (resultKey guard).
 		event = event.Duration("elapsed", cfg.elapsed)
 	}

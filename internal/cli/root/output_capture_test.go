@@ -613,8 +613,8 @@ func TestRootPersistentPreRunStoresConfiguredClogLoggerInContext(t *testing.T) {
 	}
 
 	logger := clog.Ctx(executed.Context())
-	if logger == clog.Default {
-		t.Fatal("root persistent pre-run stored clog.Default in command context; want a command-scoped logger")
+	if logger == clog.Default() {
+		t.Fatal("root persistent pre-run stored clog.Default() in command context; want a command-scoped logger")
 	}
 
 	const probe = "context logger debug probe"

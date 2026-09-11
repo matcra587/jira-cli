@@ -162,7 +162,8 @@ run = "go run ./cmd/gen-docs --nav-config zensical.toml --check"
 ["docs:build"]
 description = "Build the documentation site"
 depends = ["docs:gen"]
-run = "uvx --from zensical zensical build --clean --strict"
+# clover: provider=pypi id=zensical package=zensical constraint=major
+run = "uvx --from zensical==0.0.60 zensical build --clean --strict"
 
 ["docs:serve"]
 description = "Serve the documentation site locally"

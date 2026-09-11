@@ -25,19 +25,19 @@ jobs:
       actions: read             # Required to read the CI gate run for the tagged commit.
     steps:
       - name: Checkout
-        # clover: provider=auto constraint=minor tags=checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        # @clover: constraint=major tags=checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
 
       - name: Install cosign
-        # clover: provider=auto constraint=minor tags=cosign-installer
+        # @clover: constraint=major tags=cosign-installer
         uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
 
       - name: Install mise
-        # clover: provider=auto constraint=minor tags=mise-action
-        uses: jdx/mise-action@dad1bfd3df957f44999b559dd69dc1671cb4e9ea # v4.2.1
+        # @clover: constraint=major tags=mise-action
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           install_args: --locked
@@ -107,7 +107,7 @@ jobs:
 
       - name: Create packaging token
         id: app-token
-        # clover: provider=auto constraint=minor tags=create-github-app-token
+        # @clover: constraint=major tags=create-github-app-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           client-id: ${{ vars.APP_CLIENT_ID }}
@@ -119,7 +119,7 @@ jobs:
 
       - name: Run GoReleaser
         if: steps.release-state.outputs.exists != 'true'
-        # clover: provider=auto constraint=minor tags=goreleaser-action
+        # @clover: constraint=major tags=goreleaser-action
         uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
         with:
           distribution: goreleaser
@@ -151,7 +151,7 @@ jobs:
       #     subject-checksums: dist/checksums.txt
 
       - name: Publish Homebrew formula
-        # clover: provider=auto constraint=minor tags=actions
+        # @clover: constraint=major tag-prefix=homebrew/ tags=actions
         uses: matcra587/github-actions/packages/homebrew-publish-formula@6e3053f35d4ec31adc4f82c04a2c43209f3b36e6 # homebrew/v0.1.0
         with:
           token: ${{ steps.app-token.outputs.token }}

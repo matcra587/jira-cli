@@ -98,7 +98,7 @@ func Hyperlink(url, text string) string {
 // hyperlink switch on the default logger and emits through clog's
 // primitive — no logger construction per link.
 func HyperlinkPreStyled(url, styledText string) string {
-	if !clog.Default.FieldFormats().HyperlinkEnabled {
+	if !clog.Default().FieldFormats().HyperlinkEnabled {
 		return styledText
 	}
 	return clhyperlink.OSC8(url, styledText)

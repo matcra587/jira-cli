@@ -5,27 +5,35 @@ min_version = "2026.5.0"
 lockfile = true
 
 [tools]
-# clover: provider=auto constraint=minor tags=go
-go = "1.26.5"
-# Pinned to the version .golangci.yml is written against. A release binary,
-# not `go tool`: the maintainers advise against source installs (rebuilds
-# defeat their distribution). The go.mod tool directive stays until the
-# shared go-lint workflow stops invoking `go tool golangci-lint`; keep the
-# two pins on the same version.
-# clover: provider=auto constraint=minor tags=golangci-lint
-golangci-lint = "2.12.2"
-actionlint = "latest"
-betterleaks = "latest"
-goreleaser = "latest"
-changie = "latest"
-jq = "latest"
-cosign = "latest"
-zizmor = "latest"
-rumdl = "latest"
-hk = "latest"
-pkl = "latest"
-shellcheck = "latest"
-uv = "latest"
+# @clover: constraint=minor tags=go
+go = "1.27.1"
+# Use the release binary locally and the same version in the shared CI workflow.
+# @clover: constraint=major tags=golangci-lint
+golangci-lint = "2.13.2"
+# @clover: constraint=major tags=actionlint
+actionlint = "1.7.12"
+# @clover: constraint=major tags=betterleaks
+betterleaks = "1.8.1"
+# @clover: constraint=major tags=goreleaser
+goreleaser = "2.18.1"
+# @clover: constraint=major tags=changie
+changie = "1.26.0"
+# @clover: constraint=major tag-prefix=jq- tags=jq
+jq = "1.8.2"
+# @clover: constraint=major tags=cosign
+cosign = "3.1.3"
+# @clover: constraint=major tags=zizmor
+zizmor = "1.30.1"
+# @clover: constraint=major tags=rumdl
+rumdl = "0.2.71"
+# @clover: id=hk constraint=major tags=hk
+hk = "1.58.1"
+# @clover: constraint=major tags=pkl
+pkl = "0.32.1"
+# @clover: constraint=major tags=shellcheck
+shellcheck = "0.11.0"
+# @clover: constraint=major tags=uv
+uv = "0.12.13"
 
 [env]
 HK_MISE = 1

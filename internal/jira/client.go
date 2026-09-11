@@ -716,12 +716,12 @@ func (c *Client) dumpResponseBody(ctx context.Context, body []byte) {
 
 func debugLogger(ctx context.Context) *clog.Logger {
 	logger := clog.Ctx(ctx)
-	if logger != clog.Default || logger.LevelEnabled(clog.LevelDebug) {
+	if logger != clog.Default() || logger.LevelEnabled(clog.LevelDebug) {
 		return logger
 	}
 
 	// Preserve direct use of WithDebug(true) outside the Cobra command
-	// path. CLI execution normally configures clog.Default to stderr.
+	// path. CLI execution normally configures clog.Default() to stderr.
 	fallback := clog.New(clog.NewOutput(os.Stderr, clog.ColorAuto))
 	fallback.SetLevel(clog.LevelDebug)
 	return fallback

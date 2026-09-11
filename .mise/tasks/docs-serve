@@ -7,4 +7,5 @@
 # work. Args pass through: add `--dev-addr 0.0.0.0:8000` to reach it from a
 # phone on the LAN, or `-o` to open a browser.
 set -euo pipefail
-exec uvx --from zensical zensical serve -f zensical.toml "$@"
+# clover: from=zensical
+exec uvx --from zensical==0.0.60 zensical serve -f zensical.toml "$@"

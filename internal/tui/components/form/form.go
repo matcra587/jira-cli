@@ -620,6 +620,7 @@ func (m *Model) hintRow() string {
 func (m *Model) renderHints(hints []pkey.Hint) string {
 	prefix := " "
 	return pkey.Renderer{
+		Gap:    "   ",
 		Styles: pkey.Styles{Key: m.styles.HintKey, Text: m.styles.HintText},
 		Prefix: &prefix,
 		Inline: true,

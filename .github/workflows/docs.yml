@@ -30,18 +30,18 @@ jobs:
       pages: read               # Required for configure-pages to read Pages settings.
     steps:
       - name: Checkout
-        # clover: provider=auto constraint=minor tags=checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        # @clover: constraint=major tags=checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Configure Pages
-        # clover: provider=auto constraint=minor tags=configure-pages
+        # @clover: constraint=major tags=configure-pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
 
       - name: Install mise
-        # clover: provider=auto constraint=minor tags=mise-action
-        uses: jdx/mise-action@dad1bfd3df957f44999b559dd69dc1671cb4e9ea # v4.2.1
+        # @clover: constraint=major tags=mise-action
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           install_args: --locked
@@ -51,7 +51,7 @@ jobs:
         run: mise run docs:build
 
       - name: Upload artifact
-        # clover: provider=auto constraint=minor tags=upload-pages-artifact
+        # @clover: constraint=major tags=upload-pages-artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: site
@@ -69,5 +69,5 @@ jobs:
     steps:
       - name: Deploy
         id: deployment
-        # clover: provider=auto constraint=minor tags=deploy-pages
-        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
+        # @clover: constraint=major tags=deploy-pages
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

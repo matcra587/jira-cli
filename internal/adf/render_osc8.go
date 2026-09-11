@@ -74,7 +74,7 @@ func osc8(url, text string) string {
 	// Honor the user-level hyperlink switch on the default logger, then
 	// emit through clog's primitive — no logger construction per link.
 	// Emission is deliberately TTY-independent; callers gate on TTY.
-	if !clog.Default.FieldFormats().HyperlinkEnabled {
+	if !clog.Default().FieldFormats().HyperlinkEnabled {
 		return text
 	}
 	return hyperlink.OSC8(url, text)

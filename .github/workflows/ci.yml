@@ -28,16 +28,16 @@ jobs:
         shell: bash --noprofile --norc -euo pipefail {0}
     steps:
       - name: Checkout
-        # clover: provider=auto constraint=minor tags=checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        # @clover: constraint=major tags=checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # GoReleaser refuses shallow clones; it needs tags for snapshot versioning.
           fetch-depth: 0
           persist-credentials: false
 
       - name: Install mise
-        # clover: provider=auto constraint=minor tags=mise-action
-        uses: jdx/mise-action@dad1bfd3df957f44999b559dd69dc1671cb4e9ea # v4.2.1
+        # @clover: constraint=major tags=mise-action
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           install_args: --locked
@@ -57,7 +57,7 @@ jobs:
         run: echo "date=$(date -u +%F)" >> "$GITHUB_OUTPUT"
 
       - name: Restore Go caches
-        # clover: provider=auto constraint=minor tags=cache
+        # @clover: constraint=major tags=cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
@@ -87,26 +87,22 @@ jobs:
       - name: Cross-platform build check
         run: mise run release:build
 
-  go-test:
-    name: Go test
+  go-ci:
+    name: Go CI
     if: github.event_name == 'pull_request'
-    # clover: provider=auto tags=actions
-    uses: matcra587/github-actions/.github/workflows/go-test.yml@67f0de0d0ceebe69895e868207c04e5c66b3bde8
+    # @clover: constraint=major tag-prefix=go-ci/ tags=actions
+    uses: matcra587/github-actions/.github/workflows/go-ci.yml@9e87045cb838afd0d6a65ebff3ae2d50fa7e8887 # go-ci/v0.3.2
     permissions:
       contents: read
-
-  go-lint:
-    name: Go lint
-    if: github.event_name == 'pull_request'
-    # clover: provider=auto tags=actions
-    uses: matcra587/github-actions/.github/workflows/go-lint.yml@67f0de0d0ceebe69895e868207c04e5c66b3bde8
-    permissions:
-      contents: read
+    with:
+      # clover: provider=github repository=golangci/golangci-lint constraint=major
+      golangci-version: v2.13.2
+      test-args: '-shuffle=on -count=1 ./...'
 
   md-lint:
     name: Markdown lint
     if: github.event_name == 'pull_request'
-    # clover: provider=auto tags=actions
-    uses: matcra587/github-actions/.github/workflows/md-lint.yml@67f0de0d0ceebe69895e868207c04e5c66b3bde8
+    # @clover: constraint=major tag-prefix=go-ci/ tags=actions
+    uses: matcra587/github-actions/.github/workflows/md-lint.yml@9e87045cb838afd0d6a65ebff3ae2d50fa7e8887 # go-ci/v0.3.2
     permissions:
       contents: read

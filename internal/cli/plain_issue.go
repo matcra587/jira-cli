@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/gechr/clog"
 	xstrings "github.com/gechr/x/strings"
@@ -122,8 +123,8 @@ func writeIssueViewManyPlain(logger *clog.Logger, command string, results []map[
 	if cfg.threads > 0 {
 		event = event.Int("threads", cfg.threads)
 	}
-	if cfg.elapsed > 0 {
-		// The whole fan-out's wall time; clog's default 1s DurationMinimum
+	if cfg.elapsed >= time.Second {
+		// The whole fan-out's wall time; the 1s threshold
 		// hides fast batches.
 		event = event.Duration("elapsed", cfg.elapsed)
 	}

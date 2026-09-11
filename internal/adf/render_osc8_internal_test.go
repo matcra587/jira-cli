@@ -38,7 +38,7 @@ func TestOSC8SanitizesURLAndText(t *testing.T) {
 }
 
 func TestOSC8HonorsClogHyperlinkDisabled(t *testing.T) {
-	formats := clog.Default.FieldFormats()
+	formats := clog.Default().FieldFormats()
 	disabled := formats
 	disabled.HyperlinkEnabled = false
 	clog.SetFieldFormats(disabled)

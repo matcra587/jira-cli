@@ -114,8 +114,8 @@ func rootPersistentPreRun(cmd *cobra.Command, rt *runtime.Runtime) error {
 	// Resolve --color once and apply it to every color surface. clog.ColorMode
 	// implements TextUnmarshaler, so the flag string parses directly; an empty
 	// flag keeps the ColorAuto zero value. The mode reaches three places: the
-	// clog.Default logger (stderr human diagnostics); the package-cli stdout
-	// surfaces, which build their own loggers clog.Default does not govern; and
+	// clog.Default() logger (stderr human diagnostics); the package-cli stdout
+	// surfaces, which build their own loggers clog.Default() does not govern; and
 	// the process-wide hyperlink switch the string-level OSC 8 helpers read, so
 	// `never` suppresses hyperlinks on every human surface — plain renderer, ADF
 	// issue view, exported link helpers — in one place. SetHyperlinkEnabled runs
@@ -761,7 +761,7 @@ func writeCommandError(ctx context.Context, cmd *cobra.Command, err error) error
 	// already rendered its own failure (EnvelopeWritten) still gets this concise
 	// summary line, matching prior behavior.
 	logger := clog.Ctx(ctx)
-	if logger == clog.Default {
+	if logger == clog.Default() {
 		logger = clog.New(clog.NewOutput(cmd.ErrOrStderr(), cli.ResolvedColorMode()))
 	}
 	return cli.TrackWrites(cmd.ErrOrStderr(), func(out io.Writer) error {

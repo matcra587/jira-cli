@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"image/color"
 	"strings"
 	"testing"
 
@@ -265,7 +264,7 @@ func TestEntityHuesAreFixedAndMidTone(t *testing.T) {
 	// The theme no longer supplies the colors: two themes with different
 	// EntityColors render the same assignee identically.
 	dark := clibtheme.Dark()
-	altered := clibtheme.Dark().With(clibtheme.WithEntityColors([]color.Color{lipgloss.Color("#010101")}))
+	altered := clibtheme.Dark().With(clibtheme.WithEntityColors(lipgloss.Color("#010101")))
 	a := hashStyle(dark, "assignee:Alice").Render("Alice")
 	b := hashStyle(altered, "assignee:Alice").Render("Alice")
 	if a != b {
@@ -273,7 +272,7 @@ func TestEntityHuesAreFixedAndMidTone(t *testing.T) {
 	}
 	// Monochrome presets ship an empty EntityColors slice as a deliberate
 	// opt-out of entity coloring — they must keep rendering bare.
-	mono := clibtheme.Dark().With(clibtheme.WithEntityColors(nil))
+	mono := clibtheme.Dark().With(clibtheme.WithEntityColors())
 	if got := hashStyle(mono, "assignee:Alice").Render("Alice"); got != "Alice" {
 		t.Errorf("monochrome theme should render entities bare, got %q", got)
 	}

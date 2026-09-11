@@ -311,6 +311,7 @@ func RenderHints(key, text lipgloss.Style, hints []pkey.Hint) string {
 	}
 	prefix := " "
 	return pkey.Renderer{
+		Gap:    "   ",
 		Styles: pkey.Styles{Key: key, Text: text},
 		Prefix: &prefix,
 		Inline: true,

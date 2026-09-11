@@ -15,6 +15,7 @@ import (
 	ansi "github.com/charmbracelet/x/ansi"
 	clibtheme "github.com/gechr/clib/theme"
 	"github.com/gechr/clog"
+	cloglink "github.com/gechr/clog/field/hyperlink"
 	clogstyle "github.com/gechr/clog/style"
 	"github.com/gechr/primer/table"
 	termansi "github.com/gechr/x/ansi"
@@ -209,11 +210,12 @@ func WithPlainTSV(tsv bool) PlainOption {
 // declined — this is a data surface and exact values matter.
 //
 // The output takes the resolved --color mode (resolvedColorMode) rather than a
-// hardcoded ColorAuto: this is a stdout surface clog.Default (stderr) does not
+// hardcoded ColorAuto: this is a stdout surface clog.Default() (stderr) does not
 // govern, so --color=always/never would otherwise be ignored here.
 func newPlainLogger(w io.Writer) *clog.Logger {
 	logger := clog.New(clog.NewOutput(w, resolvedColorMode))
 	logger.SetOmitEmpty(true)
+	logger.SetHyperlinkFallback(cloglink.FallbackText)
 	logger.SetSmartQuotes(true)
 	logger.SetNumberFormat(clog.NumberGrouped)
 	logger.SetStyles(plainLoggerStyles())
@@ -410,11 +412,11 @@ func writeGenericPlain(logger *clog.Logger, cfg plainConfig, message string, dat
 		}
 		event = event.Any(field.key, field.value)
 	}
-	if cfg.elapsed > 0 && cfg.resultKey == "" {
+	if cfg.elapsed >= time.Second && cfg.resultKey == "" {
 		// The command's blocking time trails the completion line — a
 		// multi-key child row (resultKey set) already reports per-key timing
 		// in the debug lifecycle, and the keyed summary line carries the
-		// whole fan-out's elapsed. clog's default 1s minimum hides it for
+		// whole fan-out's elapsed. The 1s threshold hides it for
 		// fast calls, so only genuinely slow round-trips grow the field.
 		event = event.Duration("elapsed", cfg.elapsed)
 	}
@@ -646,8 +648,8 @@ func writeIssueListPlain(logger *clog.Logger, data any, cfg plainConfig) error {
 	if jql != "" && cfg.debug {
 		event = event.Str("jql", jql)
 	}
-	if cfg.elapsed > 0 && cfg.resultKey == "" {
-		// Trailing blocking time; clog's default 1s minimum hides fast lists.
+	if cfg.elapsed >= time.Second && cfg.resultKey == "" {
+		// Trailing blocking time; the 1s threshold hides fast lists.
 		event = event.Duration("elapsed", cfg.elapsed)
 	}
 	event.Msg(msg)
@@ -1048,7 +1050,27 @@ func issueRows(issues []map[string]any, cfg plainConfig) ([]string, error) {
 	if rendered.String() == "" {
 		return nil, nil
 	}
-	return strings.Split(rendered.String(), "\n"), nil
+	if !cfg.tty {
+		return strings.Split(rendered.String(), "\n"), nil
+	}
+	method := ansi.WcWidth
+	if cfg.graphemeWidth {
+		method = ansi.GraphemeWidth
+	}
+	th := primerTheme{theme: cfg.theme, styled: true}
+	header := make([]string, len(cols))
+	for i, col := range cols {
+		header[i] = th.RenderBold(col.header)
+	}
+	lines := []string{terminalTableRow(header, rendered.ColWidths, method)}
+	for _, row := range rendered.Rows {
+		cells := make([]string, len(row.Cells))
+		for i, cell := range row.Cells {
+			cells[i] = cell.Text
+		}
+		lines = append(lines, terminalTableRow(cells, rendered.ColWidths, method))
+	}
+	return lines, nil
 }
 
 // issueTSVLines renders the selected columns as tab-separated lines: a header
@@ -1090,7 +1112,7 @@ func issueTableRenderer(cfg plainConfig, cols []issueColumn) *table.Renderer[iss
 			},
 		})
 	}
-	opts := []table.Option{table.WithTTY(cfg.tty), table.WithTermWidth(cfg.termWidth)}
+	opts := []table.Option{table.WithTermWidth(cfg.termWidth)}
 	if cfg.graphemeWidth {
 		opts = append(opts, table.WithGridOptions(table.WithWidthMethod(ansi.GraphemeWidth)))
 	}
@@ -1151,7 +1173,7 @@ func statusPillCell(cfg plainConfig, status, category, colorName string) table.C
 	// Pad inside the label — not via the grid — so the filled background
 	// extends to the widest pill in the table and the badges form a uniform
 	// block instead of ragged per-status widths.
-	if pad := cfg.statusPillWidth - table.VisibleWidth(label); pad > 0 {
+	if pad := cfg.statusPillWidth - ansi.WcWidth.StringWidth(label); pad > 0 {
 		label += strings.Repeat(" ", pad)
 	}
 	return table.StyledCell(statusPill(cfg, status, category, colorName).Render(label), label)
@@ -1172,7 +1194,7 @@ func widestStatusLabel(rows []issueTableRow) int {
 		if row.Status == "" {
 			continue
 		}
-		if w := table.VisibleWidth(statusPillLabel(row.Status)); w > widest {
+		if w := ansi.WcWidth.StringWidth(statusPillLabel(row.Status)); w > widest {
 			widest = w
 		}
 	}

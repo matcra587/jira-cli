@@ -15,20 +15,21 @@ func TestReleaseWorkflowUsesPinnedGoReleaserAndHomebrewPublisher(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadFile(goreleaser) error = %v", err)
 	}
+	assertPinnedWorkflowUses(t, string(release))
 	combined := string(release) + "\n" + string(goreleaser)
 	for _, want := range []string{
-		"actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10",
-		"sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6",
-		"jdx/mise-action@dad1bfd3df957f44999b559dd69dc1671cb4e9ea",
+		"actions/checkout@",
+		"sigstore/cosign-installer@",
+		"jdx/mise-action@",
 		"install_args: --locked",
 		"id: release-state",
 		"gh release view",
 		"gh release download",
-		"goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94",
-		"actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1",
+		"goreleaser/goreleaser-action@",
+		"actions/create-github-app-token@",
 		"vars.APP_CLIENT_ID",
 		"secrets.APP_PRIVATE_KEY",
-		"matcra587/github-actions/packages/homebrew-publish-formula@6e3053f35d4ec31adc4f82c04a2c43209f3b36e6",
+		"matcra587/github-actions/packages/homebrew-publish-formula@",
 		"steps.app-token.outputs.token",
 		"tap: matcra587/homebrew-tap",
 		"name_template:",

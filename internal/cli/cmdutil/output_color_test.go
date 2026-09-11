@@ -19,7 +19,7 @@ import (
 func wireColorMode(t *testing.T, mode clog.ColorMode) {
 	t.Helper()
 	prevMode := cli.ResolvedColorMode()
-	prevLinks := clog.Default.FieldFormats().HyperlinkEnabled
+	prevLinks := clog.Default().FieldFormats().HyperlinkEnabled
 	t.Cleanup(func() {
 		cli.SetResolvedColorMode(prevMode)
 		clog.SetHyperlinkEnabled(prevLinks)
@@ -50,7 +50,7 @@ var colorTestIssueData = map[string]any{
 // PlainOptionsForCommand folds the resolved --color mode into the renderer's
 // styling switch, so --color=always styles a piped (non-TTY) stdout and
 // --color=never leaves a real terminal plain — the flag no longer stops at
-// clog.Default (stderr).
+// clog.Default() (stderr).
 func TestPlainOptionsForCommandHonorsColorMode(t *testing.T) {
 	t.Run("always styles a non-tty writer", func(t *testing.T) {
 		wireColorMode(t, clog.ColorAlways)

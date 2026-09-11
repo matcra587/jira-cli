@@ -2,6 +2,7 @@ package contract
 
 import (
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -59,28 +60,16 @@ func TestCIQualityGateRunsRequiredGoChecks(t *testing.T) {
 		}
 	}
 	for _, want := range []string{
-		"matcra587/github-actions/.github/workflows/go-test.yml@67f0de0d0ceebe69895e868207c04e5c66b3bde8",
-		"matcra587/github-actions/.github/workflows/go-lint.yml@67f0de0d0ceebe69895e868207c04e5c66b3bde8",
-		"matcra587/github-actions/.github/workflows/md-lint.yml@67f0de0d0ceebe69895e868207c04e5c66b3bde8",
+		"matcra587/github-actions/.github/workflows/go-ci.yml@",
+		"matcra587/github-actions/.github/workflows/md-lint.yml@",
 		// Workflow linting moved local (hk's actionlint/zizmor builtins,
 		// asserted below); the remote side is the shared security workflow,
 		// pinned by SHA with SARIF uploads to code scanning.
-		"matcra587/github-actions/.github/workflows/security.yml@1f771927fa94bbb42fee46581c0cf6676080519e",
+		"matcra587/github-actions/.github/workflows/security.yml@",
 		"security-events: write",
 		"sarif: true",
 		"lockfile = true",
-		"actionlint = \"latest\"",
-		// The binary linter must stay version-pinned: .golangci.yml is
-		// written against a specific release, and the go.mod tool
-		// directive (kept for the shared go-lint workflow) must carry the
-		// same version — asserted against go.mod below.
-		"golangci-lint = \"2.12.2\"",
-		"cosign = \"latest\"",
-		"hk = \"latest\"",
-		"pkl = \"latest\"",
-		"rumdl = \"latest\"",
-		"zizmor = \"latest\"",
-		"shellcheck = \"latest\"",
+
 		"[task_config]",
 		"includes = [\"tasks.toml\"]",
 		"Builtins.actionlint",
@@ -95,20 +84,18 @@ func TestCIQualityGateRunsRequiredGoChecks(t *testing.T) {
 			t.Fatalf("mise config should not include node-related tool %q:\n%s", unwanted, mise)
 		}
 	}
-	// The mise binary pin and the go.mod tool pin must move in lockstep:
-	// the shared go-lint workflow still lints PRs via `go tool`, so a bump
-	// of one without the other lints PRs and main with different linter
-	// versions.
-	gomod, err := os.ReadFile("../../go.mod")
-	if err != nil {
-		t.Fatalf("ReadFile(go.mod) error = %v", err)
+	// PRs and local checks must use the same release binary.
+	localPin := regexp.MustCompile(`(?m)^golangci-lint = "([0-9.]+)"`).FindSubmatch(mise)
+	if len(localPin) != 2 || !strings.Contains(string(ci), "golangci-version: v"+string(localPin[1])) {
+		t.Fatal("local and CI golangci-lint versions must match")
 	}
-	if !strings.Contains(string(gomod), "github.com/golangci/golangci-lint/v2 v2.12.2") {
-		t.Fatalf("go.mod golangci-lint pin drifted from .mise.toml's 2.12.2 — bump both together")
+	for _, tool := range []string{"actionlint", "cosign", "hk", "pkl", "rumdl", "zizmor", "shellcheck"} {
+		if !regexp.MustCompile(`(?m)^` + tool + ` = "[0-9]+\.[0-9]+\.[0-9]+"`).Match(mise) {
+			t.Errorf("%s must have an exact version pin", tool)
+		}
 	}
-	if strings.Contains(combined, "8b104684e72bef79fca78b294accb5f789d3f202") {
-		t.Fatalf("shared workflow refs should use the Slack-aligned pinned SHA, not old 8b104684 refs")
-	}
+	assertPinnedWorkflowUses(t, string(ci))
+	assertPinnedWorkflowUses(t, string(security))
 }
 
 func TestCIWorkflowGatesMainPushesForRelease(t *testing.T) {
@@ -152,6 +139,19 @@ func TestLocalCITaskIncludesReleasePreflightInputs(t *testing.T) {
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("tasks.toml missing local CI gate %q\n%s", want, tasks)
+		}
+	}
+}
+
+func assertPinnedWorkflowUses(t *testing.T, workflow string) {
+	t.Helper()
+	uses := regexp.MustCompile(`(?m)^\s*(?:- )?uses: (\S+)`).FindAllStringSubmatch(workflow, -1)
+	if len(uses) == 0 {
+		t.Fatal("workflow has no action references")
+	}
+	for _, use := range uses {
+		if !regexp.MustCompile(`@[a-f0-9]{40}$`).MatchString(use[1]) {
+			t.Errorf("action reference must use a full commit SHA: %s", use[1])
 		}
 	}
 }
