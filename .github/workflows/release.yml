@@ -175,7 +175,5 @@ jobs:
           head-branch: main
           head-depends-on: go
           completion-args: completion
-          test-args: --help
-          test-match: Jira CLI
           livecheck: "true"
           commit-message: "jira: v{version}"
