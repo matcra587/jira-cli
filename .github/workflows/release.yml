@@ -152,7 +152,7 @@ jobs:
 
       - name: Publish Homebrew formula
         # @clover: constraint=major tag-prefix=homebrew/ tags=actions
-        uses: matcra587/github-actions/packages/homebrew-publish-formula@6e3053f35d4ec31adc4f82c04a2c43209f3b36e6 # homebrew/v0.1.0
+        uses: matcra587/github-actions/packages/homebrew-publish-formula@3b7e5c01d5ae0ccb2aeedf023c69d34b86cf2476 # homebrew/v0.1.1
         with:
           token: ${{ steps.app-token.outputs.token }}
           tap: matcra587/homebrew-tap
