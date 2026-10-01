@@ -5,7 +5,7 @@ go 1.27.1
 
 require (
 	charm.land/bubbles/v2 v2.2.1
-	charm.land/bubbletea/v2 v2.0.9
+	charm.land/bubbletea/v2 v2.0.10
 	charm.land/glamour/v2 v2.0.1
 	charm.land/huh/v2 v2.0.3
 	charm.land/lipgloss/v2 v2.0.6
@@ -14,8 +14,8 @@ require (
 	github.com/agnivade/levenshtein v1.2.1
 	github.com/charmbracelet/x/ansi v0.11.8
 	github.com/charmbracelet/x/exp/teatest/v2 v2.0.0-20260906004030-3986e9119cf9
-	github.com/gechr/clib v0.7.17
-	github.com/gechr/clive v0.4.10
+	github.com/gechr/clib v0.7.19
+	github.com/gechr/clive v0.4.11
 	github.com/gechr/clog v0.17.1
 	github.com/gechr/primer v0.2.7
 	github.com/gechr/x v0.6.0
@@ -66,8 +66,8 @@ require (
 	github.com/charmbracelet/x/term v0.2.2 // indirect
 	github.com/charmbracelet/x/termios v0.1.1 // indirect
 	github.com/charmbracelet/x/windows v0.2.2 // indirect
-	github.com/cli/go-gh/v2 v2.13.0 // indirect
-	github.com/cli/safeexec v1.0.0 // indirect
+	github.com/cli/go-gh/v2 v2.16.1 // indirect
+	github.com/cli/safeexec v1.0.1 // indirect
 	github.com/clipperhouse/displaywidth v0.11.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/danieljoos/wincred v1.2.3 // indirect
