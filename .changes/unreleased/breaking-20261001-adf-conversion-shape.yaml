@@ -1,0 +1,3 @@
+kind: breaking
+body: "Change `adf convert` compact success from a bare ADF document to an object containing `document` and diagnostics. Extract `.data.document` in JSON mode or `.document` in compact mode before piping to mutation input, for example `adf convert --input notes.md --output=compact --jq .document`. Strict failures retain the candidate and diagnostics; do not submit an error envelope as a body."
+time: 2026-10-01T12:53:25.499098656-04:00

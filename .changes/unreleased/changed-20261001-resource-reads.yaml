@@ -1,0 +1,3 @@
+kind: changed
+body: "Retain complete native issue, account, epic, comment, attachment, watcher and worklog values instead of reduced read projections. Report paging and completeness separately from successful resource reads."
+time: 2026-10-01T15:37:31.204045148-04:00

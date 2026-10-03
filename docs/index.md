@@ -1,36 +1,58 @@
 ---
 title: jira-cli
-description: Manage Jira from your terminal. A CLI for developers and agents.
+description: Terminal-first Jira Cloud CLI for developer and agent workflows — currently mid-rebuild, with the output contract landed first.
 icon: material/rocket-launch-outline
 ---
 
 # jira-cli
 
-Manage your Jira issues from the command line.
+Terminal-first Jira Cloud CLI for developer and agent workflows.
 
-jira-cli brings Jira into your terminal: read and search issues, create and edit
-them, move them through their workflow, and add comments, links, and
-attachments, all without switching to the browser. Run individual commands
-or compose them in scripts. The persistent dashboard runtime is deferred.
+!!! warning "This branch is a rebuild in progress"
 
-Every command can also return a stable JSON envelope with typed exit codes, so a
-script or an AI agent reads the result exactly as a person would. That makes
-jira-cli as comfortable to automate as it is to drive by hand.
+    jira-cli is being rewritten from the ground up. The Jira-facing commands
+    are not back yet. What is documented here is what the binary on this
+    branch actually does — nothing is described ahead of shipping, because
+    documentation that runs ahead of the code is worse than no documentation
+    at all.
 
-## First run
+## What ships today
 
-Install jira-cli ([all methods](installation.md)), then point it at your site and
-make your first read:
+Two commands, plus the root surface and the flags every command shares.
 
 ```sh
-jira config init --base-url https://example.atlassian.net --email you@example.com
-jira auth login  # (1)!
-jira issue list --assignee me
+jira version      # version, and build provenance where the binary carries it
+jira completion fish
 ```
 
-1.  Prompts for your API token and stores it (interactive on a TTY).
+`jira version` prints the bare version string for a person and the full
+build detail — commit, dirty state, build date, Go toolchain, target
+platform — in the machine modes. `jira completion <shell>` writes a
+completion script to stdout for `bash`, `elvish`, `fish`, `nu`, `pwsh`, or
+`zsh`; run it with `--help` for the per-shell install line.
 
-See [Authenticate](auth.md) for the 1Password backend and the headless (CI) flow.
+Every command carries the same flags:
+
+| Flag | What it does |
+|------|--------------|
+| `--output <mode>` | `auto`, `human`, `json`, or `compact` — see [Output & exit codes](output.md) |
+| `--jq <expr>` | Filter machine output through a jq expression, in-process |
+| `--jq-arg <name=value>` | Bind a string into the filter as `$name`, repeatable |
+| `--jq-argjson <name=json>` | Bind JSON into the filter as `$name`, repeatable |
+| `--color <when>` | `auto`, `always`, or `never` |
+| `-v`, `--verbose` | Raise log verbosity, repeatable |
+| `-q`, `--quiet` | Only show errors |
+
+`-h` prints short help; `--help` prints the long form, including worked
+examples. `-V` and `--version` print the bare version string.
+
+## What is not here yet
+
+Issues, search, boards, epics, worklogs, config, auth, the TUI — none of it
+is on this branch. Earlier releases shipped those commands; their
+documentation was removed rather than left standing, because it described a
+binary you cannot install from here. It returns page by page as each command
+lands, generated from the live command tree so it cannot drift again.
 
 ## Explore
 
@@ -40,48 +62,14 @@ See [Authenticate](auth.md) for the 1Password backend and the headless (CI) flow
 
     ---
 
-    Install on macOS, Windows, or Linux.
+    Install on macOS, Windows, or Linux — Homebrew, Scoop, mise, the
+    one-line installer, `go install`, or a release archive.
 
-*   :key:{ .lg .middle } [**Authenticate**](auth.md)
-
-    ---
-
-    Create a profile and store an API token in the OS keyring or 1Password.
-
-*   :gear:{ .lg .middle } [**Configure**](config.md)
+*   :outbox_tray:{ .lg .middle } [**Output & exit codes**](output.md)
 
     ---
 
-    Profiles, defaults, aliases, themes, and the full config reference.
-
-*   :memo:{ .lg .middle } [**Work with issues**](issue/read.md)
-
-    ---
-
-    Read, create, edit, transition, comment, link, and attach.
-
-*   :desktop_computer:{ .lg .middle } [**Dashboard status**](tui.md)
-
-    ---
-
-    The persistent dashboard runtime is deferred during the CLI migration.
-
-*   :mag:{ .lg .middle } [**Search and JQL**](search.md)
-
-    ---
-
-    Find issues with filter flags, raw JQL, or saved queries.
-
-*   :outbox_tray:{ .lg .middle } [**Output and scripting**](output.md)
-
-    ---
-
-    The JSON envelope, exit codes, and compact mode for scripts and agents.
-
-*   :robot:{ .lg .middle } [**Drive it from an agent**](agent.md)
-
-    ---
-
-    Machine-readable command schema, per-workflow runbooks, and the live ADF matrix.
+    The one `--output` selector, the JSON envelope, the typed exit codes,
+    and the built-in jq filter.
 
 </div>

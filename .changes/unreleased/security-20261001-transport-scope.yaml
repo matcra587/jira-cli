@@ -1,0 +1,3 @@
+kind: security
+body: "Harden authenticated redirects and bound redirect chains. Retain exact failure causes without automatically replaying writes."
+time: 2026-10-01T03:37:32.319106052-04:00

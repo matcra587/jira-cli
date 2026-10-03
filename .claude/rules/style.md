@@ -20,11 +20,17 @@ and [commands.md](commands.md) for the command pattern.
     without it, which library function a local implementation deliberately
     is not — never what the next line does. This repo's comment density is
     high and deliberate; match the surrounding file.
+*   When inserting a function ABOVE an existing one, check the doc comment
+    between them: a new `// Name …` block with no blank line before it
+    ANNEXES the comment above it, leaving the original function
+    undocumented and its paragraph attached to the wrong symbol. This
+    recurs, survives green gauntlets, and reads fine in a diff — `go doc`
+    on the older symbol is the check.
 *   Every package carries its `// Package <name> …` comment in a dedicated
     `doc.go` (package comment + package clause only) — a new package starts
     with one. Never put the package comment atop a code file; keeping it in
     `doc.go` keeps package-doc diffs isolated and the doc easy to find.
-    Precedents: `internal/errtax/doc.go`, `internal/tui/doc.go`.
+    Precedents: `internal/cli/doc.go`, `internal/adf/doc.go`.
 *   Handle errors and edge cases first (early return); drop `else` when the
     `if` body returns; keep the happy path at minimal indentation.
 *   Composite literals use field names, never positional fields.
@@ -35,8 +41,8 @@ and [commands.md](commands.md) for the command pattern.
 
 | Do | Don't |
 |----|-------|
-| `cmdutil.AddStringVar(fs, …, clib.FlagExtra{…})` | raw `fs.StringVar` (ruleguard-banned) |
-| `cmdutil.WriteEnvelope(cmd, "domain.verb", data)` | `json.NewEncoder(out).Encode(...)` for envelopes |
+| `command.AddStringVar(cmd, …, command.FlagOpts{…})` | raw `fs.StringVar` (ruleguard-banned) |
+| return typed data from `command.Spec.Run` | `json.NewEncoder(out).Encode(...)` for envelopes |
 | `clog.Ctx(ctx).Info()…Msg()` | `log`, `log/slog`, `fmt.Print*` for status |
 | `errors.As` adapter in `internal/cli/errors.go` | matching on `err.Error()` substrings |
 | spinner/progress around Jira calls | bare blocking calls (ruleguard-banned) |
@@ -65,10 +71,10 @@ checks are disabled).
 
 | Rule | Banned | Use instead |
 |------|--------|-------------|
-| `rawPflagDeclaration` | raw pflag setter methods (`StringVar`, `BoolVar`, …) outside `internal/cli/cmdutil/` | `cmdutil.Add*` helpers, which attach clib metadata in the same call |
+| `rawPflagDeclaration` | raw pflag setter methods (`StringVar`, `BoolVar`, …) outside `internal/cli/command/` | `command.Add*` helpers, which attach clib metadata in the same call |
 | `unwrappedBlockingCall` | Jira client calls not wrapped in a spinner/progress | `clog.Spinner(...)`/fanout progress |
 
-The `internal/cli/cmdutil/` exemption exists **because** cmdutil is the
+The `internal/cli/command/` exemption exists **because** command is the
 register-and-extend wrapper layer — its `flags.go` and bundlers call the raw
 setters on purpose. Do not widen that exemption.
 

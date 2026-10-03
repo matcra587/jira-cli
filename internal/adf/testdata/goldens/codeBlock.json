@@ -1,1 +1,0 @@
-{"type":"doc","version":1,"content":[{"type":"codeBlock","attrs":{"language":"go"},"content":[{"type":"text","text":"package main\n\nfunc main() {}\n"}]}]}

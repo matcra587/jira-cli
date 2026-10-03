@@ -1,0 +1,3 @@
+kind: breaking
+body: "Change `auth token` from redacted diagnostics to raw token export on stdout, without a JSON envelope. Use `auth status` for credential inspection; do not capture token export in logs."
+time: 2026-08-03T01:58:37.397245206-04:00

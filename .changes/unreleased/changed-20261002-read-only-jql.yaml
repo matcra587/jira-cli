@@ -1,0 +1,3 @@
+kind: changed
+body: "Admit explicit JQL validation as a read in read-only mode even though Jira uses POST at `/rest/api/3/jql/parse`; v0.15 refused it through a method-based write guard. This classification does not permit arbitrary POST requests or authorize a mutation."
+time: 2026-10-02T00:04:45.968257703-04:00

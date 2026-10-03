@@ -1,306 +1,175 @@
-// Contract tests for the `jira boards list` top-level read command.
-//
-//   - Cold-start: empty cache → first call hits the API + primes;
-//     second call serves from cache (`from_cache: true`).
-//   - --refresh: even a fresh cache forces a re-prime; `fetched_at`
-//     advances.
-//   - Truncation: a primed cache flagged `truncated: true,
-//     truncated_reason: "max_pages"` surfaces `data.truncated: true`
-//     plus `warnings[0].type: "cache-truncated"` carrying the named
-//     limit.
-//   - Empty-cache rendering: an instance with zero boards → primes,
-//     returns `data.boards: []`, no error.
 package contract
 
 import (
 	"encoding/json"
+	"fmt"
+	"math"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
-	"time"
 
-	"github.com/matcra587/jira-cli/internal/cache"
+	"github.com/matcra587/jira-cli/internal/envelope"
 )
 
-// boardsListServer fakes the agile board endpoint plus per-board
-// project endpoints used by the cache primer. Each test wires its
-// own response by setting Values / Projects.
-type boardsListFake struct {
-	hits  atomic.Int64
-	pages atomic.Int64
-}
-
-func newBoardsServer(t *testing.T, fake *boardsListFake) *httptest.Server {
+func parseBoards(t *testing.T, stdout, mode string, exit int) envelope.BoardsListOutput {
 	t.Helper()
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fake.hits.Add(1)
-		w.Header().Set("Content-Type", "application/json")
-		switch {
-		case strings.HasPrefix(r.URL.Path, "/rest/agile/1.0/board/") && strings.HasSuffix(r.URL.Path, "/project"):
-			// /rest/agile/1.0/board/{id}/project — project list
-			id := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/rest/agile/1.0/board/"), "/project")
-			switch id {
-			case "42":
-				_, _ = w.Write([]byte(`{"maxResults":50,"startAt":0,"isLast":true,"values":[{"key":"ENG"},{"key":"PLAT"}]}`))
-			case "99":
-				_, _ = w.Write([]byte(`{"maxResults":50,"startAt":0,"isLast":true,"values":[{"key":"OPS"}]}`))
-			default:
-				_, _ = w.Write([]byte(`{"maxResults":50,"startAt":0,"isLast":true,"values":[]}`))
-			}
-		case r.URL.Path == "/rest/agile/1.0/board":
-			fake.pages.Add(1)
-			_, _ = w.Write([]byte(`{
-				"maxResults":50,"startAt":0,"isLast":true,"values":[
-					{"id":42,"self":"https://example/board/42","name":"Engineering Sprint","type":"scrum"},
-					{"id":99,"self":"https://example/board/99","name":"Ops Kanban","type":"kanban"}
-				]
-			}`))
+	var out envelope.BoardsListOutput
+	data := adfData(t, stdout, mode, "boards.list", exit == 0)
+	if err := json.Unmarshal(data, &out); err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
+func boardCacheEnv(t *testing.T, site string) []string {
+	t.Helper()
+	home := t.TempDir()
+	return append(editReceiptEnv(site), "HOME="+home, "XDG_CONFIG_HOME="+filepath.Join(home, "config"), "XDG_CACHE_HOME="+filepath.Join(home, "cache"), "JIRA_READ_ONLY=true")
+}
+
+func TestBoardsListBinaryAccountIsolationAndCacheWindows(t *testing.T) {
+	t.Parallel()
+	var boardCalls, projectCalls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		account, _, _ := r.BasicAuth()
+		if r.Method != "GET" || r.URL.Query().Get("startAt") != "0" || r.URL.Query().Get("maxResults") != "50" {
+			t.Errorf("wrong board request: %s %s", r.Method, r.URL)
+		}
+		switch r.URL.Path {
+		case "/rest/agile/1.0/board":
+			boardCalls.Add(1)
+			_, _ = fmt.Fprintf(w, `{"isLast":true,"startAt":0,"maxResults":50,"values":[{"id":99,"name":"Later"},{"id":42,"name":%q,"type":null}]}`, account)
+		case "/rest/agile/1.0/board/42/project", "/rest/agile/1.0/board/99/project":
+			projectCalls.Add(1)
+			_, _ = fmt.Fprint(w, `{"isLast":true,"startAt":0,"maxResults":50,"values":[{"id":"2","key":"KEY10"},{"id":"1","key":"KEY2"}]}`)
 		default:
-			http.NotFound(w, r)
+			t.Errorf("unexpected route: %s", r.URL)
+			w.WriteHeader(404)
 		}
 	}))
-}
-
-// cold-start primes from API and second call serves from cache.
-func TestBoardsListColdStartPrimesThenServesFromCache(t *testing.T) {
-	fake := &boardsListFake{}
-	srv := newBoardsServer(t, fake)
-	defer srv.Close()
-
-	bin := buildJiraBinary(t)
-	cfg := writeCacheTestConfig(t, srv.URL)
-	cacheRoot := t.TempDir()
-	env := append(os.Environ(), "XDG_CACHE_HOME="+cacheRoot)
-
-	out, err := runWithEnv(bin, env, "--config", cfg, "boards", "list", "--output=json")
-	if err != nil {
-		t.Fatalf("first boards list: %v\n%s", err, out)
-	}
-	var first map[string]any
-	if err := json.Unmarshal(out, &first); err != nil {
-		t.Fatalf("parse first envelope: %v\n%s", err, out)
-	}
-	data, _ := first["data"].(map[string]any)
-	if data == nil {
-		t.Fatalf("envelope missing data: %+v", first)
-	}
-	if data["from_cache"] != false {
-		t.Fatalf("first call should be from_cache=false; got %+v", data["from_cache"])
-	}
-	if data["cache_state"] != "missing" || data["cache_source_state"] != "missing" || data["cache_empty"] != false {
-		t.Fatalf("first call cache state wrong: %+v", data)
-	}
-	boards, _ := data["boards"].([]any)
-	if len(boards) != 2 {
-		t.Fatalf("expected 2 boards, got %d (%+v)", len(boards), boards)
-	}
-	// Sorted ascending by id (stable ordering).
-	first0 := boards[0].(map[string]any)
-	if id, _ := first0["id"].(float64); int(id) != 42 {
-		t.Fatalf("expected first board id=42, got %v", first0["id"])
-	}
-	if name, _ := first0["name"].(string); name != "Engineering Sprint" {
-		t.Fatalf("expected first board name=Engineering Sprint, got %q", name)
-	}
-	pks, _ := first0["project_keys"].([]any)
-	if len(pks) != 2 {
-		t.Fatalf("expected 2 project_keys, got %v", first0["project_keys"])
-	}
-	// Pagination lives in meta with the canonical camelCase shape.
-	firstMeta, _ := first["meta"].(map[string]any)
-	pagination, ok := firstMeta["pagination"].(map[string]any)
-	if !ok {
-		t.Fatalf("meta.pagination missing: %+v", first)
-	}
-	if _, hasOld := data["pagination"]; hasOld {
-		t.Fatalf("pagination must live in meta, not data: %+v", data)
-	}
-	if pagination["isLast"] != true || pagination["total"] != float64(2) {
-		t.Fatalf("cached set of 2 must report isLast:true total:2: %v", pagination)
-	}
-	if data["fetched_at"] == nil || data["fetched_at"] == "" {
-		t.Fatalf("data.fetched_at missing: %+v", data)
-	}
-
-	cachePath := filepath.Join(cacheRoot, "jira-cli", cacheKeyForTestConfig(t, cfg, "test", srv.URL), "boards.json")
-	if _, err := os.Stat(cachePath); err != nil {
-		t.Fatalf("expected cache file at %s: %v", cachePath, err)
-	}
-
-	// Second call → from cache, no additional hits to /board.
-	pagesBefore := fake.pages.Load()
-	out2, err := runWithEnv(bin, env, "--config", cfg, "boards", "list", "--output=json")
-	if err != nil {
-		t.Fatalf("second boards list: %v\n%s", err, out2)
-	}
-	var second map[string]any
-	if err := json.Unmarshal(out2, &second); err != nil {
-		t.Fatalf("parse second envelope: %v", err)
-	}
-	data2, _ := second["data"].(map[string]any)
-	if data2["from_cache"] != true {
-		t.Fatalf("second call should be from_cache=true; got %+v", data2["from_cache"])
-	}
-	if data2["cache_state"] != "fresh" || data2["cache_source_state"] != "fresh" || data2["cache_empty"] != false {
-		t.Fatalf("second call cache state wrong: %+v", data2)
-	}
-	if got := fake.pages.Load(); got != pagesBefore {
-		t.Fatalf("expected no additional /board hits on second call (was %d, now %d)", pagesBefore, got)
-	}
-}
-
-// --refresh forces an API hit even when the cache is fresh.
-func TestBoardsListRefreshForcesPrime(t *testing.T) {
-	fake := &boardsListFake{}
-	srv := newBoardsServer(t, fake)
-	defer srv.Close()
-
-	bin := buildJiraBinary(t)
-	cfg := writeCacheTestConfig(t, srv.URL)
-	cacheRoot := t.TempDir()
-	env := append(os.Environ(), "XDG_CACHE_HOME="+cacheRoot)
-
-	// Prime once.
-	if _, err := runWithEnv(bin, env, "--config", cfg, "boards", "list", "--output=json"); err != nil {
-		t.Fatal(err)
-	}
-	pagesAfterFirst := fake.pages.Load()
-	if pagesAfterFirst != 1 {
-		t.Fatalf("expected 1 /board hit after first prime, got %d", pagesAfterFirst)
-	}
-
-	// --refresh → hits /board again.
-	out, err := runWithEnv(bin, env, "--config", cfg, "boards", "list", "--refresh", "--output=json")
-	if err != nil {
-		t.Fatalf("--refresh: %v\n%s", err, out)
-	}
-	if got := fake.pages.Load(); got != pagesAfterFirst+1 {
-		t.Fatalf("expected /board hit count to advance to %d after --refresh, got %d", pagesAfterFirst+1, got)
-	}
-	var ref map[string]any
-	if err := json.Unmarshal(out, &ref); err != nil {
-		t.Fatalf("parse --refresh envelope: %v\n%s", err, out)
-	}
-	data, _ := ref["data"].(map[string]any)
-	if data["from_cache"] != false {
-		t.Fatalf("--refresh should set from_cache=false; got %+v", data["from_cache"])
-	}
-}
-
-// a cache file flagged truncated surfaces a `cache-truncated`
-// warning + `data.truncated: true` and `data.truncated_reason` set.
-func TestBoardsListSurfacesTruncationWarning(t *testing.T) {
-	// httptest server exists only so the config validates as
-	// loopback HTTP; the cache is fresh, so the command never
-	// touches the wire.
-	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
-		t.Errorf("server should not be hit when cache is fresh")
-	}))
-	defer srv.Close()
-
-	bin := buildJiraBinary(t)
-	cfg := writeCacheTestConfig(t, srv.URL)
-	cacheRoot := t.TempDir()
-	env := append(os.Environ(), "XDG_CACHE_HOME="+cacheRoot)
-
-	// Pre-write a cache file that has truncation metadata so the
-	// command serves from cache and surfaces the warning without
-	// hitting the network.
-	cacheDir := filepath.Join(cacheRoot, "jira-cli", cacheKeyForTestConfig(t, cfg, "test", srv.URL))
-	if err := os.MkdirAll(cacheDir, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	cachePath := filepath.Join(cacheDir, "boards.json")
-	// Use the current time so the cache is fresh regardless of the
-	// test machine's clock. Far-future TTL also keeps the file from
-	// being considered stale.
-	fetched := time.Now().UTC().Format(time.RFC3339)
-	body := `{
-		"profile":"test",
-		"resource":"boards",
-		"schema":` + strconv.Itoa(cache.SchemaVersion) + `,
-		"fetched_at":"` + fetched + `",
-		"data": {
-			"items":[{"id":42,"name":"Eng","type":"scrum","project_keys":["ENG"]}],
-			"truncated": true,
-			"truncated_reason": "max_pages"
+	defer server.Close()
+	env := boardCacheEnv(t, server.URL)
+	for _, step := range []struct {
+		email string
+		flags []string
+		cache bool
+		count int
+		calls int32
+	}{{"first@example.com", []string{"--limit=1"}, false, 1, 1}, {"first@example.com", []string{"--all", "--limit=1"}, true, 2, 1}, {"other@example.com", []string{"--all"}, false, 2, 2}, {"first@example.com", []string{"--all"}, true, 2, 2}, {"first@example.com", []string{"--refresh", "--all"}, false, 2, 3}} {
+		stdout, stderr, exit := runBinaryEnv(t, append(env, "JIRA_EMAIL="+step.email), append([]string{"boards", "list", "--output=json"}, step.flags...)...)
+		out := parseBoards(t, stdout, "json", exit)
+		if exit != 0 || stderr != "" || out.FromCache != step.cache || out.Count != step.count || out.Pagination.Total != 2 || out.Pagination.IsLast != (step.count == 2) || !out.Pagination.Complete || boardCalls.Load() != step.calls || projectCalls.Load() != 2*step.calls || out.Boards[0].ID != 42 || out.Boards[0].Name != step.email || !out.Boards[0].Type.Null || !reflect.DeepEqual(out.Boards[0].ProjectKeys, []string{"KEY2", "KEY10"}) {
+			t.Fatalf("scope/cache/window changed: %+v exit=%d stderr=%q calls=%d/%d", out, exit, stderr, boardCalls.Load(), projectCalls.Load())
 		}
-	}`
-	if err := os.WriteFile(cachePath, []byte(body), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	out, err := runWithEnv(bin, env, "--config", cfg, "boards", "list", "--output=json", "--ttl-minutes", "9999")
-	if err != nil {
-		t.Fatalf("boards list (truncated cache): %v\n%s", err, out)
-	}
-	var envel map[string]any
-	if err := json.Unmarshal(out, &envel); err != nil {
-		t.Fatalf("parse envelope: %v\n%s", err, out)
-	}
-	data, _ := envel["data"].(map[string]any)
-	if data["truncated"] != true {
-		t.Fatalf("data.truncated should be true; got %+v", data["truncated"])
-	}
-	if data["truncated_reason"] != "max_pages" {
-		t.Fatalf("data.truncated_reason should be max_pages; got %v", data["truncated_reason"])
-	}
-	warnings, _ := envel["warnings"].([]any)
-	if len(warnings) == 0 {
-		t.Fatalf("expected warnings; got %+v", envel["warnings"])
-	}
-	w0, _ := warnings[0].(map[string]any)
-	if w0["type"] != "cache-truncated" {
-		t.Fatalf("warnings[0].type should be cache-truncated; got %v", w0["type"])
-	}
-	msg, _ := w0["message"].(string)
-	if !strings.Contains(msg, "max_pages") {
-		t.Fatalf("warning message should name the limit (max_pages); got %q", msg)
 	}
 }
 
-// empty-cache rendering — instance with zero boards visible →
-// `data.boards: []`, no error.
-func TestBoardsListEmptyInstanceReturnsEmptyArray(t *testing.T) {
-	var hits atomic.Int64
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		hits.Add(1)
-		w.Header().Set("Content-Type", "application/json")
-		if r.URL.Path == "/rest/agile/1.0/board" {
-			_, _ = w.Write([]byte(`{"maxResults":50,"startAt":0,"isLast":true,"values":[]}`))
+func TestBoardsListBinaryPartialProjectWarningAndFailureFrame(t *testing.T) {
+	t.Parallel()
+	for _, mode := range []string{"json", "compact"} {
+		t.Run(mode, func(t *testing.T) {
+			t.Parallel()
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/rest/agile/1.0/board" {
+					_, _ = fmt.Fprint(w, `{"isLast":true,"startAt":0,"maxResults":50,"values":[{"id":42,"name":"Sprint"}]}`)
+					return
+				}
+				w.WriteHeader(403)
+			}))
+			defer server.Close()
+			stdout, _, exit := runBinaryEnv(t, boardCacheEnv(t, server.URL), "boards", "list", "--output="+mode)
+			out := parseBoards(t, stdout, mode, exit)
+			if exit != 0 || out.Count != 1 || out.Boards[0].ProjectsComplete || out.Boards[0].ProjectKeys == nil || len(out.ProjectFailures) != 1 || out.ProjectFailures[0].Error.Code != "jira_forbidden" {
+				t.Fatalf("enrichment failure hidden: %s", stdout)
+			}
+			if mode == "json" {
+				var f frame
+				if json.Unmarshal([]byte(stdout), &f) != nil {
+					t.Fatal("bad envelope")
+				}
+				var e struct {
+					Warnings []envelope.Warning `json:"warnings"`
+				}
+				if json.Unmarshal([]byte(stdout), &e) != nil || len(e.Warnings) != 1 || !e.Warnings[0].Lossy {
+					t.Fatal("project failure lacks envelope warning")
+				}
+			}
+		})
+	}
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		if r.URL.Query().Get("startAt") == "0" {
+			_, _ = fmt.Fprint(w, `{"isLast":false,"startAt":0,"maxResults":50,"values":[{"id":42,"name":"Sprint"}]}`)
 			return
 		}
-		http.NotFound(w, r)
+		w.WriteHeader(403)
 	}))
-	defer srv.Close()
+	defer server.Close()
+	stdout, _, exit := runBinaryEnv(t, boardCacheEnv(t, server.URL), "boards", "list", "--output=compact", "--jq=.boards[].id")
+	out := parseBoards(t, stdout, "compact", exit)
+	if exit != 1 || out.Count != 1 || out.Boards[0].ID != 42 || out.NextStart == nil || *out.NextStart != 1 || out.CacheSaved || calls.Load() != 2 || !strings.Contains(stdout, "jira_forbidden") {
+		t.Fatalf("partial failure was filtered/discarded/cached: %d %s", exit, stdout)
+	}
+}
 
-	bin := buildJiraBinary(t)
-	cfg := writeCacheTestConfig(t, srv.URL)
-	cacheRoot := t.TempDir()
-	env := append(os.Environ(), "XDG_CACHE_HOME="+cacheRoot)
+func TestBoardsListBinaryDefaultCapsAndUnbounded(t *testing.T) {
+	t.Parallel()
+	for _, unbounded := range []bool{false, true} {
+		t.Run(strconv.FormatBool(unbounded), func(t *testing.T) {
+			t.Parallel()
+			var pages atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/rest/agile/1.0/board" {
+					_, _ = fmt.Fprint(w, `{"isLast":true,"startAt":0,"maxResults":50,"values":[]}`)
+					return
+				}
+				start, err := strconv.Atoi(r.URL.Query().Get("startAt"))
+				if err != nil {
+					t.Error(err)
+				}
+				pages.Add(1)
+				_, _ = fmt.Fprintf(w, `{"isLast":%t,"startAt":%d,"maxResults":50,"values":[{"id":%d,"name":"Sprint"}]}`, start == 100, start, start+1)
+			}))
+			defer server.Close()
+			args := []string{"boards", "list", "--all", "--output=json"}
+			if unbounded {
+				args = append(args, "--unbounded")
+			}
+			stdout, _, exit := runBinaryEnv(t, boardCacheEnv(t, server.URL), args...)
+			out := parseBoards(t, stdout, "json", exit)
+			want := 100
+			if unbounded {
+				want = 101
+			}
+			if exit != 0 || out.Count != want || int(pages.Load()) != want || out.Truncated == unbounded || out.Pagination.Complete != unbounded {
+				t.Fatalf("fetch cap ignored: pages=%d output=%+v", pages.Load(), out)
+			}
+			if !unbounded && (out.TruncatedReason != "max_pages" || out.NextStart == nil || *out.NextStart != 100) {
+				t.Fatal("cap lost truthful resume metadata")
+			}
+		})
+	}
+}
 
-	out, err := runWithEnv(bin, env, "--config", cfg, "boards", "list", "--output=json")
-	if err != nil {
-		t.Fatalf("empty-instance boards list: %v\n%s", err, out)
+func TestBoardsListValidatesTTLBeforeIOAndDiscoverableWithoutClient(t *testing.T) {
+	t.Parallel()
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { calls.Add(1); w.WriteHeader(500) }))
+	defer server.Close()
+	stdout, _, exit := runBinaryEnv(t, editReceiptEnv(server.URL), "boards", "list", "--ttl-minutes="+strconv.Itoa(math.MaxInt), "--output=json")
+	if exit != 3 || calls.Load() != 0 || !strings.Contains(stdout, "flag_value_invalid") {
+		t.Fatalf("overflow reached I/O: %d %s", exit, stdout)
 	}
-	var envel map[string]any
-	if err := json.Unmarshal(out, &envel); err != nil {
-		t.Fatalf("parse envelope: %v\n%s", err, out)
-	}
-	data, _ := envel["data"].(map[string]any)
-	boards, ok := data["boards"].([]any)
-	if !ok {
-		t.Fatalf("data.boards must be an array (even when empty); got %T %+v", data["boards"], data["boards"])
-	}
-	if len(boards) != 0 {
-		t.Fatalf("expected 0 boards, got %d", len(boards))
-	}
-	if errs, _ := envel["errors"].([]any); len(errs) != 0 {
-		t.Fatalf("expected no errors on empty-instance list; got %+v", errs)
+	for _, args := range [][]string{{"boards", "list", "--help", "--output=json"}, {"agent", "schema", "--path=boards list", "--output=json"}, {"completion", "bash"}} {
+		stdout, stderr, exit := runBinaryEnv(t, append(editReceiptEnv(server.URL), "JIRA_EMAIL=", "JIRA_API_TOKEN="), args...)
+		if exit != 0 || stderr != "" || stdout == "" || calls.Load() != 0 {
+			t.Fatalf("local discovery constructed client: %v %d %q", args, exit, stderr)
+		}
 	}
 }

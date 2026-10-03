@@ -1,0 +1,3 @@
+kind: breaking
+body: "Replace whole native issue-link JSON documents with explicit issue keys, `--to` and a link name or directional phrase through `--type`. `issue link create --json-input` now supplies only an optional comment; `type`, `inwardIssue` and `outwardIssue` in that file are refused instead of selecting endpoints. Native link-type IDs are not accepted as name substitutes. Existing scripts using native endpoint/type JSON must change their argv; comment JSON support itself already existed."
+time: 2026-08-13T03:02:15.781576113-04:00

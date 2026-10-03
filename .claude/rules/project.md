@@ -24,17 +24,17 @@ cmd/gen-docs         docs generation (reuses root.New — reference site
                      cannot drift from the real command tree)
    ↓
 internal/cli/*       cobra commands by domain (issue, epic, auth, config, …)
-internal/cli/cmdutil shared command helpers: flags, gates, envelope, fanout
+internal/cli/command shared command helpers: flags, gates, envelope, fanout
 internal/cli/root    root wiring: PersistentPreRunE, help, completion
 internal/envelope    operation-owned Output structs and derived schema registry
    ↓
 internal/jira        REST client + typed services (+ customfield registry)
 internal/adf         ADF parse/validate/render/markdown (+ node registry)
-internal/config      koanf loader, profiles, credential store selection
+internal/config      named profile documents, koanf resolution, credential selection
 internal/cache       per-profile metadata cache
 internal/pipeline    5-stage mutation validation (validate-and-encode)
 internal/{browser,editor,issuekey,jql,refresh,version}
-internal/tui/components/markdown  shared release-note rendering (dashboard deferred)
+internal/tui/*       persistent dashboard
 ```
 
 Every package lives under `internal/` — this module exports no public API.
@@ -46,7 +46,7 @@ Every package lives under `internal/` — this module exports no public API.
 | `cmd/jira/` | entry point |
 | `internal/agentguides/` | the `//go:embed` docent guide set (`jira agent guide` / `jira guide`); contract-tested via `docenttest.Validate` |
 | `internal/cli/agent/` | the `agent adf-matrix` / `agent fieldtypes` registry commands, mounted under docent's agent group |
-| `internal/cli/cmdutil/` | flags+metadata helpers, gates, envelope, fanout, keyed results, help sections |
+| `internal/cli/command/` | flags+metadata helpers, gates, envelope, fanout, keyed results, help sections |
 | `internal/envelope/` | one registered data shape per operation; concrete fixed members, reviewed Dynamic exceptions, derived JSON Schemas |
 | `internal/cli/registry.go`, `verbs.go`, `plain_*.go` | human-mode renderer registry and verb phrases |
 | `internal/cli/errors.go`, `json.go`, `detector.go` | error mapping, envelope machinery, output-mode detection |
@@ -66,11 +66,15 @@ Every package lives under `internal/` — this module exports no public API.
 3.  Root `PersistentPreRunE` (root/root.go) loads config, wires clog
     (stderr, `SetEnvPrefix("JIRA")`, `--color`), resolves the output mode
     (detector), and seeds the context logger.
-4.  The command's `RunE` acquires services via `cmdutil`
+4.  The command's `RunE` acquires services via `command`
     (`JiraClientForCommand`), gates dry-run/read-only/ADF-mode, does the
     work behind a spinner, builds its registered `internal/envelope` Output,
-    and returns through `cmdutil.WriteEnvelope`. Stable context is shared by
+    and returns through `command.WriteEnvelope`. Stable context is shared by
     dry/live and single/keyed paths; only server outcomes are conditional.
+    A command built through the construction path differs: its handler
+    returns data and the path writes the envelope. `version` takes that
+    route and constructs no client at all.
+
 5.  Errors map through `internal/cli/errors.go` to stable codes and exit
     codes 0–8 (see [output.md](output.md)).
 

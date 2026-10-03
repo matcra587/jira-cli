@@ -1,17 +1,20 @@
-// Package config is the layered configuration store for jira-cli: a koanf v2
-// loader over defaults, a TOML file, and a JIRA_* environment overlay (last
-// wins), plus the profile model and the credential backends profiles point at.
+// Package config resolves the CLI's settings from layered sources and
+// records where each value came from.
 //
-// Profiles are metadata only — name, base URL, email, and which secret backend
-// holds the token. Credentials never live here: they are kept in the OS keyring,
-// 1Password, or a JIRA_TOKEN_* environment variable, and must never reach the
-// TOML file, a log, or an envelope. The store types (KeyringStore,
-// OnePasswordStore, EnvCredentialStore) read and write those secrets; the loader
-// only records where each profile's secret is found.
+// Layers apply lowest to highest: built-in defaults, the TOML config
+// file, the JIRA_* environment, and eventually flags. Provenance is
+// kept because "why is this the value?" is the question a surprising
+// setting actually raises, and a merged map cannot answer it.
 //
-// Decode is strict: an unknown key is rejected rather than dropped, so a rename
-// without a migration path fails loudly instead of silently discarding a setting
-// on the next Save. Load never writes; LoadOrInit bootstraps a missing file and
-// deliberately skips the env overlay, so a transient env value is never persisted.
-// Every write goes through an atomic, symlink-following temp-file+rename.
+// Loading never validates. A half-configured state must be inspectable,
+// and a command needing no Jira client must not fail for want of
+// credentials — so Config.Validate runs where the values are used, not
+// where they are read.
+//
+// The optional [aliases] table contains literal command expansion strings.
+// It is file-only: JIRA_ALIASES does not overlay it. AliasFile provides a
+// validated snapshot for local updates, preserving declared settings without
+// adding resolved defaults, environment settings or stored credentials.
+// Saves follow existing config symlinks, normalize TOML formatting and refuse
+// a detected stale snapshot; they are not compare-and-swap filesystem writes.
 package config

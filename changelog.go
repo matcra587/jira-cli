@@ -2,11 +2,15 @@ package changelog
 
 import (
 	"embed"
+	"io/fs"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 
+	xslices "github.com/gechr/x/slices"
+	// clive v0.4.9 uses natural prerelease and development-build ordering,
+	// which differs from the semantic-version ordering of release artifacts.
 	"golang.org/x/mod/semver"
 )
 
@@ -39,7 +43,7 @@ type Release struct {
 	Date string `json:"date,omitempty"`
 	// Sections are the change groups (Added, Fixed, …) in file order.
 	Sections []Section `json:"sections"`
-	// Markdown is the version's notes exactly as batched. It drives the human
+	// Markdown is the version's notes with outer whitespace removed. It drives the human
 	// renderer and is deliberately excluded from JSON.
 	Markdown string `json:"-"`
 }
@@ -59,14 +63,22 @@ func Header() string {
 // fixed at build time, so the result is memoized and shared across calls.
 var releases = sync.OnceValue(parseReleases)
 
-// Releases returns every released version, newest first. The returned slice is
-// shared across calls and must be treated as read-only.
+// Releases returns every released version, newest first. Each call returns
+// independently owned release, section and change slices.
 func Releases() []Release {
-	return releases()
+	catalog := releases()
+	if catalog == nil {
+		return nil
+	}
+	return xslices.Map(catalog, cloneRelease)
 }
 
 func parseReleases() []Release {
-	entries, err := versionFiles.ReadDir(".changes")
+	return readReleases(versionFiles)
+}
+
+func readReleases(files fs.FS) []Release {
+	entries, err := fs.ReadDir(files, ".changes")
 	if err != nil {
 		return nil
 	}
@@ -81,26 +93,26 @@ func parseReleases() []Release {
 		if !semver.IsValid(tag) {
 			continue
 		}
-		body, err := versionFiles.ReadFile(name)
+		body, err := fs.ReadFile(files, name)
 		if err != nil {
 			continue
 		}
 		out = append(out, parseRelease(tag, strings.TrimSpace(string(body))))
 	}
 
-	sort.SliceStable(out, func(i, j int) bool {
-		return semver.Compare(out[i].Tag, out[j].Tag) > 0
+	slices.SortStableFunc(out, func(a, b Release) int {
+		return semver.Compare(b.Tag, a.Tag)
 	})
 	return out
 }
 
 // Find returns the notes for a single version. The query may carry a leading v
-// or not ("0.7.7" and "v0.7.7" both match).
+// or not ("0.7.7" and "v0.7.7" both match). Returned slices are independently owned.
 func Find(query string) (Release, bool) {
 	want := "v" + strings.TrimPrefix(strings.TrimSpace(query), "v")
-	for _, r := range Releases() {
+	for _, r := range releases() {
 		if r.Tag == want {
-			return r, true
+			return cloneRelease(r), true
 		}
 	}
 	return Release{}, false
@@ -110,10 +122,18 @@ func Find(query string) (Release, bool) {
 // newest first — mirroring the merged CHANGELOG.md.
 func Full() string {
 	blocks := []string{Header()}
-	for _, r := range Releases() {
+	for _, r := range releases() {
 		blocks = append(blocks, r.Markdown)
 	}
 	return strings.Join(blocks, "\n\n") + "\n"
+}
+
+func cloneRelease(release Release) Release {
+	release.Sections = slices.Clone(release.Sections)
+	for i := range release.Sections {
+		release.Sections[i].Changes = slices.Clone(release.Sections[i].Changes)
+	}
+	return release
 }
 
 // parseRelease turns one version file into a structured Release. The version and
@@ -133,7 +153,7 @@ func parseRelease(tag, markdown string) Release {
 
 // parseHeading extracts the release URL and date from the version heading.
 func parseHeading(markdown string) (url, date string) {
-	for line := range strings.SplitSeq(markdown, "\n") {
+	for _, line := range strings.Split(markdown, "\n") {
 		if strings.HasPrefix(line, "## ") {
 			if m := headingRe.FindStringSubmatch(line); len(m) == 3 {
 				return m[1], strings.TrimSpace(m[2])
@@ -149,7 +169,7 @@ func parseHeading(markdown string) (url, date string) {
 // (a continuation line) is folded back onto the change it belongs to.
 func parseSections(markdown string) []Section {
 	var sections []Section
-	for raw := range strings.SplitSeq(markdown, "\n") {
+	for _, raw := range strings.Split(markdown, "\n") {
 		line := strings.TrimRight(raw, " \t")
 		switch {
 		case strings.HasPrefix(line, "### "):

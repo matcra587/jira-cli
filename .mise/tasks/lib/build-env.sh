@@ -20,16 +20,13 @@ jira_build_by() {
 }
 
 # Version resolution is delegated to clive, so the version ldflag targets
-# clive's injection point. Commit and build time are no longer injected —
-# internal/version reads them from the VCS metadata Go embeds at build time.
-# Branch and BuildBy stay on internal/version (clive does not model them).
+# clive's injection point. Commit and build time come from the VCS metadata
+# Go embeds at build time. 0.15 also injected Branch/BuildBy into
+# internal/version; that package is gone — the 0.16 version command decides
+# whether they return.
 jira_ldflags() {
-	local module="${MODULE:?MODULE is required}"
-
 	printf "%s" "-s -w"
 	printf " -X 'github.com/gechr/clive.version=%s'" "$(jira_version)"
-	printf " -X '%s/internal/version.Branch=%s'" "$module" "$(jira_branch)"
-	printf " -X '%s/internal/version.BuildBy=%s'" "$module" "$(jira_build_by)"
 }
 
 jira_binary_path() {

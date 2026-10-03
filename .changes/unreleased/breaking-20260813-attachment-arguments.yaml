@@ -1,0 +1,3 @@
+kind: breaking
+body: "Replace `issue attachment download KEY ID --to FILE --force` with `issue attachment download ID --to DIR --as NAME --overwrite`; explicit destination directories may lie outside the current directory under the bound-directory checks. Replace `issue attachment delete KEY ID` with `issue attachment delete ID`. Preserve stdout receipts separately from downloaded bytes; inspect collision/overwrite outcomes before retrying."
+time: 2026-08-13T03:39:52.678761384-04:00

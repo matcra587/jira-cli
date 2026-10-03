@@ -11,7 +11,7 @@ depends = ["fmt:check", "lint", "rumdl", "vet", "test"]
 
 [ci]
 description = "Run CI-equivalent checks"
-depends = ["check", "test:integration", "tidy", "workflow:lint", "security"]
+depends = ["check", "test:race", "test:matrix", "test:live:guards", "test:hooks", "audit", "tidy", "workflow:lint", "security"]
 
 [fix]
 description = "Apply automatic formatting and lint fixes"
@@ -76,27 +76,29 @@ description = "Run tests with race detection"
 env = { CGO_ENABLED = "1" }
 run = "go test -v -race -cover ./..."
 
-["test:integration"]
-description = "Run integration tests"
-# The quickstart test builds the CLI; under a parallel `mise run ci` the Go
-# build locks and CPU are contended, so the budget must absorb a full cold
-# build, not just test runtime.
-run = "go test -v -tags=integration ./tests/integration -count=1 -timeout 300s"
+["test:matrix"]
+description = "Run every required command/flag acceptance pair"
+run = "go test -v -tags=flagmatrix -count=1 ./tests/matrix"
 
-["test:docs"]
-description = "Run the docs-alignment contract tests (README, agent guide, docs site)"
-# Gated behind the docs_alignment build tag so they stay out of the default
-# `go test ./...` and the release preflight. They assert doc *content*, not
-# code, so a docs edit should never block a release.
-run = "go test -v -tags=docs_alignment ./tests/contract -run 'Artifacts|Readme|HumanDocs|AgentGuide|JQLDocs|DocsSite|OnePassword' -count=1"
+["test:live:guards"]
+description = "Run hermetic live-test ownership and cleanup guards"
+# CI must never inherit opt-in for real Jira writes. Run the complete tagged
+# package so new guards participate without extending a test-name filter.
+env = { JIRA_LIVE_ACCEPTANCE = "0" }
+run = "go test -v -tags=live -count=1 ./tests/live"
 
-["test:live"]
-description = "Run every live Jira end-to-end suite (needs JIRA_LIVETEST_PROJECT and a configured profile)"
-run = "go test -v -tags live -count=1 -timeout 20m ./tests/live/..."
+["test:hooks"]
+description = "Validate hook configuration and native formatter cases"
+run = ["hk validate", "hk test --step gofumpt"]
 
-["test:live:issues"]
-description = "Run the live Jira issue and worklog end-to-end suite"
-run = "go test -v -tags live -count=1 -timeout 20m ./tests/live/issues/..."
+# The metadata-driven anti-gap suite (tests/audit): exact-leaf inventory,
+# expected-cell matrix, corpus captures of the real binary, agent-dx
+# checklist. Hermetic — httptest loopback only, guarded by an unroutable
+# proxy. Regenerate the committed baseline deliberately with
+# AUDIT_UPDATE_MATRIX=1 in the same change that moves a cell.
+[audit]
+description = "Run the output-contract audit suite"
+run = "go test -tags=outputaudit -count=1 ./tests/audit/"
 
 [fmt]
 description = "Format code with gofmt and gofumpt"
@@ -104,7 +106,9 @@ run = ["go fmt ./...", "go tool gofumpt -w ."]
 
 ["fmt:check"]
 description = "Check Go formatting"
-run = 'test -z "$(go tool gofumpt -l .)"'
+# The || exit 1 matters: command substitution swallows a missing or crashing
+# gofumpt, and an empty capture would pass the gate vacuously.
+run = 'out="$(go tool gofumpt -l .)" || exit 1; test -z "$out"'
 
 ["fmt:file"]
 description = "Format Go file(s) with gofumpt"
@@ -144,32 +148,19 @@ run = ["actionlint .github/workflows/*.yml", "zizmor --persona pedantic .github/
 description = "Run hk pre-commit hook"
 run = "hk run pre-commit"
 
+# Read-only freshness probe for the vendored upstream artifacts. Never in
+# ci — it needs the network; run deliberately or from cron.
+[upstream-check]
+description = "Check vendored specs/schemas against live upstream (--type adf|api, --check to gate)"
+raw_args = true
+file = ".mise/tasks/upstream-check"
+
 [deps]
 description = "Download Go module dependencies"
 run = "go mod download"
 
-["docs:gen"]
-description = "Generate the command reference from the Cobra tree into docs/reference (gitignored) and refresh the reference nav block in zensical.toml"
-# --clean drops pages for deleted commands; --nav-config rewrites the generated
-# reference-nav block. gen-docs does its own clean/mkdir, so no shell rm/mkdir
-# (which keeps the task portable to Windows).
-run = "go run ./cmd/gen-docs --website --clean --doc-path docs/reference --nav-config zensical.toml"
-
-["docs:nav-check"]
-description = "Fail if the reference nav in zensical.toml has drifted from the Cobra command tree"
-run = "go run ./cmd/gen-docs --nav-config zensical.toml --check"
-
-["docs:build"]
-description = "Build the documentation site"
-depends = ["docs:gen"]
-# clover: provider=pypi id=zensical package=zensical constraint=major
-run = "uvx --from zensical==0.0.60 zensical build --clean --strict"
-
-["docs:serve"]
-description = "Serve the documentation site locally"
-depends = ["docs:gen"]
-raw_args = true
-file = ".mise/tasks/docs-serve"
+# The docs pipeline (docs:gen / nav-check / build / serve) returns when
+# cmd/gen-docs is rebuilt for the 0.16 command tree.
 
 ["deps:update"]
 description = "Update direct Go dependencies to latest patch releases"

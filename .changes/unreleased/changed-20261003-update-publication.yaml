@@ -1,0 +1,3 @@
+kind: changed
+body: "Retain observed archive/Homebrew installation outcomes on failed or interrupted updates, including acknowledged executable publication and retained backups. Bind archive replacement to the resolved executable and verified release bytes; Homebrew updates the verified formula while preserving old kegs and shadowing PATH copies. Dry runs may contact the public release service but do not download/install; managed installers report their own command without GitHub access. Checksummed updates already existed; the change is guarded publication and inspectable outcomes, never automatic replay."
+time: 2026-10-03T09:51:07.952777787-04:00

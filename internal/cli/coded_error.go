@@ -1,48 +1,51 @@
 package cli
 
-import "github.com/matcra587/jira-cli/internal/errtax"
-
-// CodedError attaches an explicit [errtax.Code] to a plain message. A site
-// that already knows the correct classification — e.g. a multi-key runner
-// that has each failure's typed code in hand — emits the code directly
-// instead of leaving [MapError] to guess it from the message text. It
-// wraps an optional cause so errors.Is/As still walk the chain.
+// CodedError carries a taxonomy code for a condition the CLI itself
+// diagnoses, without claiming the caller's input was wrong.
+//
+// InputError cannot serve here: every input code exits 3 by design, and
+// "you are not logged in" is an authentication state (exit 1). Sharing
+// the type would either move that published exit or misreport the class.
 type CodedError struct {
-	code errtax.Code
-	msg  string
-	err  error
+	// Code is the taxonomy code; it must have a registry row.
+	Code string
+	// Message is the human sentence. The remedy lives in the code's
+	// static hint, not here.
+	Message string
 }
 
-// NewCodedError builds a typed error carrying code and message.
-func NewCodedError(code errtax.Code, msg string) *CodedError {
-	return &CodedError{code: code, msg: msg}
+// codedCodes lists every code that reaches the mapper through
+// CodedError. It exists for the same reason inputCodes does: the
+// registry-completeness test walks these lists, so a new code cannot
+// ship without a row and a hint.
+var codedCodes = []string{
+	CodeCacheIO,
+	CodeCacheResponseInvalid,
+	CodeAuthMissing,
+	CodeCanceled,
+	CodeSelectorIncomplete,
+	CodeUserSearchResponseInvalid,
+	CodeCurrentUserResponseInvalid,
+	CodeJQLResponseInvalid,
+	CodeBoardResponseInvalid,
+	CodeBoardCacheUnavailable,
+	CodeSearchResponseInvalid,
+	CodeWorklogResponseInvalid,
+	CodeBulkOperationResponseInvalid,
+	CodeBulkOperationFailed,
+	CodeBulkOutcomeUnconfirmed,
+	CodeIssueCloneSourceInvalid,
+	CodeUpdateUnsupported,
+	CodeUpdateFailed,
+	CodeUpdateOwnership,
+	CodeUpdateIntegrity,
+	CodeUpdateChanged,
+	CodeUpdateUnavailable,
 }
 
-// WrapCoded is NewCodedError that also retains cause for errors.Is/As.
-func WrapCoded(code errtax.Code, msg string, cause error) *CodedError {
-	return &CodedError{code: code, msg: msg, err: cause}
+// NewCodedError returns a coded error for a condition the CLI diagnosed.
+func NewCodedError(code, message string) *CodedError {
+	return &CodedError{Code: code, Message: message}
 }
 
-func (e *CodedError) Error() string { return e.msg }
-
-// Code is the classification the constructing site attached directly, used by
-// MapError instead of guessing one from the message.
-func (e *CodedError) Code() errtax.Code { return e.code }
-
-func (e *CodedError) Unwrap() error { return e.err }
-
-var _ errtax.Coded = (*CodedError)(nil) //nolint:errcheck // compile-time interface assertion
-
-// AggregateCode is the errtax code a multi-key partial-failure should
-// carry, derived from the worst already-classified per-key failure rather
-// than re-guessed from the summary string. Falls back to the type's
-// default code, then to validation, so the aggregate is never uncoded.
-func AggregateCode(top Error) errtax.Code {
-	if top.Code != "" {
-		return errtax.Code(top.Code)
-	}
-	if top.Type != "" {
-		return errtax.DefaultCode(errtax.Type(top.Type))
-	}
-	return errtax.CodeValidationFailed
-}
+func (e *CodedError) Error() string { return e.Message }

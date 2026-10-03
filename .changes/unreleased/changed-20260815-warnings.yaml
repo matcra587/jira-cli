@@ -1,0 +1,3 @@
+kind: changed
+body: "Keep conversion and verification advisories tied to their target and invocation, with ordered typed results instead of a shared process-wide warning queue."
+time: 2026-08-15T11:24:22.635288166-04:00

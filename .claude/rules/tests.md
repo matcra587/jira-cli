@@ -25,6 +25,7 @@ paths:
 | Black-box unit | `tests/unit/` | cross-package behavior without a server |
 | Contract | `tests/contract/` | the built binary's agent contract: envelopes, exit codes, flag behavior |
 | Guardrails | `tests/guardrails/` | repo invariants (see below) |
+| Output audit | `tests/audit/` | `//go:build outputaudit`; per-command output axes (M1–M12 machine, H1–H5 human) against captured fixtures. `go test -tags outputaudit ./tests/audit/...` — the decisive check that an output refactor is byte-identical |
 | Integration | `tests/integration/` | binary end-to-end against `httptest` (no build tag) |
 | Live | `tests/live/` | `//go:build live`; real tenant via `mise run test:live` + `JIRA_LIVETEST_PROJECT` (a dedicated probe project); `JIRA_LIVETEST_BINARY` selects a frozen executable for comparisons; excluded from `go test ./...` |
 
@@ -51,12 +52,13 @@ then unmarshal stdout as the envelope:
 
 ## Goldens
 
-*   The dashboard runtime is deferred. Its former entry points report a refusal;
-    no TUI runtime or golden suite remains. The Markdown renderer still serves
-    CLI release notes until that consumer migrates.
-*   ADF: JSON fixtures in `internal/adf` (`golden_test.go`) pin rendered
-    output. Update goldens deliberately and review the diff — a golden churn
-    is a behavior change.
+*   ADF fixtures live alongside `internal/adf` tests, including the explicit
+    Markdown, rendering and preservation cases. Published schema goldens use
+    `internal/cli/root/agent_schema_test.go` and its `testdata/` directory.
+    Update fixtures deliberately and review the diff; changed expectations
+    must follow a verified behavior change.
+*   TUI runtime remains a separate milestone; this tree has no
+    `internal/tui/goldens` suite to execute.
 
 ## Guardrail tests
 
@@ -75,7 +77,7 @@ cannot silently stop matching.
 
 *   Packages that own goroutines assert no leaks via
     `goleak.VerifyTestMain(m)` in a package `TestMain` (precedent:
-    `internal/cli/cmdutil`). Keep the guard when adding tickers or
+    `internal/cli/command`). Keep the guard when adding tickers or
     background work to such a package.
 *   `internal/config`'s `TestMain` clears `JIRA_KEYRING_SERVICE` so keyring
     tests can never touch a real credential store — mirror the pattern for

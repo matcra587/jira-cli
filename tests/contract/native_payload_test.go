@@ -5,345 +5,172 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
 
-// Raw Jira REST bodies are first-class mutation input: an agent can paste
-// the exact POST /rest/api/3/issue, POST .../transitions, or POST
-// /rest/api/3/issueLink body into --json-input and the CLI submits it
-// without alias translation, screen-validation mangling, or silent
-// section drops.
+const nativeTopLevel = `"update":{},"historyMetadata":{"activityDescription":"<>&\u003c\/","futureCount":9007199254740993},"properties":[{"key":"fixture.property","value":{"unknownValue":[null,[],false,0]}}],"transition":{"id":"31"},"futureMember":null`
 
-func writeJSON(t *testing.T, name, content string) string {
+func assertNativeTopLevel(t *testing.T, payload []byte) {
 	t.Helper()
-	path := filepath.Join(t.TempDir(), name)
-	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
-		t.Fatalf("WriteFile: %v", err)
+	var want, got map[string]json.RawMessage
+	if err := json.Unmarshal([]byte("{"+nativeTopLevel+"}"), &want); err != nil {
+		t.Error(err)
+		return
 	}
-	return path
-}
-
-// A native create body keeps its identity wire fields even when the
-// tenant's createmeta does not list project / issuetype on the create
-// screen — they are structural, and screen validation must never drop
-// or reject them.
-func TestCreateNativeBodySurvivesScreenValidation(t *testing.T) {
-	var posted []byte
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /rest/api/3/issue/createmeta/PROJ/issuetypes", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"startAt":0,"maxResults":50,"total":1,"issueTypes":[{"id":"10001","name":"Task"}]}`))
-	})
-	mux.HandleFunc("GET /rest/api/3/issue/createmeta/PROJ/issuetypes/10001", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"startAt":0,"maxResults":50,"total":2,"fields":[` +
-			`{"fieldId":"summary","name":"Summary","required":true,"schema":{"type":"string"}},` +
-			`{"fieldId":"priority","name":"Priority","required":false,"schema":{"type":"priority"}}]}`))
-	})
-	mux.HandleFunc("POST /rest/api/3/issue", func(w http.ResponseWriter, r *http.Request) {
-		posted, _ = io.ReadAll(r.Body)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		_, _ = w.Write([]byte(`{"key":"PROJ-9"}`))
-	})
-	srv := httptest.NewServer(mux)
-	t.Cleanup(srv.Close)
-
-	payload := writeJSON(t, "create.json",
-		`{"fields":{"project":{"key":"PROJ"},"issuetype":{"name":"Task"},"summary":"native body","priority":{"name":"High"}}}`)
-	cfg := jiraConfig(t, srv.URL)
-	stdout, stderr, code := runJira(t, "--config", cfg,
-		"issue", "create", "--no-input", "--json-input", payload, "--output=json")
-	if code != 0 {
-		t.Fatalf("native create body must submit, exit=%d\nstderr=%s\nstdout=%s", code, stderr, stdout)
+	if err := json.Unmarshal(payload, &got); err != nil {
+		t.Error(err)
+		return
 	}
-	body := string(posted)
-	for _, want := range []string{`"project":{"key":"PROJ"}`, `"issuetype":{"name":"Task"}`, `"priority":{"name":"High"}`, `"summary":"native body"`} {
-		if !strings.Contains(body, want) {
-			t.Fatalf("create wire body missing %q:\n%s", want, body)
+	for name, value := range want {
+		if string(got[name]) != string(value) {
+			t.Errorf("native payload lost or rewrote %s", name)
 		}
 	}
 }
 
-// The native transition section names the target inside the payload, so a
-// pasted REST body needs no positional STATUS at all.
-func TestTransitionNativeBodyDryRun(t *testing.T) {
-	payload := writeJSON(t, "transition.json",
-		`{"transition":{"id":"31"},"fields":{"resolution":{"name":"Done"}},"update":{"labels":[{"add":"native"}]}}`)
-	out, err := exec.Command(buildJiraBinary(t),
-		"issue", "transition", "PROJ-1", "--dry-run", "--no-input",
-		"--json-input", payload, "--output=json").Output()
-	if err != nil {
-		t.Fatalf("native transition dry-run error = %v\n%s", err, out)
-	}
-	var env struct {
-		OK   bool `json:"ok"`
-		Data struct {
-			Transition string         `json:"transition"`
-			Fields     map[string]any `json:"fields"`
-			Update     map[string]any `json:"update"`
-		} `json:"data"`
-	}
-	if jerr := json.Unmarshal(out, &env); jerr != nil || !env.OK {
-		t.Fatalf("expected ok envelope: %v\n%s", jerr, out)
-	}
-	if env.Data.Transition != "31" {
-		t.Fatalf("target must come from the payload's transition section: %s", out)
-	}
-	if _, ok := env.Data.Fields["resolution"]; !ok {
-		t.Fatalf("preview must carry the fields: %s", out)
-	}
-	if _, ok := env.Data.Update["labels"]; !ok {
-		t.Fatalf("preview must carry the update block: %s", out)
+func TestNativeIssuePayloadTopLevelPreviewAndWire(t *testing.T) {
+	t.Parallel()
+	for _, route := range []string{"create", "edit", "clone"} {
+		for _, mode := range []string{"json", "compact"} {
+			t.Run(route+"/"+mode, func(t *testing.T) {
+				t.Parallel()
+				var reads, writes atomic.Int32
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.Method == http.MethodGet && route == "clone" && r.URL.Path == "/rest/api/3/issue/KEY-123" {
+						reads.Add(1)
+						_, _ = io.WriteString(w, `{"id":"10123","key":"KEY-123","fields":{"summary":"source","project":{"key":"KEY"},"issuetype":{"name":"Task"}}}`)
+						return
+					}
+					body, err := io.ReadAll(r.Body)
+					if err != nil {
+						t.Error(err)
+					}
+					assertNativeTopLevel(t, body)
+					writes.Add(1)
+					if route == "edit" {
+						if r.Method != http.MethodPut || r.URL.Path != "/rest/api/3/issue/KEY-123" {
+							t.Error("native edit used an unexpected route")
+						}
+						w.WriteHeader(http.StatusNoContent)
+						return
+					}
+					if r.Method != http.MethodPost || r.URL.Path != "/rest/api/3/issue" {
+						t.Error("native create/clone used an unexpected route")
+					}
+					w.WriteHeader(http.StatusCreated)
+					_, _ = io.WriteString(w, `{"id":"10124","key":"KEY-124"}`)
+				}))
+				defer server.Close()
+				input := apiInput(t, []byte(`{"fields":{"project":{"key":"KEY"},"issuetype":{"name":"Task"},"summary":"native"},`+nativeTopLevel+`}`))
+				args := []string{"issue", route}
+				if route != "create" {
+					args = append(args, "KEY-123")
+				}
+				args = append(args, "--json-input", input, "--no-input", "--output="+mode)
+				for _, preview := range []bool{true, false} {
+					call := append([]string(nil), args...)
+					if preview {
+						call = append(call, "--dry-run")
+					}
+					stdout, stderr, exit := runBinaryEnv(t, editReceiptEnv(server.URL), call...)
+					if exit != 0 || stderr != "" {
+						t.Fatalf("native request failed: preview=%t exit=%d stderr=%q", preview, exit, stderr)
+					}
+					data := adfData(t, stdout, mode, "issue."+route, true)
+					var out struct {
+						DryRun  bool            `json:"dry_run"`
+						Payload json.RawMessage `json:"payload"`
+					}
+					if json.Unmarshal(data, &out) != nil || out.DryRun != preview {
+						t.Fatal("native request lost its preview state")
+					}
+					if route != "clone" {
+						assertNativeTopLevel(t, out.Payload)
+					}
+					if preview && (reads.Load() != 0 || writes.Load() != 0) {
+						t.Fatal("native preview contacted Jira")
+					}
+				}
+				if writes.Load() != 1 || (route == "clone" && reads.Load() != 1) {
+					t.Fatal("native write was omitted/replayed or clone source was not read once")
+				}
+			})
+		}
 	}
 }
 
-func TestTransitionNativeBodySubmitsUpdateBlock(t *testing.T) {
-	var posted []byte
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /rest/api/3/issue/PROJ-1/transitions", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"transitions":[{"id":"31","name":"Done","hasScreen":true}]}`))
-	})
-	mux.HandleFunc("POST /rest/api/3/issue/PROJ-1/transitions", func(w http.ResponseWriter, r *http.Request) {
-		posted, _ = io.ReadAll(r.Body)
+func TestNativeIssuePropertyOnlyEdit(t *testing.T) {
+	t.Parallel()
+	var writes atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil || string(body) != `{"properties":[{"key":"fixture.property","value":false}]}` || r.Method != http.MethodPut || r.URL.Path != "/rest/api/3/issue/KEY-123" {
+			t.Error("property-only edit changed its native request")
+		}
+		writes.Add(1)
 		w.WriteHeader(http.StatusNoContent)
-	})
-	srv := httptest.NewServer(mux)
-	t.Cleanup(srv.Close)
-
-	payload := writeJSON(t, "transition.json",
-		`{"transition":{"id":"31"},"update":{"labels":[{"add":"native"}]}}`)
-	cfg := jiraConfig(t, srv.URL)
-	stdout, stderr, code := runJira(t, "--config", cfg,
-		"issue", "transition", "PROJ-1", "--no-input",
-		"--json-input", payload, "--output=json")
-	if code != 0 {
-		t.Fatalf("native transition body must submit, exit=%d\nstderr=%s\nstdout=%s", code, stderr, stdout)
-	}
-	body := string(posted)
-	for _, want := range []string{`"transition":{"id":"31"}`, `"update"`, `"labels":[{"add":"native"}]`} {
-		if !strings.Contains(body, want) {
-			t.Fatalf("transition wire body missing %q:\n%s", want, body)
+	}))
+	defer server.Close()
+	input := apiInput(t, []byte(`{"properties":[{"key":"fixture.property","value":false}]}`))
+	for _, preview := range []bool{true, false} {
+		args := []string{"issue", "edit", "KEY-123", "--json-input", input, "--output=json"}
+		if preview {
+			args = append(args, "--dry-run")
+		}
+		stdout, stderr, exit := runBinaryEnv(t, editReceiptEnv(server.URL), args...)
+		if exit != 0 || stderr != "" || !strings.Contains(stdout, `"fixture.property"`) {
+			t.Fatal("property-only edit was refused or discarded its request")
+		}
+		if preview && writes.Load() != 0 {
+			t.Fatal("property-only preview wrote to Jira")
 		}
 	}
-}
-
-// The target may be named in two places; different values are a conflict,
-// agreement is not.
-func TestTransitionTargetConflictRejected(t *testing.T) {
-	payload := writeJSON(t, "transition.json", `{"transition":{"id":"31"}}`)
-	out, err := exec.Command(buildJiraBinary(t),
-		"issue", "transition", "PROJ-1", "Done", "--dry-run", "--no-input",
-		"--json-input", payload, "--output=json").CombinedOutput()
-	if err == nil {
-		t.Fatalf("conflicting targets must be rejected:\n%s", out)
-	}
-	if !strings.Contains(string(out), "set twice") {
-		t.Fatalf("error must explain the double target: %s", out)
+	if writes.Load() != 1 {
+		t.Fatal("property-only edit did not write exactly once")
 	}
 }
 
-func TestTransitionTargetAgreementAccepted(t *testing.T) {
-	payload := writeJSON(t, "transition.json", `{"transition":{"name":"done"}}`)
-	out, err := exec.Command(buildJiraBinary(t),
-		"issue", "transition", "PROJ-1", "Done", "--dry-run", "--no-input",
-		"--json-input", payload, "--output=json").Output()
-	if err != nil {
-		t.Fatalf("agreeing targets must not conflict: %v\n%s", err, out)
-	}
-	if !strings.Contains(string(out), `"ok":true`) && !strings.Contains(string(out), `"ok": true`) {
-		t.Fatalf("expected ok envelope:\n%s", out)
-	}
-}
-
-func TestTransitionUpdateCommentConflictsWithCommentKey(t *testing.T) {
-	payload := writeJSON(t, "transition.json",
-		`{"transition":{"id":"31"},"comment":{"type":"doc","version":1,"content":[]},"update":{"comment":[{"add":{"body":{"type":"doc","version":1,"content":[]}}}]}}`)
-	out, err := exec.Command(buildJiraBinary(t),
-		"issue", "transition", "PROJ-1", "--dry-run", "--no-input",
-		"--json-input", payload, "--output=json").CombinedOutput()
-	if err == nil {
-		t.Fatalf("update.comment plus a comment input must be rejected:\n%s", out)
-	}
-	if !strings.Contains(string(out), "set twice") {
-		t.Fatalf("error must explain the double comment: %s", out)
-	}
-}
-
-// A native edit body's update block is a sibling of fields, never folded
-// into the field set, and an update-only edit does not fall through to
-// the interactive editor.
-func TestEditNativeUpdateBlockDryRun(t *testing.T) {
-	payload := writeJSON(t, "edit.json",
-		`{"fields":{"labels":["kept"]},"update":{"labels":[{"add":"native"}]}}`)
-	out, err := exec.Command(buildJiraBinary(t),
-		"issue", "edit", "PROJ-1", "--dry-run", "--no-input",
-		"--json-input", payload, "--output=json").Output()
-	if err != nil {
-		t.Fatalf("edit with update block dry-run error = %v\n%s", err, out)
-	}
-	var env struct {
-		OK   bool `json:"ok"`
-		Data struct {
-			Fields map[string]any `json:"fields"`
-			Update map[string]any `json:"update"`
-		} `json:"data"`
-	}
-	if jerr := json.Unmarshal(out, &env); jerr != nil || !env.OK {
-		t.Fatalf("expected ok envelope: %v\n%s", jerr, out)
-	}
-	if _, ok := env.Data.Update["labels"]; !ok {
-		t.Fatalf("preview must carry the update block: %s", out)
-	}
-	if _, ok := env.Data.Fields["update"]; ok {
-		t.Fatalf("the update block must never be folded into fields: %s", out)
-	}
-}
-
-func TestEditUpdateOnlyPayloadSkipsEditor(t *testing.T) {
-	payload := writeJSON(t, "edit.json", `{"update":{"labels":[{"add":"native"}]}}`)
-	out, err := exec.Command(buildJiraBinary(t),
-		"issue", "edit", "PROJ-1", "--dry-run", "--no-input",
-		"--json-input", payload, "--output=json").Output()
-	if err != nil {
-		t.Fatalf("update-only edit must not demand an editor: %v\n%s", err, out)
-	}
-	if !strings.Contains(string(out), `"update"`) {
-		t.Fatalf("preview must carry the update block:\n%s", out)
-	}
-}
-
-func TestEditNativeUpdateBlockSubmits(t *testing.T) {
-	var put []byte
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /rest/api/3/issue/PROJ-1/editmeta", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"fields":{"labels":{"name":"Labels","required":false,"schema":{"type":"array","items":"string"}}}}`))
-	})
-	mux.HandleFunc("PUT /rest/api/3/issue/PROJ-1", func(w http.ResponseWriter, r *http.Request) {
-		put, _ = io.ReadAll(r.Body)
-		w.WriteHeader(http.StatusNoContent)
-	})
-	srv := httptest.NewServer(mux)
-	t.Cleanup(srv.Close)
-
-	payload := writeJSON(t, "edit.json",
-		`{"fields":{"labels":["kept"]},"update":{"labels":[{"add":"native"}]}}`)
-	cfg := jiraConfig(t, srv.URL)
-	stdout, stderr, code := runJira(t, "--config", cfg,
-		"issue", "edit", "PROJ-1", "--no-input", "--json-input", payload, "--output=json")
-	if code != 0 {
-		t.Fatalf("edit with update block must submit, exit=%d\nstderr=%s\nstdout=%s", code, stderr, stdout)
-	}
-	body := string(put)
-	for _, want := range []string{`"fields":{"labels":["kept"]}`, `"update":{"labels":[{"add":"native"}]}`} {
-		if !strings.Contains(body, want) {
-			t.Fatalf("edit wire body missing %q:\n%s", want, body)
+func TestNativeIssueMalformedContainersFailBeforeHTTP(t *testing.T) {
+	t.Parallel()
+	for _, route := range []string{"create", "edit", "clone"} {
+		for _, mode := range []string{"json", "compact"} {
+			t.Run(route+"/"+mode, func(t *testing.T) {
+				t.Parallel()
+				var requests atomic.Int32
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+					requests.Add(1)
+					w.WriteHeader(http.StatusInternalServerError)
+				}))
+				defer server.Close()
+				for _, body := range []string{`null`, `{"fields":null,"properties":[]}`, `{"update":null,"futureMember":null}`, `{"fields":[]}`} {
+					input := apiInput(t, []byte(body))
+					args := []string{"issue", route}
+					if route != "create" {
+						args = append(args, "KEY-123")
+					}
+					args = append(args, "--json-input", input, "--no-input", "--output="+mode)
+					stdout, stderr, exit := runBinaryEnv(t, editReceiptEnv(server.URL), args...)
+					var out frame
+					if err := json.Unmarshal([]byte(stdout), &out); err != nil {
+						t.Fatal(err)
+					}
+					if exit != 3 || !strings.Contains(stderr, "--json-input") || out.OK || out.Meta.Command != "issue."+route || len(out.Errors) != 1 || requests.Load() != 0 {
+						t.Fatalf("native %s(%s) refusal: exit=%d stderr=%q ok=%t errors=%d HTTP=%d, want input failure before HTTP", route, body, exit, stderr, out.OK, len(out.Errors), requests.Load())
+					}
+					var failure struct {
+						Code  string `json:"code"`
+						Field string `json:"field"`
+					}
+					if err := json.Unmarshal(out.Errors[0], &failure); err != nil {
+						t.Fatal(err)
+					}
+					if failure.Code != "flag_value_invalid" || failure.Field != "json-input" {
+						t.Errorf("native %s(%s) error = %+v, want flag_value_invalid for json-input", route, body, failure)
+					}
+				}
+			})
 		}
-	}
-}
-
-// `issue link --json-input` accepts the exact POST /rest/api/3/issueLink
-// body, including the comment block no flag can express.
-func TestLinkJSONInputDryRun(t *testing.T) {
-	payload := writeJSON(t, "link.json",
-		`{"type":{"name":"Blocks"},"inwardIssue":{"key":"PROJ-1"},"outwardIssue":{"key":"PROJ-2"},"comment":{"body":{"type":"doc","version":1,"content":[{"type":"paragraph","content":[{"type":"text","text":"linked"}]}]}}}`)
-	out, err := exec.Command(buildJiraBinary(t),
-		"issue", "link", "--dry-run", "--no-input",
-		"--json-input", payload, "--output=json").Output()
-	if err != nil {
-		t.Fatalf("link --json-input dry-run error = %v\n%s", err, out)
-	}
-	var env struct {
-		OK   bool `json:"ok"`
-		Data struct {
-			Inward struct {
-				Key string `json:"key"`
-			} `json:"inward_issue"`
-			Outward struct {
-				Key string `json:"key"`
-			} `json:"outward_issue"`
-			Type    string         `json:"type"`
-			Comment map[string]any `json:"comment"`
-		} `json:"data"`
-	}
-	if jerr := json.Unmarshal(out, &env); jerr != nil || !env.OK {
-		t.Fatalf("expected ok envelope: %v\n%s", jerr, out)
-	}
-	if env.Data.Inward.Key != "PROJ-1" || env.Data.Outward.Key != "PROJ-2" || env.Data.Type != "Blocks" {
-		t.Fatalf("preview must carry the body's endpoints and type: %s", out)
-	}
-	if env.Data.Comment == nil {
-		t.Fatalf("preview must carry the comment block: %s", out)
-	}
-}
-
-func TestLinkJSONInputSubmitsNativeBody(t *testing.T) {
-	var posted []byte
-	mux := http.NewServeMux()
-	mux.HandleFunc("POST /rest/api/3/issueLink", func(w http.ResponseWriter, r *http.Request) {
-		posted, _ = io.ReadAll(r.Body)
-		w.WriteHeader(http.StatusCreated)
-	})
-	srv := httptest.NewServer(mux)
-	t.Cleanup(srv.Close)
-
-	payload := writeJSON(t, "link.json",
-		`{"type":{"name":"Blocks"},"inwardIssue":{"key":"PROJ-1"},"outwardIssue":{"key":"PROJ-2"},"comment":{"body":{"type":"doc","version":1,"content":[{"type":"paragraph","content":[{"type":"text","text":"linked"}]}]}}}`)
-	cfg := jiraConfig(t, srv.URL)
-	stdout, stderr, code := runJira(t, "--config", cfg,
-		"issue", "link", "--no-input", "--json-input", payload, "--output=json")
-	if code != 0 {
-		t.Fatalf("link --json-input must submit, exit=%d\nstderr=%s\nstdout=%s", code, stderr, stdout)
-	}
-	body := string(posted)
-	for _, want := range []string{`"type":{"name":"Blocks"}`, `"inwardIssue":{"key":"PROJ-1"}`, `"outwardIssue":{"key":"PROJ-2"}`, `"comment"`, `"linked"`} {
-		if !strings.Contains(body, want) {
-			t.Fatalf("link wire body missing %q:\n%s", want, body)
-		}
-	}
-}
-
-func TestLinkJSONInputConflictsWithToFlag(t *testing.T) {
-	payload := writeJSON(t, "link.json", `{"type":{"name":"Blocks"},"inwardIssue":{"key":"PROJ-1"},"outwardIssue":{"key":"PROJ-2"}}`)
-	out, err := exec.Command(buildJiraBinary(t),
-		"issue", "link", "PROJ-1", "--to", "PROJ-2", "--type", "Blocks",
-		"--json-input", payload, "--output=json").CombinedOutput()
-	if err == nil {
-		t.Fatalf("--json-input with --to/--type must be rejected:\n%s", out)
-	}
-	if !strings.Contains(string(out), "json-input") {
-		t.Fatalf("mutual-exclusion error must name the flags:\n%s", out)
-	}
-}
-
-func TestLinkJSONInputInwardConflictRejected(t *testing.T) {
-	payload := writeJSON(t, "link.json", `{"type":{"name":"Blocks"},"inwardIssue":{"key":"PROJ-1"},"outwardIssue":{"key":"PROJ-2"}}`)
-	out, err := exec.Command(buildJiraBinary(t),
-		"issue", "link", "PROJ-9", "--dry-run", "--no-input",
-		"--json-input", payload, "--output=json").CombinedOutput()
-	if err == nil {
-		t.Fatalf("a positional key disagreeing with inwardIssue must be rejected:\n%s", out)
-	}
-	if !strings.Contains(string(out), "set twice") {
-		t.Fatalf("error must explain the double inward issue: %s", out)
-	}
-}
-
-func TestLinkJSONInputRejectsUnknownKeys(t *testing.T) {
-	payload := writeJSON(t, "link.json", `{"type":{"name":"Blocks"},"inwardIssue":{"key":"PROJ-1"},"outwardIssue":{"key":"PROJ-2"},"commnet":{}}`)
-	out, err := exec.Command(buildJiraBinary(t),
-		"issue", "link", "--dry-run", "--no-input",
-		"--json-input", payload, "--output=json").CombinedOutput()
-	if err == nil {
-		t.Fatalf("an unknown body key must be rejected, not dropped:\n%s", out)
-	}
-	if !strings.Contains(string(out), "commnet") {
-		t.Fatalf("error must name the unknown key: %s", out)
 	}
 }

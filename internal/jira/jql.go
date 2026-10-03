@@ -1,169 +1,125 @@
 package jira
 
 import (
-	"context"
+	"bytes"
 	"encoding/json"
 	"errors"
-	"net/http"
+	"fmt"
+
+	xslices "github.com/gechr/x/slices"
 )
 
-// JQLService wraps Jira Cloud's /jql/* endpoints (parse/validate and
-// autocomplete reference data).
-type JQLService interface {
-	Parse(context.Context, []string, string) ([]ParsedQuery, *Response, error)
-	AutocompleteData(context.Context) (JQLReference, *Response, error)
-	AutocompleteSuggestions(ctx context.Context, fieldName, fieldValue string) ([]JQLSuggestion, *Response, error)
-}
-
-type jqlService struct {
-	client *Client
-}
-
-// NewJQLService constructs a JQLService bound to the given client.
-func NewJQLService(client *Client) JQLService {
-	return &jqlService{client: client}
-}
-
-// JQLReference is the instance's JQL metadata from /jql/autocompletedata: the
-// fields and functions queryable on this Jira (including custom fields) plus
-// the JQL reserved words.
-type JQLReference struct {
-	Fields        []JQLField
-	Functions     []JQLFunction
-	ReservedWords []string
-}
-
-// JQLField is one queryable field. CustomFieldID is set when the field is a
-// custom field, and holds Jira's JQL custom-field token (e.g. cf[10010], the
-// same form as Value) — not the customfield_NNNNN REST selector. Its real use
-// is as a discriminator: present means custom, absent means a system field.
-// Operators are the JQL operators the field supports; Auto reports that the
-// field's values can be fetched from the suggestions endpoint.
-type JQLField struct {
-	Value         string
-	DisplayName   string
-	CustomFieldID string
-	Operators     []string
-	Auto          bool
-}
-
-// JQLFunction is one JQL function (e.g. currentUser()).
-type JQLFunction struct {
-	Value       string
-	DisplayName string
-}
-
-type jqlReferenceWire struct {
-	VisibleFieldNames []struct {
-		Value       string   `json:"value"`
-		DisplayName string   `json:"displayName"`
-		Cfid        string   `json:"cfid"`
-		Operators   []string `json:"operators"`
-		Auto        string   `json:"auto"`
-	} `json:"visibleFieldNames"`
-	VisibleFunctionNames []struct {
-		Value       string `json:"value"`
-		DisplayName string `json:"displayName"`
-	} `json:"visibleFunctionNames"`
-	JqlReservedWords []string `json:"jqlReservedWords"`
-}
-
-// AutocompleteData fetches the instance's JQL reference data via
-// GET /jql/autocompletedata: every visible field (including custom fields),
-// function, and reserved word. Read-only; accessible anonymously on Jira's
-// side, though the CLI still needs a configured profile for the base URL.
-func (s *jqlService) AutocompleteData(ctx context.Context) (JQLReference, *Response, error) {
-	req, err := s.client.NewRequest(ctx, http.MethodGet, RESTPath("jql", "autocompletedata"), nil)
+// ParseJQLResponse checks native objects before generated decoding. Jira may
+// normalize query text; count and order associate results with the request.
+func ParseJQLResponse(data []byte, queryCount int) (ParsedJqlQueries, error) {
+	members, err := DecodeNativeObject(data, parsedJqlQueriesKeys)
 	if err != nil {
-		return JQLReference{}, nil, err
+		return ParsedJqlQueries{}, err
 	}
-	var wire jqlReferenceWire
-	resp, err := s.client.Do(req, &wire)
+	queries, err := jqlObjectArray(members["queries"], parsedJqlQueryKeys)
 	if err != nil {
-		return JQLReference{}, resp, err
+		return ParsedJqlQueries{}, fmt.Errorf("queries: %w", err)
 	}
-	ref := JQLReference{ReservedWords: wire.JqlReservedWords}
-	for _, f := range wire.VisibleFieldNames {
-		ref.Fields = append(ref.Fields, JQLField{
-			Value: f.Value, DisplayName: f.DisplayName, CustomFieldID: f.Cfid,
-			Operators: f.Operators, Auto: f.Auto == "true",
-		})
+	if queryCount < 1 || len(queries) != queryCount {
+		return ParsedJqlQueries{}, errors.New("parsed query count does not match the request")
 	}
-	for _, fn := range wire.VisibleFunctionNames {
-		ref.Functions = append(ref.Functions, JQLFunction{Value: fn.Value, DisplayName: fn.DisplayName})
+	for i, query := range queries {
+		for _, name := range []string{"errors", "warnings"} {
+			if err := jqlStringArray(query[name]); err != nil {
+				return ParsedJqlQueries{}, fmt.Errorf("query %d %s: %w", i+1, name, err)
+			}
+		}
+		if raw := query["structure"]; len(raw) > 0 && !isJQLNull(raw) {
+			if _, err := DecodeNativeObject(raw, nil); err != nil {
+				return ParsedJqlQueries{}, fmt.Errorf("query %d structure: %w", i+1, err)
+			}
+		}
 	}
-	return ref, resp, nil
+	var parsed ParsedJqlQueries
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		return ParsedJqlQueries{}, err
+	}
+	for _, query := range parsed.Queries.Value {
+		if !query.Query.Set || query.Query.Null {
+			return ParsedJqlQueries{}, errors.New("parsed query lacks its query text")
+		}
+	}
+	return parsed, nil
 }
 
-// JQLSuggestion is one autocomplete value for a field (e.g. a status name for
-// `status =`). Value is what belongs in the query; DisplayName may carry
-// markup from Jira and is for display only.
-type JQLSuggestion struct {
-	Value       string `json:"value"`
-	DisplayName string `json:"displayName"`
-}
-
-type suggestionsResponse struct {
-	Results []JQLSuggestion `json:"results"`
-}
-
-// AutocompleteSuggestions fetches live value suggestions for one field via
-// GET /jql/autocompletedata/suggestions — the API behind the Jira web UI's
-// JQL bar (e.g. fieldName=status returns the instance's status names,
-// narrowed by fieldValue as a prefix). Only fields whose reference entry has
-// Auto=true support it. Read-only.
-func (s *jqlService) AutocompleteSuggestions(ctx context.Context, fieldName, fieldValue string) ([]JQLSuggestion, *Response, error) {
-	if fieldName == "" {
-		return nil, nil, errors.New("fieldName is required")
-	}
-	q := map[string][]string{"fieldName": {fieldName}}
-	if fieldValue != "" {
-		q["fieldValue"] = []string{fieldValue}
-	}
-	path := withQuery(RESTPath("jql", "autocompletedata", "suggestions"), q)
-	req, err := s.client.NewRequest(ctx, http.MethodGet, path, nil)
+// ParseJQLReferenceResponse retains optional/null metadata and extensions.
+// All lists are optional in the pin, so an empty object is valid. Flags remain
+// strings, including future server values; no boolean coercion occurs.
+func ParseJQLReferenceResponse(data []byte) (JQLReferenceData, error) {
+	members, err := DecodeNativeObject(data, jQLReferenceDataKeys)
 	if err != nil {
-		return nil, nil, err
+		return JQLReferenceData{}, err
 	}
-	var result suggestionsResponse
-	resp, err := s.client.Do(req, &result)
-	return result.Results, resp, err
+	if err := jqlStringArray(members["jqlReservedWords"]); err != nil {
+		return JQLReferenceData{}, fmt.Errorf("jqlReservedWords: %w", err)
+	}
+	for _, list := range []struct {
+		name         string
+		keys         []string
+		stringArrays []string
+	}{
+		{"visibleFieldNames", fieldReferenceDataKeys, []string{"operators", "types"}},
+		{"visibleFunctionNames", functionReferenceDataKeys, []string{"types"}},
+	} {
+		objects, err := jqlObjectArray(members[list.name], list.keys)
+		if err != nil {
+			return JQLReferenceData{}, fmt.Errorf("%s: %w", list.name, err)
+		}
+		for _, object := range objects {
+			for _, name := range list.stringArrays {
+				if err := jqlStringArray(object[name]); err != nil {
+					return JQLReferenceData{}, fmt.Errorf("%s %s: %w", list.name, name, err)
+				}
+			}
+		}
+	}
+	var reference JQLReferenceData
+	if err := json.Unmarshal(data, &reference); err != nil {
+		return JQLReferenceData{}, err
+	}
+	return reference, nil
 }
 
-// ParsedQuery is the per-query result of a parse/validate call: the query as
-// Jira read it, any parse errors, any warnings, and the parsed structure (kept
-// raw — callers that don't need it ignore it).
-type ParsedQuery struct {
-	Query     string          `json:"query"`
-	Errors    []string        `json:"errors,omitempty"`
-	Warnings  []string        `json:"warnings,omitempty"`
-	Structure json.RawMessage `json:"structure,omitempty"`
+// jqlObjectArray checks fixed objects the CLI models. Raw syntax-tree internals
+// and extensions remain uninterpreted rather than claiming schema validation.
+func jqlObjectArray(raw json.RawMessage, keys []string) ([]map[string]json.RawMessage, error) {
+	if len(raw) == 0 || isJQLNull(raw) {
+		return nil, nil
+	}
+	var items []json.RawMessage
+	if err := json.Unmarshal(raw, &items); err != nil {
+		return nil, err
+	}
+	objects := make([]map[string]json.RawMessage, len(items))
+	for i, item := range items {
+		object, err := DecodeNativeObject(item, keys)
+		if err != nil {
+			return nil, fmt.Errorf("item %d: %w", i+1, err)
+		}
+		objects[i] = object
+	}
+	return objects, nil
 }
 
-type parseRequest struct {
-	Queries []string `json:"queries"`
+// Optional containers retain null. Null elements cannot become empty strings:
+// that would change a diagnostic, operator, type or reserved word.
+func jqlStringArray(raw json.RawMessage) error {
+	if len(raw) == 0 || isJQLNull(raw) {
+		return nil
+	}
+	var items []json.RawMessage
+	if err := json.Unmarshal(raw, &items); err != nil {
+		return err
+	}
+	if xslices.AnyFunc(items, isJQLNull) {
+		return errors.New("string array contains a null element")
+	}
+	return nil
 }
 
-type parseResponse struct {
-	Queries []ParsedQuery `json:"queries"`
-}
-
-// Parse validates each query via POST /jql/parse, returning per-query errors
-// and warnings in request order. mode is the validation strictness
-// (strict|warn|none); an empty mode defaults to strict. Read-only.
-func (s *jqlService) Parse(ctx context.Context, queries []string, mode string) ([]ParsedQuery, *Response, error) {
-	if len(queries) == 0 {
-		return nil, nil, errors.New("at least one query is required")
-	}
-	if mode == "" {
-		mode = "strict"
-	}
-	path := withQuery(RESTPath("jql", "parse"), map[string][]string{"validation": {mode}})
-	req, err := s.client.NewRequest(ctx, http.MethodPost, path, parseRequest{Queries: queries})
-	if err != nil {
-		return nil, nil, err
-	}
-	var result parseResponse
-	resp, err := s.client.Do(req, &result)
-	return result.Queries, resp, err
-}
+func isJQLNull(raw json.RawMessage) bool { return bytes.Equal(bytes.TrimSpace(raw), []byte("null")) }

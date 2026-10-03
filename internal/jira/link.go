@@ -1,192 +1,106 @@
 package jira
 
-import (
-	"context"
-	"errors"
-	"net/http"
-	"sort"
-
-	xstrings "github.com/gechr/x/strings"
-)
-
-// IssueLinkService reads and writes the links between issues. List flattens
-// Jira's nested issuelinks into a directional view; Create and Delete manage
-// individual links.
-type IssueLinkService interface {
-	List(context.Context, string) ([]IssueLinkView, *Response, error)
-	Create(context.Context, *IssueLinkRequest) (*Response, error)
-	Delete(context.Context, string) (*Response, error)
+// LinkIssueRequest is the request body for POST /rest/api/3/issueLink.
+//
+// A hand-written request type rather than a reuse of the generated
+// IssueLink, for AddCommentRequest's reason: that type models what Jira
+// SENDS, including an id the server owns, and marshaling one as a
+// request would offer the server fields it must not be told.
+//
+// **The two issue slots are not source and target.** They are the two
+// ENDS of the link, named for the direction the type's own phrasing
+// reads in: the link reads `inwardIssue <outward-phrase> outwardIssue`.
+// So "A blocks B" with the Blocks type (outward "blocks") is
+// InwardIssue=A, OutwardIssue=B — which looks backwards until you read
+// it as the sentence.
+//
+// That mapping is derived from the READ side rather than guessed:
+// internal/cli/issue/link.go's linkViews resolves a link found inside
+// issue X's own payload, and when the far end Y arrives under
+// `outwardIssue` it publishes the relation as the type's OUTWARD phrase
+// read from X toward Y — "X blocks Y". Since Jira omits the near end
+// when embedding a link in an issue, X is the inward side of that same
+// link. The CLI never asks a caller to know any of this: `issue link
+// create` takes a sentence and does the mapping (see linkDirection in
+// internal/cli/issue/link_create.go).
+type LinkIssueRequest struct {
+	// Type names the link type. Only the name is sent — the endpoint
+	// accepts a name or an id, and the CLI has resolved a name by the
+	// time it builds this.
+	Type LinkTypeRef `json:"type"`
+	// InwardIssue is the end the outward phrase reads FROM.
+	InwardIssue LinkIssueRef `json:"inwardIssue"`
+	// OutwardIssue is the end the outward phrase reads TO.
+	OutwardIssue LinkIssueRef `json:"outwardIssue"`
+	// Comment is posted on the INWARD issue as the link is made, in one
+	// request. Omitted entirely when absent, which is the ordinary case.
+	//
+	// AddCommentRequest rather than a second type declared here: the
+	// endpoint's `comment` member is a comment body with an optional
+	// visibility restriction, which is exactly that type and exactly what
+	// `issue comment add` already composes. Declaring a near-identical
+	// LinkComment would give the two a way to drift over the one member
+	// that matters — the ADF body's bytes.
+	//
+	// A pointer so the zero case is genuinely absent from the payload: an
+	// embedded empty object is a comment with no body, which Jira rejects.
+	Comment *AddCommentRequest `json:"comment,omitempty"`
 }
 
-// IssueLinkView is one link flattened for display: the CLI's own shape, not a
-// Jira wire body. Jira returns each link once with the far end in an inward or
-// outward slot; flattening turns that into one row per link with Direction
-// ("inward"/"outward") naming which relationship phrase (Type.Inward vs
-// Type.Outward) applies and OtherIssue naming the far end.
-type IssueLinkView struct {
-	ID         string        `json:"id"`
-	Self       string        `json:"self,omitempty"`
-	Type       IssueLinkType `json:"type"`
-	Direction  string        `json:"direction"`
-	OtherIssue IssueRef      `json:"other_issue"`
+// MarshalJSON routes the request through MarshalNoEscape so a link
+// comment's ADF body reaches the wire with its <, >, & and U+2028 intact —
+// the same requirement AddCommentRequest documents, for the same bytes.
+// Without it the comment would be escaped by the package-level encoder on
+// its way through this outer struct, undoing what that type guarantees.
+func (v LinkIssueRequest) MarshalJSON() ([]byte, error) {
+	type alias LinkIssueRequest
+	return MarshalNoEscape(alias(v))
 }
 
-// IssueRef is the minimal reference to the issue at the far end of a link: key,
-// summary, and status name, enough to render a link without a second fetch.
-type IssueRef struct {
-	Key     string `json:"key"`
+// LinkTypeRef names a link type in a request. Name only: the CLI
+// resolves whatever the caller typed against the live type list before
+// it gets here, so it always has the canonical name and never needs the
+// id form the endpoint also accepts.
+type LinkTypeRef struct {
+	Name string `json:"name"`
+}
+
+// LinkIssueRef names one end of a link by issue key.
+type LinkIssueRef struct {
+	Key string `json:"key"`
+}
+
+// RemoteLinkRequest is the request body for POST
+// /rest/api/3/issue/{key}/remotelink — a REMOTE link (an arbitrary URL
+// attached to an issue), which is a different resource from the issue
+// links above and reached through a different endpoint. The CLI keeps
+// the two apart as `weblink` and `link`, and so does this file.
+//
+// The endpoint is create-OR-update, keyed on GlobalId: a POST carrying a
+// GlobalId that already exists on the issue REPLACES that link and
+// answers 200, where a new one answers 201. The CLI publishes which
+// happened rather than hiding it (see envelope.IssueWeblinkAddOutput).
+type RemoteLinkRequest struct {
+	// Object is the item being linked to. Required by the endpoint, and
+	// the only member the CLI's own flags fill.
+	Object RemoteLinkObject `json:"object"`
+	// GlobalId is the caller's own identifier for the remote item,
+	// omitted when they gave none. Spelled GlobalId rather than GlobalID
+	// to match the wire key it marshals to; the CLI-facing field on the
+	// envelope uses the Go-idiomatic spelling.
+	GlobalId string `json:"globalId,omitempty"` //nolint:revive // the wire spells it globalId; see the field comment
+	// Relationship describes how the issue relates to the item ("causes",
+	// "mentioned in"). Free text on this endpoint, unlike an issue link's
+	// type, which must exist on the site.
+	Relationship string `json:"relationship,omitempty"`
+}
+
+// RemoteLinkObject is the linked item itself. Url and Title are the
+// endpoint's only required members, which is exactly the pair `weblink
+// add` takes as flags.
+type RemoteLinkObject struct {
+	URL   string `json:"url"`
+	Title string `json:"title"`
+	// Summary is optional prose shown under the title.
 	Summary string `json:"summary,omitempty"`
-	Status  string `json:"status,omitempty"`
-}
-
-// Sentence renders the line selfKey's page displays for this link: the
-// type's outward phrase when the link points outward from selfKey, the
-// inward phrase otherwise. It is the read-side twin of
-// IssueLinkType.PreviewSentences — the two must agree so a create preview
-// matches what `issue link list` later reports.
-func (v IssueLinkView) Sentence(selfKey string) string {
-	phrase := v.Type.Inward
-	if v.Direction == "outward" {
-		phrase = v.Type.Outward
-	}
-	return selfKey + " " + phrase + " " + v.OtherIssue.Key
-}
-
-type issueLinkService struct {
-	client *Client
-}
-
-// NewIssueLinkService constructs an IssueLinkService bound to the given client.
-func NewIssueLinkService(client *Client) IssueLinkService {
-	return &issueLinkService{client: client}
-}
-
-// List returns the issue's links, flattened to one row per direction and sorted
-// for stable output. Links come back embedded in the issue body under the
-// issuelinks field — there is no standalone list endpoint — so this reads the
-// issue with a fields=issuelinks selector.
-func (s *issueLinkService) List(ctx context.Context, key string) ([]IssueLinkView, *Response, error) {
-	if xstrings.IsBlank(key) {
-		return nil, nil, errors.New("issue link list: key is required")
-	}
-	req, err := s.client.NewRequest(ctx, http.MethodGet, RESTPath("issue", key)+"?fields=issuelinks", nil)
-	if err != nil {
-		return nil, nil, err
-	}
-	var raw struct {
-		Fields struct {
-			IssueLinks []issueLinkWire `json:"issuelinks"`
-		} `json:"fields"`
-	}
-	resp, err := s.client.Do(req, &raw)
-	if err != nil {
-		return nil, resp, err
-	}
-	views := flattenIssueLinks(raw.Fields.IssueLinks)
-	SortIssueLinks(views)
-	return views, resp, nil
-}
-
-// Create links two issues. The link type may be named (Type) or given by id
-// (TypeID); one of them plus both issue keys are required. Which issue is inward
-// versus outward determines how the link reads, so callers assign them
-// deliberately.
-func (s *issueLinkService) Create(ctx context.Context, reqBody *IssueLinkRequest) (*Response, error) {
-	if reqBody == nil || xstrings.AllEmpty(reqBody.Type, reqBody.TypeID) || xstrings.AnyEmpty(reqBody.InwardIssue, reqBody.OutwardIssue) {
-		return nil, errors.New("issue link create: type, inwardIssue, and outwardIssue are required")
-	}
-	req, err := s.client.NewRequest(ctx, http.MethodPost, RESTPath("issueLink"), reqBody.payload())
-	if err != nil {
-		return nil, err
-	}
-	return s.client.Do(req, nil)
-}
-
-// Delete removes a single link by its link id (not an issue key) — the id from
-// an IssueLinkView.
-func (s *issueLinkService) Delete(ctx context.Context, linkID string) (*Response, error) {
-	if xstrings.IsBlank(linkID) {
-		return nil, errors.New("issue link delete: linkID is required")
-	}
-	req, err := s.client.NewRequest(ctx, http.MethodDelete, RESTPath("issueLink", linkID), nil)
-	if err != nil {
-		return nil, err
-	}
-	return s.client.Do(req, nil)
-}
-
-type issueLinkWire struct {
-	ID           string         `json:"id"`
-	Self         string         `json:"self"`
-	Type         issueLinkType  `json:"type"`
-	InwardIssue  *issueLinkSide `json:"inwardIssue,omitempty"`
-	OutwardIssue *issueLinkSide `json:"outwardIssue,omitempty"`
-}
-
-type issueLinkType struct {
-	ID      string `json:"id"`
-	Name    string `json:"name"`
-	Inward  string `json:"inward"`
-	Outward string `json:"outward"`
-	Self    string `json:"self,omitempty"`
-}
-
-type issueLinkSide struct {
-	Key    string `json:"key"`
-	Fields struct {
-		Summary string `json:"summary"`
-		Status  struct {
-			Name string `json:"name"`
-		} `json:"status"`
-	} `json:"fields"`
-}
-
-func flattenIssueLinks(wires []issueLinkWire) []IssueLinkView {
-	if len(wires) == 0 {
-		return []IssueLinkView{}
-	}
-	out := make([]IssueLinkView, 0, len(wires))
-	for _, w := range wires {
-		linkType := IssueLinkType{
-			ID:      w.Type.ID,
-			Name:    w.Type.Name,
-			Inward:  w.Type.Inward,
-			Outward: w.Type.Outward,
-			Self:    w.Type.Self,
-		}
-		if w.OutwardIssue != nil {
-			out = append(out, IssueLinkView{
-				ID:         w.ID,
-				Self:       w.Self,
-				Type:       linkType,
-				Direction:  "outward",
-				OtherIssue: IssueRef{Key: w.OutwardIssue.Key, Summary: w.OutwardIssue.Fields.Summary, Status: w.OutwardIssue.Fields.Status.Name},
-			})
-		}
-		if w.InwardIssue != nil {
-			out = append(out, IssueLinkView{
-				ID:         w.ID,
-				Self:       w.Self,
-				Type:       linkType,
-				Direction:  "inward",
-				OtherIssue: IssueRef{Key: w.InwardIssue.Key, Summary: w.InwardIssue.Fields.Summary, Status: w.InwardIssue.Fields.Status.Name},
-			})
-		}
-	}
-	return out
-}
-
-// SortIssueLinks orders links deterministically by direction, then link-type
-// name, then far-end key, so repeated reads render in a stable order. It sorts
-// in place.
-func SortIssueLinks(links []IssueLinkView) {
-	sort.SliceStable(links, func(i, j int) bool {
-		if links[i].Direction != links[j].Direction {
-			return links[i].Direction < links[j].Direction
-		}
-		if links[i].Type.Name != links[j].Type.Name {
-			return links[i].Type.Name < links[j].Type.Name
-		}
-		return links[i].OtherIssue.Key < links[j].OtherIssue.Key
-	})
 }

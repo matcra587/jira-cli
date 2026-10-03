@@ -1,5 +1,6 @@
 #:schema https://mise.en.dev/schema/mise.json
-min_version = "2026.5.0"
+# Floor matches the tool backends this file uses (go: backend pins).
+min_version = "2026.7.0"
 
 [settings]
 lockfile = true

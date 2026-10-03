@@ -1,116 +1,98 @@
 package version
 
 import (
+	"context"
 	"fmt"
-	"io"
-	"time"
+	"runtime"
+	"runtime/debug"
 
-	clib "github.com/gechr/clib/cli/cobra"
-	cliveversion "github.com/gechr/clive/version"
-	"github.com/gechr/x/human"
 	"github.com/spf13/cobra"
 
-	"github.com/matcra587/jira-cli/internal/cli"
-	"github.com/matcra587/jira-cli/internal/cli/cmdutil"
+	"github.com/matcra587/jira-cli/internal/cli/command"
 	"github.com/matcra587/jira-cli/internal/envelope"
-	"github.com/matcra587/jira-cli/internal/version"
+	"github.com/matcra587/jira-cli/internal/output"
 )
 
-// NewCommand returns the `version` command. Human mode prints the bare
-// version (or the labeled --detailed block); machine modes emit the full
-// build-metadata envelope regardless of --detailed.
-func NewCommand() *cobra.Command {
-	var detailed bool
-	cmd := &cobra.Command{
+// New returns the `jira version` command.
+func New() *cobra.Command {
+	return command.MustNew(command.Spec[envelope.VersionOutput]{
+		Op:    "version",
 		Use:   "version",
-		Short: "Print version information",
-		Long: "Print the installed version. Human output is the bare version string; pass " +
-			"`--detailed` for a labeled block with commit, branch, and build metadata. " +
-			"Machine modes always carry the full metadata in the envelope, so `--detailed` " +
-			"only affects human output.",
-		Example: `$ jira version
-
-# Labeled commit, branch, and build metadata
-$ jira version --detailed
-
-# Keep build metadata parseable for scripts
-$ jira version --output=json`,
-		GroupID: "agent",
-		Args:    cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			if cmdutil.UsePlainOutput(cmd) {
-				return cli.TrackWrites(cmd.OutOrStdout(), func(out io.Writer) error {
-					if detailed {
-						return writeDetailed(out)
-					}
-					_, err := fmt.Fprintln(out, cliveversion.RemovePrefix(version.Version()))
-					return err
-				})
-			}
-			return cmdutil.WriteEnvelope(cmd, "version", envelope.VersionOutput{
-				Version:   version.Version(),
-				Commit:    version.Commit(),
-				Branch:    version.Branch,
-				BuildTime: version.BuildTime(),
-				BuildBy:   version.BuildBy,
-				Summary:   version.String(),
-			})
+		Short: "Print version and build information",
+		Long: "Print the version of jira, with the build's provenance where the " +
+			"binary carries it: commit, dirty state, build date, Go toolchain, " +
+			"and target platform.\n\n" +
+			"The human output is the bare version string — the same line `-V` " +
+			"prints. Machine modes (`--output=json`, `--output=compact`) carry " +
+			"the full detail.",
+		Example: "# print the version\n" +
+			"$ jira version\n\n" +
+			"# full build provenance as json\n" +
+			"$ jira version --output=json\n\n" +
+			"# bare data for scripts and agents\n" +
+			"$ jira version --output=compact\n\n" +
+			"# pull one field out; strings print raw, so this pipes\n" +
+			"$ jira version --jq '.data.go_version'\n\n" +
+			"# reshape into an object of your own\n" +
+			"$ jira version --jq '{go: .data.go_version, os: .data.platform.os}'\n\n" +
+			"# compare against a value without pasting it into the expression\n" +
+			"$ jira version --jq 'select(.data.platform.os == $os)' --jq-arg os=linux",
+		Human: renderHuman,
+		// The resolved version arrives on the invocation, read from the
+		// same field cobra's -V template prints — one source, so the
+		// flag and the command cannot disagree.
+		Run: func(_ context.Context, inv command.Invocation) (envelope.VersionOutput, error) {
+			return buildOutput(inv.Version), nil
 		},
-	}
-	cmdutil.AddBoolVar(cmd.Flags(), &detailed, "detailed", false,
-		"Show labeled commit, branch, and build metadata",
-		clib.FlagExtra{Group: "Output", Terse: "labeled build metadata"})
-	return cmd
+	})
 }
 
-// writeDetailed prints the labeled metadata block:
-//
-//	jira v0.6.5
-//	  commit:   6ce742e
-//	  branch:   main
-//	  built:    2 hours ago
-//	  built by: goreleaser
-//
-// Rows whose value is unknown (e.g. no VCS info in a module-proxy build) are
-// dropped rather than printed as "unknown".
-func writeDetailed(w io.Writer) error {
-	if _, err := fmt.Fprintf(w, "jira %s\n", version.Version()); err != nil {
-		return err
+// buildOutput assembles the payload from the two places a build writes
+// its identity: the resolved version string (clive's ldflag, surfaced on
+// the root by conductor) and the VCS metadata Go embeds. Fields the
+// build did not stamp stay absent — see the VersionOutput contract.
+func buildOutput(version string) envelope.VersionOutput {
+	out := envelope.VersionOutput{
+		Version:   version,
+		GoVersion: runtime.Version(),
+		Platform:  envelope.PlatformInfo{OS: runtime.GOOS, Arch: runtime.GOARCH},
 	}
+	if info, ok := debug.ReadBuildInfo(); ok {
+		applyBuildSettings(&out, info.Settings)
+	}
+	return out
+}
 
-	type row struct {
-		label, value string
-	}
-	rows := make([]row, 0, 4)
-	add := func(label, value string) {
-		if value != "" && value != "unknown" {
-			rows = append(rows, row{label: label, value: value})
+// applyBuildSettings folds Go's VCS stamps into the output. Split from
+// buildOutput so the populated path is testable: a binary built without
+// VCS metadata (every test build, and any `go build -buildvcs=false`)
+// would otherwise leave commit, build_date and dirty declared but never
+// once emitted.
+func applyBuildSettings(out *envelope.VersionOutput, settings []debug.BuildSetting) {
+	for _, s := range settings {
+		switch s.Key {
+		case "vcs.revision":
+			out.Commit = s.Value
+		case "vcs.time":
+			// Go stamps RFC 3339 UTC — already the contract's timestamp
+			// format, so it passes through verbatim.
+			out.BuildDate = s.Value
+		case "vcs.modified":
+			dirty := s.Value == "true"
+			out.Dirty = &dirty
 		}
 	}
-	add("commit", version.Commit())
-	add("branch", version.Branch)
-	add("built", builtAgo(version.BuildTime()))
-	add("built by", version.BuildBy)
+}
 
-	width := 0
-	for _, r := range rows {
-		width = max(width, len(r.label))
+// renderHuman writes the one-line human surface: exactly the version
+// string, exactly as `-V` prints it. Anything richer belongs to the
+// machine modes — a person asking "which version" wants one copyable
+// token.
+func renderHuman(v *output.View, env envelope.Envelope) error {
+	out, ok := env.Data.(envelope.VersionOutput)
+	if !ok {
+		return fmt.Errorf("version: human renderer received %T, want envelope.VersionOutput", env.Data)
 	}
-	for _, r := range rows {
-		if _, err := fmt.Fprintf(w, "  %-*s %s\n", width+1, r.label+":", r.value); err != nil {
-			return err
-		}
-	}
+	v.Line(out.Version)
 	return nil
-}
-
-// builtAgo renders the RFC 3339 build time as a relative phrase ("2 hours
-// ago"); a missing or unparseable time returns the input unchanged so the
-// caller's unknown-filter handles it.
-func builtAgo(buildTime string) string {
-	t, err := time.Parse(time.RFC3339, buildTime)
-	if err != nil {
-		return buildTime
-	}
-	return human.FormatTimeAgo(t)
 }

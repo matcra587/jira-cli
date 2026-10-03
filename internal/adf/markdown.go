@@ -3,6 +3,7 @@ package adf
 import (
 	"bytes"
 	"fmt"
+	"slices"
 	"strings"
 
 	xstrings "github.com/gechr/x/strings"
@@ -11,6 +12,7 @@ import (
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
 	extast "github.com/yuin/goldmark/extension/ast"
+	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
 )
 
@@ -19,23 +21,51 @@ import (
 // is parsed as a real Table node that converts to an ADF table, rather
 // than rendering as literal pipe-laden paragraph text; the task-list
 // extension parses `- [ ]` / `- [x]` items as real checkboxes that
-// convert to ADF taskList/taskItem nodes.
+// convert to ADF taskList/taskItem nodes. Only the parser is taken — the
+// converter walks the AST itself and no goldmark renderer is wired.
 var markdownParser = goldmark.New(
 	goldmark.WithExtensions(extension.Table, extension.Strikethrough, extension.TaskList),
 ).Parser()
 
 // newLocalID generates the localId attr ADF requires on every
-// taskList/taskItem/decisionList node. A package variable so tests can
-// pin deterministic ids.
+// taskList/taskItem node. A package variable so tests can pin
+// deterministic ids.
 var newLocalID = func() string { return uuid.NewString() }
+
+// codeBlockAttrs is deliberately NOT the generated CodeBlockAttrs: that
+// struct tags Language `omitempty`, so an unhinted fence would serialize
+// as an empty attrs object — and Jira renders an attr-less codeBlock with
+// its default language (java), silently java-highlighting arbitrary
+// output. The language key must be present even when empty.
+type codeBlockAttrs struct {
+	Language string `json:"language"`
+}
+
+// linkMarkAttrs carries a link mark's href. The generated typed layer
+// covers nodes only; marks have capability specs but no attr structs, so
+// the mark shapes this converter authors are spelled out here.
+type linkMarkAttrs struct {
+	Href  string `json:"href"`
+	Title string `json:"title,omitempty"`
+}
 
 // FromMarkdownLossy converts GFM Markdown to an ADF document and reports
 // every Markdown construct it could not represent faithfully in the
-// supported ADF node set. Each unsupported construct yields one
-// Warning (lossy=true) naming the construct and its source position so
-// callers — and strict-mode abort gates — can act on the content loss
-// instead of letting it slip through silently.
-func FromMarkdownLossy(markdown string) (Document, []Warning, error) {
+// supported ADF node set. Each unsupported construct yields one Warning
+// (lossy=true) naming the construct and its source position so callers —
+// and strict-mode abort gates — can act on the content loss instead of
+// letting it slip through silently.
+//
+// It returns *Document to match ParseDocument and the rest of the
+// substrate, whose methods are all pointer-receiver.
+func FromMarkdownLossy(markdown string) (*Document, []Warning, error) {
+	return fromMarkdownWithReferences(markdown, nil)
+}
+
+// Editing converts separate anchored blocks, but Markdown link references
+// have document scope. Seed a fresh parser context for each block so references
+// outside that block resolve without sharing mutable parser state.
+func fromMarkdownWithReferences(markdown string, references []parser.Reference) (*Document, []Warning, error) {
 	var dialectWarnings []Warning
 	wikiEmoji := false
 	if detectDialect(markdown) == dialectWiki {
@@ -47,24 +77,38 @@ func FromMarkdownLossy(markdown string) (Document, []Warning, error) {
 
 	source := []byte(markdown)
 	reader := text.NewReader(source)
-	root := markdownParser.Parse(reader)
+	pc := parser.NewContext()
+	for _, reference := range references {
+		pc.AddReference(reference)
+	}
+	root := markdownParser.Parse(reader, parser.WithContext(pc))
 
 	conv := &mdConverter{source: source, wikiEmoji: wikiEmoji, warnings: dialectWarnings}
-	doc := Document{Type: "doc", Version: 1}
+	var content []Node
 	for child := root.FirstChild(); child != nil; child = child.NextSibling() {
 		if node, ok := conv.block(child); ok {
-			doc.Content = append(doc.Content, node)
+			content = append(content, node)
 		}
 		// Blocks hoisted out of forbidden nesting (tables in list items
 		// or blockquotes) land right after the block that contained them.
 		if len(conv.hoisted) > 0 {
-			doc.Content = append(doc.Content, conv.hoisted...)
+			content = append(content, conv.hoisted...)
 			conv.hoisted = nil
 		}
 	}
-	if len(doc.Content) == 0 && !xstrings.IsBlank(markdown) && len(conv.warnings) == 0 {
-		doc.Content = append(doc.Content, Node{Type: "paragraph", Content: []Node{{Type: "text", Text: strings.TrimSpace(markdown)}}})
+	if len(content) == 0 && !xstrings.IsBlank(markdown) && len(conv.warnings) == 0 && len(pc.References()) == 0 {
+		content = append(content, conv.node(NodeTypeParagraph, nil, []Node{
+			conv.text(strings.TrimSpace(markdown), nil),
+		}))
 	}
+	if conv.err != nil {
+		return nil, nil, conv.err
+	}
+
+	doc := NewDocument()
+	// The stable schema requires content even when every input construct was
+	// dropped. An explicit empty array keeps best-effort candidates valid.
+	doc.SetContent(content)
 	return doc, conv.warnings, nil
 }
 
@@ -87,6 +131,53 @@ type mdConverter struct {
 	// attr. Outside a task item (a checkbox in a mixed list) the checkbox
 	// degrades to literal text instead.
 	inTaskItem bool
+	// err holds the first attrs-encoding failure. SetAttrs can only fail
+	// on a value encoding/json cannot represent, which none of the attr
+	// structs below is — but swallowing the error would ship a node
+	// missing the attrs Jira requires, so it is carried to the exit
+	// instead of threaded through every construction site.
+	err error
+}
+
+// node builds one substrate node. attrs is nil for a node that carries
+// none; children are attached only when non-empty, because SetContent on
+// an empty slice emits "content":[] and several ADF shapes (an empty
+// codeBlock, the empty paragraph in a blank table cell) must carry no
+// content key at all.
+func (c *mdConverter) node(typ NodeType, attrs any, children []Node) Node {
+	n := NewNode(string(typ))
+	if attrs != nil {
+		if err := n.SetAttrs(attrs); err != nil && c.err == nil {
+			c.err = err
+		}
+	}
+	if len(children) > 0 {
+		n.SetContent(children)
+	}
+	return *n
+}
+
+// text builds a text node carrying marks. Marks are cloned so a caller's
+// accumulating slice cannot alias into a finished node.
+func (c *mdConverter) text(s string, marks []Mark) Node {
+	n := NewNode(string(NodeTypeText))
+	n.SetText(s)
+	if len(marks) > 0 {
+		n.SetMarks(cloneMarks(marks))
+	}
+	return *n
+}
+
+// mark builds one inline mark. attrs is nil for the bare decorative marks
+// (strong, em, strike, code).
+func (c *mdConverter) mark(typ MarkType, attrs any) Mark {
+	m := NewMark(string(typ))
+	if attrs != nil {
+		if err := m.SetAttrs(attrs); err != nil && c.err == nil {
+			c.err = err
+		}
+	}
+	return *m
 }
 
 // warn records one lossy-conversion warning naming an unsupported
@@ -183,24 +274,32 @@ func sourceLine(source []byte, lineStart int) string {
 func (c *mdConverter) block(n ast.Node) (Node, bool) {
 	switch n.Kind() {
 	case ast.KindParagraph, ast.KindTextBlock:
-		return Node{Type: "paragraph", Content: c.inlineChildren(n)}, true
+		return c.node(NodeTypeParagraph, nil, c.inlineChildren(n)), true
 	case ast.KindHeading:
-		h := n.(*ast.Heading)
-		return Node{Type: "heading", Attrs: map[string]any{"level": h.Level}, Content: c.inlineChildren(n)}, true
+		h, ok := n.(*ast.Heading)
+		if !ok {
+			return Node{}, false
+		}
+		attrs := HeadingAttrs{Level: float64(h.Level)}
+		return c.node(NodeTypeHeading, attrs, c.inlineChildren(n)), true
 	case ast.KindList:
-		return c.list(n.(*ast.List))
+		list, ok := n.(*ast.List)
+		if !ok {
+			return Node{}, false
+		}
+		return c.list(list)
 	case ast.KindCodeBlock, ast.KindFencedCodeBlock:
 		return c.codeBlock(n), true
 	case ast.KindBlockquote:
-		return c.blockquote(n), true
+		return c.node(NodeTypeBlockquote, nil, c.blockquoteChildren(n)), true
 	case ast.KindThematicBreak:
-		return Node{Type: "rule"}, true
+		return c.node(NodeTypeRule, nil, nil), true
 	case ast.KindHTMLBlock:
 		c.warn(n, "raw HTML block", "")
 		return Node{}, false
 	case ast.KindLinkReferenceDefinition:
-		// Goldmark v1.8 surfaces reference definitions as block nodes.
-		// They are parser metadata; resolved links already carry the href.
+		// Goldmark surfaces reference definitions as block nodes. They are
+		// parser metadata; resolved links already carry the href.
 		return Node{}, false
 	case extast.KindTable:
 		return c.table(n), true
@@ -210,15 +309,11 @@ func (c *mdConverter) block(n ast.Node) (Node, bool) {
 	}
 }
 
-// blockquote converts a Markdown blockquote to the ADF blockquote node. The
-// schema restricts blockquote children to paragraphs, lists, and code
-// blocks, so other quoted constructs degrade: a nested quote is flattened
-// into its parent, and a quoted heading becomes a paragraph. Both keep the
-// content and report a non-lossy downgrade.
-func (c *mdConverter) blockquote(n ast.Node) Node {
-	return Node{Type: "blockquote", Content: c.blockquoteChildren(n)}
-}
-
+// blockquoteChildren converts a blockquote's children. The schema
+// restricts blockquote children to paragraphs, lists, and code blocks, so
+// other quoted constructs degrade: a nested quote is flattened into its
+// parent, and a quoted heading becomes a paragraph. Both keep the content
+// and report a non-lossy downgrade.
 func (c *mdConverter) blockquoteChildren(n ast.Node) []Node {
 	var out []Node
 	for child := n.FirstChild(); child != nil; child = child.NextSibling() {
@@ -235,7 +330,7 @@ func (c *mdConverter) blockquoteChildren(n ast.Node) []Node {
 			}
 		case ast.KindHeading:
 			c.warnDowngrade(child, "heading inside a blockquote", "converted to a paragraph")
-			out = append(out, Node{Type: "paragraph", Content: c.inlineChildren(child)})
+			out = append(out, c.node(NodeTypeParagraph, nil, c.inlineChildren(child)))
 		default:
 			if node, ok := c.block(child); ok {
 				out = append(out, node)
@@ -264,12 +359,13 @@ func (c *mdConverter) list(list *ast.List) (Node, bool) {
 	c.inTaskItem = false
 	defer func() { c.inTaskItem = prev }()
 
-	nodeType := "bulletList"
-	var attrs map[string]any
+	nodeType := NodeTypeBulletList
+	var attrs any
 	if list.IsOrdered() {
-		nodeType = "orderedList"
+		nodeType = NodeTypeOrderedList
 		if list.Start > 1 {
-			attrs = map[string]any{"order": list.Start}
+			order := float64(list.Start)
+			attrs = OrderedListAttrs{Order: &order}
 		}
 	}
 	var items []Node
@@ -277,9 +373,9 @@ func (c *mdConverter) list(list *ast.List) (Node, bool) {
 		if child.Kind() != ast.KindListItem {
 			continue
 		}
-		items = append(items, Node{Type: "listItem", Content: c.listItemChildren(child)})
+		items = append(items, c.node(NodeTypeListItem, nil, c.listItemChildren(child)))
 	}
-	return Node{Type: nodeType, Attrs: attrs, Content: items}, true
+	return c.node(nodeType, attrs, items), true
 }
 
 // taskListShape reports whether a list is a pure task list (every item
@@ -322,14 +418,14 @@ func taskCheckbox(item ast.Node) *extast.TaskCheckBox {
 // as taskList siblings (ADF nests them inside the parent taskList, not
 // inside the inline-only taskItem).
 func (c *mdConverter) taskList(list *ast.List) Node {
-	out := Node{Type: "taskList", Attrs: map[string]any{"localId": newLocalID()}}
+	var items []Node
 	for child := list.FirstChild(); child != nil; child = child.NextSibling() {
 		if child.Kind() != ast.KindListItem {
 			continue
 		}
-		out.Content = append(out.Content, c.taskItemNodes(child)...)
+		items = append(items, c.taskItemNodes(child)...)
 	}
-	return out
+	return c.node(NodeTypeTaskList, TaskListAttrs{LocalID: newLocalID()}, items)
 }
 
 // taskItemNodes converts one GFM task item into an ADF taskItem plus any
@@ -343,18 +439,20 @@ func (c *mdConverter) taskItemNodes(item ast.Node) []Node {
 	if cb := taskCheckbox(item); cb != nil && cb.IsChecked {
 		state = "DONE"
 	}
-	task := Node{Type: "taskItem", Attrs: map[string]any{"localId": newLocalID(), "state": state}}
-	var siblings []Node
+	var inline, siblings []Node
 	for child := item.FirstChild(); child != nil; child = child.NextSibling() {
 		switch child.Kind() {
 		case ast.KindTextBlock, ast.KindParagraph:
 			run := c.taskItemInline(child)
-			if len(task.Content) > 0 && len(run) > 0 {
-				task.Content = append(task.Content, Node{Type: "hardBreak"})
+			if len(inline) > 0 && len(run) > 0 {
+				inline = append(inline, c.node(NodeTypeHardBreak, nil, nil))
 			}
-			task.Content = append(task.Content, run...)
+			inline = append(inline, run...)
 		case ast.KindList:
-			nested := child.(*ast.List)
+			nested, ok := child.(*ast.List)
+			if !ok {
+				continue
+			}
 			if pure, _ := taskListShape(nested); pure {
 				siblings = append(siblings, c.taskList(nested))
 				continue
@@ -372,7 +470,8 @@ func (c *mdConverter) taskItemNodes(item ast.Node) []Node {
 			}
 		}
 	}
-	return append([]Node{task}, siblings...)
+	attrs := TaskItemAttrs{LocalID: newLocalID(), State: state}
+	return append([]Node{c.node(NodeTypeTaskItem, attrs, inline)}, siblings...)
 }
 
 // taskItemInline converts a task item paragraph's inline children with the
@@ -392,9 +491,13 @@ func (c *mdConverter) listItemChildren(item ast.Node) []Node {
 	for child := item.FirstChild(); child != nil; child = child.NextSibling() {
 		switch child.Kind() {
 		case ast.KindTextBlock, ast.KindParagraph:
-			out = append(out, Node{Type: "paragraph", Content: c.inlineChildren(child)})
+			out = append(out, c.node(NodeTypeParagraph, nil, c.inlineChildren(child)))
 		case ast.KindList:
-			if node, ok := c.list(child.(*ast.List)); ok {
+			nested, ok := child.(*ast.List)
+			if !ok {
+				continue
+			}
+			if node, ok := c.list(nested); ok {
 				out = append(out, node)
 			}
 		case ast.KindCodeBlock, ast.KindFencedCodeBlock:
@@ -435,11 +538,11 @@ func (c *mdConverter) codeBlock(n ast.Node) Node {
 	if fenced, ok := n.(*ast.FencedCodeBlock); ok {
 		lang = string(fenced.Language(c.source))
 	}
-	node := Node{Type: "codeBlock", Attrs: map[string]any{"language": lang}}
-	if text := strings.TrimRight(codeBlockText(n, c.source), "\n"); text != "" {
-		node.Content = []Node{{Type: "text", Text: text}}
+	var children []Node
+	if body := strings.TrimRight(codeBlockText(n, c.source), "\n"); body != "" {
+		children = []Node{c.text(body, nil)}
 	}
-	return node
+	return c.node(NodeTypeCodeBlock, codeBlockAttrs{Language: lang}, children)
 }
 
 // table converts a GFM table to the ADF table shape: a tableRow of
@@ -448,40 +551,34 @@ func (c *mdConverter) codeBlock(n ast.Node) Node {
 // require at least one block child, and an empty GFM cell becomes an
 // empty paragraph, which the schema permits.
 func (c *mdConverter) table(n ast.Node) Node {
-	table := Node{
-		Type: "table",
-		Attrs: map[string]any{
-			"isNumberColumnEnabled": false,
-			"layout":                "default",
-		},
-	}
+	var rows []Node
 	// In goldmark, TableHeader directly contains TableCell children (no
 	// wrapping TableRow), while TableRow does contain TableCells.
 	for child := n.FirstChild(); child != nil; child = child.NextSibling() {
 		switch child.Kind() {
 		case extast.KindTableHeader:
-			table.Content = append(table.Content, c.tableRow(child, "tableHeader"))
+			rows = append(rows, c.tableRow(child, NodeTypeTableHeader))
 		case extast.KindTableRow:
-			table.Content = append(table.Content, c.tableRow(child, "tableCell"))
+			rows = append(rows, c.tableRow(child, NodeTypeTableCell))
 		}
 	}
-	return table
+	numberColumn := false
+	attrs := TableAttrs{IsNumberColumnEnabled: &numberColumn, Layout: "default"}
+	return c.node(NodeTypeTable, attrs, rows)
 }
 
 // tableRow converts one goldmark header or body row into an ADF tableRow
 // whose cells carry cellType ("tableHeader" or "tableCell").
-func (c *mdConverter) tableRow(row ast.Node, cellType string) Node {
-	out := Node{Type: "tableRow"}
+func (c *mdConverter) tableRow(row ast.Node, cellType NodeType) Node {
+	var cells []Node
 	for cell := row.FirstChild(); cell != nil; cell = cell.NextSibling() {
 		if cell.Kind() != extast.KindTableCell {
 			continue
 		}
-		out.Content = append(out.Content, Node{
-			Type:    cellType,
-			Content: []Node{{Type: "paragraph", Content: c.inlineChildren(cell)}},
-		})
+		paragraph := c.node(NodeTypeParagraph, nil, c.inlineChildren(cell))
+		cells = append(cells, c.node(cellType, nil, []Node{paragraph}))
 	}
-	return out
+	return c.node(NodeTypeTableRow, nil, cells)
 }
 
 // inlineChildren converts the inline children of a block node to ADF
@@ -499,92 +596,50 @@ func (c *mdConverter) inlineChildren(n ast.Node) []Node {
 func (c *mdConverter) inline(n ast.Node, marks []Mark) []Node {
 	switch n.Kind() {
 	case ast.KindText:
-		t := n.(*ast.Text)
-		nodes := []Node{}
-		if seg := string(t.Segment.Value(c.source)); seg != "" {
-			if c.wikiEmoji {
-				if split := splitWikiEmoji(seg, marks); split != nil {
-					nodes = append(nodes, split...)
-				} else {
-					nodes = append(nodes, Node{Type: "text", Text: seg, Marks: cloneMarks(marks)})
-				}
-			} else {
-				nodes = append(nodes, Node{Type: "text", Text: seg, Marks: cloneMarks(marks)})
-			}
-		}
-		// A trailing hard break inside a paragraph is a real ADF node.
-		if t.HardLineBreak() {
-			nodes = append(nodes, Node{Type: "hardBreak"})
-		} else if t.SoftLineBreak() {
-			// Soft breaks render as a space in ADF inline flow. When the
-			// run ends on an emoji node the space needs its own text node —
-			// an emoji carries no top-level text.
-			if last := len(nodes) - 1; last >= 0 {
-				if nodes[last].Type == "text" {
-					nodes[last].Text += " "
-				} else {
-					nodes = append(nodes, Node{Type: "text", Text: " "})
-				}
-			}
-		}
-		return nodes
+		return c.inlineText(n, marks)
 	case ast.KindString:
-		s := n.(*ast.String)
-		return []Node{{Type: "text", Text: string(s.Value), Marks: cloneMarks(marks)}}
-	case ast.KindEmphasis:
-		mark := Mark{Type: "em"}
-		if n.(*ast.Emphasis).Level == 2 {
-			mark.Type = "strong"
-		}
-		return c.inlineRun(n, append(cloneMarks(marks), mark))
-	case ast.KindLink:
-		link := n.(*ast.Link)
-		mark := Mark{Type: "link", Attrs: map[string]any{"href": string(link.Destination)}}
-		return c.inlineRun(n, append(cloneMarks(marks), mark))
-	case ast.KindCodeSpan:
-		// The ADF spec allows the code mark to combine only with link.
-		// Resolve the conflict here, where the Markdown source is still at
-		// hand: keep code (and any link) and drop the decorative marks.
-		// The text and its code mark survive verbatim — like an image
-		// degrading to its alt-text link, this loses decoration, not
-		// content — so the warning is a non-lossy downgrade and the
-		// default strict mutation mode proceeds with it.
-		kept, dropped := sanitizeCodeMarks(cloneMarks(marks))
-		if len(dropped) > 0 {
-			w := c.sourceMapped(n, Warning{
-				Type:     "markdown_lossy_conversion",
-				Message:  fmt.Sprintf("Markdown formatting cannot combine with inline code in ADF (code combines only with link); kept the code mark and dropped %s", strings.Join(dropped, ", ")),
-				NodeType: "codeSpan",
-				MarkType: dropped[0],
-				Lossy:    false,
-			})
-			c.warnings = append(c.warnings, w)
-		}
-		text := string(codeSpanText(n, c.source))
-		return []Node{{Type: "text", Text: text, Marks: append(kept, Mark{Type: "code"})}}
-	case ast.KindAutoLink:
-		al := n.(*ast.AutoLink)
-		url := string(al.URL(c.source))
-		mark := Mark{Type: "link", Attrs: map[string]any{"href": url}}
-		return []Node{{Type: "text", Text: url, Marks: append(cloneMarks(marks), mark)}}
-	case extast.KindStrikethrough:
-		return c.inlineRun(n, append(cloneMarks(marks), Mark{Type: "strike"}))
-	case extast.KindTaskCheckBox:
-		// Inside a task item the checkbox became the taskItem state attr;
-		// in a mixed list it degrades to the literal GFM text (the list
-		// carries one downgrade warning).
-		if c.inTaskItem {
+		s, ok := n.(*ast.String)
+		if !ok {
 			return nil
 		}
-		// The literal carries the separator space: goldmark strips the
-		// space between "]" and the item text from the following segment.
-		box := "[ ] "
-		if n.(*extast.TaskCheckBox).IsChecked {
-			box = "[x] "
+		return []Node{c.text(string(s.Value), marks)}
+	case ast.KindEmphasis:
+		em, ok := n.(*ast.Emphasis)
+		if !ok {
+			return nil
 		}
-		return []Node{{Type: "text", Text: box, Marks: cloneMarks(marks)}}
+		markType := MarkTypeEm
+		if em.Level == 2 {
+			markType = MarkTypeStrong
+		}
+		return c.inlineRun(n, append(cloneMarks(marks), c.mark(markType, nil)))
+	case ast.KindLink:
+		link, ok := n.(*ast.Link)
+		if !ok {
+			return nil
+		}
+		mark := c.mark(MarkTypeLink, linkMarkAttrs{Href: string(link.Destination), Title: string(link.Title)})
+		return c.inlineRun(n, append(cloneMarks(marks), mark))
+	case ast.KindCodeSpan:
+		return c.codeSpan(n, marks)
+	case ast.KindAutoLink:
+		al, ok := n.(*ast.AutoLink)
+		if !ok {
+			return nil
+		}
+		url := string(al.URL(c.source))
+		mark := c.mark(MarkTypeLink, linkMarkAttrs{Href: url})
+		return []Node{c.text(url, append(cloneMarks(marks), mark))}
+	case extast.KindStrikethrough:
+		return c.inlineRun(n, append(cloneMarks(marks), c.mark(MarkTypeStrike, nil)))
+	case extast.KindTaskCheckBox:
+		return c.checkbox(n, marks)
 	case ast.KindImage:
-		return c.image(n.(*ast.Image), marks)
+		img, ok := n.(*ast.Image)
+		if !ok {
+			return nil
+		}
+		return c.image(img, marks)
 	case ast.KindRawHTML:
 		c.warn(n, "inline raw HTML", "")
 		return nil
@@ -594,6 +649,81 @@ func (c *mdConverter) inline(n ast.Node, marks []Mark) []Node {
 	}
 }
 
+// inlineText converts a plain text run, including the two line-break
+// shapes goldmark hangs off it.
+func (c *mdConverter) inlineText(n ast.Node, marks []Mark) []Node {
+	t, ok := n.(*ast.Text)
+	if !ok {
+		return nil
+	}
+	nodes := []Node{}
+	if seg := string(t.Segment.Value(c.source)); seg != "" {
+		if split := c.wikiEmojiNodes(seg, marks); split != nil {
+			nodes = append(nodes, split...)
+		} else {
+			nodes = append(nodes, c.text(seg, marks))
+		}
+	}
+	// A trailing hard break inside a paragraph is a real ADF node.
+	if t.HardLineBreak() {
+		return append(nodes, c.node(NodeTypeHardBreak, nil, nil))
+	}
+	if t.SoftLineBreak() {
+		// Soft breaks render as a space in ADF inline flow. When the run
+		// ends on an emoji node the space needs its own text node — an
+		// emoji carries no top-level text.
+		if last := len(nodes) - 1; last >= 0 {
+			if nodes[last].Type() == string(NodeTypeText) {
+				nodes[last].SetText(nodes[last].Text() + " ")
+			} else {
+				nodes = append(nodes, c.text(" ", nil))
+			}
+		}
+	}
+	return nodes
+}
+
+// codeSpan converts an inline code run. The ADF spec allows the code mark
+// to combine only with link. Resolve the conflict here, where the Markdown
+// source is still at hand: keep code (and any link) and drop the
+// decorative marks. The text and its code mark survive verbatim — like an
+// image degrading to its alt-text link, this loses decoration, not
+// content — so the warning is a non-lossy downgrade and the default strict
+// mutation mode proceeds with it.
+func (c *mdConverter) codeSpan(n ast.Node, marks []Mark) []Node {
+	kept, dropped := sanitizeCodeMarks(cloneMarks(marks))
+	if len(dropped) > 0 {
+		c.warnings = append(c.warnings, c.sourceMapped(n, Warning{
+			Type:     "markdown_lossy_conversion",
+			Message:  fmt.Sprintf("Markdown formatting cannot combine with inline code in ADF (code combines only with link); kept the code mark and dropped %s", strings.Join(dropped, ", ")),
+			NodeType: "codeSpan",
+			MarkType: dropped[0],
+			Lossy:    false,
+		}))
+	}
+	return []Node{c.text(codeSpanText(n, c.source), append(kept, c.mark(MarkTypeCode, nil)))}
+}
+
+// checkbox handles a GFM task checkbox. Inside a task item the checkbox
+// became the taskItem state attr; in a mixed list it degrades to the
+// literal GFM text (the list carries one downgrade warning).
+func (c *mdConverter) checkbox(n ast.Node, marks []Mark) []Node {
+	if c.inTaskItem {
+		return nil
+	}
+	cb, ok := n.(*extast.TaskCheckBox)
+	if !ok {
+		return nil
+	}
+	// The literal carries the separator space: goldmark strips the space
+	// between "]" and the item text from the following segment.
+	box := "[ ] "
+	if cb.IsChecked {
+		box = "[x] "
+	}
+	return []Node{c.text(box, marks)}
+}
+
 // sanitizeCodeMarks applies the ADF mark-combination rule at conversion
 // time: the code mark combines only with link, so every other accumulated
 // mark is dropped. Returns the surviving marks and the dropped mark types.
@@ -601,11 +731,11 @@ func sanitizeCodeMarks(marks []Mark) ([]Mark, []string) {
 	var kept []Mark
 	var dropped []string
 	for _, m := range marks {
-		if m.Type == "link" {
+		if m.Type() == string(MarkTypeLink) {
 			kept = append(kept, m)
 			continue
 		}
-		dropped = append(dropped, m.Type)
+		dropped = append(dropped, m.Type())
 	}
 	return kept, dropped
 }
@@ -627,8 +757,8 @@ func (c *mdConverter) image(img *ast.Image, marks []Mark) []Node {
 		alt = url
 	}
 	c.warnDowngrade(img, "image", "rendered as a link to "+url)
-	mark := Mark{Type: "link", Attrs: map[string]any{"href": url}}
-	return []Node{{Type: "text", Text: alt, Marks: append(cloneMarks(marks), mark)}}
+	mark := c.mark(MarkTypeLink, linkMarkAttrs{Href: url})
+	return []Node{c.text(alt, append(cloneMarks(marks), mark))}
 }
 
 // imageAltText collects the image's child text runs (the [alt] part).
@@ -656,27 +786,25 @@ func cloneMarks(marks []Mark) []Mark {
 	if len(marks) == 0 {
 		return nil
 	}
-	out := make([]Mark, len(marks))
-	copy(out, marks)
-	return out
+	return slices.Clone(marks)
 }
 
 func codeBlockText(n ast.Node, source []byte) string {
 	var b strings.Builder
 	lines := n.Lines()
-	for i := 0; i < lines.Len(); i++ {
+	for i := range lines.Len() {
 		segment := lines.At(i)
 		b.Write(segment.Value(source))
 	}
 	return b.String()
 }
 
-func codeSpanText(n ast.Node, source []byte) []byte {
+func codeSpanText(n ast.Node, source []byte) string {
 	var b strings.Builder
 	for child := n.FirstChild(); child != nil; child = child.NextSibling() {
 		if t, ok := child.(*ast.Text); ok {
 			b.Write(t.Segment.Value(source))
 		}
 	}
-	return []byte(b.String())
+	return b.String()
 }

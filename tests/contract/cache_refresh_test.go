@@ -5,193 +5,139 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
-	"sync/atomic"
 	"testing"
+
+	"github.com/matcra587/jira-cli/internal/envelope"
 )
 
-// `jira cache refresh <resources>` refetches each resource, is TTL-gated by
-// default (a fresh resource is reported "fresh" and not refetched), and
-// --force refetches regardless. Statuses and priorities are flat {id,name}
-// lists, so one routing mock serves both without pagination.
-func TestCacheRefreshTTLGatedAndForced(t *testing.T) {
-	var statusHits, priorityHits atomic.Int64
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case strings.Contains(r.URL.Path, "/status"):
-			statusHits.Add(1)
-			_, _ = w.Write([]byte(`[{"id":"1","name":"Open"},{"id":"2","name":"Done"}]`))
-		case strings.Contains(r.URL.Path, "/priority"):
-			priorityHits.Add(1)
-			_, _ = w.Write([]byte(`[{"id":"1","name":"High"}]`))
-		default:
-			w.WriteHeader(http.StatusNotFound)
-		}
-	}))
-	defer srv.Close()
-
-	bin := buildJiraBinary(t)
-	cfg := writeCacheTestConfig(t, srv.URL)
-	env := append(os.Environ(), "XDG_CACHE_HOME="+filepath.Join(t.TempDir(), "cache"))
-
-	// First refresh → both refetched.
-	data := refreshData(t, runRefresh(t, bin, env, cfg))
-	if data["succeeded"].(float64) != 2 || data["failed"].(float64) != 0 {
-		t.Fatalf("first refresh: want 2 succeeded 0 failed, got %v", data)
-	}
-	for _, row := range data["results"].([]any) {
-		m := row.(map[string]any)["data"].(map[string]any)
-		if m["status"] != "refreshed" || m["from_cache"] != false {
-			t.Fatalf("first refresh row not refreshed: %v", m)
-		}
-	}
-	if statusHits.Load() != 1 || priorityHits.Load() != 1 {
-		t.Fatalf("first refresh hits: status=%d priority=%d, want 1/1", statusHits.Load(), priorityHits.Load())
-	}
-
-	// Second refresh, no --force → both fresh, no new server hits.
-	data = refreshData(t, runRefresh(t, bin, env, cfg))
-	for _, row := range data["results"].([]any) {
-		m := row.(map[string]any)["data"].(map[string]any)
-		if m["status"] != "fresh" || m["from_cache"] != true {
-			t.Fatalf("second refresh row should be fresh-from-cache: %v", m)
-		}
-	}
-	if statusHits.Load() != 1 || priorityHits.Load() != 1 {
-		t.Fatalf("TTL-gated refresh refetched: status=%d priority=%d, want 1/1", statusHits.Load(), priorityHits.Load())
-	}
-
-	// --force → both refetched again.
-	out, err := runWithEnv(bin, env, "--config", cfg, "cache", "refresh", "statuses", "priorities", "--force", "--output=json")
-	if err != nil {
-		t.Fatalf("forced refresh: %v\n%s", err, out)
-	}
-	if statusHits.Load() != 2 || priorityHits.Load() != 2 {
-		t.Fatalf("forced refresh hits: status=%d priority=%d, want 2/2", statusHits.Load(), priorityHits.Load())
+func TestCacheRefreshBinaryOfflinePreviewPreservesResourceOrder(t *testing.T) {
+	for _, mode := range []string{"json", "compact", "human", "agent"} {
+		t.Run(mode, func(t *testing.T) {
+			dir := filepath.Join(t.TempDir(), "cold-cache")
+			env := []string{"XDG_CACHE_HOME=" + dir, "JIRA_BASE_URL=https://example.com", "JIRA_EMAIL=person@example.com", "JIRA_API_TOKEN=", "JIRA_KEYRING=true", "DBUS_SESSION_BUS_ADDRESS=/dev/null", "JIRA_READ_ONLY=true", "JIRA_NO_UPDATE_CHECK=1"}
+			args := []string{"cache", "refresh", "fields", "labels", "fields", "--dry-run", "--parallelism=2", "--ttl-minutes=7", "--force", "--unbounded"}
+			if mode == "agent" {
+				env = append(env, "AGENT=1")
+			} else {
+				args = append(args, "--output="+mode)
+			}
+			stdout, stderr, exit := runBinaryEnv(t, env, args...)
+			if exit != 0 {
+				t.Fatalf("cache refresh preview(%s) exit=%d stdout=%q stderr=%q, want 0 without credentials", mode, exit, stdout, stderr)
+			}
+			if _, err := os.Stat(dir); !os.IsNotExist(err) {
+				t.Fatalf("cache refresh preview created storage: %v", err)
+			}
+			if mode == "human" {
+				text := strings.Join(strings.Fields(stdout), " ")
+				if !strings.Contains(text, "would fetch fields") || !strings.Contains(text, "would fetch labels") || strings.Index(text, "fields") > strings.Index(text, "labels") {
+					t.Fatalf("cache refresh preview human output=%q, want ordered prospective rows", text)
+				}
+				return
+			}
+			var data map[string]any
+			if mode == "json" {
+				var result frame
+				if err := json.Unmarshal([]byte(stdout), &result); err != nil || !result.OK || result.Meta.Command != "cache.refresh" {
+					t.Fatalf("cache refresh preview frame=%+v err=%v", result, err)
+				}
+				if err := json.Unmarshal(result.Data, &data); err != nil {
+					t.Fatal(err)
+				}
+			} else if err := json.Unmarshal([]byte(stdout), &data); err != nil {
+				t.Fatal(err)
+			}
+			rows, ok := data["results"].([]any)
+			if !ok || len(rows) != 2 || data["dry_run"] != true || data["parallelism"] != float64(2) {
+				t.Fatalf("cache refresh preview data=%v, want two deduplicated rows", data)
+			}
+			var names []string
+			for _, value := range rows {
+				row := value.(map[string]any)
+				name, _ := row["resource"].(string)
+				names = append(names, name)
+				item, _ := row["data"].(map[string]any)
+				if _, exists := row["issue"]; exists || row["ok"] != true || item["resource"] != name || item["dry_run"] != true || item["ttl_minutes"] != float64(7) || item["force"] != true || item["unbounded"] != true || item["would_fetch"] != true || item["attempted"] != false || item["saved"] != false {
+					t.Fatalf("cache refresh preview row=%v, want resource identity and truthful offline plan", row)
+				}
+			}
+			if !reflect.DeepEqual(names, []string{"fields", "labels"}) {
+				t.Fatalf("cache refresh preview names=%v, want [fields labels]", names)
+			}
+		})
 	}
 }
 
-// A resource that fails to fetch must not abort the others: the envelope is
-// ok:false, the healthy resource is still refreshed, and the command exits
-// non-zero with the failure in errors[].
-func TestCacheRefreshPartialFailureExitsNonZero(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.Contains(r.URL.Path, "/priority") {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
+func TestCacheRefreshBinaryFailuresRetainEveryResourceWithoutInventingFetches(t *testing.T) {
+	t.Parallel()
+	for _, total := range []bool{false, true} {
+		name := "mixed"
+		if total {
+			name = "total"
 		}
-		_, _ = w.Write([]byte(`[{"id":"1","name":"Open"}]`))
-	}))
-	defer srv.Close()
-
-	bin := buildJiraBinary(t)
-	cfg := writeCacheTestConfig(t, srv.URL)
-	env := append(os.Environ(), "XDG_CACHE_HOME="+filepath.Join(t.TempDir(), "cache"))
-
-	out, err := runWithEnv(bin, env, "--config", cfg, "cache", "refresh", "statuses", "priorities", "--output=json")
-	if err == nil {
-		t.Fatalf("partial failure should exit non-zero; got success\n%s", out)
-	}
-	// The envelope is still emitted on stdout (machine error-stream contract).
-	var env1 map[string]any
-	if jErr := json.Unmarshal(out, &env1); jErr != nil {
-		t.Fatalf("partial-failure envelope must be valid JSON on stdout: %v\n%s", jErr, out)
-	}
-	if env1["ok"] != false {
-		t.Fatalf("partial failure envelope ok should be false: %v", env1)
-	}
-	data, _ := env1["data"].(map[string]any)
-	if data["succeeded"].(float64) != 1 || data["failed"].(float64) != 1 {
-		t.Fatalf("want 1 succeeded 1 failed, got %v", data)
-	}
-	if errs, _ := env1["errors"].([]any); len(errs) != 1 {
-		t.Fatalf("want one entry in errors[], got %v", env1["errors"])
-	}
-}
-
-// boards stores an object (BoardsCacheFile), not a flat array, so its refresh
-// goes through the bespoke prime and its count comes from the file's items.
-// This exercises the r.Fetch==nil branch and the boards arm of cachedCount.
-func TestCacheRefreshBoardsPath(t *testing.T) {
-	var hits atomic.Int64
-	srv := pagedBoardServerForCache(3, 50, &hits)
-	defer srv.Close()
-
-	bin := buildJiraBinary(t)
-	cfg := writeCacheTestConfig(t, srv.URL)
-	env := append(os.Environ(), "XDG_CACHE_HOME="+filepath.Join(t.TempDir(), "cache"))
-
-	out, err := runWithEnv(bin, env, "--config", cfg, "cache", "refresh", "boards", "--output=json")
-	if err != nil {
-		t.Fatalf("refresh boards: %v\n%s", err, out)
-	}
-	row := refreshData(t, out)["results"].([]any)[0].(map[string]any)
-	if row["key"] != "boards" || row["ok"] != true {
-		t.Fatalf("boards row: %v", row)
-	}
-	d := row["data"].(map[string]any)
-	if d["status"] != "refreshed" || d["count"].(float64) != 3 {
-		t.Fatalf("boards refresh should report 3 boards refreshed: %v", d)
-	}
-
-	// Second refresh → fresh, count still read from the cached object's items.
-	out, err = runWithEnv(bin, env, "--config", cfg, "cache", "refresh", "boards", "--output=json")
-	if err != nil {
-		t.Fatalf("second refresh boards: %v\n%s", err, out)
-	}
-	d = refreshData(t, out)["results"].([]any)[0].(map[string]any)["data"].(map[string]any)
-	if d["status"] != "fresh" || d["from_cache"] != true || d["count"].(float64) != 3 {
-		t.Fatalf("boards second refresh should be fresh with count 3: %v", d)
-	}
-}
-
-// In human/plain output a partial failure must still name the failing resource
-// and exit non-zero — the failed row must not be silently dropped.
-func TestCacheRefreshPlainPartialFailureNamesResource(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.Contains(r.URL.Path, "/priority") {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
+		for _, mode := range []string{"json", "compact", "human", "agent"} {
+			t.Run(name+"/"+mode, func(t *testing.T) {
+				t.Parallel()
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path == "/rest/api/3/field" {
+						_, _ = w.Write([]byte(`{}`))
+						return
+					}
+					if total {
+						w.WriteHeader(http.StatusUnauthorized)
+						return
+					}
+					_, _ = w.Write([]byte(`[{"id":"1","name":"Open","nativeUnknown":null}]`))
+				}))
+				defer server.Close()
+				env := append(editReceiptEnv(server.URL), "XDG_CACHE_HOME="+t.TempDir(), "JIRA_READ_ONLY=true")
+				args := []string{"cache", "refresh", "fields", "statuses", "--parallelism=2"}
+				if mode == "agent" {
+					env = append(env, "AGENT=1")
+				} else {
+					args = append(args, "--output="+mode)
+				}
+				stdout, stderr, exit := runBinaryEnv(t, env, args...)
+				wantExit := 0
+				if total {
+					wantExit = 1
+				}
+				if exit != wantExit {
+					t.Fatalf("refresh %s(%s) exit=%d stdout=%q stderr=%q, want %d", name, mode, exit, stdout, stderr, wantExit)
+				}
+				if mode == "human" {
+					text := strings.Join(strings.Fields(stdout), " ")
+					if !strings.Contains(text, "failed fields") || strings.Contains(text, "fetched 0 fields") || strings.Contains(text, "local storage is available") {
+						t.Fatalf("refresh %s human=%q, want actual failed read without invented fetch or storage cause", name, text)
+					}
+					return
+				}
+				var out envelope.CacheRefreshOutput
+				if mode == "json" || total {
+					var frame apiFrame
+					if err := json.Unmarshal([]byte(stdout), &frame); err != nil || frame.OK == total {
+						t.Fatalf("refresh %s frame=%+v err=%v", name, frame, err)
+					}
+					if total && (len(frame.Errors) != 1 || frame.Errors[0].Code != "jira_unauthorized") {
+						t.Fatalf("refresh total error=%+v, want severe credential cause", frame.Errors)
+					}
+					if err := json.Unmarshal(frame.Data, &out); err != nil {
+						t.Fatal(err)
+					}
+				} else if err := json.Unmarshal([]byte(stdout), &out); err != nil {
+					t.Fatal(err)
+				}
+				if len(out.Results) != 2 || out.Results[0].Resource != "fields" || out.Results[0].OK || out.Results[0].Err == nil || out.Results[0].Err.Code != "cache_response_invalid" || out.Results[0].Data == nil || !out.Results[0].Data.Attempted || out.Results[0].Data.Saved {
+					t.Fatalf("refresh %s rows=%+v, want retained failed fields", name, out.Results)
+				}
+				second := out.Results[1]
+				if second.Resource != "statuses" || second.OK == total || second.Data == nil || second.Data.Saved == total {
+					t.Fatalf("refresh %s sibling=%+v", name, second)
+				}
+			})
 		}
-		_, _ = w.Write([]byte(`[{"id":"1","name":"Open"}]`))
-	}))
-	defer srv.Close()
-
-	bin := buildJiraBinary(t)
-	cfg := writeCacheTestConfig(t, srv.URL)
-	env := append(os.Environ(), "XDG_CACHE_HOME="+filepath.Join(t.TempDir(), "cache"))
-
-	cmd := exec.Command(bin, "--config", cfg, "cache", "refresh", "statuses", "priorities", "--output=human")
-	cmd.Env = env
-	combined, err := cmd.CombinedOutput()
-	if err == nil {
-		t.Fatalf("plain partial failure should exit non-zero\n%s", combined)
 	}
-	if !strings.Contains(string(combined), "priorities") {
-		t.Fatalf("plain partial-failure output must name the failed resource 'priorities'; got:\n%s", combined)
-	}
-}
-
-func runRefresh(t *testing.T, bin string, env []string, cfg string) []byte {
-	t.Helper()
-	out, err := runWithEnv(bin, env, "--config", cfg, "cache", "refresh", "statuses", "priorities", "--output=json")
-	if err != nil {
-		t.Fatalf("cache refresh: %v\n%s", err, out)
-	}
-	return out
-}
-
-func refreshData(t *testing.T, out []byte) map[string]any {
-	t.Helper()
-	var env map[string]any
-	if err := json.Unmarshal(out, &env); err != nil {
-		t.Fatalf("parse refresh envelope: %v\n%s", err, out)
-	}
-	data, ok := env["data"].(map[string]any)
-	if !ok {
-		t.Fatalf("refresh envelope missing data: %s", out)
-	}
-	return data
 }

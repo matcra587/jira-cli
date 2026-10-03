@@ -1,6 +1,6 @@
 # jira
 
-Terminal-first Jira CLI for day-to-day developer workflows.
+Terminal-first Jira Cloud CLI for developer and agent workflows.
 
 ## Install
 
@@ -8,188 +8,93 @@ Terminal-first Jira CLI for day-to-day developer workflows.
 go install github.com/matcra587/jira-cli/cmd/jira@latest
 ```
 
-Homebrew and GoReleaser release archives include release version metadata.
-`go install github.com/matcra587/jira-cli/cmd/jira@latest` builds from source
-and reports the module version in `jira version` (resolved from Go build
-info; a plain `go build` reports a commit-derived `dev` version).
-Release archives currently target macOS, Linux, and Windows.
-
-See [docs/installation.md](docs/installation.md) for release archives, the
-one-line installer, source builds, and uninstall steps. The examples below
-assume `jira` is on `PATH`.
-
-## Quick start
-
-```sh
-# 1. Create profile metadata
-jira config init --no-input \
-  --base-url https://company.atlassian.net \
-  --email dev@example.com
-
-# 2. Store an API token and verify Jira accepts it
-jira auth login
-jira auth status
-
-# 3. List your issues
-jira issue list
-```
-
-For issue creation, editing, comments, and ADF payloads, start with
-[docs/issue/read.md](docs/issue/read.md). For classic API tokens, auth backends, and
-1Password, use [docs/auth.md](docs/auth.md).
-
-## Configuration
-
-Configuration lives in `~/.config/jira-cli/config.toml` (on Windows,
-`%AppData%\jira-cli\config.toml`). Use metadata-only profiles; credentials
-belong in the OS keychain, 1Password, or environment fallbacks.
-
-```sh
-jira config init --no-input \
-  --profile default \
-  --base-url https://company.atlassian.net \
-  --email dev@example.com
-```
-
-`config init` requires both `--base-url` and `--email`; omitting either exits
-before writing the config file.
-
-## Auth
-
-```sh
-jira auth status
-jira auth login
-jira auth token
-```
-
-`auth login` uses `auth_type = token` (the only supported value); it covers
-both classic and scoped (granular) API tokens. Unsupported auth types are
-rejected instead of being stored as fake authenticated profiles.
-
-The 1Password backend uses the Go SDK when `onepassword_account` is configured
-for desktop-app auth or `OP_SERVICE_ACCOUNT_TOKEN` is present for service-account
-auth. macOS, Linux, and Windows release archives are built without CGO, so use a
-CGO-enabled source build for 1Password-backed profiles.
-
-For desktop-app auth, 1Password must be signed in and allowed to serve SDK
-requests before `jira` can read items. In the 1Password app, open
-Settings > Developer and enable Integrate with other apps. If you want
-biometric approval, also enable the OS unlock option under Settings > Security.
-Desktop-app SDK authorization is per account and per process, so separate
-`jira` invocations may prompt separately even when the app is unlocked. Use the
-system keychain backend for prompt-free day-to-day commands.
-
-Further reading:
-
-*   [1Password SDK desktop app integration](https://www.1password.dev/sdks#1password-desktop-app)
-
-```toml
-[[profiles]]
-name = "work"
-base_url = "https://company.atlassian.net"
-auth_type = "token"
-email = "dev@example.com"
-secret_backend = "1password"
-onepassword_account = "Team"
-vault = "Engineering"
-item = "jira-cli-work"
-```
-
-### Token support
-
-jira talks to **Jira Cloud only**; Server/Data Center are not supported. The
-CLI supports both classic Atlassian API tokens and scoped (granular) API
-tokens, and `jira auth login` **detects which you have automatically** — there
-are no scoped-specific flags. Classic tokens hit the site REST base URL
-(`https://your-site.atlassian.net/...`); scoped tokens are auto-detected at
-login (verified against the site, then the gateway) and routed through
-Atlassian's gateway (`https://api.atlassian.com/ex/jira/<cloudId>/...`) via a
-stored `cloud_id`. See [docs/auth.md](docs/auth.md).
-
-## TUI
-
-The persistent dashboard runtime is deferred during the CLI migration.
-`jira tui` and `jira -i` report this explicitly. Use the issue and search
-commands for terminal workflows. Existing `[tui]` settings remain stored but
-are not executed. See [the dashboard status](docs/tui.md).
-
-## Output
-
-Non-TTY and agent environments emit JSON without prompts. Pick a mode
-explicitly with `--output`; valid values are `auto`, `human`, `json`, and
-`compact`.
-
-```sh
-jira issue list --output=json
-jira issue create --json-input payload.json --no-input --dry-run --output=json
-jira agent schema --output=compact
-```
-
-Where `payload.json` is at minimum:
-
-```json
-{"summary": "Fix login", "project_key": "PROJ", "issue_type": "Task"}
-```
-
-`project_key` and `issue_type` are required under `--no-input`. See the
-embedded agent guide (`jira agent guide`) for richer payload shapes
-including ADF descriptions and customfields.
-
-For agent-facing contracts, use the embedded references instead of copying
-recipes from the README:
-
-```sh
-jira agent guide
-jira agent schema --output=compact
-jira agent adf-matrix --output=json
-jira agent fieldtypes --output=json
-```
-
-TTY commands render successful results through `clog` rich output:
-
-```text
-INF ℹ️ Listed issues count=0
-```
-
-Use `--output=compact` for jq-friendly data-only JSON and
-`--output=human` to force `clog` rich text. A built-in `--jq EXPR`
-filters the JSON in-process (no external jq needed) — strings print
-raw, other results print as JSON per line.
+See [docs/installation.md](docs/installation.md) for Homebrew, Scoop, mise,
+release archives, the one-line installer, and uninstall steps. The examples
+below assume `jira` is on `PATH`.
 
 ## Commands
 
-| Command | Docs |
-|---------|------|
-| `auth`, `config` | [auth.md](docs/auth.md), [config.md](docs/config.md) |
-| `issue`, `epic` | [issue/read.md](docs/issue/read.md), [epic.md](docs/epic.md) |
-| `jql`, `search` | [jql.md](docs/jql.md), [search.md](docs/search.md) |
-| `worklog` | [worklog.md](docs/worklog.md) |
-| `cache` | [cache.md](docs/cache.md) |
-| `alias` | [alias.md](docs/alias.md) |
-| `agent` | [agent.md](docs/agent.md) |
-| `output`, `troubleshooting` | [output.md](docs/output.md), [troubleshooting.md](docs/troubleshooting.md) |
-
-## JQL
-
-`jira issue list` defaults to recently-updated issues
-(`updated >= -365d ORDER BY updated DESC`). Override with `--jql` or builder
-flags:
-
 ```sh
-jira issue list
-jira issue list --jql 'project = PROJ AND status = "In Progress"'
-jira jql build --project PROJ --assignee me --status "In Progress"
+jira version           # version, plus build provenance in the machine modes
+jira completion fish   # completion script for bash, elvish, fish, nu, pwsh, or zsh
+jira agent guide       # credential-free workflow index
+jira guide raw-api     # the same embedded guide source, through the human door
+jira agent schema --path 'api post' --output=json
+jira adf convert --input notes.md --output=json
+jira adf render --input document.json --output=json
+jira agent adf-matrix --output=json
+jira agent fieldtypes --output=json
+jira user search sam --output=json
+jira boards list --all --output=json
 ```
 
-See [docs/jql.md](docs/jql.md) for supported builder flags and Atlassian JQL
-references.
+`--help` on a command prints the long form with worked examples; `-h` prints the
+short one.
 
-## Aliases
+ADF conversion uses the shared Markdown body converter and validates the
+candidate. Strict mode refuses dropped content; inspect the retained candidate
+and `diagnostics` before explicitly accepting loss. `adf render` returns a
+Markdown review projection with `lossy_constructs`. Keep original native ADF for
+editing; a Markdown projection cannot provide a lossless round trip.
+
+User search returns visible active account candidates. Choose an account explicitly;
+email may be hidden by privacy settings. Paging covers Jira's first 1,000 matches.
+Read `jira guide machine-output` for continuation and partial-result handling.
+
+Board discovery caches visible identities and associated project keys per site
+and configured account. `--all` returns the fetched snapshot; `--unbounded`
+removes board fetch caps. Inspect truncation and project failures, and use
+`--refresh` after configuration or permission changes.
+
+Prime visible metadata with `jira cache fields`, `cache boards` or another
+resource listed by `jira cache --help`. `--dry-run` inspects local freshness
+without authentication or writes; it needs explicit public site/account
+settings. `--force` fetches again. Primers retain native values and honest
+completion/storage receipts; failed reads preserve the previous cache entry.
+
+## Output
+
+One selector, `--output`, on every command: `auto`, `human`, `json`, or
+`compact`. Under `auto`, a detected agent gets `compact`, any other non-TTY
+gets the full JSON envelope, and an interactive terminal gets human output.
 
 ```sh
-jira alias set mine -- issue list --assignee me
-jira alias set inbox "issue list --assignee me"
-jira alias list
-jira alias import aliases.yml
-jira alias delete mine
+jira version --output=json
+jira version --output=compact
 ```
+
+Machine modes write one line of JSON to stdout on success *and* failure, so a
+consumer parses one stream either way. The human `❌` diagnostic always goes to
+stderr. Exit codes are typed, 0 through 8.
+
+A built-in `--jq EXPR` filters that JSON in-process — no external `jq`
+required. Strings print raw, everything else prints as JSON, one result per
+line. Bind values rather than splicing them in:
+
+```sh
+jira version --jq '.data.go_version'
+jira version --jq 'select(.data.platform.os == $os)' --jq-arg os=linux
+```
+
+The full contract — envelope shape, every exit code, the jq rules — is in
+[docs/output.md](docs/output.md).
+
+Embedded guides own current workflow instructions. `jira agent guide --output=json`
+returns their index and routing metadata. Read one runbook by slug, select a
+section with `--section`, or request the canonical corpus with `--all`.
+`jira agent guide raw-api --jq '.data.document'` extracts its Markdown.
+Bare `jira` displays native help for human output and the same runtime schema
+for machine output. `--jq` filters the normal selected document shape.
+
+The runtime schema describes the assembled command tree, declared arguments,
+visible flags, operation classes and output shapes.
+
+`jira agent export --format agent-skill --dir skills --dry-run --output=json`
+prepares portable skills from those guides. Omit `--dry-run` to publish them;
+existing artifacts require `--force`. `--scope project --harness codex` resolves
+the project's `.agents/skills` directory. Read `jira guide export-guides` for
+scope, format and partial-receipt behavior.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).

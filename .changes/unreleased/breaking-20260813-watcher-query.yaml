@@ -1,0 +1,3 @@
+kind: breaking
+body: "Replace legacy watcher name/email lookup through `--user` with a literal account ID or `@me`."
+time: 2026-08-13T02:35:33-04:00

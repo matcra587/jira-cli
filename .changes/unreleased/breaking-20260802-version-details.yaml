@@ -1,0 +1,3 @@
+kind: breaking
+body: "Replace `version --detailed` human output with `version --output=json` or `--output=compact` for build provenance. Human `version` now matches `-V`; machine fields include commit, dirty state and build date when stamped, plus Go version and target platform. Update consumers of the former branch/build-by/build-time summary fields."
+time: 2026-08-02T20:32:10-04:00

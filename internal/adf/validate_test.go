@@ -1,252 +1,160 @@
 package adf_test
 
-// ADF validation tests.
-//
-// These tests exercise ValidateDoc, which must be wired into the pipeline
-// stage-2 ADF validation for every mutation path.
-//
-// Failing conditions covered:
-//   - Wrong-shape root (type != "doc", version != 1) → always error
-//   - Unknown node in strict mode → error naming the node
-//   - Unknown node in best-effort mode → warning, no error (opaque preserve)
-//   - Illegal mark on block node in strict mode → error naming path
-//   - Illegal mark on block node in best-effort mode → warning, no error
-//   - Unknown mark in strict mode → error naming the mark
-//   - Unknown mark in best-effort mode → warning, no error, mark preserved
-//   - 100-deep valid structure → no panic, no error (depth is legal)
-
 import (
-	"strings"
+	"bytes"
+	"fmt"
 	"testing"
 
 	"github.com/matcra587/jira-cli/internal/adf"
-	"github.com/matcra587/jira-cli/internal/cli/adfmode"
 )
 
-// --- root shape ---
-
-func TestValidateDoc_WrongType_AlwaysErrors(t *testing.T) {
-	doc := adf.Document{Type: "foo", Version: 1}
-	_, err := adf.ValidateDoc(doc, adfmode.ModeStrict)
-	if err == nil {
-		t.Fatal("expected error for doc.type != 'doc'")
+func TestValidateStatusColors(t *testing.T) {
+	tests := []struct {
+		name    string
+		color   string
+		wantErr bool
+	}{
+		{name: "neutral", color: `"neutral"`},
+		{name: "purple", color: `"purple"`},
+		{name: "blue", color: `"blue"`},
+		{name: "red", color: `"red"`},
+		{name: "yellow", color: `"yellow"`},
+		{name: "green", color: `"green"`},
+		{name: "hex lowercase", color: `"#a1b2c3"`},
+		{name: "hex uppercase", color: `"#A1B2C3"`},
+		{name: "hex mixed case", color: `"#a1B2c3"`},
+		{name: "hex black", color: `"#000000"`},
+		{name: "hex white", color: `"#ffffff"`},
+		{name: "unknown name", color: `"orange"`, wantErr: true},
+		{name: "uppercase name", color: `"RED"`, wantErr: true},
+		{name: "hex shorthand", color: `"#abc"`, wantErr: true},
+		{name: "hex alpha", color: `"#12345678"`, wantErr: true},
+		{name: "hex non-digit", color: `"#12345g"`, wantErr: true},
+		{name: "hex missing hash", color: `"123456"`, wantErr: true},
+		{name: "hex leading space", color: `" #123456"`, wantErr: true},
+		{name: "hex trailing space", color: `"#123456 "`, wantErr: true},
+		{name: "hex trailing newline", color: `"#123456\n"`, wantErr: true},
+		{name: "empty", color: `""`, wantErr: true},
+		{name: "null", color: `null`, wantErr: true},
+		{name: "number", color: `123456`, wantErr: true},
+		{name: "boolean", color: `true`, wantErr: true},
+		{name: "object", color: `{}`, wantErr: true},
 	}
-	if !strings.Contains(err.Error(), "doc") {
-		t.Errorf("error should mention 'doc': %v", err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := []byte(fmt.Sprintf(`{"version":1,"type":"doc","content":[{"type":"paragraph","content":[{"type":"status","attrs":{"text":"READY","color":%s}}]}]}`, tt.color))
+			if err := adf.Validate(data); (err != nil) != tt.wantErr {
+				t.Fatalf("Validate status color %s: error present %t, want %t", tt.color, err != nil, tt.wantErr)
+			}
+			if tt.wantErr {
+				return
+			}
+			doc, err := adf.ParseDocument(data)
+			if err != nil {
+				t.Fatal(err)
+			}
+			status, err := adf.AsStatus(&doc.Content()[0].Content()[0])
+			if err != nil || fmt.Sprintf("%q", status.Attrs.Color) != tt.color {
+				t.Fatalf("typed status color changed: %v; color %s", err, tt.color)
+			}
+			encoded, err := doc.Marshal()
+			if err != nil || !bytes.Equal(encoded, data) {
+				t.Fatalf("validated status document did not preserve its bytes: %v", err)
+			}
+		})
 	}
 }
 
-func TestValidateDoc_WrongType_BestEffortAlsoErrors(t *testing.T) {
-	// Root shape is always fatal regardless of mode.
-	doc := adf.Document{Type: "", Version: 1}
-	_, err := adf.ValidateDoc(doc, adfmode.ModeBestEffort)
-	if err == nil {
-		t.Fatal("expected error for doc.type='' even in best-effort mode")
+func TestValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		in      string
+		wantErr bool
+	}{
+		{
+			name: "minimal document",
+			in:   `{"version":1,"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"hi"}]}]}`,
+		},
+		{
+			name: "panel with status and code block",
+			in: `{"version":1,"type":"doc","content":[` +
+				`{"type":"panel","attrs":{"panelType":"warning"},"content":[` +
+				`{"type":"paragraph","content":[{"type":"status","attrs":{"text":"BLOCKED","color":"red"}}]}]},` +
+				`{"type":"codeBlock","attrs":{"language":"go"},"content":[{"type":"text","text":"x := 1"}]}]}`,
+		},
+		{
+			name:    "unknown node type",
+			in:      `{"version":1,"type":"doc","content":[{"type":"futureWidget"}]}`,
+			wantErr: true,
+		},
+		{
+			name:    "panel without required panelType",
+			in:      `{"version":1,"type":"doc","content":[{"type":"panel","attrs":{},"content":[{"type":"paragraph","content":[]}]}]}`,
+			wantErr: true,
+		},
+		{
+			name:    "empty text violates minLength",
+			in:      `{"version":1,"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":""}]}]}`,
+			wantErr: true,
+		},
+		{
+			name:    "wrong attribute type: heading level is a string, schema wants a number",
+			in:      `{"version":1,"type":"doc","content":[{"type":"heading","attrs":{"level":"one"},"content":[]}]}`,
+			wantErr: true,
+		},
+		{
+			name:    "wrong attribute type: document version is a string, schema wants the number 1",
+			in:      `{"version":"1","type":"doc","content":[]}`,
+			wantErr: true,
+		},
+		{
+			name:    "missing required top-level content key",
+			in:      `{"version":1,"type":"doc"}`,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := adf.Validate([]byte(tt.in))
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
 	}
 }
 
-func TestValidateDoc_WrongVersion_AlwaysErrors(t *testing.T) {
-	doc := adf.Document{Type: "doc", Version: 0}
-	_, err := adf.ValidateDoc(doc, adfmode.ModeStrict)
-	if err == nil {
-		t.Fatal("expected error for doc.version != 1")
+// TestValidateRejectsMalformedJSON pins the error class Validate returns
+// for input that isn't even parseable JSON, distinct from "parses fine but
+// fails the schema": no jsonschema validation error wrapper, just the raw
+// decode failure under the "adf: validate:" prefix.
+func TestValidateRejectsMalformedJSON(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+	}{
+		{"not JSON at all", `not json at all`},
+		{"empty input", ``},
 	}
-	if !strings.Contains(err.Error(), "version") {
-		t.Errorf("error should mention 'version': %v", err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := adf.Validate([]byte(tt.in))
+			if err == nil {
+				t.Fatal("Validate() = nil, want error")
+			}
+			const wantPrefix = "adf: validate: "
+			if got := err.Error(); len(got) < len(wantPrefix) || got[:len(wantPrefix)] != wantPrefix {
+				t.Errorf("Validate() error = %q, want prefix %q", got, wantPrefix)
+			}
+		})
 	}
 }
 
-// --- unknown node ---
-
-func TestValidateDoc_UnknownNode_StrictMode_Errors(t *testing.T) {
-	raw := []byte(`{"type":"doc","version":1,"content":[
-		{"type":"paragraph","content":[
-			{"type":"text","text":"prefix "},
-			{"type":"unknown_magic_node","attrs":{"x":1}}
-		]}
-	]}`)
-	doc, _, err := adf.Parse(raw)
+func TestDocumentValidate(t *testing.T) {
+	doc, err := adf.ParseDocument([]byte(`{"version":1,"type":"doc","content":[{"type":"rule"}]}`))
 	if err != nil {
-		t.Fatalf("Parse: %v", err)
+		t.Fatalf("ParseDocument: %v", err)
 	}
-	_, valErr := adf.ValidateDoc(doc, adfmode.ModeStrict)
-	if valErr == nil {
-		t.Fatal("strict mode: expected error for unknown node 'unknown_magic_node'")
-	}
-	if !strings.Contains(valErr.Error(), "unknown_magic_node") {
-		t.Errorf("error should name the unknown node; got: %v", valErr)
-	}
-}
-
-func TestValidateDoc_UnknownNode_BestEffortMode_WarnNotError(t *testing.T) {
-	raw := []byte(`{"type":"doc","version":1,"content":[
-		{"type":"paragraph","content":[
-			{"type":"text","text":"prefix "},
-			{"type":"unknown_magic_node","attrs":{"x":1}}
-		]}
-	]}`)
-	doc, _, err := adf.Parse(raw)
-	if err != nil {
-		t.Fatalf("Parse: %v", err)
-	}
-	warnings, valErr := adf.ValidateDoc(doc, adfmode.ModeBestEffort)
-	if valErr != nil {
-		t.Fatalf("best-effort: unexpected error for unknown node: %v", valErr)
-	}
-	if len(warnings) == 0 {
-		t.Fatal("best-effort: expected at least one warning for unknown node")
-	}
-	found := false
-	for _, w := range warnings {
-		if strings.Contains(w.Message, "unknown_magic_node") || strings.Contains(w.NodeType, "unknown_magic_node") {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Errorf("warning should name unknown_magic_node; warnings: %+v", warnings)
-	}
-}
-
-// --- illegal mark on block node ---
-
-func TestValidateDoc_IllegalMarkOnBlock_StrictMode_Errors(t *testing.T) {
-	raw := []byte(`{"type":"doc","version":1,"content":[
-		{"type":"paragraph","marks":[{"type":"strong"}],"content":[
-			{"type":"text","text":"x"}
-		]}
-	]}`)
-	doc, _, err := adf.Parse(raw)
-	if err != nil {
-		t.Fatalf("Parse: %v", err)
-	}
-	_, valErr := adf.ValidateDoc(doc, adfmode.ModeStrict)
-	if valErr == nil {
-		t.Fatal("strict mode: expected error for marks on block node 'paragraph'")
-	}
-	if !strings.Contains(valErr.Error(), "paragraph") && !strings.Contains(valErr.Error(), "marks") {
-		t.Errorf("error should reference 'paragraph' or 'marks'; got: %v", valErr)
-	}
-}
-
-func TestValidateDoc_IllegalMarkOnBlock_BestEffortMode_WarnNotError(t *testing.T) {
-	raw := []byte(`{"type":"doc","version":1,"content":[
-		{"type":"paragraph","marks":[{"type":"strong"}],"content":[
-			{"type":"text","text":"x"}
-		]}
-	]}`)
-	doc, _, err := adf.Parse(raw)
-	if err != nil {
-		t.Fatalf("Parse: %v", err)
-	}
-	warnings, valErr := adf.ValidateDoc(doc, adfmode.ModeBestEffort)
-	if valErr != nil {
-		t.Fatalf("best-effort: unexpected error for marks on block: %v", valErr)
-	}
-	if len(warnings) == 0 {
-		t.Fatal("best-effort: expected at least one warning for illegal marks on block node")
-	}
-}
-
-// --- unknown mark ---
-
-func TestValidateDoc_UnknownMark_Strict_Rejects(t *testing.T) {
-	doc := adf.Document{Type: "doc", Version: 1, Content: []adf.Node{{
-		Type: "paragraph", Content: []adf.Node{{
-			Type: "text", Text: "hi",
-			Marks: []adf.Mark{{Type: "unknown_mark"}},
-		}},
-	}}}
-	_, err := adf.ValidateDoc(doc, adfmode.ModeStrict)
-	if err == nil {
-		t.Fatal("expected strict mode to reject unknown mark, got nil")
-	}
-	if !strings.Contains(err.Error(), "unknown_mark") {
-		t.Fatalf("error must name the mark; got %v", err)
-	}
-}
-
-func TestValidateDoc_UnknownMark_BestEffort_WarnsAndPreserves(t *testing.T) {
-	doc := adf.Document{Type: "doc", Version: 1, Content: []adf.Node{{
-		Type: "paragraph", Content: []adf.Node{{
-			Type: "text", Text: "hi",
-			Marks: []adf.Mark{{Type: "unknown_mark", Attrs: map[string]any{"x": 1}}},
-		}},
-	}}}
-	warnings, err := adf.ValidateDoc(doc, adfmode.ModeBestEffort)
-	if err != nil {
-		t.Fatalf("best-effort: unexpected error: %v", err)
-	}
-	if len(warnings) == 0 {
-		t.Fatal("best-effort: expected at least one warning for unknown mark")
-	}
-	found := false
-	for _, w := range warnings {
-		if strings.Contains(w.Message, "unknown_mark") || strings.Contains(w.MarkType, "unknown_mark") {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Errorf("warning must name unknown_mark; warnings: %+v", warnings)
-	}
-	// Doc structure must be preserved (mark still present on output node).
-	if len(doc.Content[0].Content[0].Marks) != 1 {
-		t.Error("best-effort: mark must be preserved on the node")
-	}
-}
-
-// --- valid deep nesting ---
-
-func TestValidateDoc_DeepNesting_NoError(t *testing.T) {
-	// 100-deep is enough to confirm no stack overflow. The validator is
-	// recursive but bounded by encoding/json's depth cap (10000) — verified
-	// safe up to 5000-deep input. A nested bulletList chain is the
-	// deepest schema-legal nesting (a listItem may hold a bulletList).
-	doc := adf.Document{Type: "doc", Version: 1}
-	leaf := adf.Node{Type: "paragraph", Content: []adf.Node{{Type: "text", Text: "deep"}}}
-	var buildChain func(depth int) adf.Node
-	buildChain = func(depth int) adf.Node {
-		if depth == 0 {
-			return leaf
-		}
-		return adf.Node{Type: "bulletList", Content: []adf.Node{
-			{Type: "listItem", Content: []adf.Node{buildChain(depth - 1)}},
-		}}
-	}
-	doc.Content = []adf.Node{buildChain(100)}
-
-	warnings, err := adf.ValidateDoc(doc, adfmode.ModeStrict)
-	if err != nil {
-		t.Fatalf("100-deep nesting: unexpected error: %v", err)
-	}
-	if len(warnings) != 0 {
-		t.Fatalf("100-deep nesting: unexpected warnings: %+v", warnings)
-	}
-}
-
-// --- valid document no-op ---
-
-func TestValidateDoc_ValidDocument_NoErrorNoWarning(t *testing.T) {
-	raw := []byte(`{"type":"doc","version":1,"content":[
-		{"type":"paragraph","content":[
-			{"type":"text","text":"hello","marks":[{"type":"strong"}]}
-		]},
-		{"type":"bulletList","content":[
-			{"type":"listItem","content":[
-				{"type":"paragraph","content":[{"type":"text","text":"item"}]}
-			]}
-		]}
-	]}`)
-	doc, _, err := adf.Parse(raw)
-	if err != nil {
-		t.Fatalf("Parse: %v", err)
-	}
-	warnings, valErr := adf.ValidateDoc(doc, adfmode.ModeStrict)
-	if valErr != nil {
-		t.Fatalf("valid document: unexpected error: %v", valErr)
-	}
-	if len(warnings) != 0 {
-		t.Fatalf("valid document: unexpected warnings: %+v", warnings)
+	if err := doc.Validate(); err != nil {
+		t.Errorf("Validate: %v", err)
 	}
 }

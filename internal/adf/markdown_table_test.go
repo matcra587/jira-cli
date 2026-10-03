@@ -4,59 +4,56 @@ import (
 	"testing"
 
 	"github.com/matcra587/jira-cli/internal/adf"
-	"github.com/matcra587/jira-cli/internal/cli/adfmode"
 )
 
-// A GFM table must convert to the canonical ADF table shape (the same
-// shape as the table golden): table → tableRow → tableHeader/tableCell →
-// paragraph → text, with the standard table attrs.
+// A GFM table must convert to the canonical ADF table shape: table →
+// tableRow → tableHeader/tableCell → paragraph → text, with the standard
+// table attrs.
 func TestFromMarkdownTableShape(t *testing.T) {
-	md := "| Key | Value |\n|---|---|\n| alpha | 1 |\n| beta | 2 |\n"
-	doc, warnings, err := adf.FromMarkdownLossy(md)
+	doc, warnings := mdConvert(t, "| Key | Value |\n|---|---|\n| alpha | 1 |\n| beta | 2 |\n")
+	mdAssertNoWarnings(t, warnings)
+
+	if kinds := mdKinds(doc); len(kinds) != 1 || kinds[0] != "table" {
+		t.Fatalf("top-level nodes = %v, want a single table", kinds)
+	}
+	tableNode := mdBlock(t, doc, 0)
+	table, err := adf.AsTable(tableNode)
 	if err != nil {
-		t.Fatalf("FromMarkdownLossy: %v", err)
+		t.Fatalf("AsTable: %v", err)
 	}
-	if len(warnings) != 0 {
-		t.Fatalf("unexpected warnings: %+v", warnings)
+	if table.Attrs.IsNumberColumnEnabled == nil || *table.Attrs.IsNumberColumnEnabled {
+		t.Errorf("attrs.isNumberColumnEnabled = %v, want an explicit false", table.Attrs.IsNumberColumnEnabled)
 	}
-	if len(doc.Content) != 1 {
-		t.Fatalf("doc.Content has %d nodes, want 1", len(doc.Content))
-	}
-	table := doc.Content[0]
-	if table.Type != "table" {
-		t.Fatalf("node type = %q, want table", table.Type)
-	}
-	if v, _ := table.Attrs["isNumberColumnEnabled"].(bool); v {
-		t.Errorf("attrs.isNumberColumnEnabled = %v, want false", table.Attrs["isNumberColumnEnabled"])
-	}
-	if v, _ := table.Attrs["layout"].(string); v != "default" {
-		t.Errorf("attrs.layout = %q, want default", v)
-	}
-	if len(table.Content) != 3 {
-		t.Fatalf("table has %d rows, want 3 (header + 2 body)", len(table.Content))
+	if table.Attrs.Layout != "default" {
+		t.Errorf("attrs.layout = %q, want default", table.Attrs.Layout)
 	}
 
-	header := table.Content[0]
-	if header.Type != "tableRow" {
-		t.Fatalf("first child type = %q, want tableRow", header.Type)
+	rows := tableNode.Content()
+	if len(rows) != 3 {
+		t.Fatalf("table has %d rows, want 3 (header + 2 body)", len(rows))
 	}
-	for _, cell := range header.Content {
-		if cell.Type != "tableHeader" {
-			t.Errorf("header row cell type = %q, want tableHeader", cell.Type)
+	header := rows[0]
+	if header.Type() != "tableRow" {
+		t.Fatalf("first child type = %q, want tableRow", header.Type())
+	}
+	for _, cell := range header.Content() {
+		if cell.Type() != "tableHeader" {
+			t.Errorf("header row cell type = %q, want tableHeader", cell.Type())
 		}
 	}
-	body := table.Content[1]
-	if len(body.Content) != 2 {
-		t.Fatalf("body row has %d cells, want 2", len(body.Content))
+
+	body := rows[1]
+	if len(body.Content()) != 2 {
+		t.Fatalf("body row has %d cells, want 2", len(body.Content()))
 	}
-	cell := body.Content[0]
-	if cell.Type != "tableCell" {
-		t.Fatalf("body cell type = %q, want tableCell", cell.Type)
+	cell := mdChild(t, &body, 0)
+	if cell.Type() != "tableCell" {
+		t.Fatalf("body cell type = %q, want tableCell", cell.Type())
 	}
-	if len(cell.Content) != 1 || cell.Content[0].Type != "paragraph" {
-		t.Fatalf("cell content = %+v, want a single paragraph", cell.Content)
+	if content := cell.Content(); len(content) != 1 || content[0].Type() != "paragraph" {
+		t.Fatalf("cell content = %+v, want a single paragraph", content)
 	}
-	if got := cell.Content[0].Content[0].Text; got != "alpha" {
+	if got := mdChild(t, cell, 0, 0).Text(); got != "alpha" {
 		t.Fatalf("cell text = %q, want alpha", got)
 	}
 }
@@ -64,41 +61,35 @@ func TestFromMarkdownTableShape(t *testing.T) {
 // Inline marks survive inside cells, and an empty cell still satisfies the
 // schema's one-block-child minimum via an empty paragraph.
 func TestFromMarkdownTableCellInlinesAndEmptyCells(t *testing.T) {
-	md := "| a | b |\n|---|---|\n| **bold** | |\n"
-	doc, _, err := adf.FromMarkdownLossy(md)
-	if err != nil {
-		t.Fatalf("FromMarkdownLossy: %v", err)
+	doc, _ := mdConvert(t, "| a | b |\n|---|---|\n| **bold** | |\n")
+
+	body := mdChild(t, mdBlock(t, doc, 0), 1)
+	bold := mdChild(t, body, 0, 0, 0)
+	marks := bold.Marks()
+	if len(marks) != 1 || marks[0].Type() != "strong" {
+		t.Errorf("cell text marks = %+v, want strong", marks)
 	}
-	body := doc.Content[0].Content[1]
-	bold := body.Content[0].Content[0].Content[0]
-	if len(bold.Marks) != 1 || bold.Marks[0].Type != "strong" {
-		t.Errorf("cell text marks = %+v, want strong", bold.Marks)
+
+	empty := mdChild(t, body, 1)
+	if content := empty.Content(); len(content) != 1 || content[0].Type() != "paragraph" {
+		t.Fatalf("empty cell content = %+v, want one (empty) paragraph", content)
 	}
-	empty := body.Content[1]
-	if len(empty.Content) != 1 || empty.Content[0].Type != "paragraph" {
-		t.Fatalf("empty cell content = %+v, want one (empty) paragraph", empty.Content)
-	}
-	if len(empty.Content[0].Content) != 0 {
-		t.Errorf("empty cell paragraph content = %+v, want none", empty.Content[0].Content)
+	if content := mdChild(t, empty, 0).Content(); len(content) != 0 {
+		t.Errorf("empty cell paragraph content = %+v, want none", content)
 	}
 }
 
-// Converted tables must pass strict ADF validation — header rows, body
-// rows, empty cells and all.
-func TestFromMarkdownTablePassesStrictValidation(t *testing.T) {
+// Converted tables must pass schema validation — header rows, body rows,
+// empty cells and all.
+func TestFromMarkdownTablePassesValidation(t *testing.T) {
 	for name, md := range map[string]string{
 		"basic":      "| Key | Value |\n|---|---|\n| alpha | 1 |\n",
 		"empty-cell": "| a | b |\n|---|---|\n| x | |\n",
 		"marks":      "| a |\n|---|\n| `code` and [link](https://example.com) |\n",
 	} {
 		t.Run(name, func(t *testing.T) {
-			doc, _, err := adf.FromMarkdownLossy(md)
-			if err != nil {
-				t.Fatalf("FromMarkdownLossy: %v", err)
-			}
-			if _, err := adf.ValidateDoc(doc, adfmode.ModeStrict); err != nil {
-				t.Fatalf("strict validation rejected converted table: %v", err)
-			}
+			doc, _ := mdConvert(t, md)
+			mdValidate(t, doc)
 		})
 	}
 }

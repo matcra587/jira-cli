@@ -87,6 +87,33 @@ jobs:
       - name: Cross-platform build check
         run: mise run release:build
 
+  acceptance:
+    name: Acceptance guards
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash --noprofile --norc -euo pipefail {0}
+    steps:
+      - name: Checkout
+        # @clover: constraint=major tags=checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install mise
+        # @clover: constraint=major tags=mise-action
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          install_args: --locked
+          cache: true
+
+      - name: Run acceptance guards
+        run: 'mise run test:matrix ::: test:live:guards ::: test:hooks'
+
   go-ci:
     name: Go CI
     if: github.event_name == 'pull_request'

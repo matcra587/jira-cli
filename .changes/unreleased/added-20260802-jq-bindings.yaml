@@ -1,0 +1,3 @@
+kind: added
+body: "Add `--jq-arg` and `--jq-argjson` for binding values without splicing content into filter source. Preserve large integers and bound buffered filter output."
+time: 2026-08-02T20:54:57.063678862-04:00

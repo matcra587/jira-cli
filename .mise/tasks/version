@@ -6,9 +6,7 @@ source .mise/tasks/lib/build-env.sh
 
 cat <<EOF
 Version:    $(jira_version)
-Commit:     $(jira_commit)
 Branch:     $(jira_branch)
-Built:      $(jira_build_time)
 Built by:   $(jira_build_by)
 Go version: $(go version)
 EOF

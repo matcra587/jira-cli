@@ -1,67 +1,110 @@
+// Package agent serves credential-free runtime discovery through typed results.
 package agent
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"strings"
+
+	clibcobra "github.com/gechr/clib/cli/cobra"
+	"github.com/matcra587/docent"
 	"github.com/spf13/cobra"
 
-	"github.com/matcra587/jira-cli/internal/adf"
-	"github.com/matcra587/jira-cli/internal/cli/cmdutil"
-	"github.com/matcra587/jira-cli/internal/jira/customfield"
+	"github.com/matcra587/jira-cli/internal/cli"
+	"github.com/matcra587/jira-cli/internal/cli/command"
+	"github.com/matcra587/jira-cli/internal/cli/discovery"
+	"github.com/matcra587/jira-cli/internal/envelope"
+	"github.com/matcra587/jira-cli/internal/output"
 )
 
-// NewADFMatrixCommand exposes the ADF support matrix command for mounting
-// under the docent agent group.
-func NewADFMatrixCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "adf-matrix",
-		Short: "Emit the ADF support matrix as JSON",
-		Long: "Print the Atlassian Document Format (ADF) nodes and marks that jira-cli knows " +
-			"how to read or write — the support matrix. ADF is the JSON rich-text format Jira " +
-			"uses for descriptions, comments, worklogs, and rich-text custom fields; reach for " +
-			"it before generating ADF by hand. The matrix covers every node and mark of the " +
-			"pinned ADF schema, one row each, recording which operations the CLI supports " +
-			"(author, render, preserve, validate, submit); each row carries an `official_url` " +
-			"to the matching Atlassian reference.\n\n" +
-			"Rows come in two status tiers. `mvp` rows are the curated core: authorable " +
-			"(most from Markdown) and rendered in human output. `preserve-only` rows validate, " +
-			"submit, and round-trip as native ADF, but have no Markdown authoring surface and " +
-			"render as their child text only — author them as native ADF via --json-input.\n\n" +
-			"The output is local registry data: it does not contact Jira, and it does not prove " +
-			"that a particular Jira field accepts every listed node.\n\n" +
-			"See the Atlassian ADF structure reference: " +
-			"<https://developer.atlassian.com/cloud/jira/platform/apis/document/structure/>",
-		Example: `# Inspect local ADF support without contacting Jira
-$ jira agent adf-matrix
+const (
+	flagPath        = "path"
+	flagShapes      = "shapes"
+	pathTerse       = "Command subtree"
+	pathPlaceholder = "command"
+)
 
-# Emit the matrix as JSON for an agent
-$ jira agent adf-matrix --output=json`,
-		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return cmdutil.WriteEnvelope(cmd, "agent.adf-matrix", adf.Registry().All())
+// Deps supplies local discovery sources and an export publication boundary.
+// It carries no Jira client or credential store.
+type Deps struct {
+	Tree        func() (docent.Command, error)
+	Guides      *docent.GuideSet
+	WriteGuides ExportWriter
+}
+
+func New(deps Deps) *cobra.Command {
+	group := &cobra.Command{Use: "agent", Short: "Discover the CLI contract without credentials", Args: cobra.NoArgs}
+	var path string
+	var shapes bool
+	group.AddCommand(command.MustNew(command.Spec[envelope.AgentSchemaOutput]{
+		Op: "agent.schema", Use: "schema", Short: "Discover commands, flags and output shapes",
+		Passthrough: true, // the schema artifact retains JSON Schema and Docent vocabulary
+		Long: "Read the fully assembled command tree without authentication or network access. " +
+			"The full tree shows shape markers; --path selects a command subtree with shapes, " +
+			"and --shapes embeds shapes throughout the tree. --path and --shapes are mutually exclusive. " +
+			"Paths use canonical space-separated names, with or without the jira prefix. Hidden flags and commands are omitted.\n\n" +
+			"extensions.usage gives positional syntax. extensions.arguments retains declared min/max bounds " +
+			"and ordered positions; max=-1 means an unbounded argument list.\n\n" +
+			"JSON mode carries the artifact at .data.schema; compact mode at .schema. " +
+			"Local $refs resolve against that extracted schema object. The artifact is deterministic; invocation metadata varies normally. " +
+			"Human mode prints the same artifact as formatted JSON.",
+		Example: "$ jira agent schema --output=json\n\n" +
+			"$ jira agent schema --path 'api post' --jq '.data.schema'\n\n" +
+			"$ jira agent schema --shapes --output=compact",
+		Flags: func(c *cobra.Command) {
+			command.AddStringVar(c, &path, flagPath, "", "Select a canonical command subtree with output shapes", command.FlagOpts{Terse: pathTerse, Placeholder: pathPlaceholder})
+			command.AddBoolVar(c, &shapes, flagShapes, false, "Embed output shapes throughout the full tree", command.FlagOpts{Terse: "Embed all shapes"})
+			c.MarkFlagsMutuallyExclusive(flagPath, flagShapes)
 		},
+		Human: renderSchema,
+		Run: func(_ context.Context, _ command.Invocation) (envelope.AgentSchemaOutput, error) {
+			tree, err := deps.Tree()
+			if err != nil {
+				return envelope.AgentSchemaOutput{}, err
+			}
+			return discovery.Schema(tree, path, shapes)
+		},
+	}))
+	group.AddCommand(newGuide(deps.Guides, command.Spec[envelope.GuideOutput]{Op: "agent.guide", Human: renderGuide}))
+	group.AddCommand(newExport(deps.Guides, deps.WriteGuides))
+	group.AddCommand(newADFMatrix())
+	group.AddCommand(newFieldTypes())
+	return group
+}
+
+// SealPaths runs after assembly so help and shell completion include discovery
+// itself and every later-mounted command. The values come from the same tree.
+func SealPaths(group *cobra.Command, tree docent.Command) {
+	var values, descriptions []string
+	var walk func(docent.Command)
+	walk = func(node docent.Command) {
+		values = append(values, node.Path)
+		descriptions = append(descriptions, node.Description)
+		for _, child := range node.Children {
+			walk(child)
+		}
+	}
+	walk(tree)
+	for _, child := range group.Commands() {
+		if child.Name() == "schema" {
+			clibcobra.Extend(child.Flags().Lookup(flagPath), clibcobra.FlagExtra{Terse: pathTerse, Placeholder: pathPlaceholder, Enum: values, EnumTerse: descriptions})
+		}
 	}
 }
 
-// NewFieldTypesCommand exposes the customfield registry command for
-// mounting under the docent agent group. Same envelope shape as
-// `agent adf-matrix` so a single agent parser handles both surfaces.
-func NewFieldTypesCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "fieldtypes",
-		Short: "Emit the customfield type registry as JSON",
-		Long: "Print jira-cli's local registry for Jira custom field schema types. Use it when " +
-			"building JSON payloads for create, edit, clone, or move commands and you need " +
-			"to know how a field value is encoded.\n\n" +
-			"The registry is a CLI encoding guide, not a live field list. Combine it with " +
-			"`jira issue create --field-help` or `jira issue edit --field-help` when you " +
-			"need the fields configured for one Jira project or issue.",
-		Example: `# Inspect local custom field encoding support
-$ jira agent fieldtypes
-
-# Emit the registry as JSON for an agent
-$ jira agent fieldtypes --output=json`,
-		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return cmdutil.WriteEnvelope(cmd, "agent.fieldtypes", customfield.Registry().All())
-		},
+func renderSchema(v *output.View, env envelope.Envelope) error {
+	out, ok := env.Data.(envelope.AgentSchemaOutput)
+	if !ok {
+		return fmt.Errorf("agent: renderer received %T, want AgentSchemaOutput", env.Data)
 	}
+	var formatted bytes.Buffer
+	if err := json.Indent(&formatted, out.Schema, "", "  "); err != nil {
+		return fmt.Errorf("agent: format schema: %w", err)
+	}
+	for _, line := range strings.Split(formatted.String(), "\n") {
+		v.Line(cli.Text(line))
+	}
+	return nil
 }
