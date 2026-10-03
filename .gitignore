@@ -37,8 +37,9 @@ out/
 # it is local-only and stays ignored.
 !docs/
 docs/superpowers/
-# The command reference is generated at site-build time (docs:gen runs before
-# docs:build/docs:serve) and published straight to Pages — never committed.
+# The command reference is generated at site-build time and published straight
+# to Pages — never committed. The generator is pruned until it is rebuilt for
+# the current command tree; the ignore stays so a rebuild can't commit output.
 docs/reference/
 
 # Local overrides
@@ -47,3 +48,4 @@ docs/reference/
 
 # Zensical site build output (uvx --from zensical zensical build)
 site/
+.claude.local.md

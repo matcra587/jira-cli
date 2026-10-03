@@ -1,0 +1,3 @@
+kind: fixed
+body: "Honor browser output for saved queries through `issue list --saved NAME --web`; the former `search saved --web` accepted the flag but ran the search instead."
+time: 2026-10-03T01:41:02.079473388-04:00

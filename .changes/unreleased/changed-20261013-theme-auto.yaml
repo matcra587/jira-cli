@@ -1,0 +1,3 @@
+kind: changed
+body: "Resolve automatic themes from passive `COLORFGBG` background hints with a fixed dark fallback instead of active terminal queries."
+time: 2026-10-13T08:00:00-04:00

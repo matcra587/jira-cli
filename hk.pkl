@@ -3,21 +3,86 @@ amends "package://github.com/jdx/hk/releases/download/v1.58.1/hk@1.58.1#/Config.
 // clover: from=hk find=download/v<version>/hk@<version>
 import "package://github.com/jdx/hk/releases/download/v1.58.1/hk@1.58.1#/Builtins.pkl"
 
-min_hk_version = "1.44.0"
+min_hk_version = "1.54.0"
 
+local gofumptTestEnv = new Mapping<String, String> {
+    ["GOWORK"] = "off"
+    ["GOTOOLCHAIN"] = "local"
+    ["GOPROXY"] = "off"
+}
+
+// gofumpt lives in go.mod's tools block, so every inherited command must use
+// `go tool`, including the probes hk prefers before fixing. The launcher can
+// populate Go's build cache; declare that effect even for source-only checks.
+// Capture failures explicitly because gofumpt -l exits 0 for unformatted files.
 local gofumpt = (Builtins.go_fumpt) {
-    check = "test -z \"$(go tool gofumpt -l {{ files }})\""
-    fix = "go tool gofumpt -w {{ files }}"
+    check = new CommandSpec {
+        command = "out=\"$(go tool gofumpt -l {{ files }})\" || exit 1; test -z \"$out\""
+        effect = "write"
+    }
+    check_diff = new CommandSpec {
+        command = new Command {
+            argv = List("go", "tool", "gofumpt", "-d", "{{files}}")
+        }
+        effect = "write"
+    }
+    check_list_files = new CommandSpec {
+        command = "out=\"$(go tool gofumpt -l {{ files }})\" || exit 1; if [ -n \"$out\" ]; then printf '%s\\n' \"$out\"; exit 1; fi"
+        effect = "write"
+    }
+    fix = new CommandSpec {
+        command = new Command {
+            argv = List("go", "tool", "gofumpt", "-w", "{{files}}")
+        }
+        effect = "write"
+    }
+    // The builtin's sandboxes contain only test.go. Include the selected tool
+    // manifest so native tests exercise the same formatter as the real hook.
+    tests = new Mapping<String, StepTest> {
+        for (name, test in Builtins.go_fumpt.tests) {
+            [name] = (test) {
+                files = List("test.go")
+                write {
+                    ["go.mod"] = read("go.mod")
+                    ["go.sum"] = read("go.sum")
+                }
+                env = gofumptTestEnv
+            }
+        }
+        ["malformed file fails"] {
+            tmpdir = true
+            files = List("test.go")
+            write {
+                ["go.mod"] = read("go.mod")
+                ["go.sum"] = read("go.sum")
+                ["test.go"] = "package name\nfunc (\n"
+            }
+            env = gofumptTestEnv
+            expect {
+                code = 1
+                stderr = "expected"
+            }
+        }
+        ["missing tool fails"] {
+            tmpdir = true
+            files = List("test.go")
+            write {
+                ["go.mod"] = "module example.com/formatter-test\ngo 1.24\n"
+                ["test.go"] = "package name\n"
+            }
+            env = gofumptTestEnv
+            expect {
+                code = 1
+                stderr = "no such tool"
+            }
+        }
+    }
 }
 
+// The builtin already runs `cd {{workspace}} && golangci-lint run ./...`;
+// only the ordering against gofumpt is ours.
 local golangciLint = (Builtins.golangci_lint) {
-    check = "cd {{workspace}} && golangci-lint run --fix=false ./..."
-    fix = "cd {{workspace}} && golangci-lint run --fix ./..."
     depends = List("gofumpt")
-}
-
-local govulncheck = (Builtins.go_vuln_check) {
-    check = "cd {{workspace}} && go tool govulncheck ./..."
 }
 
 local linters = new Mapping<String, Step> {
@@ -39,7 +104,30 @@ local linters = new Mapping<String, Step> {
 }
 
 local linters_with_security = (linters) {
-    ["govulncheck"] = (govulncheck) { exclusive = true }
+    // `go tool` because govulncheck lives in go.mod's tools block, not PATH.
+    ["govulncheck"] = (Builtins.go_vuln_check) {
+        check = "cd {{workspace}} && go tool govulncheck ./..."
+        exclusive = true
+    }
+}
+
+// A deliberate local brake on publishing. `touch .no-push` in a worktree
+// that must not reach the remote yet — an in-flight rewrite, a branch
+// waiting on sign-off, a history rebase mid-flight — and every push from
+// it stops here.
+//
+// The mechanism is tracked so every clone has it; the DECISION is an
+// untracked marker file, so arming it stays local and never lands on
+// anyone else. Git's own `branch.<name>.pushRemote = no_push` guards only
+// a bare `git push`: naming a remote (`git push origin HEAD`) walks
+// straight past it, which is exactly what muscle memory types. A hook
+// sees every form.
+//
+// Exclusive so it lands before the linters spend a minute on a push that
+// was never going to happen. Remove the marker to publish.
+local noPush = new Step {
+    check = "test ! -f .no-push || { echo 'hk: refusing to push — .no-push marker present in this worktree; remove it to publish'; exit 1; }"
+    exclusive = true
 }
 
 hooks {
@@ -49,7 +137,9 @@ hooks {
         steps = linters
     }
     ["pre-push"] {
-        steps = linters_with_security
+        steps = (linters_with_security) {
+            ["no-push"] = noPush
+        }
     }
     ["check"] {
         steps = linters_with_security

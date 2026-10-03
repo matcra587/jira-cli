@@ -4,6 +4,12 @@ run:
   timeout: 5m
   relative-path-mode: cfg
   tests: true
+  # Build-tagged audit, matrix and live suites are real Go the gate must see;
+  # without these tags the linters would silently skip their source files.
+  build-tags:
+    - outputaudit
+    - flagmatrix
+    - live
 
 linters:
   # Reasonable default set, then explicitly enable important ones.
@@ -12,6 +18,7 @@ linters:
   enable:
     # Core correctness / safety
     - bodyclose
+    - depguard
     - errcheck
     - errorlint
     - govet
@@ -44,12 +51,104 @@ linters:
     depguard:
       rules:
         main:
-          list-mode: lax
+          # strict: only the allow list imports at all. 0.15 ran lax, which
+          # made the allow list a no-op (lax permits anything not denied) —
+          # 0.16 curates dependencies deliberately, so creep must be loud.
+          # Growing this list is a per-layer decision, not a lint chore.
+          list-mode: strict
           files:
             - "$all"
           allow:
             - $gostd
-            - github.com/gechr/clog
+            # depguard chooses the nearest sorted prefix. The YAML domain
+            # below otherwise hides $gostd's "go" entry from go/* imports.
+            - go/
+            - github.com/matcra587/jira-cli
+            - github.com/gechr
+            - github.com/spf13/cobra
+            - github.com/spf13/pflag
+            - github.com/santhosh-tekuri/jsonschema
+            # Framework-neutral command introspection and guide delivery.
+            # The host keeps typed results and its shared rendering boundary.
+            - github.com/matcra587/docent
+            # Levenshtein distance for did-you-mean suggestions: cobra's own
+            # matcher is unexported and x/strings.Closest is a single-best
+            # Damerau match — the multi-candidate distance-2 contract the
+            # suggestion surface shares with cobra needs plain Levenshtein.
+            - github.com/agnivade/levenshtein
+            # Embedded jq for --jq. Pure Go (its only non-stdlib import is
+            # itchyny/timefmt-go), so the CGO-free build holds, and bare
+            # Compile is the sandbox: env access, module loading and
+            # input/inputs are all opt-in compiler options we never pass.
+            # Shelling out to jq would make the flag depend on a binary the
+            # user may not have, with no control over its version.
+            - github.com/itchyny/gojq
+            # OS credential store for `jira auth`. Pure Go (D-Bus Secret
+            # Service, wincred, and the macOS `security` binary), so the
+            # CGO-free build holds. The alternative, 99designs/keyring,
+            # has been unmaintained since 2022 and still rides godbus v1.
+            - github.com/zalando/go-keyring
+            # Interactive forms for `auth login` and the logout
+            # confirmation. v2 module paths ONLY: the v1 packages pull a
+            # second, older rendering stack alongside the one clib
+            # already brings, doubling it inside one binary.
+            - charm.land/huh/v2
+            - charm.land/lipgloss/v2
+            # Shared document paging retains the selected Bubble Tea v2
+            # viewport. Primer 0.2.7 renders Markdown but has no pager.
+            - charm.land/bubbletea/v2
+            - charm.land/bubbles/v2/viewport
+            # The selected width engine supplies grapheme iteration. x/ansi's
+            # hard wrapper drops spaces and cannot measure terminal tab stops.
+            - github.com/charmbracelet/x/ansi
+            # Clib already uses this selected profile writer. Bare native help
+            # must honor resolved --color as well as terminal/environment policy.
+            - github.com/charmbracelet/colorprofile
+            # Layered configuration. koanf over viper: no global state, a
+            # provider/parser split that lets each layer load separately
+            # (which is what makes per-key provenance possible), and it
+            # pulls no filesystem watcher or remote-KV client we would
+            # never use. mapstructure/v2 is koanf's own decoder fork,
+            # not an independent choice — it arrives with the Unmarshal
+            # API and must match it.
+            - github.com/knadh/koanf
+            - github.com/go-viper/mapstructure
+            # Strict alias import reuses the already-selected maintained YAML
+            # v3 parser, including duplicate keys, anchors and merge handling.
+            - go.yaml.in/yaml/v3
+            # Markdown parsing for the write surface: every mutation that
+            # takes a body (`comment add`, `issue create/edit`) accepts
+            # Markdown, and ADF authoring needs a real CommonMark AST —
+            # marks nest, and a regex pass over `**a *b* c**` produces
+            # wrong ADF silently. goldmark is the de-facto Go CommonMark
+            # parser (Hugo's), spec-compliant, pure Go with a stdlib-only
+            # import set, and gives the AST directly instead of HTML. Only
+            # the parser and the Table/Strikethrough/TaskList extensions
+            # are used; no renderer is wired.
+            - github.com/yuin/goldmark
+            # UUIDs for the localId attr the ADF schema requires on every
+            # taskList and taskItem the converter authors. gechr/x has no
+            # id primitive (checked v0.5.14), and the alternative is
+            # hand-rolling RFC 4122 formatting over crypto/rand in a
+            # package that has nothing else to do with identifiers.
+            - github.com/google/uuid
+            # Clive's selected release SDK supplies bounded, quiet API discovery
+            # and asset IDs for the guarded self-update publication adapter.
+            - github.com/google/go-github/v88/github
+            # Pollable duplicates of inherited Unix stdin: cancellation must
+            # interrupt native pipe reads without closing borrowed descriptors.
+            # gechr/x 0.6.0 has no descriptor duplication primitive.
+            - golang.org/x/sys/unix
+            # Test-only leak proof for the attachment multipart producer;
+            # refused and interrupted uploads must release their goroutines.
+            - go.uber.org/goleak
+            # Restoring borrowed editor terminal modes: gechr/x/terminal v0.6.0
+            # only detects terminals and exposes their size, not their modes.
+            - golang.org/x/term
+            # Embedded release artifacts retain strict semantic-version
+            # validation/order. clive 0.4.9 uses natural prerelease sorting
+            # and development-build rules instead of these semantics.
+            - golang.org/x/mod/semver
           deny:
             - pkg: "log"
               desc: "use github.com/gechr/clog instead of the standard log package"
@@ -58,11 +157,38 @@ linters:
             - pkg: "io/ioutil"
               desc: "deprecated since Go 1.16; use io and os packages"
 
+        # Color belongs to the value sinks. A command that styles directly
+        # renders a status as plain colored text where every other command
+        # draws a pill — output that is structurally valid and visibly
+        # inconsistent, which is exactly what no other check catches: H1
+        # (tests/guardrails/human_view_primitives.go) proves a renderer
+        # writes through the View, not that it colored through a sink, and
+        # its own doc explains why it cannot without type information. The
+        # output audit cannot catch it either, because a new command's
+        # first capture becomes its own baseline.
+        #
+        # An import ban needs no type information, and the glob covers
+        # command packages that do not exist yet. The three exemptions are
+        # the entire lipgloss surface under internal/cli today: sinks.go
+        # owns the sinks, prompt/ themes dialogs (a surface with no sink
+        # vocabulary of its own), and sinks_test.go asserts rendered bytes.
+        # theme_custom.go composes the selected custom theme before sinks/help
+        # snapshot it; this exception never permits styling in command handlers.
+        sinks-own-color:
+          list-mode: lax
+          files:
+            - "**/internal/cli/**"
+            - "!**/internal/cli/sinks.go"
+            - "!**/internal/cli/sinks_test.go"
+            - "!**/internal/cli/theme_custom.go"
+            - "!**/internal/cli/theme_custom_test.go"
+            - "!**/internal/cli/prompt/**"
+          deny:
+            - pkg: "charm.land/lipgloss/v2"
+              desc: "color belongs to the value sinks — render through cli.Status/Priority/Entity/Type/Label/Text rather than styling here, or add a sink if none fits"
+
     errcheck:
       check-blank: true
-      # AsType returns a matched value and a boolean, not a new error to handle.
-      exclude-functions:
-        - errors.AsType
 
     gocritic:
       # gocritic is enabled solely to run the custom ruleguard rule. disable-all
@@ -131,42 +257,34 @@ linters:
           - errcheck
         text: 'Error return value( of .*)? is not checked'
         source: '[[:space:]]_[[:space:]]*:?='
-      - path: '(.+_test\.go|^internal/testutil/|^tests/live/)'
+      # tests/audit's non-test files are build-tagged harness code (the
+      # corpus builds and execs the compiled binary, the ratchet reads its
+      # committed baseline) — test-grade gosec posture, same as tests/live.
+      # Anchored with (^|/) rather than ^: golangci-lint does not always
+      # report a path relative to the module root (a warm cache can carry
+      # an absolute one), and a bare ^ silently stops matching there — the
+      # exclusion then vanishes and these files fail for reasons the
+      # config believes it already waived.
+      - path: '(.+_test\.go|(^|/)internal/testutil/|(^|/)tests/live/|(^|/)tests/audit/)'
         linters:
           - gosec
         text: "G101|G204|G304|G306"
       # The ruleguard blocking-call rule targets production command code. Test
-      # files legitimately call local stores (e.g. credential keyring .Get) with
-      # cmd.Context() and never render a spinner, so exempt them.
+      # files legitimately call local stores with a command context and never
+      # render a spinner, so exempt them.
       - path: '_test\.go$'
         linters:
           - gocritic
-      # cmdutil is the flag register-and-extend wrapper layer: its flags.go and
-      # bundlers (parallelism.go, …) call the raw pflag setters on purpose, so
-      # the ruleguard raw-pflag-declaration rule must not fire here.
-      - path: '^internal/cli/cmdutil/'
+      # command is the construction path: its flag helpers call the raw
+      # pflag setters on purpose, so the ruleguard raw-pflag-declaration
+      # rule must not fire on the layer that exists to enforce it.
+      - path: '^internal/cli/command/'
         linters:
           - gocritic
-      - path: '(^|.*/)internal/(cli/stdin/stdin|editor/roundtrip)\.go$'
-        linters:
-          - gosec
-        text: "G304"
-      - path: '(^|.*/)internal/cache/cache\.go$'
-        linters:
-          - gosec
-        text: "G304"
-      - path: '(^|.*/)internal/docs/markdown\.go$'
-        linters:
-          - gosec
-        text: "G304"
-      - path: '(^|.*/)cmd/gen-docs/main\.go$'
-        linters:
-          - gosec
-        text: "G304"
-      - path: '(^|.*/)internal/(cli/alias/alias|config/loader|config/query)\.go$'
-        linters:
-          - gosec
-        text: "G304"
+      # 0.15 carried per-file G304 exceptions (stdin, editor round-trip, cache,
+      # docs generator, alias/config loaders). None of those files exist yet on
+      # 0.16; each exception is re-justified and re-added when its file is
+      # rebuilt, never carried on faith.
 
 issues:
   max-issues-per-linter: 50
@@ -175,7 +293,13 @@ issues:
 formatters:
   enable:
     - gofumpt
+    - gci
   settings:
     gofumpt:
       extra:
         group-params: true
+    gci:
+      sections:
+        - standard
+        - default
+        - localmodule

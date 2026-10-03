@@ -3,356 +3,439 @@ package cli
 import (
 	"context"
 	"errors"
-	"reflect"
+	"maps"
+	"net/http"
+	"slices"
 	"time"
 
-	"github.com/matcra587/docent"
-	docentcobra "github.com/matcra587/docent/cobra"
-
-	"github.com/matcra587/jira-cli/internal/adf"
-	"github.com/matcra587/jira-cli/internal/config"
-	"github.com/matcra587/jira-cli/internal/errtax"
-	"github.com/matcra587/jira-cli/internal/jira"
+	adapterjira "github.com/matcra587/jira-cli/internal/adapters/jira"
+	"github.com/matcra587/jira-cli/internal/attachmentfiles"
+	"github.com/matcra587/jira-cli/internal/core"
+	"github.com/matcra587/jira-cli/internal/output"
 )
 
-// ErrorType aliases the shared taxonomy type; the historical cli names
-// remain for the command layer.
-type ErrorType = errtax.Type
-
-// The taxonomy types, re-exported under cli's historical names.
+// Exit codes are a published contract — agents branch on them, so a value
+// here never changes meaning. main owns the process exit; conductor routes
+// command errors through ExitCode at the composition root.
 const (
-	ErrorTypeAuth       = errtax.TypeAuth
-	ErrorTypeNotFound   = errtax.TypeNotFound
-	ErrorTypeValidation = errtax.TypeValidation
-	ErrorTypeRateLimit  = errtax.TypeRateLimit
-	ErrorTypeServer     = errtax.TypeServer
-	ErrorTypeIO         = errtax.TypeIO
+	ExitOK         = 0
+	ExitAuth       = 1
+	ExitNotFound   = 2
+	ExitValidation = 3
+	ExitRateLimit  = 4
+	ExitServer     = 5
+	ExitCanceled   = 6
+	ExitTimeout    = 7
+	ExitOutput     = 8
 )
 
-// newFromCode builds the envelope Error for a code, deriving type, hint,
-// and retryability from the errtax registry. An unregistered code fails
-// closed — server type, the generic hint, retryable false — so the
-// envelope never ships an empty type or hint.
-func newFromCode(code errtax.Code, msg string) Error {
-	spec, ok := errtax.Lookup(code)
-	if !ok {
-		return Error{
-			Type:    string(errtax.TypeServer),
-			Code:    string(code),
-			Message: msg,
-			Hint:    errtax.HintFor(errtax.CodeUnknown),
-		}
-	}
-	return Error{
-		Type:      string(spec.Type),
-		Code:      string(code),
-		Message:   msg,
-		Hint:      spec.Hint,
-		Retryable: spec.Retryable,
-	}
+// Classification is a failure resolved into what both audiences need: the stable
+// snake_case Code and Exit for machines, Message and Hint for humans, and
+// the resolve-not-report trio — Next (the action to take), Doc (where the
+// contract is written up), Field (the machine-readable thing that broke) —
+// so an agent can retry without parsing prose.
+type Classification struct {
+	Code    string
+	Message string
+	Hint    string
+	Next    string
+	Doc     string
+	Field   string
+	Exit    int
+	// Suggestions carries "did you mean" candidates for input typos —
+	// command names, flag spellings, foreign-CLI equivalents — so an
+	// agent recovering from a mistake branches on values, not on the
+	// hint's prose.
+	Suggestions []string
+	// Retry facts lifted from the transport when the failure carried them
+	// — the envelope publishes these so an agent branches on numbers, not
+	// on the hint's prose.
+	RetryAfterSeconds int
+	Attempts          int
+	Waited            time.Duration
 }
 
-// ExitCode maps a structured Error to its process exit code: a registered
-// code's pinned exit (canceled=6 and timeout=7 live in the registry as
-// per-code rows), else the type's default.
-func ExitCode(err Error) int {
-	if spec, ok := errtax.Lookup(errtax.Code(err.Code)); ok {
-		return spec.Exit
-	}
-	return errtax.ExitFor(errtax.Type(err.Type))
+// spec pins a code's static half. Hints never interpolate runtime values —
+// the specific belongs in Message or Field; two errors wanting different
+// hints get different codes. Next and Doc fill in as the commands and
+// guides they would point at land; the fields are contract now so the
+// envelope shape never shifts underneath an agent.
+type spec struct {
+	exit int
+	hint string
+	next string
+	doc  string
 }
 
-// MapError is the central error mapper. Typed source errors describe
-// themselves with an [errtax.Code]; the registry supplies everything
-// derivable from it, and the capability interfaces layer per-instance
-// context on top. Classification runs in tiers — never substring matching
-// where a typed error exists:
-//
-//	tier 1: prompt identity beats a wrapped cancellation — a canceled
-//	        prompt is prompt_canceled, not canceled.
-//	tier 2: output destination failures. Their cause may itself be a context
-//	        sentinel from a stream implementation, but completed mutations
-//	        must retain the non-retryable output classification.
-//	tier 3: bare or wrapped stdlib context sentinels. errors.Is walks the
-//	        chain, so a Coded error wrapping a cancellation (an APIError
-//	        whose Cause is a canceled body read, a CredentialError whose
-//	        Wrapped is a keyring deadline) still classifies as
-//	        canceled/timeout, preserving the pre-registry adapter order.
-//	tier 4: every other Coded error; the outermost one in the chain wins.
-//
-// A bare error falls back to a best-effort substring classifier for
-// legacy untyped error strings; that tier is strictly terminal.
-func MapError(err error) Error {
+// CodeOutputWriteFailed is the operation succeeded and its result could
+// not be emitted. Named because more than the render path raises it: a
+// command layer that cannot resolve an output format is in the same
+// position — the work happened, the caller got nothing — and the
+// alternative is a bare error taking the generic validation row, whose
+// hint asks the reader to check values they never passed.
+const CodeOutputWriteFailed = "output_write_failed"
+
+// CodeRedirectRefused is a server-directed request rejected by transport
+// safety. It does not establish whether the original mutation took effect.
+const CodeRedirectRefused = "redirect_refused"
+
+// CodeSelectorIncomplete means Jira's search did not establish the complete
+// target set. The command refuses before confirming or performing any write.
+const CodeSelectorIncomplete = "selector_incomplete"
+
+// CodeAPIResponseIncomplete reports a bounded or failed raw response capture.
+const CodeAPIResponseIncomplete = "api_response_incomplete"
+
+// CodeJiraPreconditionFailed means Jira refused the supplied HTTP precondition.
+const CodeJiraPreconditionFailed = "jira_precondition_failed"
+
+// CodeUserSearchResponseInvalid reports malformed or repeated upstream pages.
+const CodeUserSearchResponseInvalid = "user_search_response_invalid"
+
+// CodeCurrentUserResponseInvalid reports an unusable upstream account response.
+const CodeCurrentUserResponseInvalid = "current_user_response_invalid"
+
+// CodeCacheIO retains a failed local metadata inventory or removal.
+const CodeCacheIO = "cache_io_failed"
+
+// CodeJQLResponseInvalid reports malformed parser or reference metadata.
+const CodeJQLResponseInvalid = "jql_response_invalid"
+
+// CodeBoardResponseInvalid reports malformed Agile board or project pages.
+const CodeBoardResponseInvalid = "board_response_invalid"
+
+// CodeCacheResponseInvalid reports malformed or inconsistent metadata reads.
+const CodeCacheResponseInvalid = "cache_response_invalid"
+
+// CodeBoardCacheUnavailable distinguishes an unusable local snapshot from a
+// Jira 404. Local composition never contacts Jira to repair this condition.
+const CodeBoardCacheUnavailable = "board_cache_unavailable"
+
+// CodeSearchResponseInvalid reports malformed or repeated issue search pages.
+const CodeSearchResponseInvalid = "search_response_invalid"
+
+// CodeWorklogResponseInvalid reports a malformed worklog page or POST receipt.
+const CodeWorklogResponseInvalid = "worklog_response_invalid"
+
+// CodeBulkOperationResponseInvalid reports malformed task acknowledgement or
+// progress. An accepted move is not necessarily complete or safe to repeat.
+const CodeBulkOperationResponseInvalid = "bulk_operation_response_invalid"
+
+// CodeBulkOperationFailed reports a native task or explicit issue failure.
+const CodeBulkOperationFailed = "bulk_operation_failed"
+
+// CodeBulkOutcomeUnconfirmed reports a terminal receipt that does not identify
+// the requested issue's outcome. It does not claim that no move occurred.
+const CodeBulkOutcomeUnconfirmed = "bulk_outcome_unconfirmed"
+
+// CodeAttachmentFileInvalid means local upload inputs failed preflight.
+const CodeAttachmentFileInvalid = "attachment_file_invalid"
+
+// CodeAttachmentResponseInvalid reports an unusable attachment response.
+const CodeAttachmentResponseInvalid = "attachment_response_invalid"
+
+// CodeCommentResponseInvalid reports an unusable comment page or write receipt.
+const CodeCommentResponseInvalid = "comment_response_invalid"
+
+// CodeTransitionResponseInvalid reports an uncertain workflow acknowledgement.
+const CodeTransitionResponseInvalid = "transition_response_invalid"
+
+// CodeTransitionReadInvalid identifies unusable native workflow discovery.
+const CodeTransitionReadInvalid = "transition_read_invalid"
+
+// CodeWeblinkResponseInvalid reports an unusable remote-link response.
+const CodeWeblinkResponseInvalid = "weblink_response_invalid"
+
+// CodeRankResponseInvalid reports an uncertain ranking acknowledgement.
+const CodeRankResponseInvalid = "rank_response_invalid"
+
+// CodeIssueDeleteResponseInvalid reports an uncertain issue deletion acknowledgement.
+const CodeIssueDeleteResponseInvalid = "issue_delete_response_invalid"
+
+// CodeIssueCreateResponseInvalid reports an uncertain or unusable creation receipt.
+const CodeIssueCreateResponseInvalid = "issue_create_response_invalid"
+
+// CodeIssueCreateFollowupFailed reports creation with a failed native followup.
+const CodeIssueCreateFollowupFailed = "issue_create_followup_failed"
+
+// CodeIssueCloneSourceInvalid reports source or metadata that cannot be copied safely.
+const CodeIssueCloneSourceInvalid = "issue_clone_source_invalid"
+
+// registry maps every code to its exit and hint. The shared not-found hint
+// stays resource-neutral on purpose: jira_not_found covers every Jira 404
+// (issue, board, user, …), so it says "identifier", never "issue key".
+var registry = map[string]spec{
+	CodeUpdateUnsupported:            {exit: ExitValidation, hint: "Use the original installation method, or install a published release; inspect `jira update --help`."},
+	CodeUpdateFailed:                 {exit: ExitServer, hint: "Inspect the retained update receipt and installed executable before retrying. Check release availability, installation permissions and package-manager diagnostics."},
+	CodeUpdateOwnership:              {exit: ExitValidation, hint: "Run the executable owned by matcra587/tap/jira, or update the current copy through its original installation method. Other copies are preserved."},
+	CodeUpdateIntegrity:              {exit: ExitServer, hint: "Do not install the rejected download. Inspect the published release assets and checksums before retrying."},
+	CodeUpdateChanged:                {exit: ExitValidation, hint: "The installed executable changed during this update. Inspect its current version before requesting another update."},
+	CodeUpdateUnavailable:            {exit: ExitNotFound, hint: "No published update release was found. Check the repository's releases before retrying."},
+	CodeIssueCloneSourceInvalid:      {exit: ExitServer, hint: "Inspect the source issue and /rest/api/3/field with `jira api get`. This source was not cloned because its native fields could not be classified safely. Inspect other sources' outcomes before retrying."},
+	CodeIssueCreateFollowupFailed:    {exit: ExitServer, hint: "Inspect the retained native receipt and created issue. Retry only the failed transition or watcher operation; repeating create or clone makes another issue."},
+	CodeIssueCreateResponseInvalid:   {exit: ExitServer, hint: "Inspect the project's issues and retained creation payload before retrying. Jira may already have created it; repeating create or clone makes duplicates. Creation writes are never automatically replayed."},
+	CodeIssueDeleteResponseInvalid:   {exit: ExitServer, hint: "Inspect each requested issue and any subtasks before retrying. Jira may already have deleted them; deletion writes are never automatically replayed."},
+	CodeRankResponseInvalid:          {exit: ExitServer, hint: "Inspect the backlog order and native ranking response before retrying. Jira may already have moved some issues; ranking writes are never automatically replayed."},
+	CodeWeblinkResponseInvalid:       {exit: ExitServer, hint: "Inspect the issue's web links and native response before retrying a write. Jira may already have stored it; repeating an add without the same global ID creates duplicates."},
+	CodeCommentResponseInvalid:       {exit: ExitServer, hint: "Retry reads as needed. Inspect the issue's comment list before retrying a write; Jira may already have stored it."},
+	CodeTransitionResponseInvalid:    {exit: ExitServer, hint: "Inspect the issue's current status and comments before retrying; the transition may already have landed."},
+	CodeTransitionReadInvalid:        {exit: ExitServer, hint: "Retry transition discovery or inspect the native workflow with `jira api get`. Do not transition using incomplete or contradictory metadata."},
+	CodeAttachmentResponseInvalid:    {exit: ExitServer, hint: "Retry reads as needed. Inspect the issue's attachment list before retrying a write; Jira may already have applied it. Repeating an upload creates duplicates."},
+	CodeAttachmentFileInvalid:        {exit: ExitValidation, hint: "Inspect the local attachment paths. Use readable regular files, with each file and their combined content no larger than 100 MiB."},
+	CodeJiraPreconditionFailed:       {exit: ExitValidation, hint: "Fetch the current resource, reconcile edits, and choose a new precondition before sending another write."},
+	CodeBoardCacheUnavailable:        {exit: ExitNotFound, hint: "Run `jira issue list` with the same --board or --board-id selector and --refresh --as-jql to cache its saved filter, then retry `jira jql build`. The site and account must match; local composition never refreshes the cache."},
+	CodeJQLResponseInvalid:           {exit: ExitServer, hint: "Jira returned malformed JQL response data. Retry the read or inspect the native response with `jira api`; query diagnostics are separate from this protocol failure."},
+	CodeBulkOperationFailed:          {exit: ExitServer, hint: "Inspect the retained task progress and per-issue failure reasons. Verify any processed issues before submitting another move."},
+	CodeBulkOutcomeUnconfirmed:       {exit: ExitServer, hint: "The task did not confirm this issue's outcome. Inspect its current project/type and the retained native task progress before repeating a move."},
+	CodeBulkOperationResponseInvalid: {exit: ExitServer, hint: "Jira returned a malformed bulk-operation receipt. Retain any task identity and inspect its progress before repeating a write; the move may already be accepted."},
+	CodeWorklogResponseInvalid:       {exit: ExitServer, hint: "Jira returned a malformed worklog response. Inspect the issue's worklogs before retrying a write; a worklog may already have been created."},
+	"jira_unauthorized":              {exit: ExitAuth, hint: "Jira rejected the credentials — check the account email, and re-run `jira auth login --with-token` if the token was revoked."},
+	CodeAuthMissing:                  {exit: ExitAuth, hint: "Pipe a token in with `jira auth login --with-token` — for example from a password manager."},
+	"jira_forbidden":                 {exit: ExitAuth, hint: "The credentials work but lack permission for this resource — ask a Jira admin, or switch to a profile that has it."},
+	"jira_not_found":                 {exit: ExitNotFound, hint: "Check the identifier — the site answered, but nothing lives at it."},
+	"jira_bad_request":               {exit: ExitValidation, hint: "Jira rejected some of the values — fix the fields it flagged and send it again."},
+	"jira_request_failed":            {exit: ExitValidation, hint: "Jira refused the request — the message carries its exact status and complaint."},
+	"jira_rate_limited":              {exit: ExitRateLimit, hint: "Jira throttled this call even after automatic retries — wait out the reported pause, then run it again."},
+	"jira_server_error":              {exit: ExitServer, hint: "Jira itself failed — wait and retry, or check the site's status page."},
+	CodeRedirectRefused:              {exit: ExitServer, hint: "Inspect the redirect and configured site/API scope. For a mutation, check the affected resource before retrying; the original request may have reached Jira."},
+	CodeSelectorIncomplete:           {exit: ExitServer, hint: "The complete target set could not be resolved; nothing was written. Inspect the search with `jira issue list --output=json`, or review explicit keys and pass them through `--from-file`."},
+	CodeOutputWriteFailed:            {exit: ExitOutput, hint: "The result could not be written to the destination — a mutation may still have happened — check the affected Jira resource before running the command again."},
+	CodeAPIResponseIncomplete:        {exit: ExitOutput, hint: "Inspect the partial HTTP receipt. Verify mutation outcomes before retrying; for a read, allow a larger --max-response-bytes or fix the interrupted response."},
+	CodeUserSearchResponseInvalid:    {exit: ExitServer, hint: "Inspect any retained user matches. Jira returned a malformed or repeated page; narrow the query or inspect the user/search endpoint with `jira api get`."},
+	CodeCurrentUserResponseInvalid:   {exit: ExitServer, hint: "Jira returned a malformed current-account response. Inspect it with `jira api get /rest/api/3/myself`; authentication was not confirmed and account-dependent writes were not started."},
+	CodeBoardResponseInvalid:         {exit: ExitServer, hint: "Jira returned a malformed board or associated-project page. Inspect the Agile endpoint with `jira api get` before retrying."},
+	CodeCacheResponseInvalid:         {exit: ExitServer, hint: "Jira returned malformed or inconsistent metadata. Inspect retained values and the metadata endpoint with `jira api get`; an incomplete read must not replace cached metadata."},
+	CodeSearchResponseInvalid:        {exit: ExitServer, hint: "Jira returned a malformed or repeated search page. Inspect any retained issues and the raw response with `jira api post /rest/api/3/search/jql`; selector writes were not started."},
+	"canceled":                       {exit: ExitCanceled, hint: "The command was interrupted. Inspect any attempted mutations before retrying; rerun interrupted reads as needed."},
+	"timeout":                        {exit: ExitTimeout, hint: "The command's deadline passed. Inspect any attempted mutations before retrying; allow a longer timeout for reads."},
+	"validation_failed":              {exit: ExitValidation, hint: "Check the values you passed and try again."},
+	CodeInsecureScheme:               {exit: ExitValidation, hint: "Use an `https://` site URL — Basic auth rides the first request, so plain http would send the API token in the clear."},
+	// Input-failure rows: one class-specific hint per code, so a bad verb,
+	// a bad flag, and a bad value each say what to fix. Hints stay static —
+	// the offender rides Field and candidates ride Suggestions.
+	CodeCommandUnknown:           {exit: ExitValidation, hint: "Check the command's spelling, or run `--help` on its parent to see the ones it accepts."},
+	CodeFlagUnknown:              {exit: ExitValidation, hint: "Check the flag's spelling, or run the command with `--help` to see the ones it accepts."},
+	CodeFlagForeign:              {exit: ExitValidation, hint: "That flag belongs to a different Jira CLI — use this CLI's equivalent instead."},
+	CodeFlagRequired:             {exit: ExitValidation, hint: "Add the flag the command needs — run it with `--help` to see which."},
+	CodeFlagValueMissing:         {exit: ExitValidation, hint: "Give the flag a value, like `--flag=value`."},
+	CodeFlagValueInvalid:         {exit: ExitValidation, hint: "That value isn't the type the flag expects — run the command with `--help` to see its format."},
+	CodeADFContentLoss:           {exit: ExitValidation, hint: "Inspect the retained candidate and warnings; revise the Markdown or explicitly accept loss with --adf-best-effort."},
+	CodeFlagSyntaxInvalid:        {exit: ExitValidation, hint: "Write it as `--flag=value` or `--flag value`, with nothing stray around the flag."},
+	CodeArgCountInvalid:          {exit: ExitValidation, hint: "Check how many arguments the command takes; its usage line is in `--help`."},
+	CodeArgValueInvalid:          {exit: ExitValidation, hint: "That isn't one of the accepted values — run the command with `--help` to see the choices."},
+	CodeFlagNotApplicable:        {exit: ExitValidation, hint: "That flag is real but has no effect here — drop it and run the command again."},
+	CodeTransitionScreenRequired: {exit: ExitValidation, hint: "Choose a transition with a screen, or submit the native fields, operations and properties separately. Inspect available transition metadata before writing.", next: "inspect", doc: "safe-mutation"},
+	CodeFlagConflict:             {exit: ExitValidation, hint: "Those two flags set the same thing — keep the one you meant and drop the other."},
+	// jq rows: a syntax fault, a shape fault, and a mode conflict each
+	// want a different fix, so each gets its own code and hint.
+	CodeJQExpressionInvalid:   {exit: ExitValidation, hint: "Check the jq expression — the message names what the engine rejected."},
+	CodeJQEvalFailed:          {exit: ExitValidation, hint: "The expression is valid but does not fit this document — inspect the real shape with `--output=json` and no filter."},
+	CodeJQOutputTooLarge:      {exit: ExitValidation, hint: "Narrow the expression — it produced more output than the CLI will buffer."},
+	CodeReadOnlyBlocked:       {exit: ExitValidation, hint: "Read-only mode is on, so writes are refused before they reach Jira — clear it to allow this command to mutate."},
+	CodeCacheIO:               {exit: ExitValidation, hint: "Inspect base_url and email with `jira config list`, then check available space and permissions in the metadata cache. Inspect retained per-entry outcomes before retrying a clear."},
+	CodeLocalIO:               {exit: ExitValidation, hint: "A local file operation failed — check free space and the permissions on the config directory."},
+	CodeConfigChanged:         {exit: ExitValidation, hint: "Inspect the current configuration, then reapply your change on top of it."},
+	CodeAliasInvalid:          {exit: ExitValidation, hint: "Inspect `jira alias list`; fix the named alias or delete it with `jira alias delete NAME --force`."},
+	CodeSavedQueryUnknown:     {exit: ExitValidation, hint: "Use a listed filename stem from queries_path, or create NAME.jql there; inspect `jira config current`."},
+	CodeSavedQueryInvalid:     {exit: ExitValidation, hint: "Inspect queries_path with `jira config current`; repair the named .jql file or its YAML/TOML frontmatter."},
+	CodeEditorMissing:         {exit: ExitValidation, hint: "Set EDITOR (or JIRA_EDITOR) to the editor you want — `export EDITOR=nano`."},
+	CodeEditorFailed:          {exit: ExitValidation, hint: "Inspect any saved edit and check the configured editor before retrying."},
+	CodeTerminalRestoreFailed: {exit: ExitValidation, hint: "Restore the terminal before continuing, then inspect any saved edit."},
+	CodeTerminalRequired:      {exit: ExitValidation, hint: "Run it from a terminal, or use `--dry-run` to see the file and editor without opening anything."},
+	CodeConfigInvalid:         {exit: ExitValidation, hint: "Fix the setting where it is defined — `jira config list` shows each value and the layer it came from."},
+	CodePathInvalid:           {exit: ExitValidation, hint: "That value cannot be part of a request path — check the identifier for separators, dots, or characters that are not part of a key."},
+	CodeJQOutputConflict:      {exit: ExitValidation, hint: "`--jq` filters machine output — drop it, or ask for `--output=json` or `--output=compact`."},
+}
+
+// MapError resolves any error to its taxonomy entry. Tier order matters:
+// context outcomes come first because a typed chain can wrap a
+// cancellation, and the cancellation is the truth of what happened; typed
+// adapters follow; the terminal fallback classifies every untyped error as
+// validation. Never classify by matching message text — an error that
+// needs another class gets typed at its source.
+func MapError(err error) Classification {
+	// nil maps to the zero Error (exit 0): no error is no error. Without
+	// this, the fallback tier would call Error() on a nil interface — a
+	// panic waiting for the first caller that doesn't pre-check.
 	if err == nil {
-		return Error{}
+		return Classification{}
 	}
-	if primaryErr, ok := errors.AsType[*PrimaryError](err); ok {
-		return MapError(primaryErr.primary)
-	}
-	if out, ok := mapPromptError(err); ok {
-		return out
-	}
-	if outputErr, ok := errors.AsType[*OutputError](err); ok {
-		return assemble(err, outputErr)
-	}
-	if out, ok := mapContextError(err); ok {
-		return out
-	}
-	if out, ok := mapRankErrors(err); ok {
-		return out
-	}
-	if out, ok := mapIssueTypeUnknown(err); ok {
-		return out
-	}
-	if out, ok := mapDocentDiscoveryErrors(err); ok {
-		return out
-	}
-	if coded, ok := errors.AsType[errtax.Coded](err); ok {
-		return assemble(err, coded)
-	}
-	return classifyUntyped(err)
-}
-
-// mapIssueTypeUnknown adapts a *jira.IssueTypeUnknownError — a --type value
-// naming no issue type on the project's create screen. The name is resolved
-// against the fetched list in-code, so a miss is a bad input value (validation,
-// exit 3), never a Jira 404. The valid names ride the envelope's suggestions
-// field. It runs before the generic Coded/untyped paths so the flag and
-// suggestions are attached instead of collapsing to the bare validation
-// fallback.
-// mapDocentDiscoveryErrors adapts docent's sentinel lookup failures on the
-// agent/guide surface — an unknown guide slug, section name, export format,
-// or schema --path — to the dedicated agent_topic_unknown code (validation,
-// exit 3). arg_value_invalid would be wrong here: its hint sends the caller
-// to --help, and none of these surfaces list their valid names there — the
-// discovery commands themselves do. Docent is a library and stays free of
-// this CLI's taxonomy, so the pairing happens at the mapping boundary,
-// mirroring rankCodedError below.
-func mapDocentDiscoveryErrors(err error) (Error, bool) {
-	for _, sentinel := range []error{
-		docentcobra.ErrGuideNotFound,
-		docentcobra.ErrSectionNotFound,
-		docentcobra.ErrUnsupportedFormat,
-		docent.ErrCommandNotFound,
-	} {
-		if errors.Is(err, sentinel) {
-			return assemble(err, &agentTopicError{err: err}), true
-		}
-	}
-	return Error{}, false
-}
-
-// agentTopicError attaches the agent_topic_unknown taxonomy code to a
-// docent sentinel at the mapping boundary.
-type agentTopicError struct {
-	err error
-}
-
-func (e *agentTopicError) Error() string     { return e.err.Error() }
-func (e *agentTopicError) Unwrap() error     { return e.err }
-func (e *agentTopicError) Code() errtax.Code { return errtax.CodeAgentTopicUnknown }
-
-// mapRankErrors adapts the agile rank endpoint's typed failures: a 400
-// (RankRejectedError) means Jira refused the rank itself — no Software
-// board, unusable anchor — and a 207 (RankPartialError) means some issues
-// ranked while the named entries did not. Both are validation-class with
-// stable codes; the per-issue details ride the message, never the hint.
-func mapRankErrors(err error) (Error, bool) {
-	if rejected, ok := errors.AsType[*jira.RankRejectedError](err); ok {
-		return assemble(err, &rankCodedError{err: rejected, code: errtax.CodeRankRejected}), true
-	}
-	if partial, ok := errors.AsType[*jira.RankPartialError](err); ok {
-		return assemble(err, &rankCodedError{err: partial, code: errtax.CodeRankPartial}), true
-	}
-	return Error{}, false
-}
-
-// rankCodedError attaches a stable taxonomy code to a typed rank failure.
-// The jira package deliberately stays free of the errtax dependency, so the
-// pairing happens here at the mapping boundary.
-type rankCodedError struct {
-	err  error
-	code errtax.Code
-}
-
-func (e *rankCodedError) Error() string     { return e.err.Error() }
-func (e *rankCodedError) Unwrap() error     { return e.err }
-func (e *rankCodedError) Code() errtax.Code { return e.code }
-
-func mapIssueTypeUnknown(err error) (Error, bool) {
-	var typeErr *jira.IssueTypeUnknownError
-	if !errors.As(err, &typeErr) {
-		return Error{}, false
-	}
-	ie := NewCLIInputError(InputIssueTypeUnknown, typeErr.Error())
-	ie.Flag = "type"
-	ie.Suggestions = typeErr.Available
-	return assemble(err, ie), true
-}
-
-// mapPromptError adapts a *PromptError. Every interactive-prompt
-// outcome — user abort, SIGINT/timeout cancellation, or an unavailable
-// prompt — is a validation-class failure (exit 3): the command could not
-// gather the input it needed. It must run before mapContextError so a
-// canceled prompt keeps its prompt identity rather than collapsing into
-// the generic canceled mapping.
-func mapPromptError(err error) (Error, bool) {
-	var pe *PromptError
-	if !errors.As(err, &pe) {
-		return Error{}, false
-	}
-	return assemble(err, pe), true
-}
-
-// mapContextError adapts a context cancellation or deadline error.
-// Cancellation reaches MapError when --timeout elapses or a SIGINT
-// cancels the root context mid-request; classifying it here with
-// errors.Is keeps it off the substring classifier, where the wrapped
-// url.Error text would land in the wrong bucket. The registry rows pin
-// the dedicated exits (canceled 6, timeout 7) and mark both retryable:
-// the request never completed.
-func mapContextError(err error) (Error, bool) {
 	switch {
 	case errors.Is(err, context.DeadlineExceeded):
-		return newFromCode(errtax.CodeTimeout, err.Error()), true
+		return newError("timeout", err)
 	case errors.Is(err, context.Canceled):
-		return newFromCode(errtax.CodeCanceled, err.Error()), true
+		return newError("canceled", err)
+	}
+	var writeErr *output.WriteError
+	if errors.As(err, &writeErr) {
+		// The work may have completed; only reporting it failed. Exit 8
+		// keeps that distinct from every Jira-side class so an agent
+		// never auto-retries a mutation off the back of a broken pipe.
+		return newError(CodeOutputWriteFailed, err)
+	}
+	// Filter faults that happen at RENDER time are sentinel-wrapped by the
+	// output layer rather than typed there, because internal/output must
+	// not import this package. Compile faults never reach here — the flag
+	// layer types them at resolution, before the command runs — so only
+	// the render-time sentinels get rows. They sit AFTER the write and
+	// context tiers on purpose: a filter killed by a deadline is a
+	// timeout, and one that could not be written is a write failure; in
+	// neither case is the expression what broke.
+	// Transport guards are sentinel-wrapped by the adapter, which must not
+	// import this package. They sit ahead of the API tier: a request the
+	// gate refused never reached Jira, so it has no status to classify.
+	switch {
+	case errors.Is(err, core.ErrIssueCloneSourceInvalid):
+		return newError(CodeIssueCloneSourceInvalid, err)
+	case errors.Is(err, core.ErrIssueCreateResponseInvalid):
+		return newError(CodeIssueCreateResponseInvalid, err)
+	case errors.Is(err, core.ErrIssueCreateFollowupFailed):
+		return newError(CodeIssueCreateFollowupFailed, err)
+	case errors.Is(err, core.ErrIssueDeleteResponseInvalid):
+		return newError(CodeIssueDeleteResponseInvalid, err)
+	case errors.Is(err, core.ErrRankResponseInvalid):
+		return newError(CodeRankResponseInvalid, err)
+	case errors.Is(err, core.ErrWeblinkResponseInvalid):
+		return newError(CodeWeblinkResponseInvalid, err)
+	case errors.Is(err, core.ErrCommentResponseInvalid):
+		return newError(CodeCommentResponseInvalid, err)
+	case errors.Is(err, core.ErrTransitionResponseInvalid):
+		return newError(CodeTransitionResponseInvalid, err)
+	case errors.Is(err, core.ErrTransitionReadInvalid):
+		return newError(CodeTransitionReadInvalid, err)
+	case errors.Is(err, core.ErrAttachmentResponseInvalid):
+		return newError(CodeAttachmentResponseInvalid, err)
+	case errors.Is(err, attachmentfiles.ErrInvalid):
+		return newError(CodeAttachmentFileInvalid, err)
+	case errors.Is(err, adapterjira.ErrReadOnly):
+		return newError(CodeReadOnlyBlocked, err)
+	case errors.Is(err, adapterjira.ErrUnsafePath):
+		return newError(CodePathInvalid, err)
+	case errors.Is(err, adapterjira.ErrInsecureScheme):
+		return newError(CodeInsecureScheme, err)
+	case errors.Is(err, adapterjira.ErrUnsafeRedirect):
+		return newError(CodeRedirectRefused, err)
+	case errors.Is(err, adapterjira.ErrUserSearchResponseInvalid):
+		return newError(CodeUserSearchResponseInvalid, err)
+	case errors.Is(err, adapterjira.ErrCurrentUserResponseInvalid):
+		return newError(CodeCurrentUserResponseInvalid, err)
+	case errors.Is(err, adapterjira.ErrJQLResponseInvalid):
+		return newError(CodeJQLResponseInvalid, err)
+	case errors.Is(err, adapterjira.ErrBoardResponseInvalid):
+		return newError(CodeBoardResponseInvalid, err)
+	case errors.Is(err, adapterjira.ErrSearchResponseInvalid):
+		return newError(CodeSearchResponseInvalid, err)
+	case errors.Is(err, adapterjira.ErrWorklogResponseInvalid):
+		return newError(CodeWorklogResponseInvalid, err)
+	case errors.Is(err, adapterjira.ErrBulkOperationResponseInvalid):
+		return newError(CodeBulkOperationResponseInvalid, err)
+	}
+	switch {
+	case errors.Is(err, output.ErrFilterFailed):
+		return newError(CodeJQEvalFailed, err)
+	case errors.Is(err, output.ErrFilterTooLarge):
+		return newError(CodeJQOutputTooLarge, err)
+	}
+	if coded, ok := errors.AsType[*CodedError](err); ok {
+		return newError(coded.Code, err)
+	}
+	if inputErr, ok := errors.AsType[*InputError](err); ok {
+		e := newError(inputErr.Code, err)
+		e.Field = inputErr.Field
+		e.Suggestions = slices.Clone(inputErr.Suggestions)
+		return e
+	}
+	if apiErr, ok := errors.AsType[*adapterjira.APIError](err); ok {
+		e := newError(codeForStatus(apiErr.StatusCode), err)
+		e.RetryAfterSeconds = apiErr.RetryAfterSeconds
+		e.Attempts = apiErr.Retry.Attempts
+		e.Waited = apiErr.Retry.Waited
+		if len(apiErr.FieldErrors) > 0 {
+			// Sorted so the surfaced field is deterministic — map order
+			// would make the envelope flap between runs.
+			e.Field = slices.Sorted(maps.Keys(apiErr.FieldErrors))[0]
+		}
+		return e
+	}
+	if errors.Is(err, adapterjira.ErrAPIResponseTooLarge) || errors.Is(err, adapterjira.ErrAPIResponseIncomplete) {
+		return newError(CodeAPIResponseIncomplete, err)
+	}
+	return newError("validation_failed", err)
+}
+
+// ExitCode is the taxonomy → process-exit mapper the composition root
+// hands to conductor (concobra.WithExitCode).
+func ExitCode(err error) int {
+	return MapError(err).Exit
+}
+
+// codeForStatus turns a Jira HTTP status into its taxonomy code. Statuses
+// gain dedicated codes as commands need them; the catch-alls keep every
+// answer classified meanwhile (unmapped 4xx → validation, 5xx → server).
+func codeForStatus(status int) string {
+	switch {
+	case status == http.StatusUnauthorized:
+		return "jira_unauthorized"
+	case status == http.StatusForbidden:
+		return "jira_forbidden"
+	case status == http.StatusNotFound:
+		return "jira_not_found"
+	case status == http.StatusBadRequest:
+		return "jira_bad_request"
+	case status == http.StatusPreconditionFailed:
+		return CodeJiraPreconditionFailed
+	case status == http.StatusTooManyRequests:
+		return "jira_rate_limited"
+	// 408 is transient (the transport retries it); classifying it as a
+	// request problem would tell an agent its input was bad when the
+	// network was.
+	case status == http.StatusRequestTimeout:
+		return "timeout"
+	case status >= http.StatusInternalServerError:
+		return "jira_server_error"
 	default:
-		return Error{}, false
+		return "jira_request_failed"
 	}
 }
 
-// assemble builds the envelope Error from a Coded error: the registry
-// supplies type, hint, and retryability for the code, then the error's
-// per-instance capabilities are layered on top.
-func assemble(err error, coded errtax.Coded) Error {
-	// errors.As can bind coded to a non-nil interface holding a typed-nil
-	// pointer, where Code() and Error() would panic on a nil receiver.
-	// Fail over to the untyped path instead.
-	if isNilValue(coded) {
-		return classifyUntyped(err)
+// HintFor returns a code's static hint, or empty when the code has none.
+// Exported so a command's own tests can assert that its failures carry
+// advice that fits — the reason two similar failures get two codes.
+func HintFor(code string) string { return registry[code].hint }
+
+// Codes returns every taxonomy code, sorted.
+//
+// The enumeration seam for a guardrail that has to hold something ELSE
+// against the whole taxonomy — today, that every code has a rank in the
+// keyed-failure severity ladder (command.KeyFailureRanks), so a code
+// added here cannot silently sort to the bottom of a mixed keyed run.
+// A copy of the keys, never the registry itself: the taxonomy is
+// read-only contract surface, and handing out the map would let a caller
+// edit the exits and hints every error in the CLI resolves through.
+func Codes() []string {
+	out := make([]string, 0, len(registry))
+	for code := range registry {
+		out = append(out, code)
 	}
-	out := newFromCode(coded.Code(), coded.Error())
-	// Flat comma-ok probes, deliberately not a type switch: an error can
-	// implement several capabilities at once, and a type switch would
-	// fire only its first match.
-	if f, ok := coded.(errtax.Flagger); ok {
-		out.Flag = f.FlagName()
-	}
-	if c, ok := coded.(errtax.Candidated); ok {
-		if rows := c.CandidateRows(); len(rows) > 0 {
-			out.Candidates = rows
-		}
-	}
-	// Single-implementer capabilities stay concrete assertions rather
-	// than interfaces.
-	if ce, ok := coded.(*config.CredentialError); ok {
-		// CredentialError.Error() decorates with the type, hint, and
-		// wrapped cause; the envelope keeps the bare message. Provider
-		// identity stays per-instance; hint and retryability come from
-		// the registry like every other code.
-		out.Message = ce.Message
-		if ce.Upstream != nil {
-			out.Provider = ce.Upstream.Provider
-			out.UpstreamCode = ce.Upstream.UpstreamCode
-			out.UpstreamStatus = ce.Upstream.UpstreamStatus
-		}
-	}
-	if inv, ok := coded.(*adf.InvalidDocumentError); ok {
-		out.Field = inv.Field
-	}
-	if ie, ok := coded.(*CLIInputError); ok {
-		// "Did you mean" candidates ride the typed suggestions field,
-		// never interpolated into the static hint.
-		out.Suggestions = ie.Suggestions
-	}
-	if ae, ok := coded.(*jira.APIError); ok {
-		// APIError.Error() decorates with the type and status; the
-		// envelope keeps the bare upstream message. Retryability keeps the
-		// transport rule — rate-limit and server-class failures are worth
-		// retrying — even where an unmapped status lands on the server
-		// catch-all code (a 413, a truncated 2xx body).
-		out.Message = ae.Message
-		out.Retryable = out.Type == string(errtax.TypeRateLimit) || out.Type == string(errtax.TypeServer)
-	}
-	// Upstream Jira metadata is read through the chain, not an
-	// outermost-only assertion: a Coded error wrapping an APIError would
-	// otherwise silently drop the seven upstream fields.
-	var api *jira.APIError
-	if errors.As(err, &api) && api != nil {
-		enrichAPIUpstream(&out, api)
-	}
+	slices.Sort(out)
 	return out
 }
 
-// enrichAPIUpstream copies the transport and ErrorCollection metadata an
-// APIError carries onto the envelope entry. UpstreamCode stays empty:
-// Jira exposes no stable machine-readable error code.
-func enrichAPIUpstream(out *Error, apiErr *jira.APIError) {
-	out.HTTPStatus = apiErr.StatusCode
-	out.RetryAfterSeconds = apiErr.RetryAfterSeconds
-	out.RateLimitRemaining = apiErr.RateLimitRemaining
-	out.Provider = "jira"
-	out.UpstreamStatus = apiErr.UpstreamStatus
-	out.UpstreamMessages = apiErr.ErrorMessages
-	out.UpstreamFieldErrors = apiErr.FieldErrors
-	out.UpstreamRequestID = apiErr.UpstreamRequestID
-}
-
-// isNilValue reports whether the interface holds a typed-nil pointer.
-func isNilValue(err error) bool {
-	v := reflect.ValueOf(err)
-	return v.Kind() == reflect.Pointer && v.IsNil()
-}
-
-// ClassifyUntypedProbe is a test seam: when non-nil, classifyUntyped
-// reports every error that reaches the legacy substring classifier, so a
-// test can prove an intentional command error is typed rather than
-// substring-guessed. Nil in production; exported because the probing
-// tests drive real commands from outside this package. Tests that set it
-// must not run in parallel.
-var ClassifyUntypedProbe func(error)
-
-// classifyUntyped is the legacy substring classifier for bare errors
-// that carry no typed metadata. It is strictly terminal — typed errors
-// must not reach it, and no new branches belong here.
-func classifyUntyped(err error) Error {
-	if ClassifyUntypedProbe != nil {
-		ClassifyUntypedProbe(err)
+// newError joins a code's static registry half with the error's message.
+// A code without a registry row is a programmer error; it fails safe to
+// the validation exit (never a silent 0), and the registry test keeps the
+// case from shipping.
+func newError(code string, err error) Classification {
+	s, ok := registry[code]
+	if !ok {
+		return Classification{Code: code, Message: err.Error(), Exit: ExitValidation}
 	}
-	// Every error that legitimately needs a non-validation class — auth,
-	// not_found, rate_limit, server — is typed at its source via
-	// errtax.Coded and resolved by MapError's typed tiers before reaching
-	// here. Anything that lands in this terminal fallback is, by
-	// definition, uncategorized: classify it as validation (exit 3), the
-	// safe conservative default. This deliberately does NOT substring-match
-	// the message — text like "auth_type", a "credential-env" flag name, or
-	// a "... (jira not found)" aggregate summary would misroute an ordinary
-	// error into the wrong exit code. If a bare error needs another class,
-	// type it at the source; never add a substring branch here.
-	return newFromCode(errtax.CodeValidationFailed, err.Error())
-}
-
-// ErrorEnvelope builds a failure envelope: ok:false, data:null,
-// meta.exit_code set, and a single structured error. Machine envelopes
-// omit meta.profile entirely.
-func ErrorEnvelope(command string, err error) Envelope {
-	cliErr := MapError(err)
-	exit := ExitCode(cliErr)
-	return Envelope{
-		OK: false,
-		Meta: Meta{
-			Command:   command,
-			ExitCode:  &exit,
-			Timestamp: time.Now().UTC().Format(time.RFC3339),
-			RequestID: NewRequestID(),
-			// The Jira-side trace id rides in meta as well as the error
-			// entry so a consumer that only reads meta can still hand
-			// Atlassian support a correlatable id.
-			UpstreamRequestID: cliErr.UpstreamRequestID,
-		},
-		Data:     nil,
-		Errors:   []Error{cliErr},
-		Warnings: []Warning{},
+	return Classification{
+		Code:    code,
+		Message: err.Error(),
+		Hint:    s.hint,
+		Next:    s.next,
+		Doc:     s.doc,
+		Exit:    s.exit,
 	}
 }

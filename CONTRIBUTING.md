@@ -15,7 +15,7 @@ Two things hold for every change: CI must pass (`mise run ci`), and review comme
 ## Prerequisites
 
 *   [mise](https://mise.jdx.dev) provisions the pinned toolchain (Go, the linters, everything else). Nothing else to install by hand.
-*   A C toolchain, **only** if you want the `1password` credential backend, which needs CGO. Everything else builds with `CGO_ENABLED=0`.
+*   Nothing else. The tree builds with `CGO_ENABLED=0`.
 
 ## Setup
 
@@ -25,19 +25,19 @@ mise --cd jira-cli run install --locked
 jira version
 ```
 
-`--cd` runs in the freshly cloned directory, so there's no separate `cd`. `mise run install` auto-provisions the pinned toolchain before the task (`--locked` requires it to be pre-resolved in `mise.lock`), then runs `go install ./cmd/jira` with the version ldflags set, so `jira version` reports the exact `git describe` build (any build reports a real version via Go build info, but only the ldflags carry branch and builder). A source build is also the only way to get the `1password` backend, which needs the CGO that release archives don't ship.
+`--cd` runs in the freshly cloned directory, so there's no separate `cd`. `mise run install` auto-provisions the pinned toolchain before the task (`--locked` requires it to be pre-resolved in `mise.lock`), then runs `go install ./cmd/jira` with the version ldflag set, so `jira version` reports the exact `git describe` build. Without that ldflag a build falls back to whatever Go records in its build info, which yields a `-dev` version string.
 
 > [!TIP]
 > `mise run build` writes a release-shaped binary to `./dist/jira-<goos>-<goarch>`. Use it to inspect the exact shape the release pipeline produces.
 
 ## Project layout
 
-*   `cmd/jira/` holds the command wiring, the embedded agent guide, and the manpage source.
-*   `internal/` is the runtime: config, credential backends, output rendering, the mutation pipeline, the editor, and the TUI.
-*   `internal/jira/` is the Jira REST client and its typed services.
+*   `cmd/jira/` is the entry point; `cmd/gen-wire/` generates the Jira wire types, `cmd/check-changie/` is the commit-msg changelog gate.
+*   `internal/cli/` holds the command tree, the output selector, and the error taxonomy that maps to the exit-code contract.
+*   `internal/output/` and `internal/envelope/` are the output core: the envelope frame, the renderers, and the jq filter.
+*   `internal/adapters/jira/` is the REST client; `internal/jira/` holds the generated wire types.
 *   `internal/adf/` parses, validates, and renders Atlassian Document Format.
-*   `tests/` holds the `contract`, `integration`, `unit`, and `guardrails` suites.
-*   `tests/live/` is the `live`-tagged end-to-end suite, excluded from `go test ./...` and run with `mise run test:live`.
+*   `tests/` holds the `contract`, `unit`, `guardrails`, and `audit` suites. The audit suite is build-tagged `outputaudit` and runs the real binary — `mise run audit`.
 
 ## Tests and checks
 
@@ -47,7 +47,7 @@ One task runs the full local equivalent of CI. Run it before you push or open a 
 mise run ci
 ```
 
-It chains `check` (fmt, lint, rumdl, vet, unit tests), `test:integration`, `go mod tidy`, the GitHub Actions workflow linter, and the security scan.
+It chains `check` (fmt, lint, rumdl, vet, tests), the race suite, the output-contract audit, a `go mod tidy` drift check, the GitHub Actions workflow linter, and the security scan.
 
 > [!WARNING]
 > `mise run ci` is macOS/Linux only for now. The full `ci` task currently fails on Windows; run it on macOS, Linux, or WSL before pushing.
@@ -56,10 +56,10 @@ For tighter loops while editing:
 
 | Task | What it does |
 |---|---|
-| `mise run check` | fmt-check + lint + rumdl + vet + unit tests |
-| `mise run test` | unit tests with coverage (fast) |
-| `mise run test:integration` | integration tests |
-| `mise run test:live` | live end-to-end suite against a real tenant; needs a configured profile and `JIRA_LIVETEST_PROJECT`; set `JIRA_LIVETEST_BINARY` to compare a prebuilt binary (excluded from `go test ./...`) |
+| `mise run check` | fmt-check + lint + rumdl + vet + tests |
+| `mise run test` | tests with coverage (fast) |
+| `mise run test:race` | the same suite under the race detector |
+| `mise run audit` | the output-contract audit on its own; hermetic, stub-driven, runs the real binary |
 | `mise run fix` | auto-apply fmt + lint + rumdl fixes |
 
 Run a single package or test with `go test` directly:
@@ -76,7 +76,7 @@ US spelling in code, comments, and identifiers: the linter's misspell rule is lo
 
 ## Error hints
 
-Every error code carries a `hint` — the next action, in the plain words a person would use, not a recap of what failed. A hint is read both by a human (it prints as the 💡 line under the error) and by an agent (the JSON envelope's `hint`), so keep it jargon-free: don't point at envelope fields like `candidates[]`, and when the fix needs a value the caller doesn't have, name the command that surfaces it (e.g. `jira user search`, `jira boards list`). Every hint is static, defined in the `internal/errtax` registry keyed by code — a hint never embeds a runtime value. If a specific matters (the offending value, a "did you mean" suggestion), put it in the error `message` or a structured envelope field, not the hint; if two error types want different hints, give them different codes. The taxonomy guard fails the build if any code has an empty hint, and `TestHintsAvoidEnvelopeJargon` fails it if a hint names an envelope-only field.
+Every error code carries a `hint` — the next action, in the plain words a person would use, not a recap of what failed. A hint is read both by a human (it prints as the 💡 line under the error) and by an agent (the JSON envelope's `hint`), so keep it jargon-free: don't point at envelope fields, and when the fix needs a value the caller doesn't have, name the command that surfaces it. Every hint is static, defined in the taxonomy registry in `internal/cli/errors.go` keyed by code — a hint never embeds a runtime value. If a specific matters (the offending value, a "did you mean" suggestion), put it in the error `message` or a structured envelope field like `field` or `suggestions[]`, not the hint; if two error types want different hints, give them different codes. `TestRegistryIsComplete` fails the build if any code is missing its row or ships an empty hint.
 
 ## Changelog
 
@@ -122,7 +122,7 @@ jira-cli is built for agents, so AI-assisted PRs are welcome. The bar is the sam
 
 ## Pre-commit hooks
 
-**Optional**, but it catches what CI checks locally, before you raise the PR. The repo ships an [`hk`](https://github.com/jdx/hk) hook configuration in `hk.pkl`; on commit it runs `gofumpt`, `go vet`, `golangci-lint`, and `rumdl`, plus `actionlint` and `zizmor` over the GitHub Actions workflows. On the message it checks the conventional-commit format and that a user-facing `feat`/`fix` ships a changelog fragment (see [Changelog](#changelog)). Install it once per checkout:
+**Optional**, but it catches what CI checks locally, before you raise the PR. The repo ships an [`hk`](https://github.com/jdx/hk) hook configuration in `hk.pkl`; on commit it runs `gofumpt`, `go vet`, `golangci-lint`, `rumdl`, and `betterleaks`, plus `actionlint` and `zizmor` over the GitHub Actions workflows. On push it adds `govulncheck`. On the message it checks the conventional-commit format, scans it for leaked identifiers, and requires that a user-facing `feat`/`fix` ships a changelog fragment (see [Changelog](#changelog)). Install it once per checkout:
 
 ```sh
 hk install
@@ -132,14 +132,14 @@ The hook globs the working tree, not just staged files, so a stale file elsewher
 
 ## Docs site
 
-Source pages live in `docs/`. The command reference under `docs/reference/` is generated from the Cobra command tree at build time and `.gitignore`d; never edit it by hand.
+Source pages live in `docs/`; the site is [zensical](https://zensical.org), configured in `zensical.toml`. Build or serve it directly:
 
 ```sh
-mise run docs:serve   # live-reload at http://localhost:8000
-mise run docs:build   # strict build (fails on any broken link or anchor)
+uvx --from zensical zensical build -f zensical.toml
+uvx --from zensical zensical serve -f zensical.toml
 ```
 
-Both tasks run `docs:gen` first, so the reference always matches the current command tree. Pass `--dev-addr 0.0.0.0:8000` to `docs:serve` to reach it from another device on your LAN.
+The mise wrappers and the generated command reference under `docs/reference/` were pruned with `cmd/gen-docs`; they return when the generator is rebuilt for the current command tree. Until then, `docs/` documents only what the binary actually ships — a page describing an unbuilt command does not belong in the tree.
 
 ## Getting help
 

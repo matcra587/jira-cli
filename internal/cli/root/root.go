@@ -3,846 +3,802 @@ package root
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"os"
+	"slices"
+	"strconv"
 	"strings"
 	"time"
 
-	clib "github.com/gechr/clib/cli/cobra"
+	clibcobra "github.com/gechr/clib/cli/cobra"
 	"github.com/gechr/clib/complete"
-	"github.com/gechr/clive/notify"
+	"github.com/gechr/clib/help"
+	"github.com/gechr/clive/updater"
 	"github.com/gechr/clog"
-	"github.com/gechr/x/shell"
-	xstrings "github.com/gechr/x/strings"
-	"github.com/gechr/x/terminal"
-	"github.com/matcra587/jira-cli/internal/cli"
-	"github.com/matcra587/jira-cli/internal/cli/alias"
-	"github.com/matcra587/jira-cli/internal/cli/cmdutil"
-	"github.com/matcra587/jira-cli/internal/cli/completion"
-	"github.com/matcra587/jira-cli/internal/cli/runtime"
-	"github.com/matcra587/jira-cli/internal/cli/startup"
-	"github.com/matcra587/jira-cli/internal/cli/tui"
-	"github.com/matcra587/jira-cli/internal/selfupdate"
+	"github.com/gechr/clog/fx/spinner"
+	"github.com/gechr/conductor"
+	concobra "github.com/gechr/conductor/cli/cobra"
+	"github.com/matcra587/docent"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+
+	"github.com/matcra587/jira-cli/internal/agentguides"
+	"github.com/matcra587/jira-cli/internal/cli"
+	"github.com/matcra587/jira-cli/internal/cli/adfcmd"
+	agentcmd "github.com/matcra587/jira-cli/internal/cli/agent"
+	aliascmd "github.com/matcra587/jira-cli/internal/cli/alias"
+	apicmd "github.com/matcra587/jira-cli/internal/cli/api"
+	authcmd "github.com/matcra587/jira-cli/internal/cli/auth"
+	boardscmd "github.com/matcra587/jira-cli/internal/cli/boards"
+	cachecmd "github.com/matcra587/jira-cli/internal/cli/cache"
+	"github.com/matcra587/jira-cli/internal/cli/command"
+	"github.com/matcra587/jira-cli/internal/cli/completion"
+	configcmd "github.com/matcra587/jira-cli/internal/cli/config"
+	"github.com/matcra587/jira-cli/internal/cli/discovery"
+	epiccmd "github.com/matcra587/jira-cli/internal/cli/epic"
+	issuecmd "github.com/matcra587/jira-cli/internal/cli/issue"
+	jqlcmd "github.com/matcra587/jira-cli/internal/cli/jql"
+	"github.com/matcra587/jira-cli/internal/cli/prompt"
+	"github.com/matcra587/jira-cli/internal/cli/releasenotes"
+	updatecmd "github.com/matcra587/jira-cli/internal/cli/update"
+	usercmd "github.com/matcra587/jira-cli/internal/cli/user"
+	"github.com/matcra587/jira-cli/internal/cli/version"
+	worklogcmd "github.com/matcra587/jira-cli/internal/cli/worklog"
+	"github.com/matcra587/jira-cli/internal/core"
+	"github.com/matcra587/jira-cli/internal/envelope"
+	"github.com/matcra587/jira-cli/internal/output"
 )
 
-// ErrCompletionHandled is returned by Execute when a shell-completion
-// preflight request was fully serviced. main translates it into a
-// zero-exit termination; no command runs. Keeping this as a returned
-// sentinel — rather than an os.Exit deep in construction — leaves main
-// the sole owner of process exit.
-var ErrCompletionHandled = errors.New("completion request handled")
+// description is shared by the conductor App and the cobra root so help and
+// runtime identity can never disagree.
+const (
+	name        = "jira"
+	description = "Terminal-first Jira Cloud CLI for developer and agent workflows"
+)
 
-// newRootCommand builds the bare root *cobra.Command: its metadata,
-// persistent flags, groups, help renderer, and PersistentPreRunE/RunE.
-// It does NOT attach subcommands or the completion command — that is
-// New's job, so the bare root can also seed the completion
-// generator before its own completion subcommand exists.
-//
-// Each call returns an independent command with its own persistent flag
-// set: there is no shared process-global command object.
-func newRootCommand(rt *runtime.Runtime) *cobra.Command {
-	root := &cobra.Command{
-		Use:   "jira",
-		Short: "Run Jira developer workflows",
-		Long: "Run Jira developer workflows from a terminal. Use it to read issues, build JQL, " +
-			"update work, and manage authentication. The dashboard runtime is deferred.\n\n" +
-			"With stdout attached to a terminal, bare `jira` prints help. In non-TTY or " +
-			"agent-detected output, bare `jira` emits the command schema as JSON; use " +
-			"`jira agent schema` when you want explicit discovery.",
-		Example: `# Structured output for scripts and agents
-$ jira issue list --output=json
-
-$ jira search saved my-open-bugs`,
-		SilenceErrors: true,
-		SilenceUsage:  true,
-		// Enable Cobra's command-name typo suggestions. The field defaults
-		// to 0 (exact match only); 2 is Cobra's documented sweet spot and
-		// the threshold the unknown-command path reads via SuggestionsFor.
-		SuggestionsMinimumDistance: 2,
-		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
-			return rootPersistentPreRun(cmd, rt)
-		},
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return rootRun(cmd, rt)
-		},
+// Run builds the runtime and command tree and executes one invocation,
+// returning the process exit code. The Conductor runtime must exist before
+// anything logs — clog re-reads the environment when the prefix changes —
+// so construction happens here, never in command packages.
+func Run(ctx context.Context, args []string) int {
+	// FIRST, before the runtime exists: --config decides which file the
+	// theme is read from, and the theme is resolved during conductor
+	// setup. Seeding after that would leave --config governing every
+	// adapter but not the colors.
+	applyGlobalFlags(args)
+	program, sink := newProgram(defaultDeps(), os.Stdout, os.Stderr) //nolint:contextcheck // the PersistentPreRunE closure reads cmd.Context(), which cobra derives from the ctx below at Execute time — there is no other context to pass
+	// Completion actions are handled BEFORE cobra parses anything, with
+	// OUR dynamic handler — conductor's own preflight passes a nil
+	// handler, which would make every `predictor=` flag silently
+	// complete nothing. When an action was handled the process exits
+	// now: falling through would run the real command on every
+	// keystroke.
+	if handled, code := runCompletionAction(ctx, program, sink, args); handled {
+		return code
 	}
-
-	// Route command IO through the runtime streams so output capture is
-	// per-instance: a test (or an embedding caller) supplying buffers via
-	// runtime options sees every command write land in those buffers, and
-	// two roots in one process never share an output destination.
-	root.SetOut(rt.Stdout())
-	root.SetErr(rt.Stderr())
-	root.SetIn(rt.Stdin())
-
-	// Convert pflag parse failures into typed *cli.CLIInputError values.
-	// Set on root, the function is inherited by every subcommand (Cobra
-	// walks the parent chain for FlagErrorFunc). clib's cobra helper
-	// registers none of its own, so there is nothing to chain through.
-	root.SetFlagErrorFunc(newFlagError)
-
-	configureRootFlags(root)
-	configureRootGroups(root)
-	configureRootHelp(root)
-
-	return root
+	sink.seed(program.Root, args)
+	expanded, err := prepareAliasArgs(ctx, program.Root, args)
+	if err != nil {
+		return sink.exitCodeContext(ctx, err)
+	}
+	if !slices.Equal(expanded, args) {
+		// An expansion can carry --config or --timeout. Resolve the final
+		// argv before constructing the runtime that owns its theme and lazy
+		// adapters, just as a directly authored invocation does.
+		applyGlobalFlags(expanded)
+		program, sink = newProgram(defaultDeps(), os.Stdout, os.Stderr) //nolint:contextcheck // the lazy PersistentPreRunE closure receives the execution context below
+	}
+	return execute(ctx, program, sink, expanded)
 }
 
-// rootPersistentPreRun resolves logging, color, and output-mode detection
-// for an invocation, then seeds cmd.Context() with the detector and a
-// fresh credential-warning sink. Output detection reads the runtime
-// stdout writer so a redirected stream is detected consistently.
-func rootPersistentPreRun(cmd *cobra.Command, rt *runtime.Runtime) error {
-	if cmd.Name() == "completion" || (cmd.Parent() != nil && cmd.Parent().Name() == "completion") {
-		return nil
+// execute runs one invocation with the guards that must fire before
+// cobra parses anything. The selector seed makes every failure the
+// binary can produce — flag parse, arg validation, unknown command —
+// reach the machine envelope in machine modes (the uniform-grammar
+// rule: --output means the same envelope shape on every path). The
+// command-path check runs next, so an unknown subcommand is reported as
+// itself rather than as whatever flag cobra would have parsed first.
+func execute(ctx context.Context, program *concobra.Program, sink *failureSink, args []string) int {
+	sink.seed(program.Root, args)
+	if err := checkCommandPath(program.Root, args); err != nil {
+		return sink.exitCodeContext(ctx, err)
 	}
-	if err := validateNumericFlags(cmd); err != nil {
-		return err
+	return program.Run(ctx, args)
+}
+
+// NewProgram assembles the conductor program around the injected deps and
+// streams. Exported for the audit inventory, which joins the REAL
+// assembled tree against the metadata and schema registries — production
+// entry stays Run.
+func NewProgram(deps *Deps, stdout, stderr io.Writer) *concobra.Program {
+	program, _ := newProgram(deps, stdout, stderr)
+	return program
+}
+
+// newProgram builds the program and its failure sink. Conductor's
+// adapter never calls SetOut/SetErr itself, so the write-ownership chain
+// starts here: root owns the streams and commands reach them only
+// through cmd.OutOrStdout()/ErrOrStderr(). Honest limit: the injected
+// stderr covers cobra's own output — clog messages still go to the
+// process stderr, because conductor wires clog's writer at ApplyFlags
+// time and re-pointing it belongs to the logger work.
+func newProgram(deps *Deps, stdout, stderr io.Writer) (*concobra.Program, *failureSink) {
+	// Before conductor: its EnvPrefix option makes clog and clib re-read
+	// the environment, and an unusable theme name has to be taken out of
+	// their way first or they print about it themselves.
+	cli.ConfigureTheme()
+
+	sink := &failureSink{stdout: stdout, detect: deps.Detect}
+	var notifier updater.Tool
+	if deps.NotifyTool != nil {
+		notifier = notificationDisplay{Tool: deps.NotifyTool}
 	}
+	runtime := conductor.New(conductor.App{
+		Name:        name,
+		Module:      "github.com/matcra587/jira-cli",
+		Description: description,
+		Updater:     notifier,
+		// Keep local discovery and configuration free of release I/O. The
+		// framework already skips update, version, help and completion.
+		NotifySkip:    []string{"", "up", "agent", "guide", "config", "alias", "auth", "me", "adf", "jql", "release-notes", "rn"},
+		NotifyOptions: notificationOptions(deps, sink),
+		// Supplying a theme is what avoids conductor calling
+		// theme.Auto(), which asks the terminal for its background color
+		// over OSC 11 and waits for an answer. A terminal that never
+		// answers costs termenv's whole timeout: `version` measured at
+		// 5108ms this way, and 21ms once a theme is known — on EVERY
+		// command, not just the ones that draw something.
+		//
+		// So HelpTheme never returns nil, even when no theme is named:
+		// it reads COLORFGBG, then falls back to the dark variant.
+		// Guessing wrong costs colors tuned for the wrong background,
+		// which is visible and fixed with JIRA_THEME. Asking costs five
+		// seconds of nothing, with no clue why.
+		Theme: cli.HelpTheme(),
+	})
 
-	pf := cmd.Root().PersistentFlags()
-	debug := cmdutil.BoolValue(pf, "debug")
-	clog.SetEnvPrefix("JIRA")
-	clog.SetVerbose(debug)
+	// Without this, cobra runs only the NEAREST PersistentPreRunE — a
+	// subcommand declaring its own would silently skip output resolution.
+	// The hook-chaining note on newRoot stays as documentation; this makes
+	// it structural.
+	cobra.EnableTraverseRunHooks = true
 
-	// Resolve --color once and apply it to every color surface. clog.ColorMode
-	// implements TextUnmarshaler, so the flag string parses directly; an empty
-	// flag keeps the ColorAuto zero value. The mode reaches three places: the
-	// clog.Default() logger (stderr human diagnostics); the package-cli stdout
-	// surfaces, which build their own loggers clog.Default() does not govern; and
-	// the process-wide hyperlink switch the string-level OSC 8 helpers read, so
-	// `never` suppresses hyperlinks on every human surface — plain renderer, ADF
-	// issue view, exported link helpers — in one place. SetHyperlinkEnabled runs
-	// after SetOutput so it pushes the switch onto the new output.
-	colorMode := clog.ColorAuto
-	if raw := cmdutil.StringValue(pf, "color"); raw != "" {
-		if err := colorMode.UnmarshalText([]byte(raw)); err != nil {
-			return fmt.Errorf("invalid color mode %q: must be \"auto\", \"always\" or \"never\"", raw)
-		}
+	quietLevelLabels()
+
+	root := newRoot(deps, sink, runtime.Renderer)
+	root.SetOut(stdout)
+	root.SetErr(stderr)
+
+	// The adapter defaults root.Short from App.Description; the renderer
+	// only prints that blurb when asked, and a CLI that cannot say what it
+	// is fails its own discovery bar. WithExitCode replaces conductor's
+	// default mapper, which flattens every failure to exit 1 — the
+	// taxonomy returns the published 0–8 contract instead. Inherited
+	// flags stay visible on subcommand help: the output selector and the
+	// standard trio are contract surface a leaf's reader needs, not
+	// noise to hide.
+	program := concobra.New(runtime, root,
+		concobra.WithAlwaysShowDescription(),
+		concobra.WithSections(clibcobra.WithShowInheritedFlagsOnSubcommands()),
+		concobra.WithExitCode(sink.exitCode))
+	guardNotifications(program)
+
+	// Conductor's built-ins ship with zero clib metadata; the help
+	// standard demands every flag carry it, so the composition root
+	// annotates what it did not register itself.
+	extendStandardFlags(program.Root)
+	sealCompletionFlagValues(program.Root)
+
+	// The completion command derives its script from the assembled
+	// program — registered here, after concobra.New, because the
+	// generator must see conductor's flags and every subcommand.
+	program.Root.AddCommand(completion.New(program.Generator))
+
+	// Settings inspection. Local-state only: it reads the config file and
+	// the environment, and constructs no client — a command that reports
+	// what is configured must work when nothing is.
+	program.Root.AddCommand(configcmd.New(configcmd.Deps{Credentials: deps.Credentials}))
+	program.Root.AddCommand(aliascmd.New(aliascmd.Deps{
+		ValidateName: func(name string) error { return validateAliasName(program.Root, name) },
+		Validate: func(table map[string]string, name string) error {
+			return validateAlias(program.Root, table, name)
+		},
+	}))
+	program.Root.AddCommand(apicmd.New(apicmd.Deps{JiraClient: deps.JiraClient}))
+	program.Root.AddCommand(adfcmd.New())
+	program.Root.AddCommand(usercmd.New(usercmd.Deps{JiraClient: deps.JiraClient}))
+	program.Root.AddCommand(jqlcmd.New(jqlcmd.Deps{JiraClient: deps.JiraClient, Preferences: deps.BuildPreferences, CacheFor: deps.CacheFor}))
+	program.Root.AddCommand(epiccmd.New(epiccmd.Deps{JiraClient: deps.JiraClient}))
+	program.Root.AddCommand(worklogcmd.New(worklogcmd.Deps{JiraClient: deps.JiraClient, WorkdaySeconds: workdaySeconds}))
+	program.Root.AddCommand(cachecmd.New(cachecmd.Deps{
+		Cache: func() (core.Cache, error) { return configuredCache(deps) },
+		Primers: cachecmd.PrimeDeps{
+			Scope:      func(local bool) (cachecmd.MetadataScope, error) { return metadataCacheScope(deps, local) },
+			JiraClient: deps.JiraClient, FetchBoards: boardscmd.FetchMetadata, DecodeBoards: boardscmd.DecodeMetadata,
+		},
+	}))
+	program.Root.AddCommand(boardscmd.New(boardscmd.Deps{JiraClient: deps.JiraClient, Cache: deps.Cache}))
+	program.Root.AddCommand(updatecmd.New(deps.Update))
+
+	// Issues. The first domain handed a Jira client — which is what makes
+	// "config list cannot open one" a property the type system holds,
+	// not a convention.
+	program.Root.AddCommand(issuecmd.New(issuecmd.Deps{
+		JiraClient: deps.JiraClient,
+		Cache:      deps.Cache,
+		// The real dialog, as `auth logout` already gets below. A test
+		// hands the command an answer instead.
+		Confirm: prompt.Confirm.Run,
+	}))
+
+	// Credentials. Constructors, not instances: nothing opens the
+	// keyring or a network client until a RunE that needs one runs.
+	authDeps := authcmd.Deps{
+		Credentials:      deps.Credentials,
+		ClientFor:        deps.JiraClientFor,
+		Site:             siteInfo,
+		SiteWithoutStore: siteInfoWithoutStore,
+		// The real dialog. A test hands the command an answer instead.
+		Confirm: prompt.Confirm.Run,
 	}
-	clog.SetOutput(clog.NewOutput(cmd.ErrOrStderr(), colorMode))
-	clog.SetHyperlinkEnabled(colorMode != clog.ColorNever)
-	// Presentation policy for stderr diagnostics, mirroring the stdout plain
-	// renderer (newPlainLogger): content-adaptive quote delimiters and digit
-	// grouping on large numbers. See the newPlainLogger comment for why
-	// omit-zero is NOT part of this policy.
-	clog.SetSmartQuotes(true)
-	clog.SetNumberFormat(clog.NumberGrouped)
-	cli.SetResolvedColorMode(colorMode)
-	logger := clog.With().Logger()
+	program.Root.AddCommand(authcmd.New(authDeps), authcmd.NewMe(authDeps))
 
-	outputRaw := cmdutil.StringValue(pf, "output")
-	outputMode, err := cli.ParseOutputMode(outputRaw)
+	// Cobra adds the help command lazily inside Execute — AFTER the
+	// pre-dispatch command-path check walks the tree, which would make
+	// `jira help` read as an unknown command. Materialize it now
+	// (idempotent; the audit inventory does the same for its walk).
+	program.Root.InitDefaultHelpCmd()
+	guides, err := agentguides.Load()
 	if err != nil {
-		return err
+		panic(err) // embedded guide violations are construction errors
 	}
-	det := detectOutput(rt)
-	det.StdinPiped = !runtimeStdinIsTTY(rt)
-	det.Mode = cli.ResolveOutputMode(outputMode, det)
-	// --tsv is a script-output format. Off a TTY auto-detection would resolve
-	// to JSON, so when the user has not pinned --output explicitly, honor
-	// --tsv by rendering the plain (human) TSV table.
-	if outputMode == cli.OutputAuto && cmd.Flags().Lookup("tsv") != nil {
-		if cmdutil.BoolValue(cmd.Flags(), "tsv") {
-			det.Mode = cli.ModePlain
+	agent := agentcmd.New(agentcmd.Deps{Guides: guides, Tree: func() (docent.Command, error) {
+		return discovery.Build(program.Root)
+	}})
+	program.Root.AddCommand(agent, agentcmd.NewGuide(guides))
+	tree, err := discovery.Build(program.Root)
+	if err != nil {
+		panic(err) // malformed discovery wiring cannot ship as an incomplete schema
+	}
+	agentcmd.SealPaths(agent, tree)
+
+	// After the tree is complete: every arity failure leaves typed, so
+	// arg validation carries a stable code like every other input error.
+	typeArgErrors(program.Root)
+
+	return program, sink
+}
+
+// completionFlagUnset is what a bare --@shell/--@complete resolves to.
+// It must be non-empty — pflag only skips consuming the next token when
+// NoOptDefVal is set — and it must name no real shell and no predictor
+// kind, so a bare flag stays inert: the completion handler answers an
+// unknown kind with nothing, per the predictor laws.
+const completionFlagUnset = "unset"
+
+// sealCompletionFlagValues stops clib's hidden completion flags from
+// eating the token after them. Both take a value, so pflag reads a bare
+// `--@shell --output=json` as "shell = --output=json": the output
+// selector disappears and the command answers in a mode nobody asked
+// for, with exit 0 and no warning.
+//
+// clib's own argv scanner already refuses a value beginning with "--"
+// (complete/action_flags.go). The two parsers disagreeing on one argv is
+// the defect; this brings the cobra side into line using pflag's own
+// mechanism rather than special-casing argv in the selector seed, which
+// is the code this rewrite has already had three bugs in.
+//
+// Divergence worth naming: clib accepts the space form `--@shell fish`
+// and this does not. That path is inert here — clib's Preflight handles
+// every real completion invocation before cobra parses, and returns
+// early unless an ACTION flag is present, so cobra's copy is reachable
+// only by a human typing it. The "=" form works either way.
+func sealCompletionFlagValues(root *cobra.Command) {
+	for _, name := range []string{complete.FlagComplete, complete.FlagShell} {
+		if f := root.PersistentFlags().Lookup(name); f != nil {
+			f.NoOptDefVal = completionFlagUnset
 		}
 	}
-	interactive := cmdutil.BoolValue(pf, "interactive")
-	if interactive {
-		det.Mode = cli.ModeTUI
-	}
-	// --jq runs over the machine output. With the mode unset (or auto) it
-	// implies --output=json; an explicit --output=human contradicts it and
-	// fails validation; an explicit compact keeps compact (the filter then
-	// runs over the data document compact emits). The program compiles here
-	// so a bad expression fails fast, before any network work.
-	jqExpr := cmdutil.StringValue(pf, "jq")
-	cli.ClearJQProgram()
-	if jqExpr != "" {
-		// Every human surface conflicts the same way: the filter runs over
-		// JSON output, so an explicit human mode, the TUI, and the TSV table
-		// all contradict it and fail validation rather than being silently
-		// overridden.
-		conflict := ""
-		switch {
-		case outputMode == cli.OutputHuman:
-			conflict = "--output=human"
-		case interactive:
-			conflict = "--interactive"
+}
+
+// quietLevelLabels drops the level column from human status output, so a
+// line reads "❌ unknown shell" rather than "ERR ❌ unknown shell". The
+// symbol already carries the severity, and a terminal-first CLI talking
+// to a person should not read like a server log. Debug is included: its
+// own symbol distinguishes it, and a level column that appeared only
+// under --verbose would make the quiet form the odd one out.
+//
+// Parts are filtered out of DefaultParts rather than listed, so a part
+// clog adds later keeps its place and its ordering instead of silently
+// vanishing from our output. This runs at construction, not in a run
+// hook, because the pre-parse failure path logs after cobra unwinds —
+// hooking it later would leave exactly the errors a user hits still
+// carrying a level column.
+func quietLevelLabels() {
+	parts := slices.DeleteFunc(clog.DefaultParts(), func(p clog.Part) bool {
+		return p == clog.PartLevel
+	})
+	clog.SetParts(parts...)
+
+	// One spinner identity for the whole tool: braille Dots —
+	// single-cell, smooth, no emoji. The default preset is emoji-based,
+	// which carries width hazards in a terminal and reads as toy-ish; a
+	// Jira CLI wants the plain, professional glyphs.
+	clog.SetSpinnerDefaults(spinner.WithConfig(spinner.Dots))
+}
+
+// colorFlagName is the flag conductor registers for the --color mode —
+// named once so extendStandardFlags and colorModeFromFlags cannot drift
+// on the string literal.
+const colorFlagName = "color"
+
+// extendStandardFlags attaches help metadata to the flags conductor
+// registered for us: the standard trio on the persistent set and the
+// -V/--version flag on the root's local set. The @global role group
+// bands them below the output selector (band 1) in every command's
+// help; -V sits last before help's own entries.
+func extendStandardFlags(root *cobra.Command) {
+	// A missing flag means conductor stopped registering the built-in —
+	// silently skipping would strand the metadata contract, so lookup
+	// failure is loud like every other startup wiring failure.
+	lookup := func(fs *pflag.FlagSet, name string) *pflag.Flag {
+		f := fs.Lookup(name)
+		if f == nil {
+			panic("root: conductor standard flag --" + name + " is missing — extendStandardFlags is out of date")
 		}
-		if conflict == "" && cmd.Flags().Lookup("tsv") != nil {
-			if cmdutil.BoolValue(cmd.Flags(), "tsv") {
-				conflict = "--tsv"
+		return f
+	}
+	pf := root.PersistentFlags()
+	// The counter takes an optional level (-v, -vv, --verbose=2); pflag
+	// cannot say "optional", so the placeholder just names the value.
+	clibcobra.Extend(lookup(pf, "verbose"), clibcobra.FlagExtra{
+		Terse:       "Verbosity",
+		Group:       help.GlobalSection + "/2",
+		Placeholder: "n",
+	})
+	clibcobra.Extend(lookup(pf, "quiet"), clibcobra.FlagExtra{
+		Terse: "Quiet",
+		Group: help.GlobalSection + "/2",
+	})
+	// Enum values live in metadata, not prose (help standard §1.6):
+	// conductor's usage string enumerates them, so it is rewritten
+	// before the metadata takes over rendering them.
+	color := lookup(pf, colorFlagName)
+	color.Usage = "When to use color"
+	clibcobra.Extend(color, clibcobra.FlagExtra{
+		Terse:       "Color mode",
+		Group:       help.GlobalSection + "/2",
+		Placeholder: "when",
+		Enum: []string{
+			clog.ColorAuto.String(), clog.ColorAlways.String(), clog.ColorNever.String(),
+		},
+		EnumTerse: []string{
+			"Color when stderr is a terminal",
+			"Force color and hyperlinks",
+			"Disable color and hyperlinks",
+		},
+		EnumDefault: clog.ColorAuto.String(),
+	})
+	clibcobra.Extend(lookup(root.Flags(), "version"), clibcobra.FlagExtra{
+		Terse: "Version",
+		Group: help.GlobalSection + "/3",
+	})
+}
+
+// colorModeFromFlags reads the parsed --color flag as a clog.ColorMode.
+//
+// conductor owns the flag's Value (registered via its own Flags type),
+// so this reads back through the flag's String()/UnmarshalText round
+// trip — the same pattern ResolveSelector uses for the output selector —
+// rather than assuming a concrete pflag Value type. A flag conductor did
+// not register (a wiring regression) or a value neither side produced
+// leaves the mode at ColorAuto, the same safe default an unset flag
+// already resolves to.
+func colorModeFromFlags(fs *pflag.FlagSet) clog.ColorMode {
+	f := fs.Lookup(colorFlagName)
+	if f == nil {
+		return clog.ColorAuto
+	}
+	var mode clog.ColorMode
+	if err := mode.UnmarshalText([]byte(f.Value.String())); err != nil {
+		return clog.ColorAuto
+	}
+	return mode
+}
+
+// failureSink carries what the exit boundary needs from output resolution:
+// conductor's exit mapper receives only the error, so the resolved format,
+// the operation name, and the stdout writer ride here. One invocation per
+// process — plain fields, no locking.
+type failureSink struct {
+	stdout   io.Writer
+	detect   func() cli.Detection
+	format   output.Format
+	op       string
+	resolved bool
+}
+
+// seed resolves the output selector from the RAW argv, before cobra has
+// parsed anything, so failures that fire before PersistentPreRunE (flag
+// parse, arg validation, the unknown-command check) still reach the
+// machine envelope in machine modes. "A pre-resolution failure has no
+// known format" was a false premise: the selector is right there in the
+// argv. The probe folds through the SAME single resolution point
+// (cli.ResolveSelector) as the real parse, so the two cannot drift; when
+// PersistentPreRunE later runs, its post-parse values overwrite these.
+// An unresolvable selector (invalid --output value, conflicting aliases)
+// still seeds the full json frame: the caller asked for machine output
+// and got the request itself wrong — answering with bare stderr prose
+// would make exactly that failure unparseable.
+func (s *failureSink) seed(root *cobra.Command, args []string) {
+	// Best-effort operation attribution: the command the argv names, or
+	// the root when it names none (the unknown-command path).
+	s.op = "root"
+	if cmd, _, err := root.Find(args); err == nil {
+		s.op = opName(cmd)
+	}
+	probe := pflag.NewFlagSet("selector-probe", pflag.ContinueOnError)
+	probe.ParseErrorsAllowlist.UnknownFlags = true
+	probe.Usage = func() {}
+	probe.SetOutput(io.Discard)
+	probe.String(cli.FlagOutput, string(cli.OutputAuto), "")
+	for _, alias := range cli.OutputAliases {
+		probe.Bool(alias.Flag, false, "")
+	}
+	// A probe parse error is ignored: pflag records the selector flags it
+	// scanned before failing, and whatever broke the parse is about to be
+	// reported through the very boundary this seed is preparing.
+	probe.Parse(args) //nolint:errcheck // partial parsing still records the selector flags
+	mode, err := cli.ResolveSelector(probe)
+	if err != nil {
+		s.format = output.FormatJSON
+		s.resolved = true
+		return
+	}
+	s.format = cli.ResolveOutputMode(mode, s.detect)
+	s.resolved = true
+}
+
+// exitCode is the one error boundary. Machine modes get the full error
+// frame on stdout (R2: errors keep the frame in EVERY mode — an agent
+// must never have to parse stderr prose); the human line, hint, and any
+// "did you mean" candidates go to stderr through clog in every mode.
+// seed runs before cobra parses, so by the time any failure lands here
+// the format is resolved on every path the binary can take.
+// exitCode is conductor's WithExitCode callback, which cobra invokes
+// AFTER unwinding — no live command context survives that far, and an
+// error frame never carries a --jq filter (Assemble drops it), so there
+// is nothing on this path left to cancel. Callers that still hold a
+// context use exitCodeContext instead.
+func (s *failureSink) exitCode(err error) int {
+	return s.exitCodeContext(context.Background(), err)
+}
+
+func (s *failureSink) exitCodeContext(ctx context.Context, err error) int {
+	e := cli.MapError(err)
+	var resultErr *cli.ResultError
+	if errors.As(err, &resultErr) && resultErr.Mutation {
+		e.Hint = "Inspect retained data and verify mutation outcomes before retrying. " + e.Hint
+	}
+	var filterErr *output.FilterError
+	if errors.As(err, &filterErr) {
+		e.Hint = "Filtering failed after the command produced its result. Inspect unfiltered `data` in this error frame; check mutation outcomes before retrying."
+	}
+	exit := e.Exit
+	// Human failures print through clog here rather than through
+	// Render, so the warnings have to be emitted here too or a person
+	// sees the error without the state it happened in.
+	if s.format == output.FormatHuman {
+		command.EmitWarnings()
+		if resultErr != nil {
+			for _, warning := range resultErr.Warnings {
+				clog.Warn().Msg(warning.Message)
 			}
 		}
-		if conflict != "" {
-			ie := cli.NewCLIInputError(cli.InputJQOutputConflict, "--jq filters JSON output and cannot combine with "+conflict)
-			ie.Flag = "jq"
-			return ie
+	}
+	if s.resolved && (s.format != output.FormatHuman || (resultErr != nil && resultErr.Human != nil)) {
+		in := output.Inputs{
+			Op: s.op,
+			// A failing command carries its startup warnings too: they
+			// describe the state it failed in, and dropping them here
+			// would make a bad theme visible only when nothing went
+			// wrong — which is the least useful moment for it.
+			Warnings: cli.TakeWarnings(),
+			Errors: []envelope.Error{{
+				Code:              e.Code,
+				Message:           e.Message,
+				Hint:              e.Hint,
+				Next:              e.Next,
+				Doc:               e.Doc,
+				Field:             e.Field,
+				Suggestions:       e.Suggestions,
+				RetryAfterSeconds: e.RetryAfterSeconds,
+				Attempts:          e.Attempts,
+				WaitedMS:          int(e.Waited.Milliseconds()),
+			}},
+			ExitCode:  e.Exit,
+			Now:       time.Now(),
+			RequestID: output.NewRequestID(),
+			ColorMode: cli.ResolvedColorMode(),
 		}
-		prog, err := cli.CompileJQ(jqExpr)
+		if resultErr != nil {
+			in.Warnings = append(in.Warnings, resultErr.Warnings...)
+			in.Op = resultErr.Op
+			in.Data = resultErr.Data
+			in.Human = resultErr.Human
+		}
+		if filterErr != nil {
+			in.Op = filterErr.Envelope.Meta.Command
+			in.Data = filterErr.Envelope.Data
+			in.Warnings = append(filterErr.Envelope.Warnings, in.Warnings...)
+			in.RequestID = filterErr.Envelope.Meta.RequestID
+		}
+		res := output.Assemble(in)
+		var werr error
+		if s.format == output.FormatHuman {
+			werr = output.RenderFailureReceipt(ctx, s.stdout, res)
+		} else {
+			werr = output.Render(ctx, s.stdout, s.format, res)
+		}
+		if werr != nil {
+			// stdout is gone — the write failure supersedes the original
+			// error's exit, per the output_write_failed contract.
+			clog.Error().Msg("write failure output: " + cli.Text(werr.Error()))
+			exit = cli.ExitOutput
+		}
+	}
+	// Machine strings retain their original bytes. Terminal diagnostics pass
+	// through the same sanitizer as Jira-authored human result fields.
+	clog.Error().Msg(cli.Text(e.Message))
+	// Show one route forward, not two. A suggestion IS the answer; the
+	// hint's job is to recover a reader who has no lead, so printing
+	// "run --help to see the choices" above "Did you mean zsh?" buries
+	// the strong advice under the weak. The envelope still carries both
+	// fields — this is the human renderer choosing what earns a line,
+	// not the contract dropping data.
+	switch {
+	case len(e.Suggestions) > 0:
+		clog.Hint().Msg("Did you mean " + cli.Text(strings.Join(e.Suggestions, " or ")) + "?")
+	case e.Hint != "":
+		clog.Hint().Msg(cli.Text(e.Hint))
+	}
+	return exit
+}
+
+// opName turns a cobra command path into the dotted operation name the
+// envelope carries ("jira issue view" → "issue.view"; the bare root is
+// "root").
+func opName(cmd *cobra.Command) string {
+	parts := strings.Fields(cmd.CommandPath())
+	if len(parts) <= 1 {
+		return "root"
+	}
+	return strings.Join(parts[1:], ".")
+}
+
+// newRoot returns the root command with the output selector wired.
+// Subcommands register here as they land, closing over deps for
+// the adapters they need; the root command itself never constructs a
+// client, so help and version stay client-free.
+func newRoot(deps *Deps, sink *failureSink, renderer *help.Renderer) *cobra.Command {
+	// Root is a typed read operation over the fully assembled tree. Native
+	// human help and machine discovery share construction and output policy.
+	var cmd *cobra.Command
+	cmd = command.MustNew(command.Spec[envelope.AgentSchemaOutput]{
+		Op: "root", Use: name, Short: description, Long: description,
+		Passthrough: true,
+		HumanHelp:   func(w io.Writer) error { return renderBareHelp(cmd, renderer, w) },
+		Example: "$ jira --output=json\n\n" +
+			"$ jira --output=compact --jq '.schema.children[].path'\n\n" +
+			"$ jira --output=json --jq '.data.schema.extensions.output_contract'",
+		Run: func(ctx context.Context, _ command.Invocation) (envelope.AgentSchemaOutput, error) {
+			if err := ctx.Err(); err != nil {
+				return envelope.AgentSchemaOutput{}, err
+			}
+			tree, err := discovery.Build(cmd)
+			if err != nil {
+				return envelope.AgentSchemaOutput{}, err
+			}
+			return discovery.Schema(tree, "", false)
+		},
+	})
+	// Cobra's typo suggestions use the same distance as flag corrections.
+	cmd.SuggestionsMinimumDistance = 2
+	cmd.PersistentPreRunE = func(cmd *cobra.Command, _ []string) error {
+		// Resolved before the output selector: it depends on nothing
+		// below it, and every human surface — including an error path
+		// that never reaches the selector at all — should see a
+		// settled color decision.
+		colorMode := colorModeFromFlags(cmd.Root().PersistentFlags())
+		cli.SetResolvedColorMode(colorMode)
+		cli.SetStyleEnabled(cli.ResolveColorMode(cmd.OutOrStdout(), colorMode))
+
+		mode, err := cli.ResolveSelector(cmd.Root().PersistentFlags())
 		if err != nil {
 			return err
 		}
-		if outputMode == cli.OutputAuto {
-			det.Mode = cli.ModeJSON
+		filter, mode, err := resolveFilter(cmd.Root().PersistentFlags(), mode)
+		if err != nil {
+			return err
 		}
-		cli.SetJQProgram(cmd.Context(), prog)
-	}
-	// cmd.Context() is always populated: Execute drives the tree through
-	// ExecuteContextC, which seeds every command's context from main's
-	// signal-aware root context.
-	ctx := cmd.Context()
-	ctx = cmdutil.WithDetector(ctx, det)
-	// Install a fresh credential-warning sink for this command invocation
-	// so a legacy-keyring-fallback warning is scoped to the command that
-	// produced it and cannot bleed into another.
-	ctx = cmdutil.WithCredentialWarnSink(ctx)
-	// And a fresh rate-limit-warning sink, scoped the same way, so a
-	// near-limit notice belongs to the command that triggered it.
-	ctx = cmdutil.WithRateWarnSink(ctx)
-	// And the elapsed-time sink the completion line reads: blocking helpers
-	// (Spin, the fanout executor) record their wall time here so API-backed
-	// commands can show how long the slow part took.
-	ctx = cmdutil.WithAPIElapsedSink(ctx)
-	ctx = logger.WithContext(ctx)
-	cmd.SetContext(ctx)
-	event := logger.Debug().Str("mode", string(det.Mode))
-	if det.AgentName != "" {
-		event.Str("agent", det.AgentName)
-	} else {
-		event.Str("agent", "null")
-	}
-	event.Msg("output detection")
-
-	// Check required flags here, before Cobra's own ValidateRequiredFlags
-	// runs (PersistentPreRunE precedes it in the command lifecycle), so a
-	// missing required flag leaves the command layer as a typed error
-	// rather than Cobra's untyped "required flag(s) ... not set" string.
-	if missing := missingRequiredFlags(cmd); len(missing) > 0 {
-		return requiredFlagError(missing)
-	}
-	return nil
-}
-
-// validateNumericFlags rejects negative values on the tree-wide numeric
-// flags. A negative deadline or page size is always operator error, and
-// silently degrading it into the default is the false-confidence failure
-// mode (compare `--timeout banana`, which already fails at parse). Zero is
-// not rejected: it stays each flag's documented disabled/default sentinel.
-func validateNumericFlags(cmd *cobra.Command) error {
-	pf := cmd.Root().PersistentFlags()
-	for _, name := range []string{"timeout", "max-retry-wait"} {
-		if d, err := pf.GetDuration(name); err == nil && d < 0 {
-			return fmt.Errorf("validation: --%s must not be negative (got %s); 0 disables it", name, d)
+		format := cli.ResolveOutputMode(mode, deps.Detect)
+		// Startup warnings describe the state the command is about
+		// to run IN, so a person sees them before it runs — not
+		// after, and not behind an interactive form that opens
+		// first. Machine modes leave them for the envelope, where
+		// warnings[] is the contract — with one gap: compact on
+		// SUCCESS is bare data, which has nowhere to put a
+		// warning, so it drops them. That is design C1, and it
+		// means a startup warning reaches an agent only when the
+		// command also fails or the caller asked for json.
+		if format == output.FormatHuman {
+			command.EmitWarnings()
 		}
-	}
-	if cmd.Flags().Lookup("limit") != nil {
-		if limit, err := cmd.Flags().GetInt("limit"); err == nil && limit < 0 {
-			return fmt.Errorf("validation: --limit must not be negative (got %d); 0 uses the default page size", limit)
+		ctx := cli.WithFormat(cmd.Context(), format)
+		if filter != nil {
+			ctx = cli.WithFilter(ctx, filter)
 		}
+		cmd.SetContext(ctx)
+		// The exit boundary renders failures AFTER cobra unwinds, when
+		// the command context is out of reach — hand it what it needs
+		// now.
+		sink.format = format
+		sink.op = opName(cmd)
+		sink.resolved = true
+		return nil
 	}
-	return nil
+	// Every pflag parse failure leaves the dispatch layer typed — code,
+	// offending flag, candidates — instead of cobra's untyped string.
+	// Set on the root; cobra resolves the hook upward from any child.
+	cmd.SetFlagErrorFunc(newFlagError)
+	command.AddOutputFlags(cmd)
+	command.AddGlobalFlags(cmd)
+	cmd.AddCommand(version.New())
+	cmd.AddCommand(releasenotes.New())
+	return cmd
 }
 
-// rootRun prints help for a human TTY or emits JSON discovery for a pipe/agent.
-// The former interactive entry point reports the deferred dashboard runtime.
-func rootRun(cmd *cobra.Command, rt *runtime.Runtime) error {
-	det := cmdutil.DetectorFromContext(cmd)
-	interactive := cmdutil.BoolValue(cmd.Root().PersistentFlags(), "interactive")
-	if interactive {
-		return tui.Run(cmd)
-	}
-	// Bare `jira` behavior:
-	//   - TTY (human): print help so users get an immediate command list
-	//     instead of a wall of JSON.
-	//   - non-TTY / agent: emit JSON discovery so pipes and AI agents
-	//     keep working (locked contract).
-	// Agents wanting structured discovery in TTY can opt in via
-	// `jira agent schema [--compact]`.
-	if det.IsTTY && det.Mode == cli.ModePlain {
-		return cmd.Help()
-	}
-	return writeDiscoverySchema(cmd)
-}
-
-// detectOutput resolves the output detection for the runtime's stdout
-// writer. When stdout is an *os.File (the production path) detection
-// inspects that descriptor; otherwise (a buffer in tests or an embedding
-// caller) it falls back to the process stdout so env-driven agent
-// detection still applies.
-func detectOutput(rt *runtime.Runtime) cli.Detection {
-	if f, ok := rt.Stdout().(*os.File); ok {
-		return cli.Detect(f)
-	}
-	return cli.Detect(os.Stdout)
-}
-
-// runtimeStdinIsTTY reports whether the runtime stdin reader is an
-// interactive terminal. A non-*os.File reader (test buffer, pipe) is never a
-// TTY, so a piped or redirected stdin reads as non-interactive.
-func runtimeStdinIsTTY(rt *runtime.Runtime) bool {
-	f, ok := rt.Stdin().(*os.File)
-	return ok && terminal.Is(f)
-}
-
-// New builds a fully assembled root command for the given runtime — the
-// importable entry point used by both cmd/jira (to run) and cmd/gen-docs
-// (to generate reference docs). The bare root plus every command family
-// and the shell completion command. Each call yields an independent
-// command tree with its own flag set and IO wiring — no process-global
-// command state.
-func New(rt *runtime.Runtime) *cobra.Command {
-	root := newRootCommand(rt)
-	completionCmd := clib.CompletionCommand(root, func() *complete.Generator {
-		return completionGenerator(root)
-	})
-	trackCompletionCommandOutput(root, completionCmd)
-	root.AddCommand(completionCmd)
-	registerCommands(root)
-	// The agent surface mounts last on purpose: its schema is a walk of
-	// the live tree, so every command must already be registered.
-	mountAgentSurface(root)
-	// Wrap every command's positional-argument validator so a count
-	// failure surfaces as a typed *cli.CLIInputError. Done after the tree
-	// is fully assembled so it reaches every command.
-	retypeArgValidators(root)
-	return root
-}
-
-// trackCompletionCommandOutput preserves Clib's completion command while
-// routing its script write through the same destination-error boundary as
-// command renderers. Clib's RunE closes over root.OutOrStdout, so the parent
-// writer is replaced only for the duration of each shell subcommand.
-func trackCompletionCommandOutput(root, completionCmd *cobra.Command) {
-	for _, shellCmd := range completionCmd.Commands() {
-		runE := shellCmd.RunE
-		shellCmd.RunE = func(cmd *cobra.Command, args []string) error {
-			original := root.OutOrStdout()
-			return cli.TrackWrites(original, func(out io.Writer) error {
-				root.SetOut(out)
-				defer root.SetOut(original)
-				return runE(cmd, args)
-			})
-		}
-	}
-}
-
-// completionGenerator builds the clib completion generator for a root
-// command. Shared by the `completion` subcommand and the preflight path.
-func completionGenerator(root *cobra.Command) *complete.Generator {
-	gen := complete.NewGenerator("jira", complete.WithOrder(complete.OrderKeep)).FromFlags(rootCompletionFlagMeta(root))
-	gen.Subs = completionSubcommands(root)
-	return gen
-}
-
-// completionSubcommands keeps the agent surface out of human help while still
-// making its flags usable from an interactive shell. clib excludes hidden
-// commands before building its completion tree, so temporarily exposing the
-// direct child is the only point where the two visibility policies diverge.
-func completionSubcommands(root *cobra.Command) []complete.SubSpec {
-	for _, child := range root.Commands() {
-		if child.Name() != "agent" || !child.Hidden {
-			continue
-		}
-
-		child.Hidden = false
-		defer func() {
-			child.Hidden = true
-		}()
-
-		break
-	}
-
-	return clib.Subcommands(root)
-}
-
-func rootCompletionFlagMeta(root *cobra.Command) []complete.FlagMeta {
-	meta := clib.FlagMeta(root)
-	for i := range meta {
-		switch meta[i].Name {
-		case "config", "profile":
-			meta[i].Forward = true
-		}
-	}
-	return meta
-}
-
-// configureRootFlags declares the global persistent flags on root. Each
-// call installs a fresh, independent flag set.
-func configureRootFlags(root *cobra.Command) {
-	pf := root.PersistentFlags()
-	cmdutil.AddStringP(pf, "profile", "P", "", "Jira profile name", clib.FlagExtra{
-		Group:       "Configuration",
-		Placeholder: "NAME",
-		Complete:    "predictor=profile",
-		Terse:       "profile name",
-	})
-	cmdutil.AddStringP(pf, "config", "c", "", "Config file path", clib.FlagExtra{
-		Group:       "Configuration",
-		Placeholder: "PATH",
-		Hint:        "file",
-		Terse:       "config file path",
-	})
-	cmdutil.AddStringP(pf, "output", "o", "auto",
-		"Output mode; `compact` is the JSON data without the envelope (drops ok/meta/warnings/errors)",
-		clib.FlagExtra{
-			Group:       "Output",
-			Placeholder: "MODE",
-			Enum:        cli.OutputModeValues,
-			EnumTerse:   []string{"detect terminal", "rich text", "JSON envelope", "JSON data only"},
-			EnumDefault: "auto",
-			Terse:       "output mode",
-		})
-	cmdutil.AddString(pf, "jq", "",
-		"Filter the JSON output with a jq expression; string results print raw, other values print as JSON per line",
-		clib.FlagExtra{
-			Group:       "Output",
-			Placeholder: "EXPR",
-			Terse:       "jq filter",
-		})
-	cmdutil.AddBoolP(pf, "interactive", "i", false, "Report the deferred dashboard runtime",
-		clib.FlagExtra{Group: "Dashboard", Terse: "dashboard deferred"})
-	cmdutil.AddBoolP(pf, "debug", "d", false, "Enable debug output",
-		clib.FlagExtra{Group: "Output", Terse: "debug output"})
-	cmdutil.AddBool(pf, "no-input", false,
-		"Disable interactive prompts (implied off a TTY or in an agent; pass `--no-input=false` to force prompts)",
-		clib.FlagExtra{Group: "Runtime", Terse: "disable prompts"})
-	cmdutil.AddDuration(pf, "timeout", 0, "Whole-invocation deadline (e.g. 30s, 2m); 0 disables it",
-		clib.FlagExtra{Group: "Configuration", Placeholder: "DURATION", Terse: "invocation deadline"})
-	cmdutil.AddDuration(pf, "max-retry-wait", cmdutil.DefaultMaxRetryWait,
-		"Longest a request will sleep out Jira rate limits (429/503) before giving up; 0 disables auto-retry. Always capped by --timeout",
-		clib.FlagExtra{Group: "Runtime", Placeholder: "DURATION", Terse: "rate-limit retry budget"})
-	cmdutil.AddString(pf, "color", "auto", "Color mode; `auto` emits color only to a terminal and honors NO_COLOR, `always` overrides both", clib.FlagExtra{
-		Group:       "Output",
-		Placeholder: "MODE",
-		Enum:        []string{"auto", "always", "never"},
-		EnumTerse:   []string{"detect terminal", "force color", "no color"},
-		EnumDefault: "auto",
-		Terse:       "color mode",
-	})
-	// ADF strict/best-effort selection — mutually exclusive;
-	// internal/cli/adfmode reads them ahead of env/profile/default.
-	cmdutil.AddBool(pf, "adf-strict", false, "Treat lossy ADF conversions as errors",
-		clib.FlagExtra{Group: "ADF", Terse: "reject lossy ADF"})
-	cmdutil.AddBool(pf, "adf-best-effort", false, "Allow lossy ADF conversions with structured warnings",
-		clib.FlagExtra{Group: "ADF", Terse: "allow lossy ADF"})
-
-	root.MarkFlagsMutuallyExclusive("adf-strict", "adf-best-effort")
-}
-
-// configureRootGroups declares the help command groups on root.
-func configureRootGroups(root *cobra.Command) {
-	root.AddGroup(
-		&cobra.Group{ID: "dashboard", Title: "Dashboard"},
-		&cobra.Group{ID: "resources", Title: "Jira Resources"},
-		&cobra.Group{ID: "configuration", Title: "Configuration"},
-		&cobra.Group{ID: "agent", Title: "Agent Discovery"},
-	)
-}
-
-// configureRootHelp installs the themed clib help renderer on root.
-func configureRootHelp(root *cobra.Command) {
-	root.SetHelpFunc(clib.HelpFunc(cmdutil.NewHelpRenderer(), cmdutil.StandardHelpSections))
-}
-
-// Execute builds the runtime and root command for a process invocation,
-// services any shell-completion preflight, applies the optional
-// whole-invocation timeout, and runs the command tree against ctx.
+// resolveFilter compiles --jq and settles how it interacts with the
+// output selector, returning the filter (nil when the flag is absent)
+// and the mode the invocation should run in.
 //
-// ctx is the root context main owns (signal-aware via signal.NotifyContext).
-// Execute never calls os.Exit: a completion preflight that was fully
-// handled is reported back to main as ErrCompletionHandled.
-func Execute(ctx context.Context) (resultErr error) {
-	rt, err := runtime.New()
-	if err != nil {
-		return err
-	}
-	// New builds a static command tree; it deliberately takes no context.
-	// The per-command PersistentPreRunE derives its context from
-	// cmd.Context() at run time — cobra seeds that from the ctx passed to
-	// ExecuteContextC below. contextcheck cannot see that deferred handoff
-	// and flags the construction call as a missing context thread.
-	root := New(rt) //nolint:contextcheck // context flows via ExecuteContextC, not construction
-	finishOutputTracking := trackRootCommandOutput(root)
-	defer func() {
-		resultErr = finishOutputTracking(resultErr)
-	}()
-
-	if handled, err := handleCompletionPreflight(root); err != nil {
-		return preserveCommandError(err, writeCommandError(ctx, root, err))
-	} else if handled {
-		return ErrCompletionHandled
-	}
-
-	args, err := alias.ExpandAliasArgs(root, os.Args[1:])
-	if err != nil {
-		return preserveCommandError(err, writeCommandError(ctx, root, err))
-	}
-	if args != nil {
-		root.SetArgs(args)
-	}
-	// Reject an unknown command before execution so it carries the stable
-	// command_unknown code. Cobra's own unknown-command error is an untyped
-	// string; here it becomes a typed *cli.CLIInputError with "did you
-	// mean" candidates from Cobra's suggestion logic.
-	effectiveArgs := args
-	if effectiveArgs == nil {
-		effectiveArgs = os.Args[1:]
-	}
-	if cmd, cargs, ferr := root.Find(effectiveArgs); ferr != nil {
-		cerr := unknownCommandError(root, firstPositional(root, effectiveArgs))
-		return preserveCommandError(cerr, writeCommandError(ctx, root, cerr))
-	} else if !cmd.Runnable() && cmd.HasSubCommands() {
-		// Cobra only errors for unknown commands at the root; on a group
-		// parent it accepts stray positionals and renders help, so a typo'd
-		// subcommand either exited 0 with usage or — with a flag trailing —
-		// died on the parent's flag parse as "unknown flag", masking the
-		// real mistake. A pure group reached with a leftover positional can
-		// only mean an unknown subcommand: say so, with the group's own
-		// suggestions.
-		if tok := firstPositional(cmd, cargs); tok != "" {
-			cerr := unknownCommandError(cmd, tok)
-			return preserveCommandError(cerr, writeCommandError(ctx, root, cerr))
-		}
-	}
-	// Passive update notify wraps command dispatch: Check schedules a
-	// background cache refresh (never blocking, never on the calling
-	// path) and the deferred flush prints the throttled one-line hint on
-	// a TTY stderr after the command's own output.
-	flush := startUpdateNotify(root, effectiveArgs)
-	defer flush()
-	// Optional whole-invocation deadline. Derive it here, where Execute
-	// already owns the root context, with a local defer cancel(): no
-	// cancel func is parked in a package var, and the context is never
-	// stored on a runtime struct. The deadline spans command execution
-	// (alias expansion above is flag/file work with no network I/O; the
-	// timeout's purpose is bounding the request).
-	if timeout := timeoutFromArgs(args); timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, timeout)
-		defer cancel()
-	}
-	// ExecuteContext seeds cmd.Context() with the (optionally
-	// deadline-bounded) root context so every RunE that calls
-	// cmd.Context() inherits cancellation.
-	cmd, err := root.ExecuteContextC(ctx)
-	if err != nil {
-		if cmd != nil {
-			renderErr := writeCommandError(cmd.Context(), cmd, err) //nolint:contextcheck // use command context seeded by PersistentPreRunE
-			return preserveCommandError(err, renderErr)
-		}
-		return preserveCommandError(err, writeCommandError(ctx, root, err))
-	}
-	return nil
-}
-
-// trackRootCommandOutput closes the two Cobra output seams whose callback
-// contracts cannot return errors: Clog's void event finalisers on stderr and
-// Cobra's void help function on stdout. The returned finaliser folds either
-// destination failure into the command result while preserving an existing
-// command error as primary.
-func trackRootCommandOutput(root *cobra.Command) func(error) error {
-	stderr := cli.NewWriteTracker(root.ErrOrStderr())
-	trackedStderr := &commandStderrWriter{Writer: stderr.Writer()}
-	if _, ok := stderr.Writer().(interface{ Fd() uintptr }); ok {
-		root.SetErr(fdCommandStderrWriter{commandStderrWriter: trackedStderr})
-	} else {
-		root.SetErr(trackedStderr)
-	}
-
-	helpFunc := root.HelpFunc()
-	var helpErr error
-	root.SetHelpFunc(func(cmd *cobra.Command, args []string) {
-		renderErr := cli.TrackWrites(cmd.OutOrStdout(), func(out io.Writer) error {
-			trackedCmd := *cmd
-			trackedCmd.SetOut(out)
-			helpFunc(&trackedCmd, args)
-			return nil
-		})
-		helpErr = errors.Join(helpErr, renderErr)
-	})
-
-	return func(commandErr error) error {
-		stderrErr := stderr.Err()
-		if _, ok := errors.AsType[*commandStderrWriteError](commandErr); ok {
-			// A failed command diagnostic is already attached by
-			// writeCommandError through its render-local tracker. Do not add
-			// the same persistent stderr failure a second time.
-			stderrErr = nil
-		}
-		return preserveCommandError(commandErr, errors.Join(helpErr, stderrErr))
-	}
-}
-
-type commandStderrWriter struct {
-	io.Writer
-}
-
-func (w *commandStderrWriter) Write(p []byte) (int, error) {
-	n, err := w.Writer.Write(p)
-	if err != nil {
-		return n, &commandStderrWriteError{Err: err}
-	}
-	return n, nil
-}
-
-type fdCommandStderrWriter struct {
-	*commandStderrWriter
-}
-
-func (w fdCommandStderrWriter) Fd() uintptr {
-	return w.Writer.(interface{ Fd() uintptr }).Fd()
-}
-
-type commandStderrWriteError struct {
-	Err error
-}
-
-func (e *commandStderrWriteError) Error() string {
-	return e.Err.Error()
-}
-
-func (e *commandStderrWriteError) Unwrap() error {
-	return e.Err
-}
-
-// startUpdateNotify wires clive's passive "you're behind" check around one
-// invocation and returns the flush that prints the hint. The verdict is
-// served from a cache file (no network on the calling path); notify itself
-// suppresses printing on a non-TTY stderr, throttles hints and refreshes to
-// once per 24h, and honors the JIRA_NO_UPDATE_CHECK kill switch.
+// Explicit `--output=human` with --jq is a loud conflict rather than a
+// silent override: the caller stated a mode, and quietly answering in a
+// different one is exactly the kind of surprise the output contract
+// exists to prevent. An unset selector (auto) is not a statement, so it
+// resolves to json — the only shape a filter can be written against.
+// That deliberately overrides agent DETECTION too: a jq expression is
+// authored against a document shape, and that shape must not flip based
+// on whether an env var happens to be set.
 //
-// Two callers are excluded here rather than in notify: detected agent
-// context is disabled entirely — regardless of TTY — so agent runs schedule
-// no background work and machine envelopes stay byte-clean; and the
-// completion and update commands, because completion code paths must stay
-// silent and `jira update` already reports update state as its result.
-func startUpdateNotify(root *cobra.Command, args []string) func() {
-	if args == nil {
-		args = os.Args[1:]
-	}
-	switch firstPositional(root, args) {
-	case "completion", "update", "up", "__complete":
-		return func() {}
-	}
-	if cli.Detect(os.Stdout).Agent {
-		return func() {}
-	}
-	return notify.Check(selfupdate.NotifyTool())
-}
-
-// handleCompletionPreflight services a clib `--@complete` preflight
-// request against root. It returns handled=true when the request was a
-// completion request that was fully serviced; the caller must then
-// terminate without running a command. Returning the handled signal
-// instead of calling os.Exit keeps process termination with main.
-func handleCompletionPreflight(root *cobra.Command) (bool, error) {
-	flags, positional, ok := clib.Preflight()
-	if !ok {
-		return false, nil
-	}
-	gen := completionGenerator(root)
-	globals := startup.GlobalsFromArgs(os.Args[1:])
-	if forwarded := startup.GlobalsFromArgs(positional); xstrings.AnyNonEmpty(forwarded.ConfigPath, forwarded.Profile) {
-		if forwarded.ConfigPath != "" {
-			globals.ConfigPath = forwarded.ConfigPath
-		}
-		if forwarded.Profile != "" {
-			globals.Profile = forwarded.Profile
-		}
-	}
-	handler := completion.NewHandler(root.OutOrStdout(), globals)
-	handled, err := flags.Handle(gen, handler.Complete, complete.WithArgs(positional))
+// Compilation happens here, before any network work, so a malformed
+// expression fails the command instead of surfacing after a mutation
+// has already run.
+func resolveFilter(fs *pflag.FlagSet, mode cli.OutputMode) (*output.Filter, cli.OutputMode, error) {
+	vars, err := parseFilterVars(fs)
 	if err != nil {
-		return false, classifyCompletionPreflightError(flags, gen, err)
+		return nil, mode, err
 	}
-	if err := handler.Err(); err != nil {
-		return handled, err
-	}
-	return handled, nil
-}
-
-// classifyCompletionPreflightError distinguishes Clib's script-generation
-// errors from a failed process-stdout write. The approved upstream
-// --print-completion path continues writing to os.Stdout inside Clib; a
-// successful discard render proves a later error from that path is the
-// destination and gives it the stable local-output taxonomy.
-func classifyCompletionPreflightError(
-	flags complete.CompletionFlags,
-	gen *complete.Generator,
-	err error,
-) error {
-	if err == nil || !flags.PrintCompletion {
-		return err
-	}
-	if flags.Complete != "" || flags.InstallCompletion || flags.UninstallCompletion {
-		return err
-	}
-	sh := flags.Shell
-	if sh == "" {
-		sh = shell.Detect()
-	}
-	if generationErr := gen.Print(io.Discard, sh); generationErr != nil {
-		return err
-	}
-	return cli.NewOutputError(err)
-}
-
-// timeoutFromArgs extracts the --timeout duration from the resolved
-// argv. It parses a throwaway flag set that tolerates every other
-// (unknown) flag, so the value is available before cobra runs. args nil
-// means "use os.Args[1:]" — the same fallback cobra applies when SetArgs
-// was not called.
-func timeoutFromArgs(args []string) time.Duration {
-	if args == nil {
-		args = os.Args[1:]
-	}
-	fs := pflag.NewFlagSet("timeout-probe", pflag.ContinueOnError)
-	fs.ParseErrorsAllowlist.UnknownFlags = true
-	fs.Usage = func() {}
-	fs.SetOutput(io.Discard)
-	timeout := fs.Duration("timeout", 0, "")
-	if err := fs.Parse(args); err != nil {
-		return 0
-	}
-	return *timeout
-}
-
-func writeCommandError(ctx context.Context, cmd *cobra.Command, err error) error {
-	if err == nil {
-		return nil
-	}
-	if _, ok := errors.AsType[cmdutil.DiagnosticWrittenError](err); ok {
-		return nil
-	}
-	if _, ok := errors.AsType[*cli.OutputError](err); ok {
-		// The command already failed while writing its result. Re-rendering
-		// that failure would write to the same failed destination again.
-		return nil
-	}
-	if jsonEnvelopeRequested(cmd) {
-		// Machine mode (json/compact): a failure is a parseable JSON envelope on
-		// stdout — the same stream as success, with ok:false and the exit code
-		// signaling the failure. stdout therefore stays pure JSON and no human
-		// diagnostic line is written, so `cmd --output=json | jq` works on the
-		// error path too. Some RunEs (e.g. multi-key view partial failure, or
-		// watcher add ambiguous-resolution) already wrote their own richer,
-		// data-bearing envelope to stdout and signal that with an
-		// EnvelopeWritten wrapper; don't write a second one over it.
-		if _, ok := errors.AsType[cmdutil.EnvelopeWrittenError](err); !ok {
-			return writeErrorEnvelopeToStdout(cmd, err) //nolint:contextcheck // the jq filter runs under the command context captured at resolve time
+	if !fs.Changed(cli.FlagJQ) {
+		// Bindings with no expression to bind into are a real flag used
+		// where it can take no effect — the same class as a completion
+		// action given --output, and the same code.
+		if len(vars) > 0 {
+			// Field names the flag the caller actually passed; saying
+			// "jq-arg" when only --jq-argjson was given points an agent at
+			// a flag absent from its command line.
+			offender := cli.FlagJQArg
+			if !fs.Changed(cli.FlagJQArg) {
+				offender = cli.FlagJQArgJSON
+			}
+			e := cli.NewInputError(cli.CodeFlagNotApplicable,
+				"--"+cli.FlagJQArg+"/--"+cli.FlagJQArgJSON+" bind values for --jq, but no --jq expression was given")
+			e.Field = offender
+			return nil, mode, e
 		}
-		return nil
+		return nil, mode, nil
 	}
-	// Human mode: a single clog diagnostic on stderr, no JSON. A RunE that
-	// already rendered its own failure (EnvelopeWritten) still gets this concise
-	// summary line, matching prior behavior.
-	logger := clog.Ctx(ctx)
-	if logger == clog.Default() {
-		logger = clog.New(clog.NewOutput(cmd.ErrOrStderr(), cli.ResolvedColorMode()))
-	}
-	return cli.TrackWrites(cmd.ErrOrStderr(), func(out io.Writer) error {
-		renderLogger := logger.With().Logger()
-		renderLogger.SetOutput(clog.NewOutput(out, cli.ResolvedColorMode()))
-		cliErr := outputErrorFor(err)
-		// Human render boundary: the message (which may embed Jira's upstream
-		// text), the hint, and the suggestions are written through the terminal
-		// sanitizer so server-controlled bytes can never smuggle ANSI/control
-		// sequences onto the user's terminal. Machine modes are protected by
-		// the JSON encoder; this is the human-mode counterpart.
-		event := renderLogger.Error().Err(errors.New(cli.SanitizeTerminalText(err.Error())))
-		if clog.IsVerbose() {
-			// Under --debug the ERR line also carries the classification an
-			// agent would read from the envelope. OmitZero keeps the line
-			// lean: retryable renders only when true. The HTTP status is
-			// deliberately absent — the message and the --debug traffic trace
-			// both already carry it.
-			event = event.OmitZero(true).Str("code", cliErr.Code).Str("type", cliErr.Type).Bool("retryable", cliErr.Retryable)
-		}
-		event.Send()
-		// Surface the taxonomy's next-action hint to humans too. In machine mode
-		// the hint rides in the JSON envelope; here it renders as clog's dedicated
-		// Hint (💡) line so a human sees the same remediation an agent gets.
-		if cliErr.Hint != "" {
-			renderLogger.Hint().Msg(cli.SanitizeTerminalText(cliErr.Hint))
-		}
-		// A rate-limited call knows exactly how long to wait: render the
-		// per-instance figure on its own line under the static hint (only a
-		// 429 carries Retry-After, so a positive value scopes the line).
-		if cliErr.RetryAfterSeconds > 0 {
-			renderLogger.Hint().Msgf("retry in %ds", cliErr.RetryAfterSeconds)
-		}
-		if len(cliErr.Suggestions) > 0 {
-			renderLogger.Hint().Msgf("Did you mean %s?", cli.SanitizeTerminalText(strings.Join(cliErr.Suggestions, " or ")))
-		}
-		return nil
-	})
-}
-
-func preserveCommandError(commandErr, outputErr error) error {
-	return cli.PreservePrimaryError(commandErr, outputErr)
-}
-
-// jsonEnvelopeRequested returns true when the resolved output mode is a
-// machine mode (json or compact), so a command failure still emits a
-// parseable error envelope on stdout.
-//
-// It inspects the --output flag and the env-detector directly so it works
-// even before PersistentPreRunE has run (e.g. when cobra fires a flag
-// validation error). Detect() reads env vars and the stdout fd directly —
-// no cmd.Context() setup is required.
-func jsonEnvelopeRequested(cmd *cobra.Command) bool {
-	pf := cmd.Root().PersistentFlags()
-	outputRaw := cmdutil.StringValue(pf, "output")
-	mode, err := cli.ParseOutputMode(outputRaw)
+	src, err := fs.GetString(cli.FlagJQ)
 	if err != nil {
-		// An invalid --output value is itself a failure; emit the error
-		// envelope so the machine consumer sees a parseable result.
-		return true
+		return nil, mode, err
 	}
-	det := cli.Detect(os.Stdout)
-	resolved := cli.ResolveOutputMode(mode, det)
-	return resolved == cli.ModeJSON || resolved == cli.ModeCompact
+	if mode == cli.OutputHuman {
+		return nil, mode, cli.NewInputError(cli.CodeJQOutputConflict,
+			"--jq filters machine output, but --output=human was requested")
+	}
+	filter, err := output.CompileFilter(src, vars...)
+	if err != nil {
+		e := cli.NewInputError(cli.CodeJQExpressionInvalid, err.Error())
+		e.Field = cli.FlagJQ
+		return nil, mode, e
+	}
+	if mode == cli.OutputAuto {
+		mode = cli.OutputJSON
+	}
+	return filter, mode, nil
 }
 
-// writeErrorEnvelopeToStdout emits a lean failure envelope carrying the
-// error in the errors[] array to cmd's stdout. Used only on the
-// json/compact/agent-detected path so machine consumers always have
-// parseable output on the same stream as success even when the command fails
-// before or after RunE.
+// parseFilterVars reads the --jq-arg / --jq-argjson pairs into bindings
+// the expression reaches as $name.
 //
-// This helper deliberately bypasses the compact branching used by the
-// success path: errors must stay a parseable JSON envelope regardless of
-// the output mode, so a failed command is never invisible to an agent.
-func writeErrorEnvelopeToStdout(cmd *cobra.Command, err error) error {
-	// Use cobra's CommandPath() so nested sub-commands get the full dotted name
-	// (e.g. "issue.create") instead of the hand-walked single-level fallback.
-	command := strings.TrimPrefix(cmd.CommandPath(), "jira ")
-	command = strings.ReplaceAll(command, " ", ".")
-	if command == "" || command == "jira" {
-		command = "error"
+// jq spells these `--arg name value`, two tokens; pflag has no way to
+// consume two, so the spelling here is `name=value` split on the FIRST
+// "=" — a value may contain more, and a name may not.
+//
+// Both flags share one namespace, and a duplicate name is rejected
+// rather than last-wins: silently dropping one of two bindings a caller
+// deliberately wrote is the kind of quiet wrong answer this contract
+// exists to avoid.
+func parseFilterVars(fs *pflag.FlagSet) ([]output.FilterVar, error) {
+	var vars []output.FilterVar
+	seen := map[string]bool{}
+
+	read := func(flag string, decode func(string) (any, error)) error {
+		pairs, err := fs.GetStringArray(flag)
+		if err != nil {
+			return err
+		}
+		for _, pair := range pairs {
+			name, raw, ok := strings.Cut(pair, "=")
+			if !ok || !validJQVarName(name) {
+				e := cli.NewInputError(cli.CodeFlagValueInvalid,
+					"--"+flag+" takes `name=value` where name is a jq variable "+
+						"([A-Za-z_][A-Za-z0-9_]*), but got "+strconv.Quote(pair))
+				e.Field = flag
+				return e
+			}
+			if seen[name] {
+				e := cli.NewInputError(cli.CodeFlagValueInvalid,
+					"jq variable $"+name+" was bound more than once")
+				e.Field = flag
+				return e
+			}
+			value, err := decode(raw)
+			if err != nil {
+				e := cli.NewInputError(cli.CodeFlagValueInvalid,
+					"--"+flag+" value for $"+name+" is not valid JSON: "+err.Error())
+				e.Field = flag
+				return e
+			}
+			seen[name] = true
+			vars = append(vars, output.FilterVar{Name: name, Value: value})
+		}
+		return nil
 	}
-	env := cli.ErrorEnvelope(command, err)
-	return cli.WriteEnvelope(cmd.OutOrStdout(), env)
+
+	if err := read(cli.FlagJQArg, func(s string) (any, error) { return s, nil }); err != nil {
+		return nil, err
+	}
+	// Decoded through the output layer's number-preserving path, not
+	// plain json.Unmarshal: the latter widens every number to float64, so
+	// a large Jira identifier bound as a variable would arrive silently
+	// altered.
+	if err := read(cli.FlagJQArgJSON, func(s string) (any, error) {
+		return output.DecodeJSONNumbers([]byte(s))
+	}); err != nil {
+		return nil, err
+	}
+	return vars, nil
 }
 
-// ExitCode maps err to its process exit code. It delegates to the
-// central cli.ExitCode mapper so every error type (credential, Jira API,
-// rate-limit, validation, command-local) carries the correct stable code.
-func ExitCode(err error) int {
-	return cli.ExitCode(outputErrorFor(err))
-}
-
-// outputErrorFor maps any command error onto the structured cli.Error
-// shape. It delegates entirely to the central cli.MapError mapper, which
-// uses errors.As for every typed error — credential, Jira API,
-// rate-limit, and the command-local board-validation wrapper (via the
-// errtax.Coded interface). There is no command-local
-// special case: every error envelope is built one way.
-func outputErrorFor(err error) cli.Error {
-	return cli.MapError(err)
+// validJQVarName reports whether name is a jq variable identifier.
+//
+// gojq's compiler accepts only [A-Za-z_][A-Za-z0-9_]*, and rejecting a
+// bad one HERE is what keeps the blame straight: passed through, the
+// compile failure surfaces as jq_expression_invalid against the --jq
+// expression, telling the caller to fix an expression that was fine
+// while the actual mistake sat in --jq-arg.
+func validJQVarName(name string) bool {
+	if name == "" {
+		return false
+	}
+	for i, r := range name {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r == '_':
+		case i > 0 && r >= '0' && r <= '9':
+		default:
+			return false
+		}
+	}
+	return true
 }

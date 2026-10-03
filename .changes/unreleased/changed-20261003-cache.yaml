@@ -1,0 +1,3 @@
+kind: changed
+body: "Scope metadata caches by public site/account rather than legacy profile namespaces. Preserve native snapshots and prior entries after failed refreshes, and retain selective-clear/partial-publication receipts. Help, schemas and completion stay credential-free; bare previews inspect local freshness without remote warming."
+time: 2026-10-03T13:54:13.768506699-04:00

@@ -96,7 +96,7 @@ self-contained. Working on jira itself? See
         ```
 
     ??? warning "What `curl | sh` actually runs"
-        The installer's source lives at [`docs/install.sh`](https://github.com/matcra587/jira-cli/blob/main/docs/install.sh), about 130 lines of POSIX sh. Inspect it before piping into `sh` if you don't already trust the source:
+        The installer's source lives at [`docs/install.sh`](https://github.com/matcra587/jira-cli/blob/main/docs/install.sh), about 170 lines of POSIX sh. Inspect it before piping into `sh` if you don't already trust the source:
 
         ```sh
         curl -fsSL https://matcra587.github.io/jira-cli/install.sh | less
@@ -114,10 +114,10 @@ self-contained. Working on jira itself? See
     `$(go env GOPATH)/bin`).
 
     ??? warning "Version metadata"
-        This path embeds limited version metadata: `jira version` reports `dev`
-        or git-derived values because the version package relies on compile-time
-        `-X` ldflag overrides that `go install` does not supply. For accurate
-        `jira version` output, use Homebrew, mise, or the pre-built binaries.
+        Release builds inject the version through a compile-time `-X` ldflag
+        that `go install` does not supply, so this path falls back to what Go
+        records in the binary's build info. For the exact release string, use
+        Homebrew, mise, or the pre-built binaries.
 
 === "Pre-built binaries"
 
@@ -217,11 +217,14 @@ self-contained. Working on jira itself? See
 ## Verify the install
 
 ```sh
-jira version
+jira version                 # the bare version string
+jira version --output=json   # the same, plus build provenance
 ```
 
-Prints the installed version, commit, branch, build time, and `built by` (one of
-`goreleaser`, `homebrew`, or the local user for a dev build).
+The human form is one line: the version. The machine modes carry the rest —
+`commit`, `dirty`, and `build_date` where the binary was built with VCS
+metadata, plus the Go toolchain and target platform. See
+[Output & exit codes](output.md#per-command-output) for the exact shape.
 
 If `jira: command not found`, the binary isn't on `PATH`. Homebrew and mise
 handle this for you; the one-line installer prints a PATH-fix hint; for
@@ -230,20 +233,8 @@ handle this for you; the one-line installer prints a PATH-fix hint; for
 
 ## Update jira
 
-The binary updates itself — reach for `jira update` first, or pass `--dry-run`
-to report the installed and latest versions without changing anything:
-
-```sh
-jira update
-jira update --dry-run
-```
-
-It detects how the binary was installed: Homebrew and release-archive installs
-are updated directly (checksum-verified, rollback-safe), while Scoop, mise, and
-`go install` binaries are owned by their installer — `jira update` prints the
-exact command to run instead of touching them.
-
-Prefer to drive the installer yourself? The per-channel commands:
+There is no self-update command. Update through whichever channel installed
+the binary:
 
 === "Homebrew"
 
@@ -291,8 +282,8 @@ Prefer to drive the installer yourself? The per-channel commands:
 
 ## Uninstall jira
 
-Removing the binary doesn't drop stored credentials or your local config. Clean
-those up explicitly if you're walking away from jira entirely.
+The binary is all there is to remove: on this branch `jira` stores no
+credentials and writes no config or cache.
 
 === "Homebrew"
 
@@ -338,21 +329,12 @@ those up explicitly if you're walking away from jira entirely.
     1.  Installed somewhere other than `/usr/local/bin`? Remove it from there
         instead, e.g. `rm -f "$HOME/.local/bin/jira"`.
 
-??? warning "Credentials and config are not removed"
-    The binary uninstall leaves your stored API tokens in the OS keyring (or
-    1Password vault) and your config TOML on disk. To remove them:
-
-    ```sh
-    jira auth logout <profile>  # (1)!
-    rm -rf "${XDG_CONFIG_HOME:-$HOME/.config}/jira-cli"  # (2)!
-    rm -rf "${XDG_CACHE_HOME:-$HOME/.cache}/jira-cli"  # (3)!
-    ```
-
-    1.  Drop the stored credential for every profile, one at a time.
-    2.  Remove the config file.
-    3.  Remove the local cache.
-
-    On Windows the equivalent dirs are `%AppData%\jira-cli` (config and queries)
-    and `%LocalAppData%\cache\jira-cli` (cache). If you've already uninstalled
-    the binary, remove the keyring or 1Password item by hand through the OS
-    keychain app or `op item delete`.
+??? note "Left over from an earlier release?"
+    Releases before the rebuild stored credentials in the OS keyring or a
+    1Password vault, and wrote config under
+    `${XDG_CONFIG_HOME:-$HOME/.config}/jira-cli` (on Windows,
+    `%AppData%\jira-cli`) with a cache under
+    `${XDG_CACHE_HOME:-$HOME/.cache}/jira-cli` (`%LocalAppData%\cache\jira-cli`).
+    Uninstalling the binary leaves those behind — delete the directories, and
+    remove the keyring or 1Password item through the OS keychain app or
+    `op item delete`.

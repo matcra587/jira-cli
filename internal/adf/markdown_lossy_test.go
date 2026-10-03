@@ -10,33 +10,21 @@ package adf_test
 import (
 	"strings"
 	"testing"
-
-	"github.com/matcra587/jira-cli/internal/adf"
 )
 
 // A GFM table converts to a real ADF table node — no warning, no drop.
-func TestFromMarkdownLossy_TableConvertsWithoutWarning(t *testing.T) {
-	md := "| a | b |\n|---|---|\n| 1 | 2 |\n"
-	doc, warnings, err := adf.FromMarkdownLossy(md)
-	if err != nil {
-		t.Fatalf("FromMarkdownLossy: %v", err)
-	}
-	if len(warnings) != 0 {
-		t.Fatalf("table conversion should not warn; got %+v", warnings)
-	}
-	if len(doc.Content) != 1 || doc.Content[0].Type != "table" {
-		t.Fatalf("doc.Content = %+v, want a single table node", doc.Content)
+func TestFromMarkdownLossyTableConvertsWithoutWarning(t *testing.T) {
+	doc, warnings := mdConvert(t, "| a | b |\n|---|---|\n| 1 | 2 |\n")
+	mdAssertNoWarnings(t, warnings)
+	if kinds := mdKinds(doc); len(kinds) != 1 || kinds[0] != "table" {
+		t.Fatalf("top-level nodes = %v, want a single table", kinds)
 	}
 }
 
 // An image degrades to an alt-text link and reports the downgrade as a
 // non-lossy warning — the reference survives, so strict mode is not blocked.
-func TestFromMarkdownLossy_ImageWarnsWithoutBlockingStrict(t *testing.T) {
-	md := "![alt](https://example.com/p.png)\n"
-	_, warnings, err := adf.FromMarkdownLossy(md)
-	if err != nil {
-		t.Fatalf("FromMarkdownLossy: %v", err)
-	}
+func TestFromMarkdownLossyImageWarnsWithoutBlockingStrict(t *testing.T) {
+	_, warnings := mdConvert(t, "![alt](https://example.com/p.png)\n")
 	if len(warnings) != 1 {
 		t.Fatalf("warnings = %+v, want exactly the image downgrade notice", warnings)
 	}
@@ -46,15 +34,10 @@ func TestFromMarkdownLossy_ImageWarnsWithoutBlockingStrict(t *testing.T) {
 }
 
 // Plain supported Markdown converts with no warnings.
-func TestFromMarkdownLossy_PlainParagraphNoWarnings(t *testing.T) {
-	doc, warnings, err := adf.FromMarkdownLossy("hello **world**\n")
-	if err != nil {
-		t.Fatalf("FromMarkdownLossy: %v", err)
-	}
-	if len(warnings) != 0 {
-		t.Fatalf("plain Markdown must not warn; got %+v", warnings)
-	}
-	if len(doc.Content) == 0 {
+func TestFromMarkdownLossyPlainParagraphNoWarnings(t *testing.T) {
+	doc, warnings := mdConvert(t, "hello **world**\n")
+	mdAssertNoWarnings(t, warnings)
+	if len(doc.Content()) == 0 {
 		t.Fatal("expected non-empty document")
 	}
 }
@@ -62,68 +45,51 @@ func TestFromMarkdownLossy_PlainParagraphNoWarnings(t *testing.T) {
 // Reference link definitions are parser metadata once goldmark resolves
 // them onto the link node; dropping the definition line must not become
 // a lossy conversion warning.
-func TestFromMarkdownLossy_ReferenceLinkDefinitionDoesNotWarn(t *testing.T) {
-	md := "[example][ref]\n\n[ref]: https://example.com \"title\"\n"
-	doc, warnings, err := adf.FromMarkdownLossy(md)
-	if err != nil {
-		t.Fatalf("FromMarkdownLossy: %v", err)
+func TestFromMarkdownLossyReferenceLinkDefinitionDoesNotWarn(t *testing.T) {
+	doc, warnings := mdConvert(t, "[example][ref]\n\n[ref]: https://example.com \"title\"\n")
+	mdAssertNoWarnings(t, warnings)
+	if kinds := mdKinds(doc); len(kinds) != 1 {
+		t.Fatalf("top-level nodes = %v, want one paragraph", kinds)
 	}
-	if len(warnings) != 0 {
-		t.Fatalf("reference link definition must not warn; got %+v", warnings)
+	node := mdChild(t, mdBlock(t, doc, 0), 0)
+	if node.Text() != "example" {
+		t.Fatalf("text = %q, want %q", node.Text(), "example")
 	}
-	if len(doc.Content) != 1 || len(doc.Content[0].Content) != 1 {
-		t.Fatalf("expected one paragraph with one text node; got %+v", doc.Content)
+	marks := node.Marks()
+	if len(marks) != 1 || marks[0].Type() != "link" {
+		t.Fatalf("expected one link mark; got %+v", marks)
 	}
-	node := doc.Content[0].Content[0]
-	if node.Text != "example" {
-		t.Fatalf("text = %q, want %q", node.Text, "example")
-	}
-	if len(node.Marks) != 1 || node.Marks[0].Type != "link" {
-		t.Fatalf("expected one link mark; got %+v", node.Marks)
-	}
-	if got := node.Marks[0].Attrs["href"]; got != "https://example.com" {
-		t.Fatalf("href = %v, want %q", got, "https://example.com")
+	if got := mdHref(t, marks[0]); got != "https://example.com" {
+		t.Fatalf("href = %q, want %q", got, "https://example.com")
 	}
 }
 
 // Headings, lists, code fences, and emphasis are all supported — no
 // warnings for a document built only from those.
-func TestFromMarkdownLossy_SupportedConstructsNoWarnings(t *testing.T) {
+func TestFromMarkdownLossySupportedConstructsNoWarnings(t *testing.T) {
 	md := "# Title\n\n" +
 		"Some *emphasis* and **strong** and a [link](https://x).\n\n" +
 		"- one\n- two\n\n" +
 		"1. first\n2. second\n\n" +
 		"```go\nfunc main() {}\n```\n"
-	_, warnings, err := adf.FromMarkdownLossy(md)
-	if err != nil {
-		t.Fatalf("FromMarkdownLossy: %v", err)
-	}
-	if len(warnings) != 0 {
-		t.Fatalf("supported constructs must not warn; got %+v", warnings)
-	}
+	doc, warnings := mdConvert(t, md)
+	mdAssertNoWarnings(t, warnings)
+	mdValidate(t, doc)
 }
 
 // A blockquote converts to a real ADF blockquote node — no warning.
-func TestFromMarkdownLossy_BlockquoteConvertsWithoutWarning(t *testing.T) {
-	doc, warnings, err := adf.FromMarkdownLossy("> quoted line\n")
-	if err != nil {
-		t.Fatalf("FromMarkdownLossy: %v", err)
-	}
-	if len(warnings) != 0 {
-		t.Fatalf("blockquote conversion should not warn; got %+v", warnings)
-	}
-	if len(doc.Content) != 1 || doc.Content[0].Type != "blockquote" {
-		t.Fatalf("doc.Content = %+v, want a single blockquote node", doc.Content)
+func TestFromMarkdownLossyBlockquoteConvertsWithoutWarning(t *testing.T) {
+	doc, warnings := mdConvert(t, "> quoted line\n")
+	mdAssertNoWarnings(t, warnings)
+	if kinds := mdKinds(doc); len(kinds) != 1 || kinds[0] != "blockquote" {
+		t.Fatalf("top-level nodes = %v, want a single blockquote", kinds)
 	}
 }
 
 // The warning message must name the unsupported construct so callers
 // and agents can act on it.
-func TestFromMarkdownLossy_WarningNamesConstruct(t *testing.T) {
-	_, warnings, err := adf.FromMarkdownLossy("![alt](https://example.com/p.png)\n")
-	if err != nil {
-		t.Fatalf("FromMarkdownLossy: %v", err)
-	}
+func TestFromMarkdownLossyWarningNamesConstruct(t *testing.T) {
+	_, warnings := mdConvert(t, "![alt](https://example.com/p.png)\n")
 	if len(warnings) == 0 {
 		t.Fatal("expected a warning")
 	}
@@ -140,26 +106,9 @@ func TestFromMarkdownLossy_WarningNamesConstruct(t *testing.T) {
 
 // Hard line breaks inside a paragraph are representable as a hardBreak
 // node — conversion must preserve them, not collapse the break.
-func TestFromMarkdownLossy_HardBreakPreserved(t *testing.T) {
-	md := "line one  \nline two\n"
-	doc, _, err := adf.FromMarkdownLossy(md)
-	if err != nil {
-		t.Fatalf("FromMarkdownLossy: %v", err)
-	}
-	found := false
-	var walk func(n adf.Node)
-	walk = func(n adf.Node) {
-		if n.Type == "hardBreak" {
-			found = true
-		}
-		for _, c := range n.Content {
-			walk(c)
-		}
-	}
-	for _, n := range doc.Content {
-		walk(n)
-	}
-	if !found {
-		t.Errorf("hard break should convert to a hardBreak node; doc=%+v", doc.Content)
+func TestFromMarkdownLossyHardBreakPreserved(t *testing.T) {
+	doc, _ := mdConvert(t, "line one  \nline two\n")
+	if !mdContainsType(doc.Content(), "hardBreak") {
+		t.Errorf("hard break should convert to a hardBreak node; kinds=%v", mdKinds(doc))
 	}
 }

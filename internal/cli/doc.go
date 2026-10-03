@@ -1,9 +1,10 @@
-// Package cli is the cobra-free presentation and error layer the command
-// packages share. Operation data shapes live in internal/envelope; this package
-// places shared keyed-result objects at data or data.results[].data, owns
-// machine and human/plain rendering, and preserves the documented issue-view
-// and keyed pagination/warning exceptions. It returns destination failures
-// from every output mode and also owns output detection, terminal sanitization,
-// verbs and errtax-backed error mapping. Staying free of Cobra lets command
-// packages and cmdutil build on it without an import cycle.
+// Package cli holds the command layer's cross-cutting machinery — today
+// the error taxonomy that turns any failure into a stable snake_case code,
+// an actionable hint, and a contract exit code. Command packages live in
+// subdirectories (root, and per-domain packages as they land); this parent
+// package hosts what they all share.
+//
+// Primary entry points: MapError and ExitCode. The exit-code table is a
+// published contract (0 ok … 8 output failure) — change it deliberately or
+// not at all.
 package cli

@@ -1,0 +1,3 @@
+kind: removed
+body: "Remove the dedicated `--tsv` table-output flag. Use a success-payload `--jq` projection with jq `@tsv` when tab-separated output is required; failures retain their JSON envelopes."
+time: 2026-08-02T00:03:00-04:00

@@ -34,13 +34,13 @@ builds:
       - -trimpath
     # Version resolution is delegated to clive, so the version ldflag targets
     # clive's injection point. Commit and build time come from the VCS
-    # metadata Go embeds at build time; Branch and BuildBy stay on
-    # internal/version (clive does not model them).
+    # metadata Go embeds at build time. 0.15 also injected Branch/BuildBy
+    # into internal/version; that package is gone — the 0.16 version command
+    # decides whether they return.
     ldflags:
       - -s -w
       - -X 'github.com/gechr/clive.version={{ .Version }}'
-      - -X '{{ .ModulePath }}/internal/version.Branch={{ .Branch }}'
-      - -X '{{ .ModulePath }}/internal/version.BuildBy=goreleaser'
+      - -X 'github.com/matcra587/jira-cli/internal/selfupdate.buildSource=goreleaser'
 
 archives:
   - id: default

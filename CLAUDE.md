@@ -1,57 +1,77 @@
 # jira-cli
 
-Terminal-first Go/Cobra CLI for Jira Cloud, built for developer and agent
-workflows. The headless commands are the stable surface; `jira tui` is the
-alpha full-screen dashboard.
+Agent-first Jira Cloud CLI for shell-resident coding agents — zero-install,
+pipeable, composable. The contract serves what Jira is; nothing is silent
+(0 magic).
 
 ## Commands
 
-*   `mise run check` (fmt + lint + rumdl + vet + unit) · `mise run test` ·
-    `mise run test:integration` · `mise run fix` (auto-fixes)
-*   `mise run ci` before proposing a change (macOS/Linux/WSL only — it fails
-    on Windows)
-*   `mise run test:live` — end-to-end against a real tenant's probe project
-    (`JIRA_LIVETEST_PROJECT`)
+*   `mise run check` (fmt + lint + rumdl + vet + unit) · `mise run ci`
+    (adds race, the output-conformance audit, tidy-drift, workflow lint,
+    govulncheck) — CGO off; only `test:race` sets CGO_ENABLED=1 itself.
+*   `mise run audit` — the output-conformance matrix on its own
+    (build-tagged, hermetic, stub-driven; runs the real binary).
+*   `go generate ./internal/jira ./internal/adf` — regenerate wire types /
+    ADF views from the vendored pins; freshness tests fail CI when stale.
+*   `mise run upstream-check [--type adf|api] [--check]` — network probe:
+    are the vendored pins behind upstream, and what changed inside each
+    definition. Read-only; bumps stay deliberate.
 
 ## Architecture
 
-*   **`internal/cli/<domain>/`** — cobra commands (issue, epic, auth, config,
-    …). Flags register through `cmdutil.Add*` so clib metadata is mandatory;
-    handlers use `RunE` and return success output through
-    `cmdutil.WriteEnvelope`.
-*   **Output contract** — one `--output` flag (`auto|human|json|compact`);
-    `auto` resolves agent env → compact, non-TTY → json. Envelopes on stdout
-    via `cli.WriteEnvelope` only; human status on stderr through clog. The
-    ownership chain is command → cmdutil → cli → Cobra's `io.Writer`; every
-    layer returns destination failures. Each subcommand registers its own
-    concrete `data` shape in `internal/envelope`; fixed nested objects stay
-    typed, stable request context survives dry-run and live paths, and
-    server-only outcomes remain conditional. Shared keyed-result commands
-    move that operation object to `data.results[].data`; `issue view` keeps
-    its documented `data.results[].issue` shape, and keyed pagination or
-    warnings remain folded into the child object.
-*   **`internal/jira/`** — REST client + typed services; read-only mode blocks
-    writes at the transport. **`internal/adf/`** — registry-driven ADF
-    parse/validate/render.
-*   **Mutations** route through the validate-and-encode pipeline; `--dry-run`
-    is a local-only preview and never contacts Jira.
-*   The embedded agent guides and schema (`jira agent guide`,
-    `jira agent schema`, served through docent per the Agent Guide
-    Standard) are the authoritative CLI behavior spec — update them with
-    any behavior change; do not restate them elsewhere. Guides live in
-    `internal/agentguides/guides/`; the schema derives from the live
-    command tree plus the typed envelope registry.
+*   **cmd/jira → internal/cli/root** — conductor (cli/cobra) dispatch;
+    composition root with lazy Deps (help/version construct no client);
+    the error taxonomy in `internal/cli` maps to the 0–8 exit contract
+    via `WithExitCode`.
+*   **internal/jira** — GENERATED wire types (`cmd/gen-wire`, from the
+    sha256-pinned OpenAPI specs in `internal/jira/spec`) with
+    raw-capture: `Nullable[T]` keeps absent/null/value distinct (build
+    values via `NullableOf`/`NullableNull`, never a bare literal) and
+    `Extra` carries unmodeled fields verbatim.
+*   **internal/adf** — byte-preserving substrate (parse→marshal is a
+    fixed point; unknown nodes and keys survive verbatim) + generated
+    typed views + draft-04 validation. `Document.Marshal()` is the
+    preservation-grade exit; plain `json.Marshal` re-escapes and breaks
+    byte fidelity.
+*   **internal/adapters/jira** — REST client. Request bodies serialize
+    with `jira.MarshalNoEscape`, preserving raw JSON string spelling;
+    `SetEscapeHTML(false)` alone does not preserve line separators on
+    Go 1.27. Safe-retry transport: GET/HEAD/OPTIONS
+    plus the exact POST `search/jql`, `search/approximate-count`, and
+    `jql/parse` reads are the ONLY retryable requests;
+    writes are never auto-replayed, redirects on unsafe methods are
+    refused, `Retry-After` is clamped and jittered.
 
-Area-specific conventions auto-load from `.claude/rules/`.
+## Hard rules
+
+*   depguard is strict — a new import path needs a `.golangci.yml` allow
+    entry, justified in the change.
+*   gechr-native is mandatory: if x / clog / clib / conductor provides a
+    behavior, hand-rolling it is a defect — verify against the installed
+    module's actual API before writing, and replace duplicates on sight.
+*   No ticket keys, tenant names, or internal context in code, comments,
+    or commits (betterleaks enforces).
+*   Commands are built through the one construction path
+    (`command.Spec[T]`/`New[T]`, see
+    [.claude/rules/commands.md](.claude/rules/commands.md)). A handler
+    returns typed data and has no writer in scope; anything that reaches
+    for a stream itself is a defect. If the path cannot express a
+    command, fix the path — do not go around it.
 
 ## Git
 
-*   Conventional-commit PR titles (squash-merged); signed commits; `gh` CLI
-    for PRs.
-*   **Changelog:** a user-facing `feat`/`fix` needs a changie fragment, created
-    **non-interactively** (you can't answer prompts) and staged before commit:
-    `changie new -k <added|changed|fixed> -b "<user outcome>" --interactive=false`
-    (lowercase kind key; also `breaking`, `removed`, `deprecated`, `security`,
-    `dependencies`).
-    The commit-msg hook enforces it; not user-facing → a `Changelog: skip`
-    commit trailer. Details in [.claude/rules/changelog.md](.claude/rules/changelog.md).
+*   Signed conventional commits, curated linear history.
+*   **Changelog:** a user-facing `feat`/`fix` needs a changie fragment,
+    created non-interactively and staged with the change:
+    `changie new -k <added|changed|fixed> -b "<user outcome>" --interactive=false`;
+    genuinely not user-facing → a `Changelog: skip` trailer. The
+    commit-msg hook enforces it.
+
+Area-specific conventions auto-load from `.claude/rules/` — **but those
+files still describe the 0.15 architecture and are being rewritten. Where
+they contradict this file or the code, they are wrong: verify against the
+tree before trusting any path, function, or package they name.**
+
+The embedded guides and runtime schema (`jira agent guide`, `jira agent schema`)
+are the authoritative CLI behavior sources. Update them with behavior changes;
+keep workflow instructions in the embedded guides rather than copying them here.

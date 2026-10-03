@@ -1,3 +1,2 @@
-// Package epic hosts the `jira epic` command group: list, board, add, and
-// remove for epic-to-issue membership.
+// Package epic lists Jira epics and reports visible child counts by status.
 package epic

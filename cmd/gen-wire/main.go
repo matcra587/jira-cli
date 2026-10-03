@@ -28,6 +28,10 @@ var generatedSchemas = []string{
 	"UpdatedProjectCategory",
 	"AvatarUrlsBean",
 	"UserDetails",
+	// User is the distinct response schema of /user/search. It includes
+	// account-management fields absent from UserDetails; unknown properties
+	// still use the same raw-capture boundary as every generated wire type.
+	"User",
 	"IssueTypeDetails",
 	"Priority",
 	"Resolution",
@@ -59,6 +63,9 @@ var generatedSchemas = []string{
 	// is reachable from IssueFields. Its one $ref is UserDetails, already
 	// generated above, so this adds a single type.
 	"Attachment",
+	// The per-ID metadata endpoint uses a separate numeric-ID schema.
+	// Uploads and issue fields retain Attachment's string-ID wire shape.
+	"AttachmentMetadata",
 	// Watchers is the first entry here NOT reachable from IssueBean, and
 	// the reason is worth stating because every entry above it was. The
 	// spec DOES publish a list endpoint for watchers — GET
@@ -132,14 +139,34 @@ var generatedSchemas = []string{
 	// which is why generating it beats hand-curating a one-field struct
 	// that would then be a second place for the name `jql` to drift.
 	"Filter",
+	// Worklog comment bodies have no declared schema, so they remain raw
+	// ADF. UserDetails is already generated; properties and visibility stay
+	// raw until a domain command needs their individual members.
+	"Worklog",
+	"PageOfWorklogs",
+	// Bulk moves acknowledge a task before the issues are moved. Progress
+	// is a separate read, and the complete native receipt remains inspectable.
+	"IssueBulkMovePayload",
+	"SubmittedBulkOperation",
+	"BulkOperationProgress",
+	// JQL parsing is a read with a request body. Its syntax tree stays raw;
+	// diagnostics and reference metadata have fixed schemas in the pin.
+	"JqlQueriesToParse",
+	"ParsedJqlQueries",
+	"ParsedJqlQuery",
+	"JQLReferenceData",
+	"FieldReferenceData",
+	"FunctionReferenceData",
 }
 
-// typeOverrides redirects a property to a hand-written type. The one case
-// today: the spec declares IssueBean.fields as a free-form object (issue
-// fields are tenant-dynamic), so the typed model for it cannot come from the
-// spec — internal/jira/fields.go curates it by hand instead.
+// typeOverrides handles tenant-dynamic fields and inconsistent wire schemas.
+// Bulk progress timestamps are strings in the pin but numeric milliseconds
+// in the endpoint examples. Retain either representation without coercion.
 var typeOverrides = map[string]string{
-	"IssueBean.fields": "IssueFields",
+	"IssueBean.fields":              "IssueFields",
+	"BulkOperationProgress.created": "json.RawMessage",
+	"BulkOperationProgress.started": "json.RawMessage",
+	"BulkOperationProgress.updated": "json.RawMessage",
 }
 
 // initialisms are name segments spelled in caps in Go identifiers. Only the
@@ -297,7 +324,7 @@ func writeSchemaPropertyMap(b *strings.Builder) {
 // through a round-trip.
 func propType(owner, prop string, node *schemaNode) (typ, note string) {
 	if override, ok := typeOverrides[owner+"."+prop]; ok {
-		return "Nullable[" + override + "]", "hand-curated; see fields.go"
+		return "Nullable[" + override + "]", "explicit type override; see cmd/gen-wire"
 	}
 
 	inner, note := innerType(node)

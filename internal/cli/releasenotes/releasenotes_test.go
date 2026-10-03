@@ -1,78 +1,75 @@
 package releasenotes
 
 import (
+	"context"
+	"errors"
+	"reflect"
 	"strings"
 	"testing"
 
 	changelog "github.com/matcra587/jira-cli"
+	"github.com/matcra587/jira-cli/internal/cli"
+	"github.com/matcra587/jira-cli/internal/envelope"
+	"github.com/matcra587/jira-cli/internal/output"
 )
 
-func TestBuildResultFull(t *testing.T) {
-	res, err := buildResult("", false)
-	if err != nil {
-		t.Fatalf("full: %v", err)
-	}
-	if !strings.Contains(res.Markdown, changelog.Header()) {
-		t.Fatal("full markdown should include the header")
-	}
-	all := changelog.Releases()
-	if len(res.Releases) != len(all) {
-		t.Fatalf("full should list every release: want %d got %d", len(all), len(res.Releases))
-	}
-	if res.Releases[0].Version != all[0].Version {
-		t.Fatalf("full releases not newest-first: %q", res.Releases[0].Version)
-	}
-}
-
-func TestBuildResultLatest(t *testing.T) {
-	res, err := buildResult("", true)
-	if err != nil {
-		t.Fatalf("latest: %v", err)
-	}
-	newest := changelog.Releases()[0]
-	if len(res.Releases) != 1 {
-		t.Fatalf("latest should list one release, got %d", len(res.Releases))
-	}
-	if res.Releases[0].Version != newest.Version {
-		t.Fatalf("latest: want %q got %q", newest.Version, res.Releases[0].Version)
-	}
-	if res.Markdown != newest.Markdown {
-		t.Fatal("latest markdown should be the newest release's notes")
+func TestReleaseNotesSelection(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		query  string
+		latest bool
+		tag    string
+	}{
+		{name: "history"},
+		{name: "latest", latest: true, tag: "v0.15.2"},
+		{name: "version", query: "0.7.7", tag: "v0.7.7"},
+		{name: "tag", query: "v0.7.7", tag: "v0.7.7"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := buildOutput(tc.query, tc.latest)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.tag == "" {
+				if !reflect.DeepEqual(got.Releases, changelog.Releases()) || got.Markdown != changelog.Full() {
+					t.Fatal("history differs from embedded catalog")
+				}
+			} else {
+				want, ok := changelog.Find(tc.tag)
+				if !ok || len(got.Releases) != 1 || !reflect.DeepEqual(got.Releases[0], want) || got.Markdown != want.Markdown {
+					t.Fatal("selected release differs from embedded artifact")
+				}
+			}
+		})
 	}
 }
 
-func TestBuildResultSingleVersion(t *testing.T) {
-	res, err := buildResult("0.3.3", false)
-	if err != nil {
-		t.Fatalf("single: %v", err)
-	}
-	if len(res.Releases) != 1 || res.Releases[0].Version != "0.3.3" {
-		t.Fatalf("single should list only 0.3.3: %+v", res.Releases)
-	}
-	if len(res.Releases[0].Sections) == 0 {
-		t.Fatal("single release should carry parsed sections")
-	}
-	if !strings.Contains(res.Markdown, "0.3.3") {
-		t.Fatalf("markdown should mention the release:\n%s", res.Markdown)
-	}
-}
-
-func TestBuildResultVPrefixTolerated(t *testing.T) {
-	res, err := buildResult("v0.3.3", false)
-	if err != nil {
-		t.Fatalf("v-prefixed: %v", err)
-	}
-	if len(res.Releases) != 1 || res.Releases[0].Version != "0.3.3" {
-		t.Fatalf("want 0.3.3, got %+v", res.Releases)
+func TestReleaseNotesRefusalAndRecovery(t *testing.T) {
+	for _, tc := range []struct {
+		query   string
+		latest  bool
+		message string
+	}{
+		{query: "missing", message: "available: 0.15.2"},
+		{query: "0.7.7", latest: true, message: "pass a version or --latest, not both"},
+	} {
+		got, err := buildOutput(tc.query, tc.latest)
+		classification := cli.MapError(err)
+		if classification.Exit != 3 || classification.Code != cli.CodeArgValueInvalid || classification.Field != "version" || !strings.Contains(classification.Message, tc.message) || !reflect.DeepEqual(got, envelope.ReleaseNotesOutput{}) {
+			t.Fatalf("invalid selection lacks actionable refusal: %+v", classification)
+		}
 	}
 }
 
-func TestBuildResultUnknownVersion(t *testing.T) {
-	_, err := buildResult("9.9.9", false)
-	if err == nil {
-		t.Fatal("unknown version should be an error")
+func TestReleaseNotesContextAndRendererBoundary(t *testing.T) {
+	cmd := New()
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	cmd.SetContext(cli.WithFormat(ctx, output.FormatJSON))
+	if err := cmd.RunE(cmd, nil); !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled local read: %v", err)
 	}
-	if !strings.Contains(err.Error(), "0.3.3") {
-		t.Fatalf("error should list available versions: %v", err)
+	if err := renderHuman(output.NewView(&strings.Builder{}, cli.ResolvedColorMode()), envelope.Envelope{Data: "wrong payload"}); err == nil {
+		t.Fatal("human renderer silently accepted wrong payload")
 	}
 }

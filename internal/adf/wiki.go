@@ -1,14 +1,13 @@
 package adf
 
 import (
+	"cmp"
 	"fmt"
 	"maps"
 	"regexp"
 	"slices"
-	"sort"
 	"strings"
 
-	xmaps "github.com/gechr/x/maps"
 	xstrings "github.com/gechr/x/strings"
 )
 
@@ -79,7 +78,7 @@ func hasWikiSignal(input string) bool {
 		switch {
 		case wikiHeadingLevel(t) > 0:
 			return true
-		case strings.HasPrefix(t, "||") && strings.HasSuffix(t, "||") && len(t) >= 5:
+		case isWikiTableRow(t):
 			return true
 		case isWikiBlockOpen(t) != "":
 			return true
@@ -97,6 +96,12 @@ func isTableSeparatorRow(t string) bool {
 		return false
 	}
 	return strings.Contains(t, "---")
+}
+
+// isWikiTableRow matches a wiki header row, ||a||b||. The length floor
+// rules out the degenerate "||||" that carries no cell.
+func isWikiTableRow(t string) bool {
+	return strings.HasPrefix(t, "||") && strings.HasSuffix(t, "||") && len(t) >= 5
 }
 
 // wikiHeadingLevel returns 1-6 for an hN. heading line, 0 otherwise.
@@ -194,20 +199,18 @@ func normalizeWikiMarkup(input string) wikiNormalized {
 		}
 
 		if level := wikiHeadingLevel(t); level > 0 {
-			line = strings.Repeat("#", level) + " " + t[4:]
+			out = append(out, strings.Repeat("#", level)+" "+t[4:])
 			seen["headings"] = true
-			out = append(out, line)
 			continue
 		}
 		if strings.HasPrefix(line, "# ") {
 			// In wiki markup a leading # is an ordered-list item, never a
 			// heading — the detector already ruled out CommonMark.
-			line = "1. " + line[2:]
 			seen["numbered lists"] = true
-			out = append(out, rewriteInline(line, seen))
+			out = append(out, rewriteInline("1. "+line[2:], seen))
 			continue
 		}
-		if strings.HasPrefix(t, "||") && strings.HasSuffix(t, "||") && len(t) >= 5 {
+		if isWikiTableRow(t) {
 			header := strings.ReplaceAll(t, "||", "|")
 			out = append(out, rewriteInline(header, seen))
 			cells := strings.Count(header, "|") - 1
@@ -219,8 +222,10 @@ func normalizeWikiMarkup(input string) wikiNormalized {
 		out = append(out, rewriteInline(line, seen))
 	}
 
-	constructs := slices.Sorted(maps.Keys(seen))
-	return wikiNormalized{text: strings.Join(out, "\n"), constructs: constructs}
+	return wikiNormalized{
+		text:       strings.Join(out, "\n"),
+		constructs: slices.Sorted(maps.Keys(seen)),
+	}
 }
 
 // rewriteInline applies the inline wiki rewrites — {{code}}, [text|url]
@@ -249,39 +254,45 @@ func rewriteInline(line string, seen map[string]bool) string {
 	return strings.Join(segments, "`")
 }
 
-// wikiEmojiShortNames maps Jira wiki emoticon shortcuts to the ADF emoji
-// shortName (and a unicode fallback for plain-text rendering). The
-// shortcut spellings and names come from Atlassian's symbols-and-emoticons
-// documentation.
-var wikiEmojiShortNames = map[string][2]string{
-	"(/)": {":check_mark:", "✅"},
-	"(x)": {":cross_mark:", "❌"},
-	"(!)": {":warning:", "⚠️"},
-	"(i)": {":information_source:", "ℹ️"},
-	"(+)": {":heavy_plus_sign:", "➕"},
-	"(-)": {":heavy_minus_sign:", "➖"},
-	"(?)": {":question:", "❓"},
-	"(y)": {":thumbsup:", "👍"},
-	"(n)": {":thumbsdown:", "👎"},
-	"(*)": {":star:", "⭐"},
-	":)":  {":slight_smile:", "🙂"},
-	":(":  {":slight_frown:", "🙁"},
-	":D":  {":grin:", "😀"},
-	":P":  {":stuck_out_tongue:", "😛"},
-	";)":  {":wink:", "😉"},
-	"<3":  {":heart:", "❤️"},
-	"</3": {":broken_heart:", "💔"},
+// wikiEmoji is one emoticon shortcut's ADF spelling: the shortName the
+// schema wants, plus a unicode fallback for renderers that only read text.
+type wikiEmoji struct {
+	shortName string
+	text      string
+}
+
+// wikiEmojiShortNames maps Jira wiki emoticon shortcuts to their ADF emoji
+// attrs. The shortcut spellings and names come from Atlassian's
+// symbols-and-emoticons documentation.
+var wikiEmojiShortNames = map[string]wikiEmoji{
+	"(/)": {shortName: ":check_mark:", text: "✅"},
+	"(x)": {shortName: ":cross_mark:", text: "❌"},
+	"(!)": {shortName: ":warning:", text: "⚠️"},
+	"(i)": {shortName: ":information_source:", text: "ℹ️"},
+	"(+)": {shortName: ":heavy_plus_sign:", text: "➕"},
+	"(-)": {shortName: ":heavy_minus_sign:", text: "➖"},
+	"(?)": {shortName: ":question:", text: "❓"},
+	"(y)": {shortName: ":thumbsup:", text: "👍"},
+	"(n)": {shortName: ":thumbsdown:", text: "👎"},
+	"(*)": {shortName: ":star:", text: "⭐"},
+	":)":  {shortName: ":slight_smile:", text: "🙂"},
+	":(":  {shortName: ":slight_frown:", text: "🙁"},
+	":D":  {shortName: ":grin:", text: "😀"},
+	":P":  {shortName: ":stuck_out_tongue:", text: "😛"},
+	";)":  {shortName: ":wink:", text: "😉"},
+	"<3":  {shortName: ":heart:", text: "❤️"},
+	"</3": {shortName: ":broken_heart:", text: "💔"},
 }
 
 // wikiEmojiPattern matches every shortcut in wikiEmojiShortNames. Longer
 // alternatives sort first so </3 wins over <3.
 var wikiEmojiPattern = func() *regexp.Regexp {
-	shortcuts := xmaps.Keys(wikiEmojiShortNames)
-	sort.Slice(shortcuts, func(i, j int) bool {
-		if len(shortcuts[i]) != len(shortcuts[j]) {
-			return len(shortcuts[i]) > len(shortcuts[j])
+	shortcuts := slices.Collect(maps.Keys(wikiEmojiShortNames))
+	slices.SortFunc(shortcuts, func(a, b string) int {
+		if n := cmp.Compare(len(b), len(a)); n != 0 {
+			return n
 		}
-		return shortcuts[i] < shortcuts[j]
+		return cmp.Compare(a, b)
 	})
 	for i, s := range shortcuts {
 		shortcuts[i] = regexp.QuoteMeta(s)
@@ -289,14 +300,17 @@ var wikiEmojiPattern = func() *regexp.Regexp {
 	return regexp.MustCompile(strings.Join(shortcuts, "|"))
 }()
 
-// splitWikiEmoji converts one plain text run into a sequence of text and
+// wikiEmojiNodes converts one plain text run into a sequence of text and
 // emoji nodes, replacing every wiki emoticon shortcut with an ADF emoji
 // node. Text fragments keep the surrounding marks; emoji nodes carry none
 // (the schema forbids marks like code on emoji, and decorating an emoji is
-// meaningless). Runs with no shortcut return nil so the caller keeps its
-// original single-node path.
-func splitWikiEmoji(text string, marks []Mark) []Node {
-	locs := wikiEmojiPattern.FindAllStringIndex(text, -1)
+// meaningless). Returns nil when the input was not wiki markup or carries
+// no shortcut, so the caller keeps its original single-node path.
+func (c *mdConverter) wikiEmojiNodes(s string, marks []Mark) []Node {
+	if !c.wikiEmoji {
+		return nil
+	}
+	locs := wikiEmojiPattern.FindAllStringIndex(s, -1)
 	if len(locs) == 0 {
 		return nil
 	}
@@ -304,17 +318,14 @@ func splitWikiEmoji(text string, marks []Mark) []Node {
 	prev := 0
 	for _, loc := range locs {
 		if loc[0] > prev {
-			nodes = append(nodes, Node{Type: "text", Text: text[prev:loc[0]], Marks: cloneMarks(marks)})
+			nodes = append(nodes, c.text(s[prev:loc[0]], marks))
 		}
-		names := wikiEmojiShortNames[text[loc[0]:loc[1]]]
-		nodes = append(nodes, Node{Type: "emoji", Attrs: map[string]any{
-			"shortName": names[0],
-			"text":      names[1],
-		}})
+		e := wikiEmojiShortNames[s[loc[0]:loc[1]]]
+		nodes = append(nodes, c.node(NodeTypeEmoji, EmojiAttrs{ShortName: e.shortName, Text: e.text}, nil))
 		prev = loc[1]
 	}
-	if prev < len(text) {
-		nodes = append(nodes, Node{Type: "text", Text: text[prev:], Marks: cloneMarks(marks)})
+	if prev < len(s) {
+		nodes = append(nodes, c.text(s[prev:], marks))
 	}
 	return nodes
 }

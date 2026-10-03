@@ -1,106 +1,88 @@
 package releasenotes
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
-	clib "github.com/gechr/clib/cli/cobra"
 	xslices "github.com/gechr/x/slices"
+	"github.com/spf13/cobra"
+
 	changelog "github.com/matcra587/jira-cli"
 	"github.com/matcra587/jira-cli/internal/cli"
-	"github.com/matcra587/jira-cli/internal/cli/cmdutil"
-	"github.com/spf13/cobra"
+	"github.com/matcra587/jira-cli/internal/cli/command"
+	"github.com/matcra587/jira-cli/internal/envelope"
+	"github.com/matcra587/jira-cli/internal/output"
 )
 
-type options struct {
-	latest  bool
-	noPager bool
-}
-
-// NewCommand returns the `release-notes` command.
-func NewCommand() *cobra.Command {
-	var opts options
-	cmd := &cobra.Command{
-		Use:     "release-notes [version]",
-		Aliases: []string{"rn"},
-		Short:   "Show what's changed in jira-cli",
-		Long: "Print jira-cli's own release notes — embedded in the binary — so you can " +
-			"see what changed in the tool without opening GitHub or the docs site.\n\n" +
-			"With no arguments it prints the full changelog, newest first. Pass a version " +
-			"(e.g. `0.7.7`) for a single release, or `--latest` for just the newest one. " +
-			"Human output is rendered Markdown; `--output=json` returns the notes as " +
-			"structured data.\n\n" +
-			"On an interactive terminal, a full history taller than the screen pages " +
-			"like `git log` (`JIRA_PAGER`/`PAGER` selects an external pager; a built-in " +
-			"one is the default). Pass `--no-pager` to print directly. Piped output, " +
-			"machine modes, and agent sessions always stream straight through and " +
-			"never page.\n\n" +
-			"This is jira-cli's changelog. It is unrelated to a Jira project's releases.",
-		Example: `$ jira release-notes
-$ jira release-notes --latest
-$ jira rn 0.7.7
-$ jira release-notes --output=json`,
-		GroupID: "configuration",
-		Args:    cobra.MaximumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return run(cmd, opts, args)
+// New returns the local, authentication-free release-notes command.
+func New() *cobra.Command {
+	var latest bool
+	return command.MustNew(command.Spec[envelope.ReleaseNotesOutput]{
+		Op: "release.notes", Use: "release-notes [version]", Aliases: []string{"rn"},
+		Short: "Show what's changed in jira-cli",
+		Long: "Show jira-cli's own release notes embedded in this binary. No network or authentication is needed.\n\n" +
+			"With no arguments, show the full changelog, newest first. Pass a version (with or without v), " +
+			"or --latest for only the newest release. Machine output contains structured releases and sections.\n\n" +
+			"Human output is Markdown, styled on a color terminal. Long interactive output uses JIRA_PAGER, " +
+			"then PAGER, or a built-in pager. Unavailable configured pagers fall back to the next choice; " +
+			"a pager that starts and fails returns an error. --no-pager prints directly. Pipes, machine modes, agent sessions " +
+			"and --no-input never page. These are tool releases, unrelated to a Jira project's releases.",
+		Example:   "$ jira release-notes\n$ jira release-notes --latest\n$ jira rn 0.7.7\n$ jira release-notes --output=json",
+		Args:      command.ArgSpec{Max: 1, Positions: []command.Arg{{Name: "version", Predictor: "release"}}},
+		PageHuman: true,
+		Flags: func(cmd *cobra.Command) {
+			command.AddBoolVar(cmd, &latest, "latest", false, "Show only the newest release", command.FlagOpts{Terse: "Newest release"})
 		},
-	}
-	cmdutil.AddBoolVar(cmd.Flags(), &opts.latest, "latest", false, "Show only the newest release", clib.FlagExtra{})
-	cmdutil.AddBoolVar(cmd.Flags(), &opts.noPager, "no-pager", false, "Print directly instead of paging long output", clib.FlagExtra{Group: "Output"})
-	return cmd
+		Human: renderHuman,
+		Run: func(ctx context.Context, inv command.Invocation) (envelope.ReleaseNotesOutput, error) {
+			if err := ctx.Err(); err != nil {
+				return envelope.ReleaseNotesOutput{}, err
+			}
+			var query string
+			if len(inv.Args) != 0 {
+				query = strings.TrimSpace(inv.Args[0])
+			}
+			return buildOutput(query, latest)
+		},
+	})
 }
 
-func run(cmd *cobra.Command, opts options, args []string) error {
-	var query string
-	if len(args) == 1 {
-		query = strings.TrimSpace(args[0])
+func buildOutput(query string, latest bool) (envelope.ReleaseNotesOutput, error) {
+	if query != "" && latest {
+		err := cli.NewInputError(cli.CodeArgValueInvalid, "pass a version or --latest, not both")
+		err.Field = "version"
+		return envelope.ReleaseNotesOutput{}, err
 	}
-	if query != "" && opts.latest {
-		return fmt.Errorf("validation: pass a version or --latest, not both")
-	}
-
-	result, err := buildResult(query, opts.latest)
-	if err != nil {
-		return err
-	}
-	return cmdutil.WriteEnvelope(cmd, "release.notes", result)
-}
-
-// buildResult selects which notes to return: a single version when one is named,
-// the newest with --latest, or the whole changelog by default.
-func buildResult(query string, latest bool) (cli.ReleaseNotesResult, error) {
-	switch {
-	case query != "":
-		r, ok := changelog.Find(query)
+	if query != "" {
+		release, ok := changelog.Find(query)
 		if !ok {
-			return cli.ReleaseNotesResult{}, fmt.Errorf("no release notes for %q; available: %s", query, strings.Join(versionList(), ", "))
+			versions := xslices.Map(changelog.Releases(), func(release changelog.Release) string { return release.Version })
+			err := cli.NewInputError(cli.CodeArgValueInvalid, fmt.Sprintf("no release notes for %q; available: %s", query, strings.Join(versions, ", ")))
+			err.Field = "version"
+			return envelope.ReleaseNotesOutput{}, err
 		}
-		return single(r), nil
-	case latest:
-		releases := changelog.Releases()
+		return single(release), nil
+	}
+	releases := changelog.Releases()
+	if latest {
 		if len(releases) == 0 {
-			return cli.ReleaseNotesResult{}, fmt.Errorf("no release notes are embedded in this build")
+			return envelope.ReleaseNotesOutput{}, cli.NewCodedError(cli.CodeOutputWriteFailed, "no release notes are embedded in this build")
 		}
 		return single(releases[0]), nil
-	default:
-		return cli.ReleaseNotesResult{
-			Releases: changelog.Releases(),
-			Markdown: changelog.Full(),
-		}, nil
 	}
+	return envelope.ReleaseNotesOutput{Releases: releases, Markdown: changelog.Full()}, nil
 }
 
-// single wraps one release as a result whose Markdown is just that release.
-func single(r changelog.Release) cli.ReleaseNotesResult {
-	return cli.ReleaseNotesResult{
-		Releases: []changelog.Release{r},
-		Markdown: r.Markdown,
-	}
+func single(release changelog.Release) envelope.ReleaseNotesOutput {
+	return envelope.ReleaseNotesOutput{Releases: []changelog.Release{release}, Markdown: release.Markdown}
 }
 
-// versionList is the available versions, newest first, for error messages.
-func versionList() []string {
-	releases := changelog.Releases()
-	return xslices.Map(releases, func(r changelog.Release) string { return r.Version })
+func renderHuman(v *output.View, env envelope.Envelope) error {
+	out, ok := env.Data.(envelope.ReleaseNotesOutput)
+	if !ok {
+		return fmt.Errorf("release notes: human renderer received %T, want envelope.ReleaseNotesOutput", env.Data)
+	}
+	v.Block(cli.Markdown(out.Markdown, v.Output().Width()))
+	return nil
 }

@@ -33,6 +33,17 @@ time. `docs/changelog.md` is a one-line snippet include of `CHANGELOG.md`.
 *   **Write the body for the release-notes reader**: the user-visible outcome,
     imperative, no emoji, no commit SHAs or PR numbers, scope prefix stripped.
     `CHANGELOG.md` and the `.changes/v*.md` files are the style exemplar.
+*   **Describe the net change from the previous release.** For this rebuild,
+    compare with the last v0.15 release, v0.15.2. An existing command returning
+    in the new layout is not an added feature. Describe its changed behavior,
+    payload, workflow or safety contract; omit unchanged capability inventories
+    and internal construction milestones. Consolidate repairs to unreleased
+    regressions into the final outcome instead of presenting them as v0.15 bugs.
+    Reserve `fixed` for established released defects and `added` for genuinely
+    new capabilities. Record incompatible layouts, settings, payloads and exit
+    policies under `breaking`, and unavailable former workflows under `removed`.
+    Preserve limitations: readback and local merges do not establish protected
+    remote writes, and local tests do not establish native platform acceptance.
 *   **Only `feat`/`fix` are gated.** Everything else — `docs`, `chore`, `ci`
     (workflows), `build`, `style`, `refactor` — is exempt; just use the honest
     type. A `feat`/`fix` that genuinely isn't user-facing takes a

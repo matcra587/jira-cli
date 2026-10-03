@@ -2,40 +2,56 @@ package cli
 
 import (
 	"slices"
-	"sort"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/agnivade/levenshtein"
 )
 
-// suggestionMaxDistance is the largest Levenshtein edit distance at which
-// a candidate is still offered as a "did you mean" suggestion. Fixed at 2
-// to match Cobra's own command-suggestion default: a wider threshold
-// turns genuinely distinct names into false suggestions the user learns
-// to distrust.
-const suggestionMaxDistance = 2
+// suggestMaxDistance is the largest Levenshtein edit distance at which a
+// candidate is still offered as a "did you mean" suggestion. Fixed at 2
+// to match cobra's command-suggestion default, so flag and command
+// suggestions sit on one contract; wider thresholds offer genuinely
+// distinct names and teach the reader to distrust the hint.
+const suggestMaxDistance = 2
 
-// suggestionMinNameLen is the shortest candidate eligible for a
-// suggestion. Names below this length sit within edit distance 2 of one
-// another, so suggesting them is noise rather than help.
-const suggestionMinNameLen = 4
-
-// suggestionLimit caps how many candidates a single failure offers.
-const suggestionLimit = 2
-
-// Suggest returns up to suggestionLimit candidates within
-// suggestionMaxDistance edit distance of input, closest first. Candidates
-// shorter than suggestionMinNameLen are skipped. The returned names are
-// the raw candidate strings — the caller adds any "--" prefix.
+// suggestMinNameLen is the shortest candidate eligible for a suggestion
+// from an OPEN set (flag and command names). Names below this length sit
+// within distance 2 of one another, and the candidate pool grows with the
+// CLI, so offering them is noise rather than help.
 //
-// This deliberately stays off xstrings.Closest: Suggestions is a multi-valued
-// field fed by Cobra's own SuggestionsFor on the unknown-command path, and
-// this helper keeps unknown-flag suggestions on the same contract — plain
-// Levenshtein at Cobra's fixed distance-2 default, up to two candidates.
-// Closest returns a single best match under a length-proportional Damerau
-// threshold, which would change the error payload shape and break that parity.
+// A closed enumerated set is the opposite case — the whole vocabulary is
+// known, tiny, and authored together — so SuggestValues waives the floor.
+// Without that split, `zsh` and `nu` could never be suggested at all, and
+// an agent typing `zshh` would get an error carrying no route forward.
+const suggestMinNameLen = 4
+
+// suggestLimit caps how many candidates one failure offers.
+const suggestLimit = 2
+
+// Suggest returns up to suggestLimit candidates within suggestMaxDistance
+// of input, closest first. The returned names are the raw candidate
+// strings — the caller adds any "--" prefix.
+//
+// This deliberately is not x/strings.Closest: cobra's SuggestionsFor
+// feeds the unknown-command path with plain-Levenshtein distance-2
+// multi-candidate results, and this keeps unknown-flag suggestions on the
+// same contract. Closest returns one best match under a
+// length-proportional Damerau threshold — a different payload shape.
 func Suggest(input string, candidates []string) []string {
+	return suggest(input, candidates, suggestMinNameLen)
+}
+
+// SuggestValues is Suggest for a CLOSED enumerated set — a flag's or
+// argument's declared values, where the vocabulary is fixed and fully
+// known. It waives the minimum-length floor, which exists to keep an
+// open, growing pool of identifiers quiet and only suppresses real
+// answers here.
+func SuggestValues(input string, candidates []string) []string {
+	return suggest(input, candidates, 0)
+}
+
+func suggest(input string, candidates []string, minNameLen int) []string {
 	if input == "" {
 		return nil
 	}
@@ -43,42 +59,49 @@ func Suggest(input string, candidates []string) []string {
 		name string
 		dist int
 	}
-	matches := make([]scored, 0, len(candidates))
+	var matches []scored
 	for _, c := range candidates {
-		if c == input || utf8.RuneCountInString(c) < suggestionMinNameLen {
+		if c == input || utf8.RuneCountInString(c) < minNameLen {
 			continue
 		}
-		d := levenshtein.ComputeDistance(input, c)
-		if d <= suggestionMaxDistance {
+		if d := levenshtein.ComputeDistance(input, c); d <= suggestMaxDistance {
 			matches = append(matches, scored{name: c, dist: d})
 		}
 	}
-	sort.SliceStable(matches, func(i, j int) bool {
-		return matches[i].dist < matches[j].dist
-	})
-	out := make([]string, 0, suggestionLimit)
+	if len(matches) == 0 {
+		return nil
+	}
+	// Stable: candidates at equal distance keep the caller's order
+	// (visit order for flags, declaration order for values).
+	slices.SortStableFunc(matches, func(a, b scored) int { return a.dist - b.dist })
+	out := make([]string, 0, suggestLimit)
 	for _, m := range matches {
 		out = append(out, m.name)
-		if len(out) == suggestionLimit {
+		if len(out) == suggestLimit {
 			break
 		}
 	}
 	return out
 }
 
-// foreignFlagEquivalents maps a flag borrowed from another Jira CLI to
+// foreignFlagEquivalents maps a flag borrowed from another Jira CLI onto
 // this CLI's equivalents, offered as suggestions when the unknown flag
-// has no near-miss match. Only flags with NO equivalent anywhere in this
-// CLI belong here — a flag that exists on some commands (raw, columns,
-// web) would produce a misleading suggestion, and a flag the failing
-// command accepts never reaches flag_unknown at all.
+// has no near-miss. Only flags with NO equivalent anywhere in this CLI
+// belong here: a flag that exists on some command would produce a
+// misleading suggestion, and a flag the failing command accepts never
+// reaches the unknown-flag path at all (which is why the hidden --plain
+// alias is absent — it parses). Entries whose 0.15 equivalents have not
+// been rebuilt yet (--jq, --limit, --all, --cursor) join alongside those
+// flags; a table row must never point at a flag the binary does not
+// carry, and the root test holds every row to that.
 var foreignFlagEquivalents = map[string][]string{
-	"plain":       {"--output=human", "--output=json"},
-	"gjq":         {"--jq"},
 	"template":    {"--output=json"},
 	"no-headers":  {"--output=json"},
 	"no-truncate": {"--output=json"},
-	"paginate":    {"--limit", "--all", "--cursor"},
+	// Another Jira CLI spells the jq filter --gjq. Ours is --jq, close
+	// enough that the row only earns its place because the two names are
+	// three edits apart, so the near-miss matcher never offers it.
+	"gjq": {"--jq"},
 }
 
 // ForeignFlagSuggestions resolves a flag name against the foreign-CLI
@@ -89,14 +112,18 @@ func ForeignFlagSuggestions(flag string) []string {
 	return slices.Clone(foreignFlagEquivalents[normalizeFlagName(flag)])
 }
 
-// isForeignFlag reports whether the flag is in the foreign-CLI table.
-func isForeignFlag(flag string) bool {
-	_, ok := foreignFlagEquivalents[normalizeFlagName(flag)]
-	return ok
+// foreignFlagTable exposes the table's suggestion values for the root
+// test that pins every entry to a flag the live tree actually carries.
+func foreignFlagTable() map[string][]string {
+	out := make(map[string][]string, len(foreignFlagEquivalents))
+	for k, v := range foreignFlagEquivalents {
+		out[k] = slices.Clone(v)
+	}
+	return out
 }
 
-// normalizeFlagName strips leading dashes and case drift from a flag name
-// as the parser reported it.
+// normalizeFlagName strips leading dashes and case drift from a flag
+// name as the parser reported it.
 func normalizeFlagName(flag string) string {
 	return strings.ToLower(strings.TrimLeft(strings.TrimSpace(flag), "-"))
 }

@@ -1,0 +1,3 @@
+kind: added
+body: "Add `config list` for every effective setting, its supplying layer and the selected config path, with secret redaction. Keep `config get` as stored-file inspection, preserving missing versus explicit empty/false/zero values rather than confusing them with effective defaults. Existing config get/set commands are retained under flat keys, not newly introduced."
+time: 2026-08-02T23:56:14.020876376-04:00

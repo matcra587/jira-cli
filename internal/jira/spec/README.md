@@ -26,3 +26,17 @@ those pins.
 
 A regeneration failure blocks only the bump, never the build: the
 last-known-good `wire_gen.go` is always committed.
+
+## Bulk move schema exceptions
+
+The pinned move schema names `targetToMultipleSourceMapping` and `issueIdOrKeys`
+as required members, but its actual properties and endpoint examples use
+`targetToSourcesMapping` and `issueIdsOrKeys`. Native request validation checks
+the actual names, explicit targets and duplicate declarations before submission.
+
+The progress schema declares `created`, `started` and `updated` as strings,
+while the [bulk-operation reference](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-bulk-operations/)
+shows numeric epoch milliseconds. Generator overrides retain these values as
+raw JSON, preserving either representation and absent/null distinctions.
+Submission acknowledgement and job completion are separate facts; complete
+progress must account for processed, failed and inaccessible issues.

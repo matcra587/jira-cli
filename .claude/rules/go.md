@@ -38,11 +38,38 @@ below, `clog`/`clib` for output and flags (see [output.md](output.md)),
     place, or pre-seed structs for later mutation stay loops — as do loops
     whose element type cannot be named cleanly (an anonymous wire struct
     would put a struct literal in the closure signature).
+*   **`lipgloss.LightDark(isDark)`** returns `func(light, dark) color.Color` —
+    adopt for any dark/light colour pair instead of a hand-written `if dark`.
+    Its parameter order is **(light, dark)**; store pairs in that order so
+    they pass straight through (`internal/cli/sinks.go`'s `colorPair`).
+*   **`x/human.Plural(n, singular, plural)`** for singular/plural selection.
+*   **`clib`'s `theme.Dark()`/`theme.Light()` are CONSTRUCTORS, not
+    accessors** — each allocates a full theme (~35 styles, 25KB, 34 allocs,
+    measured). Memoize any fallback that builds one with `sync.OnceValue`,
+    lazily rather than at package init so `applyThemeName` still runs first
+    (`internal/cli/theme.go`'s `darkFallback`/`lightFallback`). Never call
+    one per row or per inline span.
 *   **`xos.Exists` stays out of sites that inspect the error** — decided
     against: where the caller distinguishes `os.ErrNotExist` from real
     failures or propagates the original error (config loader, attachment
     writes, auth store), `os.Stat` is the correct API per the x guide's own
     probe rule. Audits should not re-report these.
+
+### Look-alikes that are NOT substitutes (checked — do not re-propose)
+
+| Tempting | Why it is wrong | Use instead |
+|----------|-----------------|-------------|
+| `xstrings.SplitLines` | delegates to `SplitBy`, which trims each part and DROPS empty ones — deletes every blank line from rendered content | `xstrings.SplitLinesRaw` (lossless, normalizes CRLF) |
+| `xstrings.Pad{Left,Right,Center}` | pads by RUNE count, not display cells — misaligns CJK and emoji | `ansi.StringWidth` arithmetic |
+| `lipgloss.Complementary` | 180° hue rotation, not a readable-contrast pick (`isDarkColor` is unexported) | keep the local YIQ luminance pick |
+| `lipgloss.Style.Width` | WRAPS content wider than the width | keep floor-only padding local |
+| clib `theme.RenderTimeAgo` | hardcodes `time.Now().UTC()`, no injectable instant | keep `cli.TimeFrom(iso, now)`'s test seam |
+
+Package names that get guessed wrong: it is **`x/terminal`** (not `x/term`),
+and **`primer` is its own module** `github.com/gechr/primer` (not
+`clib/primer`). `go list -m all` FAILS in this repo (`gechr/coauthor` — repo
+not found, git exit 128); resolve a module's source with
+`go list -m -f '{{.Dir}}' <module>` instead.
 
 Check the module's docs (pkg.go.dev or its source) before concluding a
 primitive is missing — a gap is an upstream candidate, not a license to

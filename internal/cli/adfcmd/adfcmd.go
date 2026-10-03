@@ -1,167 +1,179 @@
+// Package adfcmd provides credential-free ADF authoring and review commands.
 package adfcmd
 
 import (
-	"errors"
+	"bytes"
+	"context"
+	"encoding/json"
 	"fmt"
-	"io"
+	"strings"
+	"unicode/utf8"
 
+	"github.com/gechr/x/shell"
 	xstrings "github.com/gechr/x/strings"
 	"github.com/spf13/cobra"
 
 	"github.com/matcra587/jira-cli/internal/adf"
-	"github.com/matcra587/jira-cli/internal/cli/adfmode"
-	"github.com/matcra587/jira-cli/internal/cli/cmdutil"
-	"github.com/matcra587/jira-cli/internal/cli/stdin"
+	"github.com/matcra587/jira-cli/internal/cli"
+	"github.com/matcra587/jira-cli/internal/cli/command"
 	"github.com/matcra587/jira-cli/internal/envelope"
+	"github.com/matcra587/jira-cli/internal/output"
 )
 
-// NewCommand returns the `adf` command group.
-func NewCommand() *cobra.Command {
-	cmd := cmdutil.GroupCommand("adf", "Convert and lint rich text between Markdown and ADF", "agent")
-	cmd.Long = "Convert and preview Atlassian Document Format (ADF) rich text. `jira adf " +
-		"convert` translates Markdown into the ADF the write commands accept, and `jira adf " +
-		"render` shows how an ADF document displays in the terminal.\n\n" +
-		"Use it to check what a description or comment will look like before a mutation, or to " +
-		"move rich text in and out of Markdown."
-	cmd.Example = `# Convert Markdown to ADF
-$ jira adf convert --input notes.md
+const flagInput = "input"
 
-# Preview an ADF document as it renders in the terminal
-$ jira adf render --input description.json`
-	cmd.AddCommand(convertCommand())
-	cmd.AddCommand(renderCommand())
-	return cmd
+// New constructs local commands without a client or credential capability.
+func New() *cobra.Command {
+	group := &cobra.Command{Use: "adf", Short: "Convert and review rich text without contacting Jira", Args: cobra.NoArgs}
+	group.AddCommand(newConvert(), newRender())
+	return group
 }
 
-func convertCommand() *cobra.Command {
+func newConvert() *cobra.Command {
 	var input string
-	cmd := &cobra.Command{
-		Use:   "convert",
-		Short: "Convert Markdown to a native ADF document",
-		Long: "Convert GFM Markdown into a native ADF document without touching Jira, through " +
-			"the exact converter, normalizer, and validator the mutation pipeline runs — a " +
-			"clean conversion here is a clean conversion on submit. Author rich text safely: " +
-			"convert and lint in isolation, then pass the document to `--json-input` on " +
-			"`jira issue create`, `jira issue edit`, `jira issue comment add`, or " +
-			"`jira worklog add`.\n\n" +
-			"Strict ADF mode (the mutation default) fails with exit 3 and a source-mapped " +
-			"diagnostic on any lossy conversion step; `--adf-best-effort` emits the document " +
-			"with the same warning taxonomy mutations use. `--output=compact` on a clean " +
-			"conversion emits just the document, ready to pipe; a best-effort conversion " +
-			"with warnings folds them into the compact payload, so prefer `--output=json` " +
-			"there. The command is local-only and needs no profile.",
-		Example: `# Convert a file and pipe the document straight into a comment
-$ jira adf convert --input notes.md --output=compact | jira issue comment add PROJ-123 --json-input -
-
-# Convert from stdin
-$ cat notes.md | jira adf convert --input - --output=json
-
-# Accept documented downgrades (bold+code, images, quotes in list items)
-$ jira adf convert --input notes.md --adf-best-effort --output=json`,
-		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			markdown, err := readTextInput(cmd, input)
-			if err != nil {
-				return err
-			}
-			doc, warnings, err := convertMarkdown(markdown, cmdutil.ADFModeFor(cmd, true))
-			if err != nil {
-				return err
-			}
-			return cmdutil.WriteEnvelopeWithWarnings(cmd, "adf.convert", doc, warnings)
+	strict := true
+	var bestEffort bool
+	return command.MustNew(command.Spec[envelope.ADFConvertOutput]{
+		Op: "adf.convert", Use: "convert", Short: "Convert Markdown to a validated native ADF document",
+		Passthrough: true,
+		Long: "Convert GFM Markdown through the same converter used by issue and comment bodies. " +
+			"This local read requires no credentials and makes no Jira request. --input defaults to - for piped stdin; " +
+			"a terminal input is refused immediately. Files and stdin share the body size limit.\n\n" +
+			"Strict mode is the default: dropped content fails with exit 3 and retains the candidate document and diagnostics. " +
+			"--adf-best-effort or --adf-strict=false accepts documented loss. Shape downgrades that retain content still warn. " +
+			"Every emitted candidate passes the pinned ADF schema. JSON puts the document at .data.document; compact at .document. " +
+			"Diagnostics remain in data.diagnostics in both modes. Extract the document with --jq before passing it to --json-input. " +
+			"A Markdown conversion is authoring, not a lossless edit of an existing ADF document.",
+		Example: "$ jira adf convert --input notes.md --output=json\n\n" +
+			"$ jira adf convert --input notes.md --jq '.data.document'",
+		Flags: func(c *cobra.Command) {
+			addInput(c, &input, "Markdown")
+			command.AddBoolVar(c, &strict, "adf-strict", true, "Refuse conversion that drops authored content", command.FlagOpts{Terse: "Refuse content loss"})
+			command.AddBoolVar(c, &bestEffort, "adf-best-effort", false, "Accept reported conversion loss", command.FlagOpts{Terse: "Accept content loss"})
+			c.MarkFlagsMutuallyExclusive("adf-strict", "adf-best-effort")
 		},
-	}
-	cmdutil.AddFileFlag(cmd.Flags(), &input, "input", "-", "Markdown input file; - reads stdin", "Input", "FILE")
-	return cmd
-}
-
-// convertMarkdown is the pure conversion core: the same
-// FromMarkdownLossy → Normalize → ValidateDoc sequence the mutation
-// pipeline applies to a Markdown body, so the standalone command can never
-// drift from what a submit would do. In strict mode a lossy conversion
-// step aborts with the source-mapped typed error before validation.
-func convertMarkdown(markdown string, mode adfmode.Mode) (adf.Document, []adf.Warning, error) {
-	doc, mdWarnings, err := adf.FromMarkdownLossy(markdown)
-	if err != nil {
-		return adf.Document{}, nil, err
-	}
-	if mode == adfmode.ModeStrict {
-		for _, w := range mdWarnings {
-			if w.Lossy {
-				return adf.Document{}, nil, adf.LossyConversionError{Warning: w}
+		Human: renderConverted,
+		RetainOnError: func(out envelope.ADFConvertOutput) bool {
+			return len(out.Document) != 0
+		},
+		Run: func(ctx context.Context, inv command.Invocation) (envelope.ADFConvertOutput, error) {
+			data, err := readInput(ctx, inv, input)
+			if err != nil {
+				return envelope.ADFConvertOutput{}, err
 			}
-		}
-	}
-	normalized, normWarnings := adf.Normalize(doc)
-	valWarnings, err := adf.ValidateDoc(normalized, mode)
-	if err != nil {
-		return adf.Document{}, nil, err
-	}
-	warnings := make([]adf.Warning, 0, len(mdWarnings)+len(normWarnings)+len(valWarnings))
-	warnings = append(warnings, mdWarnings...)
-	warnings = append(warnings, normWarnings...)
-	warnings = append(warnings, valWarnings...)
-	return normalized, warnings, nil
+			body, err := command.ConvertMarkdown(flagInput, string(data))
+			if err != nil {
+				return envelope.ADFConvertOutput{}, err
+			}
+			if err := adf.Validate(body.ADF); err != nil {
+				return envelope.ADFConvertOutput{}, fmt.Errorf("adf: converter produced an invalid document: %w", err)
+			}
+			out := envelope.ADFConvertOutput{Document: body.ADF, Diagnostics: append([]envelope.Warning{}, body.Lossy...)}
+			for _, warning := range body.Lossy {
+				out.Lossy = out.Lossy || warning.Lossy
+			}
+			if out.Lossy && strict && !bestEffort {
+				err := cli.NewInputError(cli.CodeADFContentLoss, "Markdown conversion drops content; inspect the retained warnings and candidate before accepting loss")
+				err.Field = flagInput
+				err.Suggestions = []string{"jira adf convert --input " + shell.Quote(input) + " --adf-best-effort --output=json"}
+				return out, err
+			}
+			return out, ctx.Err()
+		},
+	})
 }
 
-func renderCommand() *cobra.Command {
+func newRender() *cobra.Command {
 	var input string
-	cmd := &cobra.Command{
-		Use:   "render",
-		Short: "Render an ADF document as Markdown (lossy)",
-		Long: "Render a native ADF document as a Markdown projection for review — reading an " +
-			"existing description or comment before editing it. The projection is LOSSY by " +
-			"design: constructs without a Markdown spelling (mentions, panels, cards, status " +
-			"lozenges) degrade or disappear, and `data.lossy_constructs` names each one. " +
-			"Never convert the output back to ADF for a submit — reuse the original document " +
-			"instead. Pass the document itself: `{\"body\": ...}` wrappers are not unwrapped.",
-		Example: `# Review a comment body captured from comment list
-$ jira adf render --input body.json --output=json
-
-# From stdin
-$ jira issue view PROJ-123 --output=compact | jq '.issue.fields.description' | jira adf render --input -`,
-		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			raw, err := readTextInput(cmd, input)
+	return command.MustNew(command.Spec[envelope.ADFRenderOutput]{
+		Op: "adf.render", Use: "render", Short: "Project native ADF to Markdown with explicit loss diagnostics",
+		Long: "Read a native ADF document and return a GFM Markdown review projection without contacting Jira. " +
+			"Pass the document itself; issue, fields and body wrappers are not unwrapped. " +
+			"Server-originated future nodes are accepted without imposing the older pinned schema. " +
+			"Unknown nodes retain a labeled placeholder and their child text.\n\n" +
+			"lossy_constructs lists sorted unique node and mark types whose semantics or attributes are approximated. " +
+			"Mentions, cards, status, tables, tasks, media and extension attributes cannot survive a Markdown edit round trip. " +
+			"Keep the original native document for submissions and editing. JSON carries Markdown at .data.markdown, compact at .markdown. " +
+			"Human mode prints a sanitized projection. --input defaults to - and refuses terminal stdin.",
+		Example: "$ jira adf render --input document.json --output=json\n\n" +
+			"$ jira adf render --input document.json --jq '.data.markdown'",
+		Flags: func(c *cobra.Command) { addInput(c, &input, "ADF JSON") },
+		Human: renderProjected,
+		Run: func(ctx context.Context, inv command.Invocation) (envelope.ADFRenderOutput, error) {
+			data, err := readInput(ctx, inv, input)
 			if err != nil {
-				return err
+				return envelope.ADFRenderOutput{}, err
 			}
-			doc, warnings, err := adf.Parse([]byte(raw))
+			doc, err := adf.ParseDocument(data)
 			if err != nil {
-				return fmt.Errorf("validation: parse ADF input: %w", err)
+				err := cli.NewInputError(cli.CodeFlagValueInvalid, "--input is not a native ADF document: "+err.Error())
+				err.Field = flagInput
+				return envelope.ADFRenderOutput{}, err
 			}
-			res := adf.ToMarkdownLossy(doc)
-			data := envelope.ADFRenderOutput{
-				Markdown:        res.Markdown,
-				Lossy:           len(res.LossyConstructs) > 0,
-				LossyConstructs: res.LossyConstructs,
-			}
-			return cmdutil.WriteEnvelopeWithWarnings(cmd, "adf.render", data, warnings)
+			projection := adf.ToMarkdownLossy(doc)
+			return envelope.ADFRenderOutput{
+				Markdown: projection.Markdown, Lossy: len(projection.LossyConstructs) != 0,
+				LossyConstructs: append([]string{}, projection.LossyConstructs...),
+			}, ctx.Err()
 		},
-	}
-	cmdutil.AddFileFlag(cmd.Flags(), &input, "input", "-", "ADF JSON input file; - reads stdin", "Input", "FILE")
-	return cmd
+	})
 }
 
-// readTextInput drains the --input source (file or stdin) and rejects an
-// empty payload up front with a validation-class error. The stdin default
-// only reads when stdin is actually piped: a bare invocation on a TTY gets
-// an immediate validation error instead of blocking on the terminal.
-func readTextInput(cmd *cobra.Command, path string) (string, error) {
-	if path == "-" && !cmdutil.DetectorFromContext(cmd).StdinPiped {
-		return "", errors.New("validation: no piped stdin; pass --input <file> or pipe content to --input -")
+func addInput(c *cobra.Command, input *string, kind string) {
+	command.AddStringVar(c, input, flagInput, command.StdinPath, kind+" file; - reads piped stdin", command.FlagOpts{Terse: "Input file", Placeholder: "file"})
+}
+
+func readInput(ctx context.Context, inv command.Invocation, path string) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
-	rc, err := stdin.TextInput(path)
+	data, err := command.ReadInputFileContext(ctx, flagInput, path, inv.Stdin, inv.StdinIsTerminal)
 	if err != nil {
-		return "", fmt.Errorf("validation: read --input: %w", err)
+		return nil, err
 	}
-	defer rc.Close() //nolint:errcheck // read-only stream
-	data, err := io.ReadAll(rc)
-	if err != nil {
-		return "", fmt.Errorf("read --input: %w", err)
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
 	if xstrings.IsBlank(string(data)) {
-		return "", errors.New("validation: --input is empty")
+		err := cli.NewInputError(cli.CodeFlagValueInvalid, "--input is empty; supply Markdown or a native ADF document")
+		err.Field = flagInput
+		return nil, err
 	}
-	return string(data), nil
+	if !utf8.Valid(data) {
+		err := cli.NewInputError(cli.CodeFlagValueInvalid, "--input must contain valid UTF-8 text")
+		err.Field = flagInput
+		return nil, err
+	}
+	return data, nil
+}
+
+func renderConverted(v *output.View, env envelope.Envelope) error {
+	out, ok := env.Data.(envelope.ADFConvertOutput)
+	if !ok {
+		return fmt.Errorf("adf: expected ADFConvertOutput, got %T", env.Data)
+	}
+	var formatted bytes.Buffer
+	if err := json.Indent(&formatted, out.Document, "", "  "); err != nil {
+		return err
+	}
+	v.Section("ADF candidate")
+	for _, line := range strings.Split(formatted.String(), "\n") {
+		v.Line(cli.Text(line))
+	}
+	return nil
+}
+
+func renderProjected(v *output.View, env envelope.Envelope) error {
+	out, ok := env.Data.(envelope.ADFRenderOutput)
+	if !ok {
+		return fmt.Errorf("adf: expected ADFRenderOutput, got %T", env.Data)
+	}
+	v.Section("Markdown projection")
+	for _, line := range strings.Split(strings.TrimSuffix(out.Markdown, "\n"), "\n") {
+		v.Line(cli.Text(line))
+	}
+	if out.Lossy {
+		v.Fields(output.Field{Label: "Lossy constructs", Value: cli.Text(strings.Join(out.LossyConstructs, ", "))})
+	}
+	return nil
 }

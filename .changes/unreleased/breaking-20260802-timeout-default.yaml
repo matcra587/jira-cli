@@ -1,0 +1,3 @@
+kind: breaking
+body: "Use duration-valued flat timeout settings with an unconfigured default of `0s` (no request timeout), replacing the legacy 30-second default. Set `--timeout 30s` or the flat setting explicitly when that bound is required. The flag now bounds each HTTP request rather than the whole invocation; it no longer imposes a total batch, polling, editor or input deadline. Setting `--timeout 30s` therefore does not restore the former whole-command deadline."
+time: 2026-08-02T23:35:48.139992899-04:00

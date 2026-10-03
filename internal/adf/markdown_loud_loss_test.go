@@ -15,10 +15,7 @@ import (
 // metadata rather than content — the links that use it still render.
 
 func TestFromMarkdownHTMLBlockWarnsLossy(t *testing.T) {
-	doc, warnings, err := adf.FromMarkdownLossy("intro\n\n<div>\nraw block\n</div>\n\noutro")
-	if err != nil {
-		t.Fatalf("FromMarkdownLossy() error = %v", err)
-	}
+	doc, warnings := mdConvert(t, "intro\n\n<div>\nraw block\n</div>\n\noutro")
 	var found *adf.Warning
 	for i, w := range warnings {
 		if w.NodeType == "raw HTML block" {
@@ -35,16 +32,13 @@ func TestFromMarkdownHTMLBlockWarnsLossy(t *testing.T) {
 		t.Fatalf("HTML block warning must be source-mapped to line 3: %+v", *found)
 	}
 	// The convertible content survives around the drop.
-	if len(doc.Content) != 2 {
-		t.Fatalf("intro and outro paragraphs must survive, got %+v", doc.Content)
+	if kinds := mdKinds(doc); len(kinds) != 2 {
+		t.Fatalf("intro and outro paragraphs must survive, got %v", kinds)
 	}
 }
 
 func TestFromMarkdownInlineHTMLWarnsLossy(t *testing.T) {
-	_, warnings, err := adf.FromMarkdownLossy("before <span>x</span> after")
-	if err != nil {
-		t.Fatalf("FromMarkdownLossy() error = %v", err)
-	}
+	_, warnings := mdConvert(t, "before <span>x</span> after")
 	var found bool
 	for _, w := range warnings {
 		if w.NodeType == "inline raw HTML" && w.Lossy {
@@ -61,27 +55,23 @@ func TestFromMarkdownInlineHTMLWarnsLossy(t *testing.T) {
 // line itself. It is not content — the link that references it converts
 // with its resolved destination, so nothing the author wrote is lost.
 func TestFromMarkdownLinkReferenceDefinitionIsTheSilentException(t *testing.T) {
-	doc, warnings, err := adf.FromMarkdownLossy("see [the docs][ref]\n\n[ref]: https://example.com/docs\n")
-	if err != nil {
-		t.Fatalf("FromMarkdownLossy() error = %v", err)
-	}
-	if len(warnings) != 0 {
-		t.Fatalf("reference-style links are fully representable; want zero warnings, got %+v", warnings)
-	}
+	doc, warnings := mdConvert(t, "see [the docs][ref]\n\n[ref]: https://example.com/docs\n")
+	mdAssertNoWarnings(t, warnings)
+
 	var href string
 	var walk func(nodes []adf.Node)
 	walk = func(nodes []adf.Node) {
-		for _, n := range nodes {
-			for _, m := range n.Marks {
-				if m.Type == "link" {
-					href, _ = m.Attrs["href"].(string)
+		for i := range nodes {
+			for _, m := range nodes[i].Marks() {
+				if m.Type() == "link" {
+					href = mdHref(t, m)
 				}
 			}
-			walk(n.Content)
+			walk(nodes[i].Content())
 		}
 	}
-	walk(doc.Content)
+	walk(doc.Content())
 	if href != "https://example.com/docs" {
-		t.Fatalf("reference link must resolve its definition, got href %q in %+v", href, doc.Content)
+		t.Fatalf("reference link must resolve its definition, got href %q", href)
 	}
 }

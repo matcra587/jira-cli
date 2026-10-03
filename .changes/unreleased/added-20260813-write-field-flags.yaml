@@ -1,0 +1,3 @@
+kind: added
+body: "Expand create/edit/clone field flags with reporter, due date, components, fix/affects versions and original/remaining estimates; clone accepts the create flags as overrides. Add edit collection add/remove pairs and explicit `--unassign`. Add `--notify=false` for issue/comment edits; its receipt records requested suppression, not proof Jira honored it, because Jira permissions control delivery."
+time: 2026-08-13T02:50:37.922048422-04:00

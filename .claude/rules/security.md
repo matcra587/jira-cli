@@ -32,7 +32,7 @@ paths:
 
 Read-only mode blocks mutations at the HTTP transport
 (`internal/jira/client.go`), resolved per-invocation by
-`cmdutil.ReadOnlyEnabled` (`JIRA_READ_ONLY` env wins OFF→ON only; on
+`command.ReadOnlyEnabled` (`JIRA_READ_ONLY` env wins OFF→ON only; on
 config-load failure it fails *writable* so the real error surfaces instead
 of a masking refusal). Keep enforcement at that layer — never add a code
 path that routes a write around the transport, and never key the decision
@@ -66,7 +66,7 @@ even completion candidates) is third-party text:
 
 There is no output-scrubbing utility, and you should not assume one:
 protection comes from boundaries — profiles hold no secrets, stores never
-print, envelopes are built from typed data via `cli.WriteEnvelope`, and
+print, command specs return typed data through the shared envelope writer, and
 depguard/ruleguard ban the escape hatches (`log`, raw pflag, unwrapped
 calls — [style.md](style.md)). Treat any secret appearing in a printed
 string, envelope field, or command argument as a bug, not a filtering gap.
@@ -74,8 +74,9 @@ string, envelope field, or command argument as a bug, not a filtering gap.
 ## Supply chain
 
 GitHub Actions are SHA-pinned and zizmor-audited (pedantic); releases are
-GoReleaser-built and cosign-signed; gosec + govulncheck run in `mise run ci`
-and the hk pre-commit hooks. A new dependency needs justification —
+GoReleaser-built and cosign-signed. `mise run ci` includes Go lint/gosec and
+govulncheck. hk pre-commit runs the ordinary linters; pre-push and `hk check`
+also run govulncheck. A new dependency needs justification —
 gechr-first (see [go.md](go.md)).
 
 The `security` task runs bare govulncheck (`go tool govulncheck ./...`).
@@ -83,6 +84,9 @@ There is no advisory allowlist — fix the code or bump the dependency.
 
 ## Gates
 
-Destructive commands require `--force`; headless mutations require
-`--no-input`. Do not weaken either gate, and do not add a bypass "for
-agents" — the gates exist *because* of agents.
+`--no-input` suppresses prompts; agent detection and terminal checks also make
+an invocation noninteractive. It neither grants permission to mutate nor has
+to accompany every headless write. Commands that require confirmation must
+refuse without their declared bypass (`--force` or `--yes`) when prompting is
+unavailable. Preserve the per-command policy through shared invocation and
+confirmation owners; see [commands.md](commands.md) and [prompts.md](prompts.md).

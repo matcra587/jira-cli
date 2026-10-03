@@ -1,10 +1,10 @@
 package adf_test
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/matcra587/jira-cli/internal/adf"
-	"github.com/matcra587/jira-cli/internal/cli/adfmode"
 )
 
 // Markdown-input layer: a fenced ```lang block in Markdown MUST
@@ -20,20 +20,13 @@ func TestFromMarkdownPreservesFencedCodeLanguage(t *testing.T) {
 	}
 	for md, want := range cases {
 		t.Run(want, func(t *testing.T) {
-			doc, _, err := adf.FromMarkdownLossy(md)
+			doc, _ := mdConvert(t, md)
+			block, err := adf.AsCodeBlock(mdFindCodeBlock(t, doc))
 			if err != nil {
-				t.Fatalf("FromMarkdownLossy: %v", err)
+				t.Fatalf("AsCodeBlock: %v", err)
 			}
-			var got string
-			for _, n := range doc.Content {
-				if n.Type == "codeBlock" {
-					if v, ok := n.Attrs["language"].(string); ok {
-						got = v
-					}
-				}
-			}
-			if got != want {
-				t.Fatalf("language for fenced ```%s = %q, want %q", want, got, want)
+			if block.Attrs.Language != want {
+				t.Fatalf("language for fenced ```%s = %q, want %q", want, block.Attrs.Language, want)
 			}
 		})
 	}
@@ -42,24 +35,31 @@ func TestFromMarkdownPreservesFencedCodeLanguage(t *testing.T) {
 // Unhinted code blocks (indented, or fenced without a language) MUST carry
 // attrs.language as an explicit empty string: Jira renders an attr-less
 // codeBlock with its default language (java), so "no attr" silently
-// java-highlights arbitrary output.
+// java-highlights arbitrary output. Asserted on the raw attrs rather than
+// the typed view, because the generated CodeBlockAttrs tags Language
+// omitempty — a decoded "" cannot tell an empty value from an absent key,
+// which is exactly the distinction this test exists to pin.
 func TestFromMarkdownUnhintedCodeCarriesEmptyLanguage(t *testing.T) {
 	for name, md := range map[string]string{
 		"indented":       "    indented code\n    second line\n",
 		"fenced-no-hint": "```\nplain output\n```",
 	} {
 		t.Run(name, func(t *testing.T) {
-			doc, _, err := adf.FromMarkdownLossy(md)
-			if err != nil {
-				t.Fatalf("FromMarkdownLossy: %v", err)
+			doc, _ := mdConvert(t, md)
+			raw := mdFindCodeBlock(t, doc).Attrs()
+			if raw == nil {
+				t.Fatal("code block must carry attrs (Jira defaults attr-less blocks to java)")
 			}
-			block := findCodeBlock(t, doc)
-			lang, has := block.Attrs["language"]
+			var attrs map[string]json.RawMessage
+			if err := json.Unmarshal(raw, &attrs); err != nil {
+				t.Fatalf("decode attrs: %v", err)
+			}
+			lang, has := attrs["language"]
 			if !has {
-				t.Fatalf("code block must carry attrs.language (Jira defaults attr-less blocks to java); got %v", block.Attrs)
+				t.Fatalf("code block must carry attrs.language; got %s", raw)
 			}
-			if lang != "" {
-				t.Fatalf("attrs.language = %q, want empty string for an unhinted block", lang)
+			if string(lang) != `""` {
+				t.Fatalf("attrs.language = %s, want an empty string for an unhinted block", lang)
 			}
 		})
 	}
@@ -74,13 +74,15 @@ func TestFromMarkdownEmptyCodeBlockHasNoTextChild(t *testing.T) {
 		"newline-only": "```go\n\n```",
 	} {
 		t.Run(name, func(t *testing.T) {
-			doc, _, err := adf.FromMarkdownLossy(md)
-			if err != nil {
-				t.Fatalf("FromMarkdownLossy: %v", err)
+			doc, _ := mdConvert(t, md)
+			block := mdFindCodeBlock(t, doc)
+			if content := block.Content(); len(content) != 0 {
+				t.Fatalf("empty code block must have no content; got %+v", content)
 			}
-			block := findCodeBlock(t, doc)
-			if len(block.Content) != 0 {
-				t.Fatalf("empty code block must have no content; got %+v", block.Content)
+			// The substrate distinguishes "no content key" from an empty
+			// array, and only the former is what the schema wants here.
+			if _, ok := block.Field("content"); ok {
+				t.Error("empty code block must not carry a content key at all")
 			}
 		})
 	}
@@ -89,22 +91,19 @@ func TestFromMarkdownEmptyCodeBlockHasNoTextChild(t *testing.T) {
 // The fence's trailing newline is Markdown syntax, not code: the text child
 // must not carry it, or Jira renders a spurious blank line.
 func TestFromMarkdownCodeBlockTrimsTrailingNewline(t *testing.T) {
-	doc, _, err := adf.FromMarkdownLossy("```go\nfunc main() {}\n```")
-	if err != nil {
-		t.Fatalf("FromMarkdownLossy: %v", err)
+	doc, _ := mdConvert(t, "```go\nfunc main() {}\n```")
+	block := mdFindCodeBlock(t, doc)
+	if content := block.Content(); len(content) != 1 {
+		t.Fatalf("code block content = %+v, want one text child", content)
 	}
-	block := findCodeBlock(t, doc)
-	if len(block.Content) != 1 {
-		t.Fatalf("code block content = %+v, want one text child", block.Content)
-	}
-	if got, want := block.Content[0].Text, "func main() {}"; got != want {
+	if got, want := mdChild(t, block, 0).Text(), "func main() {}"; got != want {
 		t.Fatalf("code block text = %q, want %q", got, want)
 	}
 }
 
-// Every shape this converter emits for code blocks must pass strict ADF
+// Every shape this converter emits for code blocks must pass schema
 // validation — the whole point of the fixes is surviving Jira's schema.
-func TestFromMarkdownCodeBlocksPassStrictValidation(t *testing.T) {
+func TestFromMarkdownCodeBlocksPassValidation(t *testing.T) {
 	for name, md := range map[string]string{
 		"hinted":   "```go\nfunc main() {}\n```",
 		"unhinted": "```\nplain\n```",
@@ -112,24 +111,20 @@ func TestFromMarkdownCodeBlocksPassStrictValidation(t *testing.T) {
 		"indented": "    indented code\n",
 	} {
 		t.Run(name, func(t *testing.T) {
-			doc, _, err := adf.FromMarkdownLossy(md)
-			if err != nil {
-				t.Fatalf("FromMarkdownLossy: %v", err)
-			}
-			if _, err := adf.ValidateDoc(doc, adfmode.ModeStrict); err != nil {
-				t.Fatalf("strict validation rejected converter output: %v", err)
-			}
+			doc, _ := mdConvert(t, md)
+			mdValidate(t, doc)
 		})
 	}
 }
 
-func findCodeBlock(t *testing.T, doc adf.Document) adf.Node {
+func mdFindCodeBlock(t *testing.T, doc *adf.Document) *adf.Node {
 	t.Helper()
-	for _, n := range doc.Content {
-		if n.Type == "codeBlock" {
-			return n
+	content := doc.Content()
+	for i := range content {
+		if content[i].Type() == "codeBlock" {
+			return &content[i]
 		}
 	}
-	t.Fatal("no codeBlock node in converted document")
-	return adf.Node{}
+	t.Fatalf("no codeBlock node in converted document; got %v", mdKinds(doc))
+	return nil
 }

@@ -1,144 +1,130 @@
 package jira
 
 import (
-	"context"
+	"encoding/json"
 	"errors"
-	"net/http"
+	"fmt"
+	"math"
 	"strconv"
-	"unicode"
+	"strings"
+	"time"
 
-	"github.com/matcra587/jira-cli/internal/adf"
+	xstrings "github.com/gechr/x/strings"
 )
 
-// WorklogService reads and writes the work-log entries on an issue.
-type WorklogService interface {
-	List(context.Context, string, *ListOptions) ([]*Worklog, *Response, error)
-	Add(context.Context, string, *WorklogAddRequest) (*Worklog, *Response, error)
-	Delete(context.Context, string, string) (*Response, error)
-}
+// DefaultWorkdaySeconds preserves the CLI's eight-hour Jira workday.
+const DefaultWorkdaySeconds = int(8 * time.Hour / time.Second)
 
-type worklogService struct {
-	client *Client
-}
-
-// WorklogAddRequest is the body for logging work. TimeSpentSeconds is required
-// and positive. DryRun is local-only (`json:"-"`) — it short-circuits Add to a
-// synthetic result and never reaches Jira.
-type WorklogAddRequest struct {
-	TimeSpentSeconds int           `json:"timeSpentSeconds"`
-	Started          string        `json:"started,omitempty"`
-	Comment          *adf.Document `json:"comment,omitempty"`
-	DryRun           bool          `json:"-"`
-}
-
-// NewWorklogService constructs a WorklogService bound to the given client.
-func NewWorklogService(client *Client) WorklogService {
-	return &worklogService{client: client}
-}
-
-// List returns the issue's worklog entries. Unlike enhanced search, this
-// endpoint reports its own offset paging fields, so the Response is stamped with
-// a known Total and an IsLast computed from startAt + len versus total.
-func (s *worklogService) List(ctx context.Context, issueKey string, opts *ListOptions) ([]*Worklog, *Response, error) {
-	path := RESTPath("issue", issueKey, "worklog")
-	if opts != nil {
-		path = withQuery(path, opts.QueryValues())
-	}
-	req, err := s.client.NewRequest(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, nil, err
-	}
-	var result struct {
-		Worklogs   []*Worklog `json:"worklogs"`
-		StartAt    int        `json:"startAt"`
-		MaxResults int        `json:"maxResults"`
-		Total      int        `json:"total"`
-	}
-	resp, err := s.client.Do(req, &result)
-	if resp != nil {
-		resp.StartAt = result.StartAt
-		resp.MaxResults = result.MaxResults
-		resp.Total = result.Total
-		resp.TotalKnown = true
-		resp.IsLast = result.StartAt+len(result.Worklogs) >= result.Total
-	}
-	return result.Worklogs, resp, err
-}
-
-// Add logs work against the issue. Under DryRun it returns a synthetic worklog
-// without contacting Jira, so a preview path renders a plausible result while
-// honoring the local-only contract of --dry-run.
-func (s *worklogService) Add(ctx context.Context, issueKey string, reqBody *WorklogAddRequest) (*Worklog, *Response, error) {
-	if reqBody == nil || reqBody.TimeSpentSeconds <= 0 {
-		return nil, nil, errors.New("positive time spent is required")
-	}
-	if reqBody.DryRun {
-		return &Worklog{ID: new("DRY-RUN"), TimeSpentSeconds: new(reqBody.TimeSpentSeconds)}, &Response{IsLast: true}, nil
-	}
-	req, err := s.client.NewRequest(ctx, http.MethodPost, RESTPath("issue", issueKey, "worklog"), reqBody)
-	if err != nil {
-		return nil, nil, err
-	}
-	var worklog Worklog
-	resp, err := s.client.Do(req, &worklog)
-	return &worklog, resp, err
-}
-
-// Delete removes a single worklog entry by id.
-func (s *worklogService) Delete(ctx context.Context, issueKey, worklogID string) (*Response, error) {
-	req, err := s.client.NewRequest(ctx, http.MethodDelete, RESTPath("issue", issueKey, "worklog", worklogID), nil)
-	if err != nil {
-		return nil, err
-	}
-	return s.client.Do(req, nil)
-}
-
-// ParseDuration converts a Jira time expression ("2h", "1d 4h", "30m") to
-// seconds. It is deliberately not x/human.ParseDuration: Jira's "d" is a
-// configurable work day (workdaySeconds, defaulting to DefaultWorkdaySeconds),
-// not a fixed 24 hours, so a shared parser would compute the wrong total for
-// day units. Only d/h/m are accepted; the value must be positive.
-func ParseDuration(input string, workdaySeconds int) (int, error) {
+// ParseWorklogDuration converts integer d/h/m components into seconds.
+// Unlike x/human.ParseDuration, d means a configured workday rather than
+// 24 hours. Components may be adjacent or separated by spaces; arithmetic
+// is checked before multiplication or addition. Nonpositive workdaySeconds
+// selects the historical eight-hour default.
+func ParseWorklogDuration(input string, workdaySeconds int) (int, error) {
 	if workdaySeconds <= 0 {
 		workdaySeconds = DefaultWorkdaySeconds
 	}
-	total := 0
-	i := 0
-	for i < len(input) {
-		if input[i] == '-' {
-			return 0, errors.New("duration must be positive")
+	rest := strings.TrimSpace(input)
+	if rest == "" {
+		return 0, errors.New("time spent is required")
+	}
+	var seconds int
+	for rest != "" {
+		end := 0
+		for end < len(rest) && xstrings.IsDigitChar(rune(rest[end])) {
+			end++
 		}
-		start := i
-		for i < len(input) && unicode.IsDigit(rune(input[i])) {
-			i++
+		if end == 0 || end == len(rest) {
+			return 0, fmt.Errorf("time spent %q must use integer d, h or m components, such as 1d2h30m", input)
 		}
-		if start == i || i >= len(input) {
-			return 0, errors.New("invalid duration")
-		}
-		n, err := strconv.Atoi(input[start:i])
+		n, err := strconv.Atoi(rest[:end])
 		if err != nil {
-			return 0, errors.New("invalid duration")
+			return 0, fmt.Errorf("time spent %q is too large: %w", input, err)
 		}
-		unit := input[i]
-		i++
-		switch unit {
+		var unit int
+		switch rest[end] {
 		case 'd':
-			total += n * workdaySeconds
+			unit = workdaySeconds
 		case 'h':
-			total += n * 3600
+			unit = int(time.Hour / time.Second)
 		case 'm':
-			total += n * 60
+			unit = int(time.Minute / time.Second)
 		default:
-			return 0, errors.New("unsupported duration unit")
+			return 0, fmt.Errorf("time spent %q must use d, h or m units", input)
 		}
+		if n > (math.MaxInt-seconds)/unit {
+			return 0, fmt.Errorf("time spent %q is too large", input)
+		}
+		seconds += n * unit
+		rest = strings.TrimSpace(rest[end+1:])
 	}
-	if total <= 0 {
-		return 0, errors.New("duration must be positive")
+	if seconds <= 0 {
+		return 0, errors.New("time spent must be positive")
 	}
-	return total, nil
+	return seconds, nil
 }
 
-// DefaultWorkdaySeconds is Jira's default work day (8 hours), the fallback
-// ParseDuration uses to expand day units when no instance-configured length is
-// supplied.
-const DefaultWorkdaySeconds = 28800
+// AddWorklogRequest contains caller-owned worklog members. A received Worklog
+// also carries server-owned IDs, authors and timestamps, so it must never be
+// reused as a POST body. Comment holds submission-ready ADF bytes.
+type AddWorklogRequest struct {
+	TimeSpentSeconds int             `json:"timeSpentSeconds"`
+	Started          string          `json:"started,omitempty"`
+	Comment          json.RawMessage `json:"comment,omitempty"`
+	// Extra preserves caller-owned native properties, visibility and future
+	// request members. The CLI removes its convenience input members first.
+	Extra map[string]json.RawMessage `json:"-"`
+}
+
+func (v AddWorklogRequest) MarshalJSON() ([]byte, error) {
+	type alias AddWorklogRequest
+	return marshalMergeExtra(alias(v), v.Extra, []string{"timeSpentSeconds", "started", "comment"})
+}
+
+// ValidateIdentity refuses a missing identity rather than manufacturing a
+// successful worklog receipt or an empty record in a list.
+func (v Worklog) ValidateIdentity() error {
+	if !v.ID.Set || v.ID.Null || v.ID.Value == "" || strings.TrimSpace(v.ID.Value) != v.ID.Value {
+		return errors.New("worklog identity is missing, null or blank")
+	}
+	return nil
+}
+
+// ValidatePage checks the requested offset and returned facts before any row
+// is exposed. An empty page beyond total is valid; an empty page before total
+// remains inspectable so the walk can report lack of progress honestly.
+func (v PageOfWorklogs) ValidatePage(startAt, maxResults int) error {
+	if startAt < 0 || maxResults < 1 {
+		return errors.New("worklog page request requires a nonnegative offset and positive size")
+	}
+	if !v.StartAt.Set || v.StartAt.Null || v.StartAt.Value != int64(startAt) {
+		return errors.New("worklog page startAt does not match the requested offset")
+	}
+	if !v.MaxResults.Set || v.MaxResults.Null || v.MaxResults.Value < 0 {
+		return errors.New("worklog page maxResults is missing, null or negative")
+	}
+	if !v.Total.Set || v.Total.Null || v.Total.Value < 0 {
+		return errors.New("worklog page total is missing, null or negative")
+	}
+	if !v.Worklogs.Set || v.Worklogs.Null {
+		return errors.New("worklog page worklogs must be an explicit array")
+	}
+	count := int64(len(v.Worklogs.Value))
+	if count > int64(maxResults) || count > v.MaxResults.Value {
+		return errors.New("worklog page exceeds the requested or declared size")
+	}
+	if count > 0 && (v.Total.Value < v.StartAt.Value || count > v.Total.Value-v.StartAt.Value) {
+		return errors.New("worklog page rows exceed the declared total")
+	}
+	seen := make(map[string]struct{}, len(v.Worklogs.Value))
+	for _, worklog := range v.Worklogs.Value {
+		if err := worklog.ValidateIdentity(); err != nil {
+			return err
+		}
+		if _, exists := seen[worklog.ID.Value]; exists {
+			return fmt.Errorf("worklog page repeats identity %q", worklog.ID.Value)
+		}
+		seen[worklog.ID.Value] = struct{}{}
+	}
+	return nil
+}

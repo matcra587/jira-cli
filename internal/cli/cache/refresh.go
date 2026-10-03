@@ -2,241 +2,142 @@ package cache
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"strings"
-	"time"
+	"sync"
 
-	clib "github.com/gechr/clib/cli/cobra"
+	xsync "github.com/gechr/x/sync"
 	"github.com/spf13/cobra"
 
-	"github.com/matcra587/jira-cli/internal/cache"
 	"github.com/matcra587/jira-cli/internal/cli"
-	"github.com/matcra587/jira-cli/internal/cli/cache/registry"
-	"github.com/matcra587/jira-cli/internal/cli/cmdutil"
-	"github.com/matcra587/jira-cli/internal/config"
+	"github.com/matcra587/jira-cli/internal/cli/command"
+	"github.com/matcra587/jira-cli/internal/core"
 	"github.com/matcra587/jira-cli/internal/envelope"
-	"github.com/matcra587/jira-cli/internal/jira"
+	"github.com/matcra587/jira-cli/internal/output"
 )
 
-// refreshOutcome is the per-resource success result. A failed resource is
-// carried by the fan-out KeyResult error instead, so this only describes the
-// fresh (skipped) and refreshed (refetched) outcomes.
-type refreshOutcome struct {
-	status     string // "fresh" or "refreshed"
-	fromCache  bool
-	count      int
-	fetchedAt  time.Time
-	durationMS int64
-}
-
-// cacheRefreshCommand refreshes every registered cache resource (or a named
-// subset) in one pass. By default it is TTL-gated — a resource still fresh
-// under its registry TTL is reported "fresh" and left untouched — and --force
-// refetches everything. Resources are fetched with bounded concurrency; one
-// resource failing does not abort the rest, and the partial-failure envelope
-// keeps the successes while exiting non-zero.
-func cacheRefreshCommand() *cobra.Command {
-	var force, unbounded, dryRun bool
-	var parallelism, ttlOverride int
-	cmd := &cobra.Command{
-		Use:   "refresh [resource...]",
-		Short: "Refresh stale cache resources (or all with --force)",
-		Long: "Refresh cached Jira metadata for the active profile. With no arguments, it " +
-			"checks every registered resource; with resource names, it checks only those.\n\n" +
-			"Fresh resources are skipped unless `--force` is set. Resources are refreshed " +
-			"with bounded concurrency, and a failure for one resource is returned in the " +
-			"structured envelope without discarding successful refreshes.",
-		Example: `$ jira cache refresh
-
-# Refresh everything, ignoring freshness
-$ jira cache refresh --force
-
-# Limit the refresh to named resources
-$ jira cache refresh boards labels
-
-# Refresh every resource and keep the result parseable
-$ jira cache refresh --force --output=json`,
-		Annotations: map[string]string{"clib": "dynamic-args='cacheresource'"},
-		ValidArgsFunction: func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
-			return registry.ResourceNames(), cobra.ShellCompDirectiveNoFileComp
+func newRefresh(deps PrimeDeps) *cobra.Command {
+	var opts primeOptions
+	var keyed command.KeyedFlags
+	return command.MustNew(command.Spec[envelope.CacheRefreshOutput]{
+		Op: "cache.refresh", Use: "refresh [RESOURCE...]", Short: "Refresh all or selected cached metadata",
+		Keyed: true, MutatesLocalState: true, Passthrough: true,
+		Long: "Refresh all ten metadata resources in catalog order, or selected resource names in request order. Repeated names run once, at their first position. " +
+			"Fresh entries are reused unless --force is set. --ttl-minutes overrides freshness for each resource; nonpositive uses each resource's default. " +
+			"--parallelism bounds concurrent resources from 1 to 16 and defaults to 1. --unbounded removes collection caps for paged metadata; board project enrichment retains its bounds.\n\n" +
+			"--dry-run inspects the selected scope without credentials, Jira reads or storage creation; configure public base_url and email explicitly. " +
+			"Live refresh retains ordinary keyring account resolution and works in read-only mode without confirmation. " +
+			"A failed resource never replaces its previous entry. Results retain native values, completion facts and storage acknowledgements, even after failure or cancellation. " +
+			"Mixed success returns successful data and failed resource rows; total failure returns the most severe original error with every row. Inspect each row's ok and error before retrying.",
+		Example: "$ jira cache refresh --output=json\n\n$ jira cache refresh fields labels --force --parallelism=2 --output=json\n\n$ jira cache refresh --dry-run --output=json",
+		Args:    command.ArgSpec{Max: command.AnyArgs, Positions: []command.Arg{{Name: "RESOURCE", Predictor: "cacheresource"}}},
+		Flags: func(cmd *cobra.Command) {
+			var mut command.MutationFlags
+			command.AddMutationFlags(cmd, &mut)
+			command.AddKeyedFlags(cmd, &keyed, command.WithParallelismDefault(1), command.WithParallelismShorthand("p"))
+			command.AddBoolVar(cmd, &opts.force, command.FlagForce, false, "Fetch selected resources regardless of freshness", command.FlagOpts{Terse: "Fetch fresh metadata"})
+			command.AddIntVar(cmd, &opts.ttlMinutes, FlagTTLMinutes, 0, "Cache freshness in minutes; nonpositive uses each resource's default", command.FlagOpts{Terse: "Cache lifetime", Placeholder: "n"})
+			command.AddBoolVar(cmd, &opts.unbounded, "unbounded", false, "Remove metadata collection caps; board project enrichment remains bounded", command.FlagOpts{Terse: "Remove collection caps"})
 		},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			resources := args
-			if len(resources) == 0 {
-				resources = registry.ResourceNames()
-			}
-			for _, name := range resources {
-				if _, found := registry.ByName(name); !found {
-					return cli.NewCLIInputError(
-						cli.InputArgValueInvalid,
-						fmt.Sprintf("unknown cache resource %q; valid resources: %s", name, strings.Join(registry.ResourceNames(), ", ")),
-					)
-				}
-			}
-
-			var (
-				client   *jira.Client
-				hasURL   bool
-				cacheKey string
-			)
-			if dryRun {
-				// Local-only preview: resolve the cache key from config without
-				// building a Jira client (which would require a credential), so
-				// --dry-run never needs auth and never contacts Jira.
-				cfg, cfgErr := config.Load(config.WithPath(cmdutil.ConfigPath(cmd)))
-				if cfgErr != nil {
-					return cfgErr
-				}
-				cacheKey = cmdutil.CacheKeyForProfile(cmd, cmdutil.ActiveProfile(cmd, cfg))
-			} else {
-				c, profile, ok, err := cmdutil.JiraClientForCommand(cmd)
-				if err != nil {
-					return err
-				}
-				client, hasURL = c, ok
-				cacheKey = cmdutil.CacheKeyForProfile(cmd, profile)
-			}
-
-			fn := func(ctx context.Context, name string) (refreshOutcome, error) {
-				return refreshResource(ctx, cacheKey, client, hasURL, name, force, unbounded, ttlOverride, dryRun)
-			}
-			results, err := cmdutil.FanOutKeysProgress(cmd.Context(), "cache.refresh", resources, parallelism, fn)
-			if err != nil {
+		Validate: func() error {
+			if err := keyed.Validate(); err != nil {
 				return err
 			}
-			// The shared keyed-results envelope keys each row by resource
-			// name, retains successes on partial failure, drives the plain
-			// renderer, and maps the exit code to the highest per-resource
-			// failure — identical to the multi-key issue commands.
-			return cmdutil.WriteKeyedResultsEnvelope(cmd, "cache.refresh", results,
-				func(_ string, o refreshOutcome) any {
-					return envelope.CacheRefreshRow{
-						Status:     o.status,
-						FromCache:  o.fromCache,
-						Count:      o.count,
-						FetchedAt:  o.fetchedAt.UTC().Format(time.RFC3339),
-						DurationMS: o.durationMS,
-						DryRun:     dryRun,
-					}
-				})
+			return (Options{TTLMinutes: opts.ttlMinutes}).Validate()
 		},
-	}
-	cmdutil.AddBoolVar(cmd.Flags(), &force, "force", false, "Refetch every resource regardless of freshness",
-		clib.FlagExtra{Group: "Cache", Terse: "ignore freshness"})
-	cmdutil.AddParallelismFlag(cmd, &parallelism)
-	cmdutil.AddIntVar(cmd.Flags(), &ttlOverride, "ttl-minutes", 0, "Freshness window override for all resources (0 = per-resource default)",
-		clib.FlagExtra{Group: "Cache", Placeholder: "N", Terse: "freshness window"})
-	cmdutil.AddBoolVar(cmd.Flags(), &unbounded, "unbounded", false, "For boards, walk every page (disables the default cap)",
-		clib.FlagExtra{Group: "Pagination", Terse: "walk every page"})
-	cmdutil.AddDryRunFlag(cmd.Flags(), &dryRun, "Report which resources are stale without refetching or writing (never contacts Jira)")
-	return cmd
+		Human: renderRefresh, Warnings: refreshWarnings,
+		RetainOnError: func(out envelope.CacheRefreshOutput) bool { return len(out.Results) > 0 },
+		Run: func(ctx context.Context, inv command.Invocation) (envelope.CacheRefreshOutput, error) {
+			return runRefresh(ctx, deps, inv, opts, keyed)
+		},
+	})
 }
 
-// refreshResource refreshes one resource: it serves a still-fresh cache
-// untouched (unless force), otherwise refetches and writes. boards is fetched
-// through PrimeAndCacheBoards because its cache is an object, not a flat list.
-func refreshResource(ctx context.Context, cacheKey string, client *jira.Client, hasBaseURL bool, name string, force, unbounded bool, ttlOverride int, dryRun bool) (refreshOutcome, error) {
-	start := time.Now()
-	r, found := registry.ByName(name)
-	if !found {
-		return refreshOutcome{}, fmt.Errorf("unknown cache resource %q", name)
+func runRefresh(ctx context.Context, deps PrimeDeps, inv command.Invocation, opts primeOptions, keyed command.KeyedFlags) (envelope.CacheRefreshOutput, error) {
+	out := envelope.CacheRefreshOutput{MutationState: envelope.MutationState{DryRun: inv.DryRun}, Parallelism: keyed.Parallelism, Results: []envelope.ResourceResult[envelope.CachePrimeOutput]{}}
+	if err := keyed.Validate(); err != nil {
+		return out, err
 	}
-	ttlMinutes := r.TTLMinutes
-	if ttlOverride > 0 {
-		ttlMinutes = ttlOverride
+	if err := (Options{TTLMinutes: opts.ttlMinutes}).Validate(); err != nil {
+		return out, err
 	}
-	ttl := time.Duration(ttlMinutes) * time.Minute
-
-	if !force {
-		entry, present, stale, readErr := cache.Read(cacheKey, r.Name, ttl)
-		if readErr == nil && present && !stale {
-			return refreshOutcome{
-				status:     "fresh",
-				fromCache:  true,
-				count:      cachedCount(r, entry.Data),
-				fetchedAt:  entry.FetchedAt,
-				durationMS: time.Since(start).Milliseconds(),
-			}, nil
+	names := inv.Args
+	if len(names) == 0 {
+		names = ResourceNames()
+	}
+	selected := make([]MetadataResource, 0, len(names))
+	seen := make(map[string]bool, len(names))
+	for _, name := range names {
+		resource, ok := metadataResource(name)
+		if !ok {
+			err := cli.NewInputError(cli.CodeArgValueInvalid, fmt.Sprintf("unknown cache resource %q", name))
+			err.Field, err.Suggestions = "RESOURCE", cli.SuggestValues(name, ResourceNames())
+			return out, err
+		}
+		if !seen[name] {
+			selected = append(selected, resource)
+			seen[name] = true
 		}
 	}
-
-	if dryRun {
-		// Local-only preview: the resource is stale (or --force), so a live run
-		// would refetch it. Report that without contacting Jira or writing; the
-		// count and timestamp come from the existing cache entry when present.
-		count, fetchedAt := 0, time.Time{}
-		fromCache := false
-		if entry, present, _, readErr := cache.Read(cacheKey, r.Name, ttl); readErr == nil && present {
-			fromCache = true
-			count, fetchedAt = cachedCount(r, entry.Data), entry.FetchedAt
+	// Constructors are resolved once and only when a worker actually needs them.
+	// A fully fresh group never constructs a Jira client. Live scope resolution
+	// retains credential-store access for an account held only in keyring.
+	original := deps
+	scope := sync.OnceValues(func() (MetadataScope, error) {
+		if original.Scope == nil {
+			return MetadataScope{}, core.ErrCacheManagementUnsupported
 		}
-		return refreshOutcome{
-			status:     "would-refresh",
-			fromCache:  fromCache,
-			count:      count,
-			fetchedAt:  fetchedAt,
-			durationMS: time.Since(start).Milliseconds(),
-		}, nil
-	}
-
-	if !hasBaseURL {
-		return refreshOutcome{}, fmt.Errorf("jira base URL is required to refresh %s", r.Name)
-	}
-
-	var (
-		count     int
-		fetchedAt time.Time
-	)
-	if r.Fetch == nil {
-		// boards: bespoke prime (bounded pagination + per-board projects).
-		file, entry, _, err := cmdutil.PrimeAndCacheBoards(ctx, cacheKey, client, ttlMinutes, unbounded)
-		if err != nil {
-			return refreshOutcome{}, err
+		return original.Scope(inv.DryRun)
+	})
+	deps.Scope = func(bool) (MetadataScope, error) { return scope() }
+	deps.JiraClient = sync.OnceValues(func() (core.JiraClient, error) {
+		if original.JiraClient == nil {
+			return nil, metadataInvalid("metadata client constructor is unavailable")
 		}
-		count, fetchedAt = len(file.Items), entry.FetchedAt
-	} else {
-		data, err := r.Fetch(ctx, client)
-		if err != nil {
-			return refreshOutcome{}, err
-		}
-		items, err := decodeCacheList(data)
-		if err != nil {
-			return refreshOutcome{}, fmt.Errorf("%s: decode refreshed cache data: %w", r.Name, err)
-		}
-		entry, err := cache.Write(cacheKey, r.Name, data)
-		if err != nil {
-			return refreshOutcome{}, err
-		}
-		count, fetchedAt = len(items), entry.FetchedAt
-	}
-	return refreshOutcome{
-		status:     "refreshed",
-		fromCache:  false,
-		count:      count,
-		fetchedAt:  fetchedAt,
-		durationMS: time.Since(start).Milliseconds(),
-	}, nil
+		return original.JiraClient()
+	})
+	opts.withoutSpinner = true
+	out.Results = make([]envelope.ResourceResult[envelope.CachePrimeOutput], len(selected))
+	raw := make([]error, len(selected))
+	return command.Spin(ctx, "Refreshing metadata", func(ctx context.Context) (envelope.CacheRefreshOutput, error) {
+		xsync.Parallel(keyed.Parallelism, len(selected), func(i int) {
+			data, failure := runPrime(ctx, deps, inv, selected[i], opts)
+			row := envelope.ResourceResult[envelope.CachePrimeOutput]{Resource: selected[i].Name, OK: failure == nil, Data: &data}
+			if failure != nil {
+				class := cli.MapError(failure)
+				row.Err = &envelope.KeyError{Code: class.Code, Message: class.Message, Hint: class.Hint}
+			}
+			out.Results[i], raw[i] = row, failure
+		})
+		return out, command.KeyedFailure(out.Results, raw)
+	})
 }
 
-// cachedCount returns the element count of a cached resource. boards stores an
-// object (BoardsCacheFile) rather than a flat array, so it is counted by its
-// items; every other resource is a JSON array.
-func cachedCount(r registry.Resource, data json.RawMessage) int {
-	if r.Fetch == nil {
-		var file jira.BoardsCacheFile
-		if json.Unmarshal(data, &file) == nil && len(file.Items) > 0 {
-			return len(file.Items)
-		}
-		var arr []jira.Board // legacy bare-array fixtures
-		if json.Unmarshal(data, &arr) == nil {
-			return len(arr)
-		}
-		return 0
+func renderRefresh(v *output.View, env envelope.Envelope) error {
+	out, ok := env.Data.(envelope.CacheRefreshOutput)
+	if !ok {
+		return fmt.Errorf("cache refresh: unexpected payload %T", env.Data)
 	}
-	items, err := decodeCacheList(data)
-	if err != nil {
-		return 0
+	for _, row := range out.Results {
+		if row.Data != nil {
+			if err := renderPrime(v, envelope.Envelope{Data: *row.Data}); err != nil {
+				return err
+			}
+		}
+		if row.Err != nil {
+			v.Line("failed", cli.Text(row.Resource), cli.Text(row.Err.Message))
+			v.Hint(cli.Text(row.Err.Hint))
+		}
 	}
-	return len(items)
+	return nil
+}
+
+func refreshWarnings(out envelope.CacheRefreshOutput) []envelope.Warning {
+	for _, row := range out.Results {
+		if row.Data != nil {
+			if warnings := primeWarnings(*row.Data); len(warnings) > 0 {
+				return warnings
+			}
+		}
+	}
+	return nil
 }

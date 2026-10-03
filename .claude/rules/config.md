@@ -11,51 +11,56 @@ paths:
 
 # Config
 
-Layered configuration using koanf v2, implemented in
-`internal/config/loader.go`. Profiles are metadata-only; credentials live in
-secret backends (see [security.md](security.md)).
+Named documents use `format_version=1`, `default_profile` and `[profiles.NAME]`
+tables. Existing flat files remain readable. One selected profile resolves to
+the flat runtime `Config`. `internal/config/load.go` owns koanf resolution;
+`internal/config/profile_document.go` owns strict document admission and selection,
+and `internal/config/file.go` owns authored file snapshots.
+
+Select through `--profile`/`-P`, then `JIRA_PROFILE`, then the authored default.
+Unknown or explicitly empty selectors refuse; reads never manufacture profiles.
+Validate all authored tables before overlays. Keep absence, empty, false and zero
+distinct. Ordinary environment precedence and transport read-only enforcement
+remain unchanged. Public inspection distinguishes selected profile from effective
+identity; stored metadata must not replace a named profile's identity before the
+binding check.
 
 ## Precedence (last wins)
 
-`defaults (confmap) → TOML file → JIRA_* env overlay`
+`default < file < keyring < env < flag` is the order in `config.Layers`.
 
-*   `Load` never writes. `LoadOrInit` bootstraps a missing file and
-    **skips the env overlay** — deliberately, so transient env values can
-    never be persisted into the config file.
+*   `Load` never writes. File updates preserve authored values without
+    persisting the effective environment or credential layer.
 *   Decode is **strict** (`ErrorUnused: true`): unknown keys are rejected,
     not ignored. A key rename without migration breaks existing files —
     see "Changing the config shape".
 
 ## File
 
-`~/.config/jira-cli/config.toml` (`%AppData%\jira-cli\config.toml` on
-Windows), resolved through `x/shell.ConfigDir()` — never hardcode the path.
-All writes are atomic and symlink-following via `x/os.AtomicWrite`
-(loader.go).
+`DefaultPath` uses `x/shell.ConfigDir("jira", "config.toml")`. `--config`
+selects a file independently of profile selection. Use the configuration owner
+for reads and publication; do not hardcode paths in commands.
 
-## Profiles and secret backends
+## Profiles and credentials
 
-`[[profiles]]` entries carry metadata only: `name`, `base_url`, `auth_type`
-(`token` is the only supported value — unsupported types are rejected, never
-stored as fake-authenticated), `email`, `secret_backend`
-(`keyring` | `1password` | `env`), and for 1Password:
-`onepassword_account`, `vault`, `item`. Scoped tokens add a stored
-`cloud_id` for gateway routing (see `internal/jira`).
+`[profiles.NAME]` holds public account and workflow settings. Theme, glyph,
+query-directory and alias settings belong at the root. An editor can be global
+or overridden by a profile. Tokens never belong in named profile tables.
 
-*   The 1Password backend is CGO-gated with `_nocgo` stubs (see
-    [go.md](go.md)) — release archives don't ship it.
-*   The `env` backend stores nothing: the profile's `JIRA_TOKEN_<PROFILE>`
-    variable is the credential, read at run time. It is never a migrate
-    destination — re-point a profile with `auth login --backend env`.
-*   `auth migrate` moves credentials between storing backends; never write
-    credential material into the TOML file, envelopes, or logs.
+The OS keyring stores the site, account and token together. A profile selects its
+own stable `credential_id`; `default` selects the existing fixed slot. A named
+profile without a locator never falls back to that slot. Give an authored
+profile a unique UUID before saving credentials with `auth login`.
+
+`JIRA_API_TOKEN` can supply an environment token. Implicit profile-derived token
+variables, 1Password storage and provider-to-provider `auth migrate` are not
+implemented here. Legacy conversion and rollback require a separate owner.
 
 ## Env vars (prefix `JIRA_`)
 
 | Var | Effect |
 |-----|--------|
-| `JIRA_DEFAULT_PROFILE` | selects the active profile |
-| `JIRA_PROFILE_<NAME>_<FIELD>` | per-profile field override |
+| `JIRA_PROFILE` | selects an existing profile unless `--profile` is set |
 | `JIRA_THEME` (+ `_LIGHT`/`_DARK` via clib's `SetEnvPrefix("JIRA")`) | theme override for help, plain output, and the TUI |
 | `JIRA_READ_ONLY` | truthy set (`1/true/yes/on`) blocks mutations; wins on the OFF→ON direction only |
 | `JIRA_ADF_STRICT` | ADF mode override (flag > env > path default) |
@@ -86,17 +91,13 @@ Agent detection (`CLAUDECODE`, `AI_AGENT`, …) lives in
 *   A breaking change (rename, retype, remove) must keep strict decode from
     rejecting existing files: provide an upgrade path (migration or
     load-time tolerance) and tests proving an old file still loads. There
-    is no schema-version/migration framework — a breaking change ships its
-    own upgrade path.
-*   Editor resolution precedence is profile `editor`, then global `editor`
-    (`cmdutil.ConfiguredEditorFor`) — keep new per-profile settings on the
-    same pattern.
+    is no legacy conversion command yet; named documents use explicit
+    `format_version=1`.
+*   A profile `editor` overrides the global `editor`. Keep new per-profile
+    settings on the same pattern.
 
-## Gotchas
+## Command boundaries
 
-*   Reading config in command paths goes through `cmdutil` helpers
-    (`ConfigPath(cmd)`, `ActiveProfile`, `ReadOnlyEnabled`) — don't call
-    `config.Load` with a hand-built path from command code.
-*   `config init` requires `--base-url` and `--email` under `--no-input`;
-    it exits before writing on a partial spec — preserve that (no
-    half-written profiles).
+Configuration reads and credential resolution use the shared configuration
+owner through root dependencies. Do not reconstruct the removed `loader.go`,
+`LoadOrInit` or command-local profile helpers.

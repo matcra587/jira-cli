@@ -2,87 +2,226 @@ package user
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"maps"
 
-	"github.com/gechr/x/ptr"
+	"github.com/gechr/primer/table"
+	"github.com/gechr/x/shell"
+	xstrings "github.com/gechr/x/strings"
 	"github.com/spf13/cobra"
 
-	"github.com/matcra587/jira-cli/internal/cli/cmdutil"
+	"github.com/matcra587/jira-cli/internal/cli"
+	"github.com/matcra587/jira-cli/internal/cli/command"
+	"github.com/matcra587/jira-cli/internal/core"
 	"github.com/matcra587/jira-cli/internal/envelope"
 	"github.com/matcra587/jira-cli/internal/jira"
+	"github.com/matcra587/jira-cli/internal/output"
 )
 
-// NewCommand returns the `user` group. Its one subcommand, `search`,
-// resolves a display name or email to Jira account identities — the missing
-// step between "mention someone" and the accountId an ADF mention node
-// requires. Deliberately read-only: authoring stays on the issue and
-// comment commands.
-func NewCommand() *cobra.Command {
-	cmd := cmdutil.GroupCommand("user", "Look up Jira users", "resources")
-	cmd.Long = "Look up Jira users by name or email. `jira user search` returns matching " +
-		"accounts with their accountId — the value `--assignee` and `--reporter` need when " +
-		"`me` will not do.\n\n" +
-		"There is no user cache, so completion offers only `me`/`none`; this is the discovery " +
-		"path for every other account."
-	cmd.Example = `$ jira user search ada
+const (
+	flagStart = "start"
+	flagLimit = "limit"
+	flagAll   = "all"
+	pageSize  = 50
+	// The pinned findUsers operation filters before paging and exposes only
+	// its first 1,000 matches. Other user-search endpoints differ.
+	searchLimit = 1000
+)
 
-# Get an accountId for scripting an assignment
-$ jira user search ada@example.com --output=json`
-	cmd.AddCommand(searchCommand())
+// Deps keeps help, schema and completion independent of authentication.
+type Deps struct {
+	JiraClient func() (core.JiraClient, error)
+}
+
+// New builds the account discovery group. Assignment remains a separate action.
+func New(deps Deps) *cobra.Command {
+	cmd := &cobra.Command{
+		Use: "user", Short: "Discover Jira account identities", Args: cobra.NoArgs,
+		Long:    "Find account IDs for assignment, watchers and ADF mentions. Search returns every visible candidate; choose the intended account explicitly.",
+		Example: "$ jira user search sam --output=json",
+	}
+	cmd.AddCommand(newSearch(deps))
 	return cmd
 }
 
-func searchCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "search QUERY",
-		Short: "Search users by display name or email",
-		Long: "Search Jira users by display name or email and return their account " +
-			"identities. The `account_id` in each match is the value an ADF `mention` " +
-			"node's `attrs.id` requires — this command is the deterministic path from a " +
-			"person's name or email to a mention.\n\n" +
-			"An email query resolves to a single match wherever the address is unique " +
-			"on the instance. Name queries may return several candidates; every match " +
-			"is returned so the caller can disambiguate on `email_address` or " +
-			"`display_name`. Inactive and deleted accounts are excluded.",
-		Example: `# Resolve an email to an accountId
-$ jira user search "dev@example.com" --output=json
+func newSearch(deps Deps) *cobra.Command {
+	var start, limit int
+	var all bool
+	var cmd *cobra.Command
+	return command.MustNew(command.Spec[envelope.UserSearchOutput]{
+		Op: "user.search", Identity: true,
+		Use: "search QUERY", Short: "Find active users by name or email prefix",
+		Long: "Find visible active accounts by display-name or email prefix. " +
+			"Every candidate is returned; even an email query does not automatically choose an account.\n\n" +
+			"`--start` and `--limit` select a server page. `--all` walks pages from zero and conflicts with either explicit paging flag. " +
+			"Jira exposes only the first 1,000 matching accounts. Reaching that ceiling reports `truncated: true`; narrow the query.\n\n" +
+			"The API provides no total or final-page flag. A short page does not prove completion: `pagination.next_start` permits a further probe. " +
+			"`pagination.complete` means an empty page was observed within this search window. Later failures retain earlier validated pages.\n\n" +
+			"Inactive, deleted and unknown-active rows are excluded and counted in `skipped`; paging advances by fetched rows. " +
+			"Privacy can omit or null email. Missing Browse users and groups permission can produce an empty successful search; " +
+			"no matches does not prove an account is absent.",
+		Example: `$ jira user search sam
 
-# Find candidates by display name
-$ jira user search "Sam" --output=json`,
-		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			client, _, ok, err := cmdutil.JiraClientForCommand(cmd)
-			if err != nil {
-				return err
-			}
-			if !ok {
-				return fmt.Errorf("jira base URL is required for user.search")
-			}
-			var users []*jira.User
-			err = cmdutil.Spin(cmd, "user.search", func(ctx context.Context) error {
-				var spinErr error
-				users, _, spinErr = cmdutil.ServicesForClient(client).User().Search(ctx, args[0])
-				return spinErr
-			})
-			if err != nil {
-				return err
-			}
-			matches := make([]envelope.UserSearchMatch, 0, len(users))
-			for _, u := range users {
-				if u == nil || !ptr.Deref(u.Active) || ptr.Deref(u.Deleted) {
-					continue
-				}
-				matches = append(matches, envelope.UserSearchMatch{
-					AccountID:    ptr.Deref(u.AccountID),
-					DisplayName:  ptr.Deref(u.DisplayName),
-					EmailAddress: ptr.Deref(u.EmailAddress),
-				})
-			}
-			return cmdutil.WriteEnvelope(cmd, "user.search", envelope.UserSearchOutput{
-				Query: args[0],
-				Users: matches,
-				Count: len(matches),
-			})
+# Inspect candidate account IDs
+$ jira user search sam@example.com --output=json
+
+# Read another server page
+$ jira user search sam --start 50 --limit 10
+
+# Walk the endpoint's visible search window
+$ jira user search sam --all --output=json`,
+		Args: command.ArgSpec{Min: 1, Max: 1, Positions: []command.Arg{{Name: "QUERY"}}},
+		Flags: func(c *cobra.Command) {
+			cmd = c
+			command.AddIntVar(c, &start, flagStart, 0, "Offset in filtered matches (0–999)", command.FlagOpts{Terse: "Page offset", Placeholder: "n"})
+			command.AddIntVar(c, &limit, flagLimit, pageSize, "Maximum fetched rows per page (1–1000)", command.FlagOpts{Terse: "Page size", Placeholder: "n"})
+			command.AddBoolVar(c, &all, flagAll, false, "Walk pages until empty or the 1,000-match endpoint ceiling", command.FlagOpts{Terse: "Search window"})
 		},
+		Validate: func() error {
+			if all && (cmd.Flags().Changed(flagStart) || cmd.Flags().Changed(flagLimit)) {
+				err := cli.NewInputError(cli.CodeFlagConflict, "--all conflicts with explicit --start or --limit")
+				err.Field = flagAll
+				return err
+			}
+			if start < 0 || start >= searchLimit {
+				err := cli.NewInputError(cli.CodeFlagValueInvalid, "--start must be between 0 and 999")
+				err.Field = flagStart
+				return err
+			}
+			if limit < 1 || limit > searchLimit {
+				err := cli.NewInputError(cli.CodeFlagValueInvalid, "--limit must be between 1 and 1000")
+				err.Field = flagLimit
+				return err
+			}
+			return nil
+		},
+		Human:         renderSearch,
+		RetainOnError: func(out envelope.UserSearchOutput) bool { return out.Pagination.Fetched > 0 },
+		Run: func(ctx context.Context, inv command.Invocation) (envelope.UserSearchOutput, error) {
+			return runSearch(ctx, deps, inv.Args[0], start, limit, all)
+		},
+	})
+}
+
+func runSearch(ctx context.Context, deps Deps, query string, start, limit int, all bool) (envelope.UserSearchOutput, error) {
+	out := envelope.UserSearchOutput{
+		Query: query, Users: []envelope.UserSearchMatch{},
+		Pagination: envelope.UserSearchPagination{StartAt: start, MaxResults: min(limit, searchLimit-start), SearchLimit: searchLimit},
 	}
+	if xstrings.IsBlank(query) {
+		err := cli.NewInputError(cli.CodeArgValueInvalid, "query must not be blank")
+		err.Field = "QUERY"
+		return out, err
+	}
+	client, err := deps.JiraClient()
+	if err != nil {
+		return out, err
+	}
+	seen := make(map[string]struct{})
+	_, err = command.Spin(ctx, "Searching users", func(ctx context.Context) (struct{}, error) {
+		for {
+			out.Pagination.NextStart = new(start)
+			page, err := client.SearchUsers(ctx, query, start, min(limit, searchLimit-start))
+			if err != nil {
+				return struct{}{}, err
+			}
+			matches, err := projectPage(page.Users, min(limit, searchLimit-start), seen)
+			if err != nil {
+				return struct{}{}, err
+			}
+			out.Users = append(out.Users, matches...)
+			out.Count = len(out.Users)
+			out.Skipped += len(page.Users) - len(matches)
+			out.Pagination.Fetched += len(page.Users)
+			if len(page.Users) == 0 {
+				out.Pagination.Complete = true
+				out.Pagination.NextStart = nil
+				return struct{}{}, nil
+			}
+			start += len(page.Users)
+			if start == searchLimit {
+				out.Truncated = true
+				out.TruncatedReason = "server_limit"
+				out.Pagination.NextStart = nil
+				return struct{}{}, nil
+			}
+			out.Pagination.NextStart = new(start)
+			if !all {
+				return struct{}{}, nil
+			}
+		}
+	})
+	return out, err
+}
+
+// projectPage validates the whole page before accepting any of it. Checking
+// duplicate identities includes skipped rows: a repeated page must not masquerade
+// as progress just because every row was inactive. No total is inferred.
+func projectPage(users []*jira.User, maxResults int, seen map[string]struct{}) ([]envelope.UserSearchMatch, error) {
+	invalid := func() error {
+		return cli.NewCodedError(cli.CodeUserSearchResponseInvalid, "user search returned an invalid or repeated page")
+	}
+	if users == nil || len(users) > maxResults {
+		return nil, invalid()
+	}
+	pageIDs := make(map[string]struct{}, len(users))
+	matches := make([]envelope.UserSearchMatch, 0, len(users))
+	for _, user := range users {
+		if user == nil || !user.AccountID.Set || user.AccountID.Null || user.AccountID.Value == "" {
+			return nil, invalid()
+		}
+		id := user.AccountID.Value
+		if _, duplicate := seen[id]; duplicate {
+			return nil, invalid()
+		}
+		if _, duplicate := pageIDs[id]; duplicate {
+			return nil, invalid()
+		}
+		pageIDs[id] = struct{}{}
+		var deleted jira.Nullable[bool]
+		if raw, present := user.Extra["deleted"]; present {
+			if err := json.Unmarshal(raw, &deleted); err != nil {
+				return nil, invalid()
+			}
+		}
+		if !user.Active.Set || user.Active.Null || !user.Active.Value || (deleted.Set && !deleted.Null && deleted.Value) {
+			continue
+		}
+		matches = append(matches, envelope.UserSearchMatch{AccountID: id, DisplayName: user.DisplayName.Value, EmailAddress: user.EmailAddress})
+	}
+	maps.Copy(seen, pageIDs)
+	return matches, nil
+}
+
+func renderSearch(v *output.View, env envelope.Envelope) error {
+	out, ok := env.Data.(envelope.UserSearchOutput)
+	if !ok {
+		return fmt.Errorf("user: expected UserSearchOutput, got %T", env.Data)
+	}
+	v.Line(cli.Text(fmt.Sprintf("%d visible active matches for %q", out.Count, out.Query)))
+	if len(out.Users) > 0 {
+		output.Table(v, cli.ResolvedTheme(), []table.Column[envelope.UserSearchMatch]{
+			{Name: "account_id", Header: "ACCOUNT ID", Render: func(u envelope.UserSearchMatch, _ *table.RenderContext) table.Cell {
+				return table.TextCell(cli.Text(u.AccountID))
+			}},
+			{Name: "display_name", Header: "NAME", Flex: true, Render: func(u envelope.UserSearchMatch, _ *table.RenderContext) table.Cell {
+				return table.StyledCell(cli.OrDash(cli.Entity(u.DisplayName)), cli.Text(u.DisplayName))
+			}},
+			{Name: "email_address", Header: "EMAIL", Render: func(u envelope.UserSearchMatch, _ *table.RenderContext) table.Cell {
+				return table.TextCell(cli.OrDash(cli.Text(u.EmailAddress.Value)))
+			}},
+		}, out.Users)
+	}
+	if out.Skipped > 0 {
+		v.Line(cli.Text(fmt.Sprintf("%d inactive, deleted or unknown-active rows excluded.", out.Skipped)))
+	}
+	if out.Truncated {
+		v.Hint("Jira's 1,000-match ceiling reached. Narrow the search query.")
+	}
+	if next := out.Pagination.NextStart; next != nil {
+		v.Line(cli.Text(fmt.Sprintf("Next probe: jira user search %s --start %d", shell.Quote(out.Query), *next)))
+	}
+	v.Hint("Visibility depends on permissions; email depends on privacy settings. Empty results do not prove an account is absent.")
+	return nil
 }
