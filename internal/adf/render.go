@@ -13,7 +13,7 @@ import (
 // must NOT import internal/cli or internal/output (doc.go); Render calls
 // out to this interface instead of styling bytes itself. internal/cli
 // implements it over the shared human-output sinks (cli.Text,
-// cli.MarkupStrong, ...), and internal/cli/issue supplies the Link method
+// cli.MarkupStrong, ...), and internal/cli/command supplies the Link method
 // from its View's own hyperlink support (clog.Output.Hyperlink already
 // degrades to plain text when color is off, so Styler need not know
 // about that itself).
@@ -47,12 +47,11 @@ type Styler interface {
 // (x/ansi.WrapSoft's own no-op posture, which is what makes a non-TTY
 // caller's width=0 "just work" with no extra branch here).
 //
-// A node type this walker does not know how to draw — table, panel,
-// mention, media, expand, layout, cards, task/decision lists, and
+// A node type this walker does not know how to draw — media, cards, dates, and
 // anything the schema adds after this was written — becomes a single
 // labeled placeholder line rather than an error or a silent drop: the
 // substrate's byte-preserving --output=json stays the lossless escape
-// hatch for exactly this content, so a placeholder is correct, not a gap.
+// hatch for exactly this content, so unsupported content remains explicit.
 //
 // Render never fails. A malformed document is ParseDocument's problem,
 // not Render's — by the time a *Document exists, walking it can only
@@ -99,13 +98,24 @@ var blockDispatch map[NodeType]blockRenderer
 
 func init() {
 	blockDispatch = map[NodeType]blockRenderer{
-		NodeTypeParagraph:   (*walker).renderParagraph,
-		NodeTypeHeading:     (*walker).renderHeading,
-		NodeTypeBulletList:  (*walker).renderBulletList,
-		NodeTypeOrderedList: (*walker).renderOrderedList,
-		NodeTypeCodeBlock:   (*walker).renderCodeBlock,
-		NodeTypeBlockquote:  (*walker).renderBlockquote,
-		NodeTypeRule:        (*walker).renderRule,
+		NodeTypeParagraph:     (*walker).renderParagraph,
+		NodeTypeHeading:       (*walker).renderHeading,
+		NodeTypeBulletList:    (*walker).renderBulletList,
+		NodeTypeOrderedList:   (*walker).renderOrderedList,
+		NodeTypeCodeBlock:     (*walker).renderCodeBlock,
+		NodeTypeBlockquote:    (*walker).renderBlockquote,
+		NodeTypeRule:          (*walker).renderRule,
+		NodeTypePanel:         (*walker).renderPanel,
+		NodeTypeTable:         (*walker).renderTable,
+		NodeTypeExpand:        (*walker).renderExpand,
+		NodeTypeNestedExpand:  (*walker).renderExpand,
+		NodeTypeLayoutSection: (*walker).renderLayoutSection,
+		NodeTypeLayoutColumn:  (*walker).renderLayoutColumn,
+		NodeTypeTaskList:      (*walker).renderReadableList,
+		NodeTypeTaskItem:      (*walker).renderTaskItem,
+		NodeTypeBlockTaskItem: (*walker).renderTaskItem,
+		NodeTypeDecisionList:  (*walker).renderReadableList,
+		NodeTypeDecisionItem:  (*walker).renderDecisionItem,
 	}
 }
 
@@ -326,11 +336,19 @@ func (w *walker) inlineSegments(nodes []Node) []string {
 
 // inline styles one inline node: a text node's sanitized content with
 // its marks applied, or a placeholder for anything else the walker has
-// no dedicated view for (mention, emoji, date, inlineCard, status,
+// no dedicated view for (date, inlineCard,
 // mediaInline, ...). Code applies innermost, Link outermost — a link
 // wraps whatever styling its own text already carries, matching how
 // Jira itself lets a link's text carry other marks.
 func (w *walker) inline(n *Node) string {
+	switch NodeType(n.Type()) {
+	case NodeTypeMention:
+		return w.renderMention(n)
+	case NodeTypeEmoji:
+		return w.renderEmoji(n)
+	case NodeTypeStatus:
+		return w.renderStatus(n)
+	}
 	if NodeType(n.Type()) != NodeTypeText {
 		return w.placeholder(n)
 	}
@@ -377,9 +395,12 @@ func (w *walker) inline(n *Node) string {
 }
 
 func (w *walker) renderPlaceholder(n *Node, prefix string) {
-	w.writeLine(prefix, w.placeholder(n))
+	w.writeBlock(prefix, prefix, []string{w.placeholder(n)})
 }
 
 func (w *walker) placeholder(n *Node) string {
+	if s, ok := w.styler.(PlaceholderStyler); ok {
+		return s.UnsupportedNode(w.styler.Text(n.Type()))
+	}
 	return w.styler.Text(fmt.Sprintf("[%s — see --output=json]", n.Type()))
 }

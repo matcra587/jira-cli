@@ -44,6 +44,24 @@ jira boards list --all --output=compact
 jira boards list --refresh --all --jq '.data.boards[].id'
 ```
 
+### Read human output
+
+Human `adf render`, issue descriptions and comment bodies share native terminal
+rendering: panel frames, status badges and tables with merged cells. Cell text
+wraps without truncation. Section titles also wrap at the terminal width, keeping
+complete titles and native styling. Human rows and labeled fields also wrap to
+the terminal width. Fields keep aligned value columns when space permits.
+Otherwise, the whole row wraps. Redirected rows retain their existing layout.
+Very narrow or malformed tables use labeled authored cells, retaining their
+attributes and full content. Layout columns appear in authored order with width
+labels. Human ADF reads also show mention/emoji text, expanded content and
+task/decision state. Media, cards and unsupported future nodes remain explicit
+placeholders with a native-input recovery hint. Native read results stay
+unchanged. JSON and compact `adf render` still return the Markdown review
+projection with its list of losses. Human rendering is not an edit source. It
+does not establish rich authoring, lossless editing or that a Jira field accepts
+every node in the full schema.
+
 ### Select the correct JSON and jq paths
 
 Full JSON uses `ok`, `data`, `meta`, `warnings` and `errors`. Empty warning and
@@ -94,11 +112,48 @@ create/edit request. A bare ADF document is not a complete mutation request.
 A local preview can accept a bare document, so a successful preview does not
 confirm correct placement.
 
+Plain Markdown text resolves punctuation escapes and character references once.
+For example, `\*literal\* &amp;` authors `*literal* &` as native text. Code
+spans and blocks keep those spellings literal. Native Markdown projections
+escape ampersands so stored entity spellings survive conversion without another
+decode. Unchanged anchored regions still preserve their original native bytes.
+
+### Author and review status nodes
+
+Optional `:status[plain label]{color=green}` directives author native status
+nodes through the same converter. Omitted color defaults to `neutral`. Supported
+colors are `neutral`, `purple`, `blue`, `red`, `yellow`, `green` and six-digit
+`#RRGGBB`. Optional `localId` and `style` string attributes retain native values
+and explicit empty strings. For example,
+`:status[READY]{color=green localId="owned-id" style=""}`. Single or double quotes
+around attribute values are accepted. Labels
+resolve Markdown punctuation escapes and character references once. Code,
+escaped colons and URL contents remain ordinary Markdown. A directive can follow
+a completed link, code span, status or formatting span without a separating
+space. For example, `[open](https://example.test):status[READY]{color=green}`.
+Formatting inside a URL token does not activate a directive in its remaining
+contents. Unsupported
+attributes, formatted labels or inherited formatting retain the directive's
+literal spelling with lossy diagnostics. Strict `adf convert` refuses them.
+Issue/comment Markdown body routes retain their existing warning policy and can
+submit the literal fallback. Validate through strict local conversion before
+placing its extracted document in the native request's appropriate field. Existing
+native statuses project as directives when complete structural comparison
+preserves text, color and optional ID/style values. Status paragraphs also pass
+comparison of the whole block before reporting no loss. Plain text immediately
+before a status may use character references to preserve adjacent text and URL
+boundaries. Unknown fields, unsupported marks, invalid values and native text
+segmentation that Markdown cannot retain remain lossy and protected by anchored
+editing. Unchanged anchored regions preserve exact original bytes. These local
+proofs do not establish an issue editor or server concurrency protection.
+
 ### Keep the original ADF when editing
 
 ADF rendering returns a Markdown review projection with `lossy` and sorted
 `lossy_constructs`. Future nodes retain child content and labeled placeholders.
 Keep the original native document. This projection cannot provide lossless edits.
+
+### Check ADF and native field capabilities
 
 `agent adf-matrix` lists every pinned node/mark definition and context variant.
 `author` reports Markdown emission, `render` a dedicated Markdown projection, and

@@ -84,7 +84,7 @@ func TestEditNoopPreservesNativeBytes(t *testing.T) {
 
 func TestEditProtectsAllNonrepresentableState(t *testing.T) {
 	cases := map[string]string{
-		"panel":         `{"type":"panel","attrs":{"panelType":"warning"},"content":[{"type":"paragraph","content":[{"type":"text","text":"content"}]}]}`,
+		"panel":         `{"type":"panel","attrs":{"panelType":"warning","localId":"keep"},"content":[{"type":"paragraph","content":[{"type":"text","text":"content"}]}]}`,
 		"alignment":     `{"type":"paragraph","attrs":{"align":"center"},"content":[{"type":"text","text":"content"}]}`,
 		"empty attrs":   `{"type":"paragraph","attrs":{},"content":[{"type":"text","text":"content"}]}`,
 		"empty marks":   `{"type":"paragraph","content":[{"type":"text","text":"content","marks":[]}]}`,

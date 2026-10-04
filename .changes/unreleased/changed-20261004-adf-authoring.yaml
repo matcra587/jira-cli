@@ -1,0 +1,3 @@
+kind: changed
+body: "Extend Markdown authoring with GitHub alerts for native panels and optional `:status[label]{color=green}` directives. Preserve status text, color, local IDs/styles and explicit attribute presence in structurally checked projections and anchored edits; disclose loss instead of treating Markdown review as a lossless round trip. Render native panels, status labels and merged tables without truncating cell text, and preserve literal escapes/references without changing code content."
+time: 2026-10-04T12:51:27.520925285-04:00

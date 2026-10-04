@@ -36,7 +36,7 @@ func TestInventoryReconcilesCleanAndExact(t *testing.T) {
 	// added) keeps the count and is exactly the drift the pin exists to
 	// catch.
 	wantKeys := []string{
-		"jira adf convert|", "jira adf render|",
+		"jira adf convert|", "jira adf explain-node|", "jira adf lint|", "jira adf render|", "jira adf validate|",
 		"jira agent adf-matrix|", "jira agent export|", "jira agent fieldtypes|", "jira agent guide|", "jira agent schema|",
 		"jira alias delete|", "jira alias import|", "jira alias list|", "jira alias set|",
 		"jira api delete|", "jira api get|", "jira api head|", "jira api options|",

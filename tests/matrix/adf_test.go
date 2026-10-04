@@ -37,3 +37,18 @@ func TestADFStrictAndBestEffortFlagEffects(t *testing.T) {
 		Prove(t, "jira adf convert", option.flag, "default refused actual HTML loss; explicit flag accepted a validated empty candidate with visible loss diagnostics")
 	}
 }
+
+func TestADFInspectionInputFlagEffects(t *testing.T) {
+	t.Parallel()
+	const native = `{"type":"doc","version":1,"content":[{"type":"panel","attrs":{"panelType":"warning"},"content":[{"type":"paragraph","content":[]}]}]}`
+	for _, route := range []string{"validate", "lint"} {
+		out := fwParse(t, fwExec(t, "", map[string]string{"native.json": native}, "invalid competing stdin", "adf", route, "--input=native.json"))
+		if out.Data["valid"] != true || len(out.Data["diagnostics"].([]any)) != 0 {
+			t.Fatal("inspection input flag did not select native file")
+		}
+		if route == "lint" && (out.Data["projection_available"] != true || out.Data["lossy"] != true) {
+			t.Fatal("lint lost selected rich file's projection risk")
+		}
+		Prove(t, "jira adf "+route, "input", "selected native file instead of rejecting the competing invalid piped stdin")
+	}
+}

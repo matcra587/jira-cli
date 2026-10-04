@@ -509,7 +509,7 @@ func commentViews(comments []jira.Comment) []envelope.CommentView {
 // `created` value must not reach the terminal unsanitized through that
 // path, independently of the header-level sanitization EntityAs applies
 // to the assembled string. The body is Jira ADF, walked and sanitized by
-// the shared renderBody/bodyStyler (internal/cli/issue/render.go)
+// the shared renderBody/command.RenderADF (internal/cli/issue/render.go)
 // exactly as renderView's description is.
 func renderCommentList(v *output.View, env envelope.Envelope) error {
 	out, ok := env.Data.(envelope.IssueCommentListOutput)

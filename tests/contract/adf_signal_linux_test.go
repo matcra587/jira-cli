@@ -19,6 +19,8 @@ func TestInputSIGINTInterruptsInheritedPipeAndRestoresFlags(t *testing.T) {
 	}{
 		{"adf convert", []string{"adf", "convert", "--input=-"}},
 		{"adf render", []string{"adf", "render", "--input=-"}},
+		{"adf validate", []string{"adf", "validate", "--input=-"}},
+		{"adf lint", []string{"adf", "lint", "--input=-"}},
 		{"raw payload", []string{"api", "post", "/rest/api/3/search/jql", "--force", "--input=-"}},
 		{"issue payload", []string{"issue", "create", "--json-input=-", "--dry-run"}},
 		{"issue description", []string{"issue", "edit", "TEST-1", "--markdown-file=-", "--dry-run"}},

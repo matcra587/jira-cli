@@ -31,6 +31,10 @@ const (
 	// CodeADFContentLoss means valid Markdown loses content under conversion.
 	// Inspect the candidate before explicitly accepting that loss.
 	CodeADFContentLoss = "adf_content_loss"
+	// CodeADFInvalid means local native document inspection found invalid input.
+	CodeADFInvalid = "adf_invalid"
+	// CodeADFTypeUnknown means no pinned node/mark identity matched the operand.
+	CodeADFTypeUnknown = "adf_type_unknown"
 	// CodeFlagSyntaxInvalid is a token the parser could not read as a
 	// flag at all (a bare "-", a malformed shorthand group).
 	CodeFlagSyntaxInvalid = "flag_syntax_invalid"
@@ -171,6 +175,8 @@ var inputCodes = []string{
 	CodeFlagValueMissing,
 	CodeFlagValueInvalid,
 	CodeADFContentLoss,
+	CodeADFInvalid,
+	CodeADFTypeUnknown,
 	CodeFlagSyntaxInvalid,
 	CodeArgCountInvalid,
 	CodeArgValueInvalid,

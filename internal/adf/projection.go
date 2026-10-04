@@ -2,6 +2,7 @@ package adf
 
 import (
 	"encoding/json"
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -9,7 +10,9 @@ import (
 	"github.com/gechr/x/set"
 )
 
-// MarkdownProjection is a review artifact, never an editing round trip.
+// MarkdownProjection is a review artifact. Loss-free panels and status
+// paragraphs are structurally checked against Markdown conversion; arbitrary
+// documents are not round trips.
 // LossyConstructs names node/mark types whose semantics, attributes or unknown
 // fields have no equivalent in the projection. The source remains untouched.
 type MarkdownProjection struct {
@@ -28,7 +31,7 @@ func ToMarkdownLossy(doc *Document) MarkdownProjection {
 	if version, err := doc.Version(); err != nil || version != 1 {
 		p.losses.Add(doc.Type())
 	}
-	text := p.blocks(doc.Content())
+	text := p.blocks(doc.Content(), true)
 	if text != "" {
 		text += "\n"
 	}
@@ -39,10 +42,10 @@ type markdownProjection struct {
 	losses set.Set[string]
 }
 
-func (p *markdownProjection) blocks(nodes []Node) string {
+func (p *markdownProjection) blocks(nodes []Node, topLevel bool) string {
 	var blocks []string
 	for i := range nodes {
-		if text := p.node(&nodes[i]); text != "" {
+		if text := p.node(&nodes[i], topLevel); text != "" {
 			blocks = append(blocks, text)
 		}
 	}
@@ -51,8 +54,25 @@ func (p *markdownProjection) blocks(nodes []Node) string {
 
 func (p *markdownProjection) inline(nodes []Node) string {
 	var text strings.Builder
-	for i := range nodes {
-		text.WriteString(p.node(&nodes[i]))
+	for i := 0; i < len(nodes); {
+		end := i + 1
+		precedingStatus := false
+		if NodeType(nodes[i].Type()) == NodeTypeText && len(nodes[i].Marks()) == 0 {
+			// The whole plain run must hide URI delimiters, including ones in
+			// an earlier sibling. The full paragraph proof catches merged runs.
+			for end < len(nodes) && NodeType(nodes[end].Type()) == NodeTypeText && len(nodes[end].Marks()) == 0 {
+				end++
+			}
+			precedingStatus = end < len(nodes) && NodeType(nodes[end].Type()) == NodeTypeStatus
+		}
+		for j := i; j < end; j++ {
+			rendered := p.node(&nodes[j], false)
+			if precedingStatus {
+				rendered = statusPrecedingText(nodes[j].Text())
+			}
+			text.WriteString(rendered)
+		}
+		i = end
 	}
 	return text.String()
 }
@@ -81,15 +101,19 @@ func (p *markdownProjection) inspect(n *Node, carried []string) map[string]json.
 	return attrs
 }
 
-func (p *markdownProjection) node(n *Node) string {
+func (p *markdownProjection) node(n *Node, topLevel bool) string {
 	var carried []string
 	switch NodeType(n.Type()) {
 	case NodeTypeHeading:
 		carried = []string{"level"}
 	case NodeTypeOrderedList:
 		carried = []string{"order"}
+	case NodeTypePanel:
+		carried = []string{"panelType"}
 	case NodeTypeCodeBlock:
 		carried = []string{"language"}
+	case NodeTypeStatus:
+		carried = []string{"text", "color", "localId", "style"}
 	}
 	attrs := p.inspect(n, carried)
 	if n.Type() != string(NodeTypeText) {
@@ -99,6 +123,16 @@ func (p *markdownProjection) node(n *Node) string {
 	}
 	switch NodeType(n.Type()) {
 	case NodeTypeParagraph:
+		if slices.ContainsFunc(n.Content(), func(child Node) bool { return NodeType(child.Type()) == NodeTypeStatus }) {
+			children := markdownProjection{losses: set.New[string]()}
+			text := children.inline(n.Content())
+			if projectionBlockEqual(n, text) {
+				return text
+			}
+			p.losses.Add(n.Type())
+			maps.Copy(p.losses, children.losses)
+			return text
+		}
 		text := p.inline(n.Content())
 		if text == "" {
 			p.losses.Add(n.Type()) // Markdown cannot encode an empty paragraph.
@@ -133,14 +167,14 @@ func (p *markdownProjection) node(n *Node) string {
 			if NodeType(n.Type()) == NodeTypeOrderedList {
 				marker = strconv.Itoa(start+i) + ". "
 			}
-			text := p.node(&child)
+			text := p.node(&child, false)
 			items = append(items, marker+strings.ReplaceAll(text, "\n", "\n"+strings.Repeat(" ", len(marker))))
 		}
 		return strings.Join(items, "\n")
 	case NodeTypeListItem:
-		return p.blocks(n.Content())
+		return p.blocks(n.Content(), false)
 	case NodeTypeBlockquote:
-		return quoteMarkdown(p.blocks(n.Content()))
+		return quoteMarkdown(p.blocks(n.Content(), false))
 	case NodeTypeCodeBlock:
 		var text strings.Builder
 		for _, child := range n.Content() {
@@ -158,8 +192,7 @@ func (p *markdownProjection) node(n *Node) string {
 		fence := strings.Repeat("`", max(3, longestBackticks(text.String())+1))
 		return fence + language + "\n" + text.String() + "\n" + fence
 	case NodeTypePanel:
-		p.losses.Add(n.Type())
-		return quoteMarkdown("**" + escapeMarkdown(projectionAttr(attrs, "panelType")) + "**\n\n" + p.blocks(n.Content()))
+		return p.panel(n, attrs, topLevel)
 	case NodeTypeMention:
 		p.losses.Add(n.Type())
 		name := projectionAttr(attrs, "text")
@@ -175,8 +208,7 @@ func (p *markdownProjection) node(n *Node) string {
 		}
 		return escapeMarkdown(text)
 	case NodeTypeStatus:
-		p.losses.Add(n.Type())
-		return markdownCode(projectionAttr(attrs, "text"))
+		return p.status(n, attrs, topLevel)
 	case NodeTypeInlineCard:
 		p.losses.Add(n.Type())
 		return "[" + escapeMarkdown(projectionAttr(attrs, "url")) + "](" + markdownDestination(projectionAttr(attrs, "url")) + ")"
@@ -184,7 +216,7 @@ func (p *markdownProjection) node(n *Node) string {
 		p.losses.Add(n.Type())
 		var items []string
 		for _, child := range n.Content() {
-			items = append(items, "- "+strings.ReplaceAll(p.node(&child), "\n", "\n  "))
+			items = append(items, "- "+strings.ReplaceAll(p.node(&child, false), "\n", "\n  "))
 		}
 		return strings.Join(items, "\n")
 	case NodeTypeTaskItem, NodeTypeBlockTaskItem:
@@ -194,7 +226,7 @@ func (p *markdownProjection) node(n *Node) string {
 			box = "[x] "
 		}
 		if NodeType(n.Type()) == NodeTypeBlockTaskItem {
-			return box + p.blocks(n.Content())
+			return box + p.blocks(n.Content(), false)
 		}
 		return box + p.inline(n.Content())
 	case NodeTypeDecisionItem:
@@ -205,7 +237,7 @@ func (p *markdownProjection) node(n *Node) string {
 		return p.table(n)
 	case NodeTypeMediaSingle, NodeTypeMediaGroup:
 		p.losses.Add(n.Type())
-		return p.blocks(n.Content())
+		return p.blocks(n.Content(), false)
 	case NodeTypeMedia:
 		p.losses.Add(n.Type())
 		label := projectionAttr(attrs, "alt")
@@ -215,7 +247,7 @@ func (p *markdownProjection) node(n *Node) string {
 		return "\\[attachment: " + escapeMarkdown(label) + "\\]"
 	default:
 		p.losses.Add(n.Type())
-		return "\\[" + escapeMarkdown(n.Type()) + "\\]" + p.blocks(n.Content())
+		return "\\[" + escapeMarkdown(n.Type()) + "\\]" + p.blocks(n.Content(), false)
 	}
 }
 
@@ -295,7 +327,7 @@ func (p *markdownProjection) table(n *Node) string {
 		var cells []string
 		for _, cell := range row.Content() {
 			p.inspect(&cell, nil)
-			text := p.blocks(cell.Content())
+			text := p.blocks(cell.Content(), false)
 			if strings.Contains(text, "\n") {
 				p.losses.Add(cell.Type())
 			}
@@ -339,8 +371,15 @@ func quoteMarkdown(text string) string {
 
 func escapeMarkdown(text string) string {
 	var escaped strings.Builder
-	for _, character := range text {
-		if strings.ContainsRune("\\`*_{}[]<>#+-.!|~", character) {
+	for offset, character := range text {
+		// Literal native entity spellings must not become character references
+		// when the projection is converted back to ADF.
+		if character == '&' {
+			escaped.WriteString("&amp;")
+			continue
+		}
+		// Native literal text must not activate optional authoring directives.
+		if strings.ContainsRune("\\`*_{}[]<>#+-.!|~", character) || character == ':' && strings.HasPrefix(text[offset:], ":status") {
 			escaped.WriteByte('\\')
 		}
 		escaped.WriteRune(character)

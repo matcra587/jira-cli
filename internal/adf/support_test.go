@@ -14,7 +14,7 @@ import (
 const supportAuthoringCorpus = "# Heading\n\nPlain **bold** *italic* ~~struck~~ `code` [link](https://example.com).\n\n" +
 	"Line one  \nline two.\n\n- bullet one\n- bullet two\n\n4. ordered one\n5. ordered two\n\n" +
 	"- [ ] open task\n- [x] done task\n\n> quoted\n\n```go\ncode block\n```\n\n" +
-	"| H1 | H2 |\n| --- | --- |\n| a | b |\n\n---\n"
+	"| H1 | H2 |\n| --- | --- |\n| a | b |\n\n---\n\n> [!NOTE]\n> **panel**\n\n:status[READY]{color=green}\n"
 
 func TestSupportMatrixCoversCatalogAndPreservesContexts(t *testing.T) {
 	t.Parallel()
@@ -277,20 +277,22 @@ func supportTypeConstants(t *testing.T) map[string]string {
 func TestSupportMatrixAuthorEmissionUniverseMatchesSource(t *testing.T) {
 	t.Parallel()
 	constants := supportTypeConstants(t)
-	file, err := parser.ParseFile(token.NewFileSet(), "markdown.go", nil, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
 	referenced := map[string]bool{"doc": true} // NewDocument supplies the root.
-	ast.Inspect(file, func(n ast.Node) bool {
-		identifier, ok := n.(*ast.Ident)
-		if ok && (strings.HasPrefix(identifier.Name, "NodeType") || strings.HasPrefix(identifier.Name, "MarkType")) {
-			if value, ok := constants[identifier.Name]; ok {
-				referenced[value] = true
-			}
+	for _, path := range []string{"markdown.go", "markdown_alert.go", "markdown_status.go"} {
+		file, err := parser.ParseFile(token.NewFileSet(), path, nil, 0)
+		if err != nil {
+			t.Fatal(err)
 		}
-		return true
-	})
+		ast.Inspect(file, func(n ast.Node) bool {
+			identifier, ok := n.(*ast.Ident)
+			if ok && (strings.HasPrefix(identifier.Name, "NodeType") || strings.HasPrefix(identifier.Name, "MarkType")) {
+				if value, ok := constants[identifier.Name]; ok {
+					referenced[value] = true
+				}
+			}
+			return true
+		})
+	}
 	claimed := map[string]bool{}
 	for _, row := range SupportMatrix() {
 		if row.Capabilities.Author {

@@ -25,7 +25,7 @@ const flagInput = "input"
 // New constructs local commands without a client or credential capability.
 func New() *cobra.Command {
 	group := &cobra.Command{Use: "adf", Short: "Convert and review rich text without contacting Jira", Args: cobra.NoArgs}
-	group.AddCommand(newConvert(), newRender())
+	group.AddCommand(newConvert(), newRender(), newValidate(), newLint(), newExplain())
 	return group
 }
 
@@ -37,6 +37,12 @@ func newConvert() *cobra.Command {
 		Op: "adf.convert", Use: "convert", Short: "Convert Markdown to a validated native ADF document",
 		Passthrough: true,
 		Long: "Convert GFM Markdown through the same converter used by issue and comment bodies. " +
+			"Plain text resolves Markdown punctuation escapes and character references once; code spans and blocks keep their literal text. " +
+			"Top-level GitHub alerts [!NOTE], [!TIP], [!IMPORTANT], [!WARNING] and [!CAUTION] author native panels. " +
+			"Optional :status[plain label]{color=green} directives author native status nodes. " +
+			"Color defaults to neutral; named status colors and six-digit #RRGGBB are supported. " +
+			"Optional localId and style string attributes preserve their values and explicit empty strings. " +
+			"Unknown attributes and formatted labels retain literal candidates with lossy diagnostics. " +
 			"This local read requires no credentials and makes no Jira request. --input defaults to - for piped stdin; " +
 			"a terminal input is refused immediately. Files and stdin share the body size limit.\n\n" +
 			"Strict mode is the default: dropped content fails with exit 3 and retains the candidate document and diagnostics. " +
@@ -90,11 +96,16 @@ func newRender() *cobra.Command {
 		Long: "Read a native ADF document and return a GFM Markdown review projection without contacting Jira. " +
 			"Pass the document itself; issue, fields and body wrappers are not unwrapped. " +
 			"Server-originated future nodes are accepted without imposing the older pinned schema. " +
-			"Unknown nodes retain a labeled placeholder and their child text.\n\n" +
+			"Machine projections retain a labeled placeholder and unknown child text.\n\n" +
 			"lossy_constructs lists sorted unique node and mark types whose semantics or attributes are approximated. " +
-			"Mentions, cards, status, tables, tasks, media and extension attributes cannot survive a Markdown edit round trip. " +
+			"Top-level info, tip, note, warning and error panels use GitHub alert syntax only when the entire subtree survives structural round-trip comparison. " +
+			"Other panels retain explicit loss diagnostics and native attributes must be preserved separately. " +
+			"Inline statuses carry text, color, localId and style through directives only when complete structural comparison succeeds. " +
+			"Status paragraphs are also checked as complete blocks; unknown state and unrepresentable text structure retain loss diagnostics. " +
+			"Mentions, cards, tables, tasks, media and extension attributes cannot survive a Markdown edit round trip. " +
 			"Keep the original native document for submissions and editing. JSON carries Markdown at .data.markdown, compact at .markdown. " +
-			"Human mode prints a sanitized projection. --input defaults to - and refuses terminal stdin.",
+			"Human mode renders native panels, tables and status labels, plus mention/emoji text, expanded content, labeled layout columns and task/decision state. " +
+			"Layouts are sequential text columns; media and cards remain explicit placeholders. Machine modes retain the Markdown projection. --input defaults to - and refuses terminal stdin.",
 		Example: "$ jira adf render --input document.json --output=json\n\n" +
 			"$ jira adf render --input document.json --jq '.data.markdown'",
 		Flags: func(c *cobra.Command) { addInput(c, &input, "ADF JSON") },
@@ -114,6 +125,7 @@ func newRender() *cobra.Command {
 			return envelope.ADFRenderOutput{
 				Markdown: projection.Markdown, Lossy: len(projection.LossyConstructs) != 0,
 				LossyConstructs: append([]string{}, projection.LossyConstructs...),
+				Document:        data,
 			}, ctx.Err()
 		},
 	})
@@ -168,12 +180,10 @@ func renderProjected(v *output.View, env envelope.Envelope) error {
 	if !ok {
 		return fmt.Errorf("adf: expected ADFRenderOutput, got %T", env.Data)
 	}
-	v.Section("Markdown projection")
-	for _, line := range strings.Split(strings.TrimSuffix(out.Markdown, "\n"), "\n") {
-		v.Line(cli.Text(line))
-	}
+	v.Section("Rich text")
+	v.Block(command.RenderADF(v, out.Document, "see the original native input"))
 	if out.Lossy {
-		v.Fields(output.Field{Label: "Lossy constructs", Value: cli.Text(strings.Join(out.LossyConstructs, ", "))})
+		v.Fields(output.Field{Label: "Markdown losses", Value: cli.Text(strings.Join(out.LossyConstructs, ", "))})
 	}
 	return nil
 }

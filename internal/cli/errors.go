@@ -219,6 +219,8 @@ var registry = map[string]spec{
 	CodeFlagRequired:             {exit: ExitValidation, hint: "Add the flag the command needs — run it with `--help` to see which."},
 	CodeFlagValueMissing:         {exit: ExitValidation, hint: "Give the flag a value, like `--flag=value`."},
 	CodeFlagValueInvalid:         {exit: ExitValidation, hint: "That value isn't the type the flag expects — run the command with `--help` to see its format."},
+	CodeADFInvalid:               {exit: ExitValidation, hint: "Inspect the retained schema diagnostics and correct the native document. Local validation does not prove Jira field acceptance."},
+	CodeADFTypeUnknown:           {exit: ExitValidation, hint: "Run `jira agent adf-matrix` to discover supported runtime types and context definitions, then pass an exact name to `jira adf explain-node`."},
 	CodeADFContentLoss:           {exit: ExitValidation, hint: "Inspect the retained candidate and warnings; revise the Markdown or explicitly accept loss with --adf-best-effort."},
 	CodeFlagSyntaxInvalid:        {exit: ExitValidation, hint: "Write it as `--flag=value` or `--flag value`, with nothing stray around the flag."},
 	CodeArgCountInvalid:          {exit: ExitValidation, hint: "Check how many arguments the command takes; its usage line is in `--help`."},

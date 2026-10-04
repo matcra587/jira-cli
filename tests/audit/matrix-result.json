@@ -155,6 +155,286 @@
       "status": "pass"
     },
     {
+      "op": "adf.explain-node",
+      "category": "failure",
+      "mode": "compact",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "adf.explain-node",
+      "category": "failure",
+      "mode": "json",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "adf.explain-node",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "adf.explain-node",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "adf.explain-node",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "adf.explain-node",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "adf.explain-node",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "adf.explain-node",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M7",
+      "status": "pass"
+    },
+    {
+      "op": "adf.explain-node",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "adf.explain-node",
+      "category": "success",
+      "mode": "human_color",
+      "axis": "H5",
+      "status": "pass"
+    },
+    {
+      "op": "adf.explain-node",
+      "category": "success",
+      "mode": "human",
+      "axis": "H1",
+      "status": "pass"
+    },
+    {
+      "op": "adf.explain-node",
+      "category": "success",
+      "mode": "human",
+      "axis": "H3",
+      "status": "pass"
+    },
+    {
+      "op": "adf.explain-node",
+      "category": "success",
+      "mode": "human",
+      "axis": "H4",
+      "status": "pass"
+    },
+    {
+      "op": "adf.explain-node",
+      "category": "success",
+      "mode": "json",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "adf.explain-node",
+      "category": "success",
+      "mode": "json",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "adf.explain-node",
+      "category": "success",
+      "mode": "json",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "adf.explain-node",
+      "category": "success",
+      "mode": "json",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "adf.explain-node",
+      "category": "success",
+      "mode": "json",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "adf.explain-node",
+      "category": "success",
+      "mode": "json",
+      "axis": "M7",
+      "status": "pass"
+    },
+    {
+      "op": "adf.explain-node",
+      "category": "success",
+      "mode": "json",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "adf.lint",
+      "category": "failure",
+      "mode": "compact",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "adf.lint",
+      "category": "failure",
+      "mode": "json",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "adf.lint",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "adf.lint",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "adf.lint",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "adf.lint",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "adf.lint",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "adf.lint",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M7",
+      "status": "pass"
+    },
+    {
+      "op": "adf.lint",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "adf.lint",
+      "category": "success",
+      "mode": "human_color",
+      "axis": "H5",
+      "status": "pass"
+    },
+    {
+      "op": "adf.lint",
+      "category": "success",
+      "mode": "human",
+      "axis": "H1",
+      "status": "pass"
+    },
+    {
+      "op": "adf.lint",
+      "category": "success",
+      "mode": "human",
+      "axis": "H3",
+      "status": "pass"
+    },
+    {
+      "op": "adf.lint",
+      "category": "success",
+      "mode": "human",
+      "axis": "H4",
+      "status": "pass"
+    },
+    {
+      "op": "adf.lint",
+      "category": "success",
+      "mode": "json",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "adf.lint",
+      "category": "success",
+      "mode": "json",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "adf.lint",
+      "category": "success",
+      "mode": "json",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "adf.lint",
+      "category": "success",
+      "mode": "json",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "adf.lint",
+      "category": "success",
+      "mode": "json",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "adf.lint",
+      "category": "success",
+      "mode": "json",
+      "axis": "M7",
+      "status": "pass"
+    },
+    {
+      "op": "adf.lint",
+      "category": "success",
+      "mode": "json",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
       "op": "adf.render",
       "category": "failure",
       "mode": "compact",
@@ -289,6 +569,146 @@
     },
     {
       "op": "adf.render",
+      "category": "success",
+      "mode": "json",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "adf.validate",
+      "category": "failure",
+      "mode": "compact",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "adf.validate",
+      "category": "failure",
+      "mode": "json",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "adf.validate",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "adf.validate",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "adf.validate",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "adf.validate",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "adf.validate",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "adf.validate",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M7",
+      "status": "pass"
+    },
+    {
+      "op": "adf.validate",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "adf.validate",
+      "category": "success",
+      "mode": "human_color",
+      "axis": "H5",
+      "status": "pass"
+    },
+    {
+      "op": "adf.validate",
+      "category": "success",
+      "mode": "human",
+      "axis": "H1",
+      "status": "pass"
+    },
+    {
+      "op": "adf.validate",
+      "category": "success",
+      "mode": "human",
+      "axis": "H3",
+      "status": "pass"
+    },
+    {
+      "op": "adf.validate",
+      "category": "success",
+      "mode": "human",
+      "axis": "H4",
+      "status": "pass"
+    },
+    {
+      "op": "adf.validate",
+      "category": "success",
+      "mode": "json",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "adf.validate",
+      "category": "success",
+      "mode": "json",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "adf.validate",
+      "category": "success",
+      "mode": "json",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "adf.validate",
+      "category": "success",
+      "mode": "json",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "adf.validate",
+      "category": "success",
+      "mode": "json",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "adf.validate",
+      "category": "success",
+      "mode": "json",
+      "axis": "M7",
+      "status": "pass"
+    },
+    {
+      "op": "adf.validate",
       "category": "success",
       "mode": "json",
       "axis": "M8",

@@ -39,9 +39,10 @@
 //
 // render.go is the render half of the render/typed/substrate split: a
 // node-type dispatch table that draws the common block and mark shapes
-// (paragraphs, headings, lists, code blocks, blockquotes, marks) into
+// (paragraphs, headings, lists, code blocks, blockquotes, panels, tables,
+// status labels and marks) into
 // terminal-ready text for the human `issue view`, and a labeled
-// placeholder for anything else — table, panel, mention, media, and
+// placeholder for unsupported content — mention, media, and
 // every other node the substrate still preserves losslessly for
 // --output=json. It never marshals, and it must not import
 // internal/cli or internal/output: the Styler interface it defines is
