@@ -343,6 +343,8 @@ var keyFailureSeverity = map[string]int{
 	cli.CodeFlagRequired:               0,
 	cli.CodeFlagValueMissing:           0,
 	cli.CodeFlagValueInvalid:           0,
+	cli.CodeADFInvalid:                 0,
+	cli.CodeADFTypeUnknown:             0,
 	cli.CodeADFContentLoss:             0,
 	cli.CodeFlagSyntaxInvalid:          0,
 	cli.CodeArgCountInvalid:            0,

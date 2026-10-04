@@ -41,7 +41,7 @@ var markdownAuthorNodes = set.New(
 	NodeTypeBulletList, NodeTypeOrderedList, NodeTypeListItem,
 	NodeTypeCodeBlock, NodeTypeBlockquote, NodeTypeHardBreak, NodeTypeRule,
 	NodeTypeTable, NodeTypeTableRow, NodeTypeTableCell, NodeTypeTableHeader,
-	NodeTypeTaskList, NodeTypeTaskItem,
+	NodeTypeTaskList, NodeTypeTaskItem, NodeTypePanel, NodeTypeStatus,
 )
 
 var markdownAuthorMarks = set.New(MarkTypeStrong, MarkTypeEm, MarkTypeStrike, MarkTypeCode, MarkTypeLink)
@@ -101,7 +101,7 @@ func terminalNodeSupport(kind NodeType) bool {
 	}
 	// The root, list items and inline nodes are walked by their containing
 	// document/list/paragraph rather than the block dispatcher.
-	return kind == NodeTypeDoc || kind == NodeTypeListItem || kind == NodeTypeText || kind == NodeTypeHardBreak
+	return kind == NodeTypeDoc || kind == NodeTypeListItem || readableInline(kind) || kind == NodeTypeTableRow || kind == NodeTypeTableCell || kind == NodeTypeTableHeader
 }
 
 func cloneAttrsSpec(spec *AttrsSpec) *AttrsSpec {
@@ -122,4 +122,15 @@ func cloneNodeSpec(spec *NodeSpec) *NodeSpec {
 		cloned.Content = &ContentSpec{MinItems: spec.Content.MinItems, MaxItems: spec.Content.MaxItems, Refs: slices.Clone(spec.Content.Refs)}
 	}
 	return &cloned
+}
+
+// SupportIdentities lists exact runtime and definition names accepted by local
+// inspection. It owns its slice; completions and error recovery share the set.
+func SupportIdentities() []string {
+	names := []string{}
+	for _, row := range SupportMatrix() {
+		names = append(names, row.Name, row.Definition)
+	}
+	slices.Sort(names)
+	return slices.Compact(names)
 }

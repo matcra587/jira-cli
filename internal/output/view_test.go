@@ -166,6 +166,27 @@ func TestViewNonTTYNeverWraps(t *testing.T) {
 	}
 }
 
+func TestViewPipePreservesLongRowsAndEmptyLine(t *testing.T) {
+	var buf bytes.Buffer
+	v := output.NewView(&buf, clog.ColorNever)
+	v.Line(strings.Repeat("東京🙂", 40), "last")
+	v.Line()
+	want := strings.Repeat("東京🙂", 40) + "  last\n\n"
+	if got := buf.String(); got != want {
+		t.Fatalf("pipe row changed: %q, want %q", got, want)
+	}
+}
+
+func TestViewFieldsPreservesCRLFAndBlankLines(t *testing.T) {
+	var buf bytes.Buffer
+	v := output.NewView(&buf, clog.ColorNever)
+	v.Fields(output.Field{Label: "Body", Value: "first\r\n\r\n  last\r\n"})
+	want := "Body:  first\n       \n         last\n       \n"
+	if got := buf.String(); got != want {
+		t.Fatalf("field line endings or blank lines changed: %q, want %q", got, want)
+	}
+}
+
 // TestViewBlockWritesEachPhysicalLine pins Block's contract: it writes
 // pre-formatted multi-line text verbatim, one physical line per call,
 // with no wrapping or indentation of its own — the caller (internal/adf's
@@ -247,5 +268,26 @@ func TestViewSection(t *testing.T) {
 	}
 	if !strings.Contains(got, "─") {
 		t.Errorf("Section missing the divider rule: %q", got)
+	}
+}
+
+// Pipe output has no terminal width. The native divider keeps fitting titles
+// on its 80-column rule and leaves longer titles intact on one physical line.
+func TestViewSectionNonTTYKeepsCompleteTitles(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, title, want string
+	}{
+		{name: "fitting title", title: "Rich text", want: "─── Rich text " + strings.Repeat("─", 66) + "\n"},
+		{name: "long title", title: strings.Repeat("long", 25), want: strings.Repeat("long", 25) + "\n"},
+		{name: "wide title", title: strings.Repeat("東京🙂", 20), want: strings.Repeat("東京🙂", 20) + "\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			output.NewView(&buf, clog.ColorNever).Section(tc.title)
+			if got := buf.String(); got != tc.want {
+				t.Errorf("pipe section = %q, want %q", got, tc.want)
+			}
+		})
 	}
 }

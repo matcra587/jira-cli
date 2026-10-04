@@ -2,8 +2,11 @@ package adf
 
 import (
 	"bytes"
+	"cmp"
 	_ "embed"
+	"errors"
 	"fmt"
+	"slices"
 	"sync"
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
@@ -47,18 +50,53 @@ var compileSchema = sync.OnceValues(func() (*jsonschema.Schema, error) {
 // bytes that would be sent to Jira, with no marshaling step in between to
 // trust.
 func Validate(data []byte) error {
+	_, err := ValidateDiagnostics(data)
+	return err
+}
+
+// ValidationDiagnostic identifies a schema failure using JSON pointers. Empty
+// instance_location names the root. Malformed JSON has no schema keyword.
+type ValidationDiagnostic struct {
+	InstanceLocation string `json:"instance_location"`
+	KeywordLocation  string `json:"keyword_location"`
+	Message          string `json:"message"`
+}
+
+// ValidateDiagnostics uses the same pinned validator as Validate. Diagnostics
+// retain input failures; a schema compilation defect returns no input report.
+// It never marshals, normalizes or alters the submitted bytes.
+func ValidateDiagnostics(data []byte) ([]ValidationDiagnostic, error) {
 	s, err := compileSchema()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	inst, err := jsonschema.UnmarshalJSON(bytes.NewReader(data))
 	if err != nil {
-		return fmt.Errorf("adf: validate: %w", err)
+		return []ValidationDiagnostic{{Message: err.Error()}}, fmt.Errorf("adf: validate: %w", err)
 	}
 	if err := s.Validate(inst); err != nil {
-		return fmt.Errorf("adf: document does not conform to the ADF schema: %w", err)
+		failure, ok := errors.AsType[*jsonschema.ValidationError](err)
+		if !ok {
+			return nil, err
+		}
+		report := failure.DetailedOutput()
+		diagnostics := []ValidationDiagnostic{}
+		var walk func(jsonschema.OutputUnit)
+		walk = func(unit jsonschema.OutputUnit) {
+			if unit.Error != nil {
+				diagnostics = append(diagnostics, ValidationDiagnostic{InstanceLocation: unit.InstanceLocation, KeywordLocation: unit.KeywordLocation, Message: unit.Error.String()})
+			}
+			for _, child := range unit.Errors {
+				walk(child)
+			}
+		}
+		walk(*report)
+		slices.SortFunc(diagnostics, func(a, b ValidationDiagnostic) int {
+			return cmp.Or(cmp.Compare(a.InstanceLocation, b.InstanceLocation), cmp.Compare(a.KeywordLocation, b.KeywordLocation), cmp.Compare(a.Message, b.Message))
+		})
+		return slices.Compact(diagnostics), fmt.Errorf("adf: document does not conform to the ADF schema: %w", err)
 	}
-	return nil
+	return []ValidationDiagnostic{}, nil
 }
 
 // Validate marshals the document and checks it against the vendored

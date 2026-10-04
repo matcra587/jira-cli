@@ -1,8 +1,10 @@
 package adf
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
+	"html"
 	"slices"
 	"strings"
 
@@ -13,7 +15,9 @@ import (
 	"github.com/yuin/goldmark/extension"
 	extast "github.com/yuin/goldmark/extension/ast"
 	"github.com/yuin/goldmark/parser"
+	goldmarkhtml "github.com/yuin/goldmark/renderer/html"
 	"github.com/yuin/goldmark/text"
+	"github.com/yuin/goldmark/util"
 )
 
 // markdownParser parses GFM with the table, strikethrough, and task-list
@@ -25,6 +29,7 @@ import (
 // converter walks the AST itself and no goldmark renderer is wired.
 var markdownParser = goldmark.New(
 	goldmark.WithExtensions(extension.Table, extension.Strikethrough, extension.TaskList),
+	goldmark.WithParserOptions(parser.WithInlineParsers(util.Prioritized(statusDirectiveParser{}, 500))),
 ).Parser()
 
 // newLocalID generates the localId attr ADF requires on every
@@ -131,11 +136,11 @@ type mdConverter struct {
 	// attr. Outside a task item (a checkbox in a mixed list) the checkbox
 	// degrades to literal text instead.
 	inTaskItem bool
-	// err holds the first attrs-encoding failure. SetAttrs can only fail
-	// on a value encoding/json cannot represent, which none of the attr
-	// structs below is — but swallowing the error would ship a node
-	// missing the attrs Jira requires, so it is carried to the exit
-	// instead of threaded through every construction site.
+	// err holds the first attribute-encoding or text-decoding failure.
+	// Attribute encoding only fails for values encoding/json cannot represent,
+	// but swallowing either error could ship an incomplete document. Carry
+	// the error to the exit instead of threading it through every recursive
+	// construction and conversion site.
 	err error
 }
 
@@ -250,7 +255,10 @@ func nodeOffset(n ast.Node) int {
 			return off
 		}
 	}
-	return -1
+	// Childless inline nodes such as autolinks and raw HTML still carry a
+	// parser-assigned position in Goldmark 1.8.6. Preserve that source mapping
+	// when no line or child text segment can establish one.
+	return n.Pos()
 }
 
 // sourceLine returns the trimmed source line starting at lineStart, capped
@@ -291,6 +299,9 @@ func (c *mdConverter) block(n ast.Node) (Node, bool) {
 	case ast.KindCodeBlock, ast.KindFencedCodeBlock:
 		return c.codeBlock(n), true
 	case ast.KindBlockquote:
+		if panel, ok := c.alert(n); ok {
+			return panel, true
+		}
 		return c.node(NodeTypeBlockquote, nil, c.blockquoteChildren(n)), true
 	case ast.KindThematicBreak:
 		return c.node(NodeTypeRule, nil, nil), true
@@ -595,6 +606,8 @@ func (c *mdConverter) inlineChildren(n ast.Node) []Node {
 // marks to every leaf text node it produces.
 func (c *mdConverter) inline(n ast.Node, marks []Mark) []Node {
 	switch n.Kind() {
+	case kindStatusDirective:
+		return c.statusDirective(n.(*statusDirective), marks)
 	case ast.KindText:
 		return c.inlineText(n, marks)
 	case ast.KindString:
@@ -657,7 +670,11 @@ func (c *mdConverter) inlineText(n ast.Node, marks []Mark) []Node {
 		return nil
 	}
 	nodes := []Node{}
-	if seg := string(t.Segment.Value(c.source)); seg != "" {
+	seg, err := markdownText(t.Segment.Value(c.source))
+	if err != nil && c.err == nil {
+		c.err = err
+	}
+	if seg != "" {
 		if split := c.wikiEmojiNodes(seg, marks); split != nil {
 			nodes = append(nodes, split...)
 		} else {
@@ -681,6 +698,22 @@ func (c *mdConverter) inlineText(n ast.Node, marks []Mark) []Node {
 		}
 	}
 	return nodes
+}
+
+// markdownText uses the selected parser's text writer to resolve CommonMark
+// escapes and character references in one pass. Its result contains only
+// HTML-escaped text, so removing that output escaping once recovers the literal
+// ADF text. Composing UnescapePunctuations and ResolveEntityNames would wrongly
+// decode escaped ampersands and references introduced by an earlier decode.
+// Code spans and blocks retain their separate raw-text paths.
+func markdownText(source []byte) (string, error) {
+	var escaped strings.Builder
+	writer := bufio.NewWriter(&escaped)
+	goldmarkhtml.DefaultWriter.Write(writer, source)
+	if err := writer.Flush(); err != nil {
+		return "", fmt.Errorf("adf: decode Markdown text: %w", err)
+	}
+	return html.UnescapeString(escaped.String()), nil
 }
 
 // codeSpan converts an inline code run. The ADF spec allows the code mark

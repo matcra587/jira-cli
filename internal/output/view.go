@@ -7,6 +7,7 @@ import (
 	"github.com/gechr/clog"
 	"github.com/gechr/clog/field/hyperlink"
 	"github.com/gechr/x/ansi"
+	xslices "github.com/gechr/x/slices"
 	xstrings "github.com/gechr/x/strings"
 )
 
@@ -49,9 +50,9 @@ func NewView(w io.Writer, mode clog.ColorMode) *View {
 	// the path carrying backtick styling, wrapping, and the tree
 	// connectors a parent/child render will want — without dragging a
 	// logger's presentation onto a data stream. Line/Block/Fields/Section
-	// deliberately do NOT go through it: their bytes are already laid out
-	// (measured columns, ANSI padding), and message formatting would
-	// re-wrap what has already been fitted.
+	// deliberately do NOT go through it: View fits rows and titles to the
+	// destination width, while Block preserves its caller's layout. Message
+	// formatting would add another layout pass to those data surfaces.
 	logger.SetParts(clog.PartMessage)
 	// ADF link labels are document content, not abbreviations of a URL.
 	// Preserve them when OSC 8 is disabled instead of using clog's URL fallback.
@@ -113,7 +114,8 @@ func IsBlank(rendered string) bool {
 // rather than each caller re-deriving cli.Entity's own emptiness rule.
 //
 // A single-Field call still works: the block's shared width is just that
-// one label's width, so it aligns to itself.
+// one label's width, so it aligns to itself. When the terminal cannot fit
+// the label column and a value's graphemes, the complete row wraps instead.
 func (v *View) Fields(fields ...Field) {
 	kept := make([]Field, 0, len(fields))
 	width := 0
@@ -147,17 +149,30 @@ func (v *View) Fields(fields ...Field) {
 // indent than a short-label row in the same block and break the
 // alignment the block exists to give.
 func (v *View) writeAligned(prefix, value string) {
-	indent := strings.Repeat(" ", ansi.StringWidth(prefix))
-	if width := v.Output().Width(); width > 0 {
-		if remaining := width - ansi.StringWidth(prefix); remaining > 0 {
-			value = ansi.WrapSoft(value, remaining)
-		}
-	}
 	// SplitLinesRaw for the same reason Block uses it: a field value can
 	// carry Jira-authored CRLF, and splitting on "\n" alone would leave a
 	// stray "\r" at the end of every continuation line. Lossless, so an
 	// intentional blank line inside a wrapped value still survives.
-	for i, line := range xstrings.SplitLinesRaw(value) {
+	lines := xstrings.SplitLinesRaw(value)
+	prefixWidth := ansi.StringWidth(prefix)
+	if width := v.Output().Width(); width > 0 {
+		value = strings.Join(lines, "\n")
+		remaining := width - prefixWidth
+		if remaining <= 0 {
+			v.Line(prefix + value)
+			return
+		}
+		wrapped := xstrings.SplitLinesRaw(ansi.WrapSoft(value, remaining))
+		// A grapheme wider than the remaining column cannot be split. Use
+		// the whole terminal budget rather than indenting it past the edge.
+		if xslices.AnyFunc(wrapped, func(line string) bool { return ansi.StringWidth(line) > remaining }) {
+			v.Line(prefix + value)
+			return
+		}
+		lines = wrapped
+	}
+	indent := strings.Repeat(" ", prefixWidth)
+	for i, line := range lines {
 		if i == 0 {
 			v.Output().WriteLine(prefix + line + "\n")
 			continue
@@ -170,7 +185,7 @@ func (v *View) writeAligned(prefix, value string) {
 // hatch for content a caller has already laid out and wrapped itself
 // (today, internal/adf's rendered issue description, wrapped to
 // Output().Width() before Block ever sees it), where Fields/Line's own
-// single-line layout does not apply. Unlike writeAligned, Block does not
+// row layout does not apply. Unlike writeAligned, Block does not
 // wrap or indent continuation lines: the caller already decided both.
 func (v *View) Block(text string) {
 	if text == "" {
@@ -205,9 +220,12 @@ func (v *View) Block(text string) {
 // an 80-column rule off-TTY and carries no color of its own, so it stays
 // clean under NO_COLOR and redirection. Separates the fields block from
 // the description, and each future section (comments, subtasks, linked
-// issues) from the next.
+// issues) from the next. Titles wider than the terminal wrap without
+// truncation before the native divider applies its styling and layout.
 func (v *View) Section(title string) {
-	v.logger.Divider().Msg(title)
+	// Clog's Divider does not wrap a title wider than the terminal. Wrap
+	// before its native layout and styling; width zero preserves pipe output.
+	v.logger.Divider().Msg(ansi.WrapSoft(title, v.Output().Width()))
 }
 
 // Hint writes a line of guidance — "raise --limit for more", "N of ~1,200"
@@ -232,18 +250,14 @@ func (v *View) Hint(text string) {
 // between label and value, so a Line drawn alongside a Fields block reads
 // as part of the same layout rather than a different one.
 //
-// Off the message path for a different reason than its neighbors: Line
-// measures and wraps NOTHING, so unlike Fields and Block it has no
-// already-fitted layout to protect. What it has is a caller that expects
-// its cells to land in the same columns the adjacent Fields block used —
-// and clog's message formatting would soft-wrap that line on its own
-// terms, breaking the alignment being matched. A new primitive belongs
-// on the message path only if its content is PROSE the caller has not
-// positioned; anything positioned, measured or not, writes here.
+// Rows wider than the terminal soft-wrap with native ANSI, hyperlink and
+// grapheme preservation. Fitting rows keep their gutters; width zero keeps
+// redirected bytes unchanged. The message path would add prose formatting
+// to already rendered values, so Line uses the shared output directly.
 //
 // WriteLine expects an already-terminated line (clog docs: "a fully
 // formatted log line... ending in a newline") rather than adding one
 // itself, so Line appends it here instead of relying on the writer to.
 func (v *View) Line(cells ...string) {
-	v.Output().WriteLine(strings.Join(cells, rowGutter) + "\n")
+	v.Output().WriteLine(ansi.WrapSoft(strings.Join(cells, rowGutter), v.Output().Width()) + "\n")
 }

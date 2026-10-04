@@ -98,11 +98,21 @@ func TestLiveADFThreeWayMerge(t *testing.T) {
 func TestLiveADFAnchoredEdits(t *testing.T) {
 	r := newLiveRun(t)
 	key := r.create(t, "anchored-adf-edit")
-	original := []byte(`{"version":1,"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"before"}]},{"type":"panel","attrs":{"panelType":"warning"},"content":[{"type":"paragraph","content":[{"type":"text","text":"preserved rich content"}]}]},{"type":"paragraph","content":[{"type":"text","text":"after"}]}]}`)
-	r.mutate(t, []string{key}, "issue", "comment", "add", key, "--json-input", r.nativeBody(t, original))
+	original := []byte(`{"version":1,"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"before"}]},{"type":"panel","attrs":{"panelType":"warning","localId":"11111111-1111-4111-8111-111111111111"},"content":[{"type":"paragraph","content":[{"type":"text","text":"preserved rich content"}]}]},{"type":"paragraph","content":[{"type":"text","text":"after"}]}]}`)
+	sourcePosted := r.mutate(t, []string{key}, "issue", "comment", "add", key, "--json-input", r.nativeBody(t, original))
+	sourceID := postedADFCommentID(t, sourcePosted)
+	r.registerComment(t, key, sourceID)
 	stored := r.success(t, "issue", "comment", "list", key, "--all")
 	if len(stored.Data.Comments) != 1 {
 		t.Fatal("source comment was not stored exactly once")
+	}
+	if err := verifyStoredADFComments(map[string]json.RawMessage{sourceID: original}, stored); err != nil {
+		t.Fatal(err)
+	}
+	native := rawOwnedComment(t, r, key, sourceID)
+	equal, err := adf.StructuralEqual(original, native.Body)
+	if err != nil || !equal {
+		t.Fatal("raw source differs from independently authored expectation", err)
 	}
 	source, err := adf.ParseDocument(stored.Data.Comments[0].Body)
 	if err != nil {
@@ -134,15 +144,26 @@ func TestLiveADFAnchoredEdits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Keep an independent expected structure, including native localId, so
+	// successful storage cannot hide a defect in the local edit engine.
+	expectedCandidate := []byte(`{"version":1,"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"inserted paragraph"}]},{"type":"heading","attrs":{"level":1},"content":[{"type":"text","text":"edited heading"}]},{"type":"paragraph","content":[{"type":"text","text":"documentation","marks":[{"type":"link","attrs":{"href":"https://example.test/guide","title":"important title"}}]}]},{"type":"panel","attrs":{"panelType":"warning","localId":"11111111-1111-4111-8111-111111111111"},"content":[{"type":"paragraph","content":[{"type":"text","text":"preserved rich content"}]}]}]}`)
+	equal, err = adf.StructuralEqual(expectedCandidate, want)
+	if err != nil || !equal {
+		t.Fatal("anchored edit lost expected native state or authored structure", err)
+	}
 	posted := r.mutate(t, []string{key}, "issue", "comment", "add", key, "--json-input", r.nativeBody(t, want))
+	postedID := postedADFCommentID(t, posted)
+	r.registerComment(t, key, postedID)
 	// Exercise the actual rebuilt Markdown converter independently of the
 	// in-process edit engine, then inspect server storage for its title attr.
 	binaryPosted := r.mutate(t, []string{key}, "issue", "comment", "add", key, "--markdown", `[binary link](https://example.test/guide "binary title")`)
+	binaryID := postedADFCommentID(t, binaryPosted)
+	r.registerComment(t, key, binaryID)
 	final := r.success(t, "issue", "comment", "list", key, "--all")
 	expected := map[string]json.RawMessage{
-		stored.Data.Comments[0].ID:          stored.Data.Comments[0].Body,
-		postedADFCommentID(t, posted):       want,
-		postedADFCommentID(t, binaryPosted): []byte(liveBinaryTitleADF),
+		sourceID: original,
+		postedID: expectedCandidate,
+		binaryID: []byte(liveBinaryTitleADF),
 	}
 	if len(expected) != 3 {
 		t.Fatal("posted comments did not have distinct identities")

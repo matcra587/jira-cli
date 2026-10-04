@@ -1268,3 +1268,40 @@ func sanitize(s string) string {
 		}
 	}, stripped)
 }
+
+var adfHexColor = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
+
+// ADFStatus renders an authored ADF status or panel label with the existing
+// filled badge primitive. Named hues use the resolved theme; native hex hues
+// retain their authored color. Unsupported hues fall back to sanitized text.
+func ADFStatus(label, hue string) string {
+	label, hue = Text(label), Text(hue)
+	t := ResolvedTheme()
+	var style *lipgloss.Style
+	switch hue {
+	case "neutral":
+		return statusPill(statusCategoryColor(BackgroundIsDark(t), statusCategoryNew), label)
+	case "purple":
+		style = t.Magenta
+	case "blue":
+		style = t.Blue
+	case "red":
+		style = t.Red
+	case "yellow":
+		style = t.Yellow
+	case "green":
+		style = t.Green
+	}
+	var bg color.Color
+	if style != nil {
+		bg = style.GetForeground()
+	}
+	if adfHexColor.MatchString(hue) {
+		bg = lipgloss.Color(hue)
+	}
+	// A theme without a hue cannot supply a visible filled badge.
+	if bg != nil && !hasRealColor(bg) {
+		bg = nil
+	}
+	return statusPill(bg, label)
+}

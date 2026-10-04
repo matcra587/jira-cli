@@ -31,6 +31,13 @@ by this run. The status-color test checks both named and six-digit hex colors
 in posted responses and independently listed stored comments. Writes are never
 replayed.
 
+ADF inspection acceptance posts one independently authored native rich comment on
+an owned issue, reads its stored body through the raw API, and runs local
+`adf validate`, `adf lint` and `adf explain-node` against that body. Schema
+validity, projection warnings, context bounds and source/remote preservation
+are checked independently. This does not establish lossless editing or remote
+concurrency protection.
+
 Issue deletion acceptance creates a parent, a metadata-selected subtask, a
 sibling and a missing-target fixture in the dedicated project. Cascade requests
 require an independent complete native observation matching registered owned
@@ -88,6 +95,11 @@ compares its complete structure and confirms the source comment stayed unchanged
 A separate Markdown comment exercises link-title conversion through the rebuilt
 binary and checks the stored title. This covers the local editing primitives and
 native storage, not an issue editor or remote optimistic concurrency.
+
+Markdown alert acceptance authors all five GitHub alert kinds through the
+rebuilt comment command. An independently authored native document pins panel
+types and bold body formatting. Raw comment reads and a complete domain list
+verify stored structure; only the run's disposable issue and comment are changed.
 
 Three-way merge acceptance updates that run's owned native comment between the
 source snapshot and the merge. The current panel's native identity proves its

@@ -272,6 +272,49 @@ Choose native `--json-input` when fields or ADF must be preserved. Markdown is
 a convenience conversion route and can report loss. Parse/marshal preservation
 does not establish lossless editing, three-way merge or optimistic concurrency.
 
+Markdown bodies accept [GitHub alerts](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#alerts)
+as native panels. Put the marker on the first line of a top-level blockquote:
+
+```markdown
+> [!WARNING]
+> **Keep** this information visible.
+```
+
+The five alert kinds map to Jira panel types: `NOTE` to `info`, `TIP` to `tip`,
+`IMPORTANT` to `note`, `WARNING` to `warning`, and `CAUTION` to `error`.
+Ordinary quotes, unknown markers, escaped markers, code, and nested alerts stay
+quoted or literal content. Panels retain headings, paragraphs, lists, task lists,
+code blocks and rules. Tables move after the panel with an explicit downgrade
+warning. Nested quotes flatten with a warning. `adf convert` uses the same
+converter and refuses dropped content, such as raw HTML, by default. Issue and
+comment Markdown routes publish conversion diagnostics in their output.
+Top-level panels of those five types project back to alert syntax when the entire
+subtree survives structural round-trip comparison. Native IDs, extra attributes,
+unknown child state, unsupported panel types and nested panels retain explicit
+loss diagnostics. Use native ADF to preserve that state. This local conversion
+does not establish safe concurrent editing of an existing issue.
+
+### Validate ADF before submission
+
+Inspect a native document locally before submitting it:
+
+```sh
+jira adf validate --input document.json --output=json
+jira adf lint --input document.json --jq '.data.lossy_constructs'
+jira adf explain-node paragraph_with_no_marks_node --output=json
+```
+
+`validate` checks the pinned full schema and exits 3 for invalid JSON or schema
+content, retaining instance/schema pointers in its report. `lint` also names
+Markdown projection risks. Valid rich documents with warnings still exit zero.
+`projection_available=false` means the input could not be analyzed, not that it
+is safe to convert. `explain-node` accepts exact runtime node/mark types or
+context definitions and reports structural bounds and local capabilities.
+Use `agent adf-matrix` to discover every accepted identity. These read commands
+require no credentials and never modify the source. They do not prove that Jira
+accepts a document, that Markdown editing preserves it, or that writes prevent
+concurrent updates.
+
 ### Preserve native create, edit and clone requests
 
 Create and edit accept a whole native request object. Top-level `properties`,

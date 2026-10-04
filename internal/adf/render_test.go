@@ -364,16 +364,16 @@ func TestRenderDeferredNodeTypeIsPlaceholder(t *testing.T) {
 }
 
 // TestRenderDeferredInlineNodeTypeIsPlaceholder is the same contract for
-// an inline node embedded inside a paragraph, e.g. a mention.
+// an unknown inline node embedded inside a paragraph.
 func TestRenderDeferredInlineNodeTypeIsPlaceholder(t *testing.T) {
 	doc := mustParse(t, `{"type":"doc","version":1,"content":[
 		{"type":"paragraph","content":[
 			{"type":"text","text":"hi "},
-			{"type":"mention","attrs":{"id":"abc"}}
+			{"type":"futureInline","attrs":{"id":"abc"}}
 		]}
 	]}`)
 	got := adf.Render(doc, fakeStyler{}, 0)
-	want := "hi [mention — see --output=json]"
+	want := "hi [futureInline — see --output=json]"
 	if got != want {
 		t.Errorf("Render = %q, want %q", got, want)
 	}

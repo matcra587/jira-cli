@@ -36,7 +36,14 @@ func TestADFSupportRegistryBinaryModesAndTruth(t *testing.T) {
 			t.Fatal("machine modes returned different support facts")
 		}
 		var aligned, plain, panel, nativeColor bool
+		rich := map[string]bool{"panel": false, "status": false, "table": false, "tableRow": false, "tableCell": false, "tableHeader": false}
 		for _, row := range out.Entries {
+			if _, required := rich[row.Name]; row.Kind == "node" && required {
+				if !row.TerminalRender || !row.Capabilities.Render || row.MarkdownProjection != "approximate" {
+					t.Fatalf("implemented rich node %s lost honest support facts", row.Definition)
+				}
+				rich[row.Name] = true
+			}
 			if row.Capabilities.Edit {
 				t.Fatal("preservation was reported as lossless editing")
 			}
@@ -46,9 +53,14 @@ func TestADFSupportRegistryBinaryModesAndTruth(t *testing.T) {
 			case "paragraph_with_no_marks_node":
 				plain = row.NodeBounds != nil && row.NodeBounds.Marks != nil && row.NodeBounds.Marks.Max == 0
 			case "panel_node":
-				panel = row.Capabilities.Render && !row.TerminalRender && row.MarkdownProjection == "approximate" && !row.Capabilities.Author
+				panel = row.Capabilities.Render && row.TerminalRender && row.MarkdownProjection == "approximate" && row.Capabilities.Author
 			case "textColor_mark":
 				nativeColor = row.Capabilities.Preserve && row.Capabilities.Validate && row.Capabilities.Submit && !row.Capabilities.Author && !row.Capabilities.Render && row.MarkdownProjection == "dropped"
+			}
+		}
+		for name, found := range rich {
+			if !found {
+				t.Errorf("rich node %s missing from catalog", name)
 			}
 		}
 		if !aligned || !plain || !panel || !nativeColor {
@@ -59,8 +71,8 @@ func TestADFSupportRegistryBinaryModesAndTruth(t *testing.T) {
 		t.Fatal("local support discovery contacted Jira")
 	}
 	stdout, stderr, exit := runBinary(t, "agent", "adf-matrix", "--jq", `.data.entries[] | select(.definition=="panel_node") | .terminal_render`)
-	if exit != 0 || stderr != "" || stdout != "false\n" {
-		t.Fatal("support-matrix jq extraction changed a false capability")
+	if exit != 0 || stderr != "" || stdout != "true\n" {
+		t.Fatal("support-matrix jq extraction lost implemented terminal support")
 	}
 	stdout, stderr, exit = runBinary(t, "agent", "adf-matrix", "--output=human")
 	if exit != 0 || stderr != "" || !strings.Contains(stdout, "Local ADF support") || !strings.Contains(stdout, "panel_node") || !strings.Contains(stdout, "lossless editing") {
@@ -89,7 +101,7 @@ func TestADFSupportPublishedHelpExamplesAndRefusals(t *testing.T) {
 			t.Fatalf("published support example failed: %q", line)
 		}
 		if strings.Contains(line, "--jq") {
-			if !strings.Contains(stdout, "paragraph_with_no_marks_node") || strings.Contains(stdout, "panel_node") {
+			if !strings.Contains(stdout, "paragraph_with_no_marks_node") || !strings.Contains(stdout, "panel_node") {
 				t.Fatal("help extraction misrepresented Markdown authorship")
 			}
 		} else {

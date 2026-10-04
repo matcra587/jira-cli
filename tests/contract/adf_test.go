@@ -118,7 +118,7 @@ func TestADFRenderPreservesFutureInputAndReportsLoss(t *testing.T) {
 
 func TestADFInputRefusalsAndHumanSanitization(t *testing.T) {
 	t.Parallel()
-	for _, route := range []string{"convert", "render"} {
+	for _, route := range []string{"convert", "render", "validate", "lint"} {
 		for _, input := range []string{"", "   \n", string([]byte{0xff})} {
 			stdout, _, exit := runBinaryEnvInputStarted(t, nil, input, nil, "adf", route, "--output=json")
 			var f frame

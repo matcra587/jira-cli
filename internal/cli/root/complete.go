@@ -14,6 +14,7 @@ import (
 	xslices "github.com/gechr/x/slices"
 
 	changelog "github.com/matcra587/jira-cli"
+	"github.com/matcra587/jira-cli/internal/adf"
 	"github.com/matcra587/jira-cli/internal/agentguides"
 	"github.com/matcra587/jira-cli/internal/cli"
 	cachecmd "github.com/matcra587/jira-cli/internal/cli/cache"
@@ -79,6 +80,7 @@ func notApplicableFlags(flags []string) error {
 // source. Every published predictor needs a registered function here;
 // the guardrail joins command metadata against this dispatch table.
 var completionKinds = map[string]func(args []string) []string{
+	"adftype": func(_ []string) []string { return adf.SupportIdentities() },
 	"release": func(_ []string) []string {
 		return xslices.Map(changelog.Releases(), func(release changelog.Release) string {
 			return release.Version + "\t" + release.Date
