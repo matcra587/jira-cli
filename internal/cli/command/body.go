@@ -494,9 +494,9 @@ func toEnvelopeWarnings(lossy []adf.Warning) []envelope.Warning {
 
 // ReadInputFileContext reads one flag's file, or standard input for StdinPath,
 // under the shared size cap and terminal refusal. Cancellation closes an owned
-// pipe duplicate or another closable stream to interrupt blocked reads. Borrowed
-// pipe descriptors remain open and retain their original flags. Non-closable
-// readers must unblock themselves; file opening retains OS semantics.
+// Unix pipe duplicate or another closable stream to interrupt blocked reads.
+// Borrowed file descriptors remain open; Unix pipe flags are restored afterwards.
+// Other file reads, non-closable readers and file opening retain OS semantics.
 func ReadInputFileContext(ctx context.Context, flag, path string, stdin io.Reader, stdinIsTerminal bool) ([]byte, error) {
 	return readInputFileContext(ctx, flag, "--"+flag, path, stdin, stdinIsTerminal)
 }
@@ -536,6 +536,28 @@ func readInputFileContext(ctx context.Context, field, label, path string, stdin 
 }
 
 func readCappedContext(ctx context.Context, field, label, source string, reader io.Reader) (data []byte, err error) {
+	return readInputContext(ctx, field, label, source, reader, func(input io.Reader) ([]byte, error) {
+		return readCapped(field, label, source, input)
+	})
+}
+
+// ReadStdinContext reads at most limit bytes under the shared input cancellation
+// and ownership policy. Callers retain terminal refusal and domain validation,
+// and can read one extra byte to detect oversized input without truncating it.
+// Cancellation interrupts closable streams and owned Unix pipe duplicates;
+// other file reads and non-closable readers retain OS semantics. Borrowed file
+// descriptors remain open. Unix pipe flags are restored only after the
+// cancellation callback has finished.
+func ReadStdinContext(ctx context.Context, flag string, reader io.Reader, limit int64) ([]byte, error) {
+	return readInputContext(ctx, flag, "--"+flag, "standard input", reader, func(input io.Reader) ([]byte, error) {
+		return io.ReadAll(io.LimitReader(input, limit))
+	})
+}
+
+func readInputContext(ctx context.Context, field, label, source string, reader io.Reader, read func(io.Reader) ([]byte, error)) (data []byte, err error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	reader, cleanup, err := preparePipeInput(reader)
 	if err != nil {
 		failure := cli.NewInputError(cli.CodeLocalIO, fmt.Sprintf("%s: cannot prepare %s: %v", label, source, err))
@@ -551,13 +573,22 @@ func readCappedContext(ctx context.Context, field, label, source string, reader 
 			}
 		}()
 	}
-	if closer, ok := reader.(io.ReadCloser); ok {
+	// An unprepared *os.File is borrowed. Only prepared duplicates and other
+	// closable streams may be closed here; the file's caller owns its lifetime.
+	_, borrowedFile := reader.(*os.File)
+	if closer, ok := reader.(io.ReadCloser); ok && (cleanup != nil || !borrowedFile) {
+		closed := make(chan struct{})
 		stop := context.AfterFunc(ctx, func() {
+			defer close(closed)
 			_ = closer.Close() //nolint:errcheck // cancellation owns the outcome; close only interrupts IO
 		})
-		defer stop()
+		defer func() {
+			if !stop() {
+				<-closed
+			}
+		}()
 	}
-	data, err = readCapped(field, label, source, reader)
+	data, err = read(reader)
 	if canceled := ctx.Err(); canceled != nil {
 		return nil, canceled
 	}

@@ -40,13 +40,13 @@ func newLogout(deps Deps) *cobra.Command {
 			command.AddDryRunFlag(c)
 		},
 		Human: renderLogoutHuman,
-		Run: func(_ context.Context, inv command.Invocation) (envelope.AuthLogoutOutput, error) {
-			return runLogout(deps, inv, assumeYes)
+		Run: func(ctx context.Context, inv command.Invocation) (envelope.AuthLogoutOutput, error) {
+			return runLogout(ctx, deps, inv, assumeYes)
 		},
 	})
 }
 
-func runLogout(deps Deps, inv command.Invocation, assumeYes bool) (envelope.AuthLogoutOutput, error) {
+func runLogout(ctx context.Context, deps Deps, inv command.Invocation, assumeYes bool) (envelope.AuthLogoutOutput, error) {
 	// Resolved once, here, and threaded down. Confirming and removing
 	// must name the SAME account — and each resolution opens the
 	// credential store, which on a macOS keychain can mean a prompt, so
@@ -59,7 +59,7 @@ func runLogout(deps Deps, inv command.Invocation, assumeYes bool) (envelope.Auth
 	}
 	account := accountToRemove(deps, site.Email)
 
-	if err := confirmRemoval(deps, inv, site, account, assumeYes); err != nil {
+	if err := confirmRemoval(ctx, deps, inv, site, account, assumeYes); err != nil {
 		if errors.Is(err, errAborted) {
 			return zero, cli.NewCodedError(cli.CodeCanceled, "logout canceled — the token is still stored")
 		}
@@ -78,7 +78,10 @@ func runLogout(deps Deps, inv command.Invocation, assumeYes bool) (envelope.Auth
 // A non-interactive caller is never prompted: it must pass --yes, which
 // keeps the command scriptable without inventing a silent default that
 // deletes things.
-func confirmRemoval(deps Deps, inv command.Invocation, site SiteInfo, account string, assumeYes bool) error {
+func confirmRemoval(ctx context.Context, deps Deps, inv command.Invocation, site SiteInfo, account string, assumeYes bool) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if inv.DryRun || assumeYes {
 		return nil
 	}
@@ -95,7 +98,7 @@ func confirmRemoval(deps Deps, inv command.Invocation, site SiteInfo, account st
 		return e
 	}
 
-	ok, err := confirmLogout(deps.Confirm, account, site.BaseURL)
+	ok, err := confirmLogout(ctx, deps.Confirm, account, site.BaseURL)
 	if err != nil {
 		return err
 	}

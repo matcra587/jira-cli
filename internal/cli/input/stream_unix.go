@@ -1,6 +1,6 @@
 //go:build unix
 
-package command
+package input
 
 import (
 	"errors"
@@ -11,21 +11,22 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// preparePipeInput gives inherited blocking descriptors their own pollable Go
-// wrapper. Closing os.Stdin alone cannot interrupt a blocking Unix read. The
-// duplicate is owned here; borrowed descriptors remain open, and their original
-// nonblocking state is restored after the read. Input has one reader per run.
-func preparePipeInput(input io.Reader) (io.Reader, func() error, error) {
-	file, ok := input.(*os.File)
+// PrepareStream gives selected inherited descriptors their own pollable Go
+// wrapper. Closing a borrowed file alone cannot interrupt a blocking Unix read.
+// The caller owns the duplicate, joins any cancellation callback before cleanup,
+// and exclusively owns input throughout preparation, reading and restoration.
+// Cleanup restores borrowed flags and never closes the borrowed descriptor.
+func PrepareStream(reader io.Reader, kinds os.FileMode) (io.Reader, func() error, error) {
+	file, ok := reader.(*os.File)
 	if !ok {
-		return input, nil, nil
+		return reader, nil, nil
 	}
 	info, err := file.Stat()
 	if err != nil {
 		return nil, nil, err
 	}
-	if info.Mode()&(os.ModeNamedPipe|os.ModeSocket) == 0 {
-		return input, nil, nil
+	if info.Mode()&kinds == 0 {
+		return reader, nil, nil
 	}
 	connection, err := file.SyscallConn()
 	if err != nil {
@@ -49,7 +50,7 @@ func preparePipeInput(input io.Reader) (io.Reader, func() error, error) {
 		}
 		return nil, nil, err
 	}
-	reader := os.NewFile(uintptr(duplicate), file.Name())
+	pollable := os.NewFile(uintptr(duplicate), file.Name())
 	cleanup := func() error {
 		var restoreErr error
 		if originalFlags&unix.O_NONBLOCK == 0 {
@@ -58,14 +59,14 @@ func preparePipeInput(input io.Reader) (io.Reader, func() error, error) {
 			})
 			restoreErr = errors.Join(controlErr, restoreErr)
 		}
-		closeErr := reader.Close()
+		closeErr := pollable.Close()
 		if errors.Is(closeErr, os.ErrClosed) {
 			closeErr = nil // cancellation may have closed the owned duplicate
 		}
 		return errors.Join(restoreErr, closeErr)
 	}
-	if err := reader.SetReadDeadline(time.Time{}); err != nil {
+	if err := pollable.SetReadDeadline(time.Time{}); err != nil {
 		return nil, nil, errors.Join(err, cleanup())
 	}
-	return reader, cleanup, nil
+	return pollable, cleanup, nil
 }

@@ -1,6 +1,7 @@
 package issue
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -26,9 +27,9 @@ import (
 // one thing that makes the command work non-interactively.
 func TestNoInputRefusesTheConfirmationInsteadOfPrompting(t *testing.T) {
 	asked := false
-	ask := func(prompt.Confirm) (bool, error) { asked = true; return true, nil }
+	ask := func(_ context.Context, _ prompt.Confirm) (bool, error) { asked = true; return true, nil }
 
-	err := confirmDestructive(ask, command.Invocation{Interactive: false, NoInput: true}, false, destructiveQuestion{
+	err := confirmDestructive(t.Context(), ask, command.Invocation{Interactive: false, NoInput: true}, false, destructiveQuestion{
 		Subject: "comment 10042",
 	})
 	if err == nil {
@@ -56,7 +57,7 @@ func TestNoInputRefusesTheConfirmationInsteadOfPrompting(t *testing.T) {
 func TestNoInputRefusalNamesTheFlagRatherThanBlamingTheTerminal(t *testing.T) {
 	q := destructiveQuestion{Subject: "comment 10042"}
 
-	byFlag := confirmDestructive(nil, command.Invocation{Interactive: false, NoInput: true}, false, q)
+	byFlag := confirmDestructive(t.Context(), nil, command.Invocation{Interactive: false, NoInput: true}, false, q)
 	if byFlag == nil || !strings.Contains(byFlag.Error(), "--"+cli.FlagNoInput) {
 		t.Errorf("refusal under --no-input = %v, want it to name --%s", byFlag, cli.FlagNoInput)
 	}
@@ -64,7 +65,7 @@ func TestNoInputRefusalNamesTheFlagRatherThanBlamingTheTerminal(t *testing.T) {
 		t.Errorf("refusal under --no-input blames the terminal: %v", byFlag)
 	}
 
-	byPipe := confirmDestructive(nil, command.Invocation{Interactive: false}, false, q)
+	byPipe := confirmDestructive(t.Context(), nil, command.Invocation{Interactive: false}, false, q)
 	if byPipe == nil || !strings.Contains(byPipe.Error(), "no terminal here") {
 		t.Errorf("refusal without a terminal = %v, want the terminal wording", byPipe)
 	}
@@ -74,7 +75,7 @@ func TestNoInputRefusalNamesTheFlagRatherThanBlamingTheTerminal(t *testing.T) {
 // non-interactive caller has to add, and that has to hold for the caller
 // who arrived non-interactively on purpose.
 func TestForceStillBeatsNoInput(t *testing.T) {
-	err := confirmDestructive(nil, command.Invocation{Interactive: false, NoInput: true}, true, destructiveQuestion{
+	err := confirmDestructive(t.Context(), nil, command.Invocation{Interactive: false, NoInput: true}, true, destructiveQuestion{
 		Subject: "comment 10042",
 	})
 	if err != nil {

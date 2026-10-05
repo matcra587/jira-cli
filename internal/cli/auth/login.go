@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -112,7 +111,7 @@ type identity struct {
 func runLogin(ctx context.Context, deps Deps, inv command.Invocation, flags loginFlags) (envelope.AuthLoginOutput, error) {
 	var zero envelope.AuthLoginOutput
 
-	ident, token, err := gather(inv, deps, flags)
+	ident, token, err := gather(ctx, inv, deps, flags)
 	switch {
 	case errors.Is(err, errAborted):
 		// Canceling is a choice. Reporting it as a failure with a hint
@@ -133,7 +132,7 @@ func runLogin(ctx context.Context, deps Deps, inv command.Invocation, flags logi
 // A non-interactive caller is never prompted. Every agent and every CI
 // job lands here, and a command that blocks on input nobody can supply
 // is worse than one that fails with the flags to use.
-func gather(inv command.Invocation, deps Deps, flags loginFlags) (identity, string, error) {
+func gather(ctx context.Context, inv command.Invocation, deps Deps, flags loginFlags) (identity, string, error) {
 	stored, err := deps.Site()
 	if err != nil {
 		return identity{}, "", err
@@ -151,7 +150,7 @@ func gather(inv command.Invocation, deps Deps, flags loginFlags) (identity, stri
 			e.Field = missing
 			return identity{}, "", e
 		}
-		token, tokErr := readToken(inv)
+		token, tokErr := readToken(ctx, inv)
 		return ident, token, tokErr
 	}
 
@@ -162,7 +161,7 @@ func gather(inv command.Invocation, deps Deps, flags loginFlags) (identity, stri
 		return identity{}, "", e
 	}
 
-	return askForLogin(ident, identity{site: flags.site, email: flags.email})
+	return askForLogin(ctx, ident, identity{site: flags.site, email: flags.email})
 }
 
 func firstNonEmpty(values ...string) string {
@@ -263,7 +262,7 @@ func missingIdentity(ident identity) string {
 // Refusing a terminal is deliberate: `jira auth login --with-token` with
 // nothing piped would sit waiting for input with no prompt, which reads
 // as a hang. Saying so is better than looking broken.
-func readToken(inv command.Invocation) (string, error) {
+func readToken(ctx context.Context, inv command.Invocation) (string, error) {
 	if inv.StdinIsTerminal {
 		e := cli.NewInputError(cli.CodeFlagValueInvalid,
 			"--with-token expects the token on standard input; pipe it in, for example `op read op://Private/Jira/token | jira auth login --with-token`")
@@ -271,7 +270,7 @@ func readToken(inv command.Invocation) (string, error) {
 		return "", e
 	}
 
-	raw, err := io.ReadAll(io.LimitReader(inv.Stdin, maxTokenBytes+1))
+	raw, err := command.ReadStdinContext(ctx, "with-token", inv.Stdin, maxTokenBytes+1)
 	if err != nil {
 		return "", fmt.Errorf("read token from standard input: %w", err)
 	}

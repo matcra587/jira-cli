@@ -1,6 +1,8 @@
 package issue
 
 import (
+	"context"
+
 	"github.com/matcra587/jira-cli/internal/cli/prompt"
 	"github.com/matcra587/jira-cli/internal/core"
 )
@@ -47,12 +49,9 @@ type Deps struct {
 	// no test can drive. A test supplies the answer; the composition root
 	// supplies the dialog.
 	//
-	// Only `issue comment delete` uses it today. It is on the shared Deps
-	// rather than passed to that one constructor because the delete verbs
-	// still to land (issue delete, link delete, attachment delete) all
-	// need the same thing, and threading it per command would mean four
-	// signatures instead of one field.
-	Confirm func(prompt.Confirm) (bool, error)
+	// The shared dependency lets destructive commands and selector-driven
+	// writes use the same context-aware confirmation policy.
+	Confirm func(context.Context, prompt.Confirm) (bool, error)
 }
 
 // InputDiscoveryClient joins the existing three-method metadata reader with

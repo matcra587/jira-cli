@@ -389,7 +389,7 @@ func TestEditInputUsesCompleteSelectorAndSameAuthenticatedClient(t *testing.T) {
 		return nil, core.ErrIssueMetadataUnavailable
 	}
 	// An input read must never enter the selector's mutation confirmation.
-	deps.Confirm = func(_ prompt.Confirm) (bool, error) {
+	deps.Confirm = func(_ context.Context, _ prompt.Confirm) (bool, error) {
 		confirmations.Add(1)
 		return false, errors.New("unexpected confirmation")
 	}
@@ -414,7 +414,7 @@ func TestEditInputReadsExplicitFileTargetsWithoutMutationConfirmation(t *testing
 		t.Error("file selector constructed the query client")
 		return nil, core.ErrIssueMetadataUnavailable
 	}
-	deps.Confirm = func(_ prompt.Confirm) (bool, error) {
+	deps.Confirm = func(_ context.Context, _ prompt.Confirm) (bool, error) {
 		t.Error("input read requested mutation confirmation")
 		return false, errors.New("unexpected confirmation")
 	}

@@ -240,6 +240,30 @@ terminal immediately. Input uses the shared body size cap and requires UTF-8.
 
 Exit codes are `0` success, `1` authentication, `2` not found, `3` validation,
 `4` rate limit, `5` server, `6` canceled, `7` timeout and `8` local output failure.
+
+### Input was canceled or timed out
+
+Interactive forms in rich terminals honor the command context: cancellation
+returns exit `6`. An expired deadline returns exit `7`. Machine stdout remains
+separate from the form on stderr. On Unix, accessible text and confirmation
+input interrupts active terminal reads when the command context expires and
+preserves borrowed descriptors and their flags. Linux accessible password input
+also interrupts active masked reads and preserves terminal modes, descriptor
+flags and the borrowed input's Go read deadlines. Interrupted
+login and logout return before verification or credential changes. Incomplete
+answers at EOF and input cleanup failures return errors. They cannot authorize
+a confirmation. Accessible text input on non-Unix platforms and password input
+outside Linux currently check context before and after input but cannot interrupt
+a blocked read. The HTTP `--timeout` flag bounds requests; it does not set a form
+deadline.
+
+`auth login --with-token` interrupts piped standard input on Unix when the
+command context expires. Cancellation and deadlines return the same typed errors
+before verification or credential storage. The read retains the 8 KiB token
+limit and leaves borrowed file descriptors open, restoring Unix pipe flags.
+Other native file reads, including non-Unix standard input, currently check the
+context before and after reading but cannot interrupt a blocked read. The HTTP
+`--timeout` flag does not set an input deadline.
 Follow each error's hint and executable suggestions. Successful partial batches
 can exit `0` while individual results failed.
 

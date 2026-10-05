@@ -230,7 +230,7 @@ func runDelete(ctx context.Context, deps Deps, inv command.Invocation, opts dele
 		return out, nil
 	}
 
-	if err := confirmIssueDelete(deps.Confirm, inv, targets, opts.deleteSubtasks, opts.force); err != nil {
+	if err := confirmIssueDelete(ctx, deps.Confirm, inv, targets, opts.deleteSubtasks, opts.force); err != nil {
 		if errors.Is(err, errDestructiveAborted) {
 			return zero, cli.NewCodedError(cli.CodeCanceled,
 				fmt.Sprintf("delete canceled — %s untouched", joinPlainKeys(targets.Keys)))
@@ -265,7 +265,7 @@ func runDelete(ctx context.Context, deps Deps, inv command.Invocation, opts dele
 // notices the key they did not mean to type — and it says out loud when
 // subtasks are coming too, since those are issues the caller never
 // named.
-func confirmIssueDelete(ask confirmFunc, inv command.Invocation, targets command.Targets, deleteSubtasks, force bool) error {
+func confirmIssueDelete(ctx context.Context, ask confirmFunc, inv command.Invocation, targets command.Targets, deleteSubtasks, force bool) error {
 	subject := joinPlainKeys(targets.Keys)
 	caveat := "Jira keeps no trash — the comments, attachments and history go too, and this cannot be undone."
 	if deleteSubtasks {
@@ -282,7 +282,7 @@ func confirmIssueDelete(ask confirmFunc, inv command.Invocation, targets command
 		risk = fmt.Sprintf("deleting %s, which --%s chose rather than you naming them, cannot be undone, so it needs confirmation",
 			subject, targets.Summary.Kind)
 	}
-	return confirmDestructive(ask, inv, force, destructiveQuestion{
+	return confirmDestructive(ctx, ask, inv, force, destructiveQuestion{
 		Subject:     subject,
 		Risk:        risk,
 		Question:    []string{"Delete ", subject, "?"},

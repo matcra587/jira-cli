@@ -92,7 +92,7 @@ func (f *fakeSelectorClient) DeleteIssue(_ context.Context, key string, _ bool) 
 func selectorDeps(fake *fakeSelectorClient, answer bool, seen *prompt.Confirm) Deps {
 	return Deps{
 		JiraClient: func() (core.JiraClient, error) { return fake, nil },
-		Confirm: func(c prompt.Confirm) (bool, error) {
+		Confirm: func(_ context.Context, c prompt.Confirm) (bool, error) {
 			fake.record("confirm")
 			if seen != nil {
 				*seen = c
@@ -394,11 +394,11 @@ func TestOverTheCapIsRefusedRatherThanTruncated(t *testing.T) {
 // saw before.
 func TestNamedKeysStillPromptOnlyWhereTheyAlreadyDid(t *testing.T) {
 	asked := 0
-	ask := func(prompt.Confirm) (bool, error) { asked++; return true, nil }
+	ask := func(_ context.Context, _ prompt.Confirm) (bool, error) { asked++; return true, nil }
 
 	// No selector: Summary is nil, so the gate is a no-op whatever else
 	// is true of the run.
-	if err := confirmSelected(ask, interactiveInvocation(false, "KEY-1"), false,
+	if err := confirmSelected(t.Context(), ask, interactiveInvocation(false, "KEY-1"), false,
 		selectedWrite{Gerund: "commenting on", Imperative: "Comment"},
 		command.Targets{Keys: []string{"KEY-1"}}); err != nil {
 		t.Fatalf("confirmSelected with named keys: %v", err)

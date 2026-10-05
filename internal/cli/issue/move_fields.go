@@ -68,9 +68,9 @@ func newMoveFields(deps Deps) *cobra.Command {
 	})
 }
 
-func confirmFieldMove(deps Deps, inv command.Invocation, keys []string, force bool) error {
+func confirmFieldMove(ctx context.Context, deps Deps, inv command.Invocation, keys []string, force bool) error {
 	subject := joinPlainKeys(keys)
-	err := confirmDestructive(deps.Confirm, inv, force, destructiveQuestion{
+	err := confirmDestructive(ctx, deps.Confirm, inv, force, destructiveQuestion{
 		Subject: subject, Risk: "applying a move field payload to " + subject + " needs confirmation",
 		Question:    []string{"Apply the move field payload to ", subject, "?"},
 		Caveat:      "Jira decides which fields can change through the issue-edit endpoint. Review the payload before continuing.",

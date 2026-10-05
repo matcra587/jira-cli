@@ -91,6 +91,16 @@ run = "go test -v -tags=live -count=1 ./tests/live"
 description = "Validate hook configuration and native formatter cases"
 run = ["hk validate", "hk test --step gofumpt"]
 
+["test:keyring"]
+description = "Verify Linux authentication against a private native keyring"
+run = """
+if [ "$(go env GOHOSTOS)" != "linux" ]; then
+  echo "The native keyring gate requires Linux." >&2
+  exit 1
+fi
+go test -v -tags=nativekeyring -count=1 -timeout=3m -run='^TestNativeKeyring' ./tests/contract
+"""
+
 # The metadata-driven anti-gap suite (tests/audit): exact-leaf inventory,
 # expected-cell matrix, corpus captures of the real binary, agent-dx
 # checklist. Hermetic — httptest loopback only, guarded by an unroutable

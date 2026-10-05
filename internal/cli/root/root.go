@@ -264,7 +264,7 @@ func newProgramWithTheme(deps *Deps, stdout, stderr io.Writer, resolveTheme func
 		Cache: deps.Cache,
 		// The real dialog, as `auth logout` already gets below. A test
 		// hands the command an answer instead.
-		Confirm: prompt.Confirm.Run,
+		Confirm: prompt.Run,
 	}
 	if deps.BuildPreferences != nil {
 		issueDeps.BrowseSite = func() (string, error) {
@@ -282,7 +282,7 @@ func newProgramWithTheme(deps *Deps, stdout, stderr io.Writer, resolveTheme func
 		Site:             siteInfo,
 		SiteWithoutStore: siteInfoWithoutStore,
 		// The real dialog. A test hands the command an answer instead.
-		Confirm: prompt.Confirm.Run,
+		Confirm: prompt.Run,
 	}
 	program.Root.AddCommand(authcmd.New(authDeps), authcmd.NewMe(authDeps))
 

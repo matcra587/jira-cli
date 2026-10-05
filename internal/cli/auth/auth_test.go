@@ -386,7 +386,7 @@ func TestReadTokenTrimsTrailingNewline(t *testing.T) {
 	t.Parallel()
 	// No command needed: the token comes off the invocation, so a test
 	// supplies a reader rather than building a tree to hang one on.
-	got, err := readToken(command.Invocation{Stdin: strings.NewReader("a-good-token\n")})
+	got, err := readToken(t.Context(), command.Invocation{Stdin: strings.NewReader("a-good-token\n")})
 	if err != nil {
 		t.Fatalf("readToken: %v", err)
 	}
@@ -407,7 +407,7 @@ func TestReadTokenRejectsUnusableInput(t *testing.T) {
 		{name: "larger than any token", input: strings.Repeat("x", maxTokenBytes+1)},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			if _, err := readToken(command.Invocation{Stdin: strings.NewReader(tt.input)}); err == nil {
+			if _, err := readToken(t.Context(), command.Invocation{Stdin: strings.NewReader(tt.input)}); err == nil {
 				t.Error("input that is not a single token was accepted")
 			}
 		})
@@ -944,9 +944,9 @@ func TestConfirmLogoutMapsTheAnswer(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			ask := func(prompt.Confirm) (bool, error) { return tt.answer, tt.err }
+			ask := func(_ context.Context, _ prompt.Confirm) (bool, error) { return tt.answer, tt.err }
 
-			got, err := confirmLogout(ask, "person@example.com", "https://example.atlassian.net")
+			got, err := confirmLogout(t.Context(), ask, "person@example.com", "https://example.atlassian.net")
 			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("error = %v, want %v", err, tt.wantErr)
 			}
@@ -964,12 +964,12 @@ func TestConfirmLogoutMapsTheAnswer(t *testing.T) {
 func TestConfirmLogoutNamesTheAccountAndSite(t *testing.T) {
 	t.Parallel()
 	var asked prompt.Confirm
-	ask := func(c prompt.Confirm) (bool, error) {
+	ask := func(_ context.Context, c prompt.Confirm) (bool, error) {
 		asked = c
 		return true, nil
 	}
 
-	if _, err := confirmLogout(ask, "person@example.com", "https://example.atlassian.net"); err != nil {
+	if _, err := confirmLogout(t.Context(), ask, "person@example.com", "https://example.atlassian.net"); err != nil {
 		t.Fatal(err)
 	}
 	for _, want := range []string{"person@example.com", "example.atlassian.net"} {

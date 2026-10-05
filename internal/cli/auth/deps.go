@@ -43,7 +43,7 @@ type Deps struct {
 	// makes the branch that deletes a credential and the branch that
 	// keeps it equally impossible to test. A test supplies the answer;
 	// the composition root supplies the dialog.
-	Confirm func(prompt.Confirm) (bool, error)
+	Confirm func(context.Context, prompt.Confirm) (bool, error)
 }
 
 // SiteInfo is the configured identity a command reports against.

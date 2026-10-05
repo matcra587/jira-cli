@@ -1,8 +1,11 @@
 package prompt
 
 import (
+	"context"
 	"errors"
 	"image/color"
+	"io"
+	"os"
 	"strings"
 
 	"charm.land/huh/v2"
@@ -35,10 +38,10 @@ type Confirm struct {
 
 // Run draws the dialog and reports the answer.
 //
-// The error is huh's, unwrapped: [huh.ErrUserAborted] means the person
-// closed the form, which is a choice rather than a failure, and the
+// A caller context error is preserved. Otherwise [huh.ErrUserAborted] means
+// the person closed the form, which is a choice rather than a failure; the
 // caller decides what that means for its exit code.
-func (c Confirm) Run() (bool, error) {
+func Run(ctx context.Context, c Confirm) (bool, error) {
 	// A dialog with no question is unanswerable, and the zero value of
 	// this struct would draw one: an empty title over two empty
 	// buttons. Refusing is better than asking someone to guess.
@@ -63,21 +66,41 @@ func (c Confirm) Run() (bool, error) {
 	}
 
 	answer := false
-	err := huh.NewForm(huh.NewGroup(
-		huh.NewConfirm().
+	// Set the stream explicitly: Huh's accessible mode otherwise uses stdout
+	// even though its normal renderer defaults to stderr.
+	form := NewForm(
+		&confirmationField{Confirm: huh.NewConfirm().
 			Title(c.Question).
 			Description(description).
 			Affirmative(c.Affirmative).
 			Negative(c.Negative).
-			Value(&answer),
+			Value(&answer), caveat: description},
 		// ThemeFunc ignores the isDark huh offers: huh learns it from a
 		// Bubble Tea background-color message, which arrives only if
 		// the terminal answers, and the resolved theme already knows.
-	)).WithTheme(huh.ThemeFunc(func(bool) *huh.Styles { return styles })).Run()
+	).WithOutput(os.Stderr).WithTheme(huh.ThemeFunc(func(bool) *huh.Styles { return styles }))
+	err := RunForm(ctx, form)
 	if err != nil {
 		return false, err
 	}
 	return answer, nil
+}
+
+// confirmationField retains Huh's rich rendering and input behavior. Huh
+// v2.0.3 omits Confirm.Description in accessible mode, so a native note must
+// show the caveat before the native yes/no reader asks for an answer.
+type confirmationField struct {
+	*huh.Confirm
+	caveat string
+}
+
+func (f *confirmationField) RunAccessible(w io.Writer, r io.Reader) error {
+	if f.caveat != "" {
+		if err := huh.NewNote().Description(f.caveat).RunAccessible(w, r); err != nil {
+			return err
+		}
+	}
+	return f.Confirm.RunAccessible(w, r)
 }
 
 // Question renders a dialog sentence from alternating parts: the first

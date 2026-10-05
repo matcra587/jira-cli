@@ -525,7 +525,7 @@ func runTransition(ctx context.Context, deps Deps, inv command.Invocation, opts 
 	}
 	// Resolution first, then the question — so the prompt names the
 	// issues rather than echoing the query back.
-	if err := confirmSelected(deps.Confirm, inv, opts.force,
+	if err := confirmSelected(ctx, deps.Confirm, inv, opts.force,
 		selectedWrite{Gerund: "transitioning", Imperative: "Transition"}, targets); err != nil {
 		if errors.Is(err, errDestructiveAborted) {
 			return zero, cli.NewCodedError(cli.CodeCanceled,
