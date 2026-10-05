@@ -308,7 +308,7 @@ func runCommentAdd(ctx context.Context, deps Deps, inv command.Invocation, opts 
 
 	// Resolution first, then the question — the ordering rule that makes
 	// the prompt able to name the issues rather than echo the query.
-	if err := confirmSelected(deps.Confirm, inv, opts.force,
+	if err := confirmSelected(ctx, deps.Confirm, inv, opts.force,
 		selectedWrite{Gerund: "commenting on", Imperative: "Comment"}, targets); err != nil {
 		if errors.Is(err, errDestructiveAborted) {
 			return zero, cli.NewCodedError(cli.CodeCanceled,

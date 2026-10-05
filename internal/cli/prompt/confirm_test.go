@@ -37,7 +37,7 @@ func TestAQuestionStylesEverySegment(t *testing.T) {
 // TestTheZeroValueRefusesRatherThanAsksNothing pins the guard: an empty
 // question would draw an unanswerable dialog.
 func TestTheZeroValueRefusesRatherThanAsksNothing(t *testing.T) {
-	if _, err := (Confirm{}).Run(); err == nil {
+	if _, err := Run(t.Context(), Confirm{}); err == nil {
 		t.Error("a dialog with no question was accepted")
 	}
 }

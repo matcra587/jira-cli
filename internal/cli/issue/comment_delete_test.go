@@ -68,7 +68,7 @@ type recordingConfirm struct {
 	err    error
 }
 
-func (r *recordingConfirm) ask(c prompt.Confirm) (bool, error) {
+func (r *recordingConfirm) ask(_ context.Context, c prompt.Confirm) (bool, error) {
 	r.asked++
 	r.last = c
 	return r.answer, r.err

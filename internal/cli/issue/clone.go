@@ -459,7 +459,7 @@ func runClone(ctx context.Context, deps Deps, inv command.Invocation, opts clone
 
 	// Resolution first, then the question — so the prompt names the
 	// issues rather than echoing the query back.
-	if err := confirmSelected(deps.Confirm, inv, opts.force,
+	if err := confirmSelected(ctx, deps.Confirm, inv, opts.force,
 		selectedWrite{Gerund: "cloning", Imperative: "Clone"}, targets); err != nil {
 		if errors.Is(err, errDestructiveAborted) {
 			return zero, cli.NewCodedError(cli.CodeCanceled,

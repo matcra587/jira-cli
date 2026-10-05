@@ -300,7 +300,7 @@ func TestMoveDeclinedConfirmationIsCancellation(t *testing.T) {
 	t.Parallel()
 	fake := moveFixture()
 	deps := moveClientDeps(fake)
-	deps.Confirm = func(prompt.Confirm) (bool, error) { return false, nil }
+	deps.Confirm = func(_ context.Context, _ prompt.Confirm) (bool, error) { return false, nil }
 	options := moveOptions(false)
 	options.mutation.Force = false
 	body := `{"targetToSourcesMapping":{"DEST,10001":{"issueIdsOrKeys":["KEY-1"]}}}`

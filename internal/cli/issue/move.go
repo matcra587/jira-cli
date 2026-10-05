@@ -159,7 +159,7 @@ func runMove(ctx context.Context, deps Deps, inv command.Invocation, flags moveF
 		return out, nil
 	}
 	if !inv.DryRun && !inv.Interactive {
-		if err := confirmMove(deps, inv, keys, flags.mutation.Force); err != nil {
+		if err := confirmMove(ctx, deps, inv, keys, flags.mutation.Force); err != nil {
 			return out, err
 		}
 	}
@@ -216,7 +216,7 @@ func runMove(ctx context.Context, deps Deps, inv command.Invocation, flags moveF
 		return out, nil
 	}
 	if inv.Interactive {
-		if err := confirmMove(deps, inv, keys, flags.mutation.Force); err != nil {
+		if err := confirmMove(ctx, deps, inv, keys, flags.mutation.Force); err != nil {
 			return out, err
 		}
 	}
@@ -275,9 +275,9 @@ func runMove(ctx context.Context, deps Deps, inv command.Invocation, flags moveF
 	return out, command.KeyedFailure(out.Results, raw)
 }
 
-func confirmMove(deps Deps, inv command.Invocation, keys []string, force bool) error {
+func confirmMove(ctx context.Context, deps Deps, inv command.Invocation, keys []string, force bool) error {
 	subject := joinPlainKeys(keys)
-	err := confirmDestructive(deps.Confirm, inv, force, destructiveQuestion{
+	err := confirmDestructive(ctx, deps.Confirm, inv, force, destructiveQuestion{
 		Subject: subject, Risk: "moving " + subject + " can change project, type, workflow and field values, so it needs confirmation",
 		Question:    []string{"Move ", subject, " using the authored native destinations?"},
 		Caveat:      "Jira may migrate subtasks and discard values incompatible with the destination. Review the native payload before continuing.",

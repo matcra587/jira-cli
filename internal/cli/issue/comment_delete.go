@@ -128,7 +128,7 @@ func runCommentDelete(ctx context.Context, deps Deps, inv command.Invocation, fo
 		return out, nil
 	}
 
-	if err := confirmCommentDelete(deps.Confirm, inv, key, commentID, force); err != nil {
+	if err := confirmCommentDelete(ctx, deps.Confirm, inv, key, commentID, force); err != nil {
 		if errors.Is(err, errDestructiveAborted) {
 			return zero, cli.NewCodedError(cli.CodeCanceled,
 				fmt.Sprintf("delete canceled — comment %s on %s is untouched", commentID, key))
@@ -160,8 +160,8 @@ func runCommentDelete(ctx context.Context, deps Deps, inv command.Invocation, fo
 // because a dialog that cannot name what it is about to destroy is not
 // worth drawing, and "comment" and "attachment" are not interchangeable
 // words to a person about to answer one.
-func confirmCommentDelete(ask confirmFunc, inv command.Invocation, key, commentID string, force bool) error {
-	return confirmDestructive(ask, inv, force, destructiveQuestion{
+func confirmCommentDelete(ctx context.Context, ask confirmFunc, inv command.Invocation, key, commentID string, force bool) error {
+	return confirmDestructive(ctx, ask, inv, force, destructiveQuestion{
 		Subject:  fmt.Sprintf("comment %s on %s", commentID, key),
 		Risk:     fmt.Sprintf("deleting comment %s on %s cannot be undone, so it needs confirmation", commentID, key),
 		Question: []string{"Delete comment ", commentID, " on ", key, "?"},

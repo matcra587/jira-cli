@@ -1,6 +1,7 @@
 package issue
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -44,7 +45,7 @@ import (
 
 // confirmFunc is the dialog seam, spelled once so both callers and the
 // Deps field that carries it agree on the shape.
-type confirmFunc func(prompt.Confirm) (bool, error)
+type confirmFunc func(context.Context, prompt.Confirm) (bool, error)
 
 // destructiveQuestion is one command's own wording for the shared gate.
 type destructiveQuestion struct {
@@ -121,7 +122,10 @@ var errDestructiveAborted = errors.New("destructive action aborted")
 // A preview never reaches here: every caller returns before the gate on
 // a dry run, because a preview destroys nothing and a dialog in front of
 // it would be theater.
-func confirmDestructive(ask confirmFunc, inv command.Invocation, force bool, q destructiveQuestion) error {
+func confirmDestructive(ctx context.Context, ask confirmFunc, inv command.Invocation, force bool, q destructiveQuestion) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if force {
 		return nil
 	}
@@ -150,18 +154,24 @@ func confirmDestructive(ask confirmFunc, inv command.Invocation, force bool, q d
 		))
 	}
 
-	ok, err := ask(prompt.Confirm{
+	ok, err := ask(ctx, prompt.Confirm{
 		Question:    prompt.Question(q.Question...),
 		Caveat:      q.Caveat,
 		Affirmative: q.Affirmative,
 		Negative:    q.Negative,
 	})
 	if err != nil {
-		if errors.Is(err, huh.ErrUserAborted) {
+		if prompt.IsInputFailure(err) {
+			return err
+		}
+		if errors.Is(err, huh.ErrUserAborted) || errors.Is(err, context.Canceled) {
 			// Closing the form is a choice, not a failure of the dialog —
 			// the same reading confirmLogout gives it (auth/form.go).
 			return errDestructiveAborted
 		}
+		return err
+	}
+	if err := ctx.Err(); err != nil {
 		return err
 	}
 	if !ok {
@@ -200,12 +210,12 @@ type selectedWrite struct {
 // --force skips this prompt as it skips every other, and skipping it does
 // NOT skip the enumeration: the keys are already resolved by the time
 // this is called, and they reach the envelope on every path.
-func confirmSelected(ask confirmFunc, inv command.Invocation, force bool, act selectedWrite, t command.Targets) error {
+func confirmSelected(ctx context.Context, ask confirmFunc, inv command.Invocation, force bool, act selectedWrite, t command.Targets) error {
 	if t.Summary == nil {
 		return nil
 	}
 	subject := joinPlainKeys(t.Keys)
-	return confirmDestructive(ask, inv, force, destructiveQuestion{
+	return confirmDestructive(ctx, ask, inv, force, destructiveQuestion{
 		Subject: subject,
 		Risk: fmt.Sprintf(
 			"%s %s, which --%s chose rather than you naming them, needs confirmation",

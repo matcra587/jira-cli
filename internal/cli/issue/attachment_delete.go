@@ -106,7 +106,7 @@ func runAttachmentDelete(ctx context.Context, deps Deps, inv command.Invocation,
 		return out, nil
 	}
 
-	if err := confirmAttachmentDelete(deps.Confirm, inv, id, force); err != nil {
+	if err := confirmAttachmentDelete(ctx, deps.Confirm, inv, id, force); err != nil {
 		if errors.Is(err, errDestructiveAborted) {
 			return zero, cli.NewCodedError(cli.CodeCanceled,
 				fmt.Sprintf("delete canceled — attachment %s is untouched", id))
@@ -143,8 +143,8 @@ func runAttachmentDelete(ctx context.Context, deps Deps, inv command.Invocation,
 // thing that is specifically true here — that downloading first is the
 // only way to keep a copy, which is advice `comment delete` has no
 // equivalent of.
-func confirmAttachmentDelete(ask confirmFunc, inv command.Invocation, id string, force bool) error {
-	return confirmDestructive(ask, inv, force, destructiveQuestion{
+func confirmAttachmentDelete(ctx context.Context, ask confirmFunc, inv command.Invocation, id string, force bool) error {
+	return confirmDestructive(ctx, ask, inv, force, destructiveQuestion{
 		Subject:     "attachment " + id,
 		Risk:        "deleting attachment " + id + " cannot be undone, so it needs confirmation",
 		Question:    []string{"Delete attachment ", id, "?"},

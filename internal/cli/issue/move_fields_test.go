@@ -30,7 +30,7 @@ func TestMoveFieldsConfirmationBeforeClient(t *testing.T) {
 			clients, prompts := 0, 0
 			deps := Deps{
 				JiraClient: func() (core.JiraClient, error) { clients++; return client, nil },
-				Confirm:    func(q prompt.Confirm) (bool, error) { prompts++; return tt.accept, nil },
+				Confirm:    func(_ context.Context, q prompt.Confirm) (bool, error) { prompts++; return tt.accept, nil },
 			}
 			inv := command.Invocation{Args: []string{"KEY-1"}, DryRun: tt.preview, Interactive: tt.interactive, Stdin: strings.NewReader(`{"fields":{"issuetype":{"id":"10001"}}}`)}
 			out, err := runEdit(t.Context(), deps, inv, &issueWriteFlags{jsonInput: "-"}, editOptions{fieldMove: true, force: tt.force, parallelism: 1, notify: true})

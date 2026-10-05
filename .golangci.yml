@@ -10,6 +10,7 @@ run:
     - outputaudit
     - flagmatrix
     - live
+    - nativekeyring
 
 linters:
   # Reasonable default set, then explicitly enable important ones.

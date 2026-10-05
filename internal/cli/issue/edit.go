@@ -340,14 +340,14 @@ func runEdit(ctx context.Context, deps Deps, inv command.Invocation, in *issueWr
 		return out, nil
 	}
 	if opts.fieldMove {
-		if err := confirmFieldMove(deps, inv, targets.Keys, opts.force); err != nil {
+		if err := confirmFieldMove(ctx, deps, inv, targets.Keys, opts.force); err != nil {
 			return zero, err
 		}
 	}
 
 	// Resolution first, then the question — so the prompt names the issues
 	// rather than echoing the query back.
-	if err := confirmSelected(deps.Confirm, inv, opts.force,
+	if err := confirmSelected(ctx, deps.Confirm, inv, opts.force,
 		selectedWrite{Gerund: "editing", Imperative: "Edit"}, targets); err != nil {
 		if errors.Is(err, errDestructiveAborted) {
 			return zero, cli.NewCodedError(cli.CodeCanceled,
