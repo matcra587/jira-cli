@@ -1477,7 +1477,7 @@ var successDataShape = map[string]struct {
 	// to answer "what did you send?" too. summary, relationship and
 	// global_id are optional because a link genuinely need not have them.
 	"issue.weblink.add": {
-		required: []string{"dry_run", "url", "title", "results"},
+		required: []string{"dry_run", "url", "title", "payload", "results"},
 		optional: []string{"summary", "relationship", "global_id"},
 	},
 	"issue.weblink.delete": {
@@ -1955,6 +1955,10 @@ func checkSuccessSchemaTruth(cap Capture, m command.Meta) (bool, string) {
 			return false, "clone success carries no successful source outcome"
 		}
 		return true, ""
+	case "config.profile.list":
+		return checkProfileList(data)
+	case "config.profile.add", "config.profile.default", "config.profile.remove", "config.profile.rename":
+		return checkProfileChange(data, strings.TrimPrefix(m.Op, "config.profile."), false)
 	case "config.set":
 		if data["key"] != "read_only" || data["value"] != "false" || data["previous_value"] != "true" || data["previous_present"] != true || data["previous_secret"] != false || data["would_change"] != true || data["changed"] != true || data["created"] != false || data["dry_run"] != false {
 			return false, "stored setting publication lost the original declaration, typed value or actual effect"
@@ -1965,6 +1969,8 @@ func checkSuccessSchemaTruth(cap Capture, m command.Meta) (bool, string) {
 		return true, ""
 	case "config.theme":
 		return checkThemeSelection(data, false)
+	case "config.init":
+		return checkConfigInitialization(data, false)
 	case "config.get":
 		if data["key"] != "read_only" || data["value"] != "false" || data["present"] != true || data["secret"] != false || data["file_exists"] != true {
 			return false, "stored read_only=false was replaced, omitted or misclassified"

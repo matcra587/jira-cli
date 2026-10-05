@@ -188,11 +188,15 @@ func TestWeblinkAddReportsAddedVersusReplaced(t *testing.T) {
 		t.Errorf("global_id = %q, want it published as request context", out.GlobalID)
 	}
 	for _, call := range fake.added {
-		if call.req.GlobalId != "ci-build-7" {
-			t.Errorf("%s was sent globalId %q, want the caller's own", call.key, call.req.GlobalId)
+		native, err := call.req.Native()
+		if err != nil {
+			t.Fatal(err)
 		}
-		if call.req.Object.URL != link.url || call.req.Object.Title != link.title {
-			t.Errorf("%s got object %+v, want the composed link", call.key, call.req.Object)
+		if native.GlobalID.Value != "ci-build-7" {
+			t.Errorf("%s was sent globalId %q, want the caller's own", call.key, native.GlobalID.Value)
+		}
+		if native.Object.Value.URL.Value != link.url || native.Object.Value.Title.Value != link.title {
+			t.Errorf("%s got object %+v, want the composed link", call.key, native.Object.Value)
 		}
 	}
 }

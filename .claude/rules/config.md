@@ -1,12 +1,13 @@
 ---
 description: >
-  Layered configuration: the koanf loader, precedence, the profile model
-  and secret backends, JIRA_* env vars, theme resolution, and the rules for
-  changing the config shape.
+  Configuration owners, precedence and provenance, file-only updates,
+  credential separation, theme and editor selection, and migration boundaries.
 paths:
   - "internal/config/**/*.go"
   - "internal/cli/config/**/*.go"
   - "internal/cli/auth/**/*.go"
+  - "internal/cli/root/**/*.go"
+  - "internal/cli/theme.go"
 ---
 
 # Config
@@ -16,6 +17,9 @@ tables. Existing flat files remain readable. One selected profile resolves to
 the flat runtime `Config`. `internal/config/load.go` owns koanf resolution;
 `internal/config/profile_document.go` owns strict document admission and selection,
 and `internal/config/file.go` owns authored file snapshots.
+Credentials use the separate `internal/credentials` owner and the root's lazy
+credential-store constructor. Do not recreate the old `loader.go`, profile
+helpers or `LoadOrInit` API: they are absent from this architecture.
 
 Select through `--profile`/`-P`, then `JIRA_PROFILE`, then the authored default.
 Unknown or explicitly empty selectors refuse; reads never manufacture profiles.
@@ -25,79 +29,120 @@ remain unchanged. Public inspection distinguishes selected profile from effectiv
 identity; stored metadata must not replace a named profile's identity before the
 binding check.
 
-## Precedence (last wins)
+Profile mutation uses the existing file publication owner, preserves other tables,
+and opens no providers. Renames keep credential locations; removal retains secrets.
+Keyring `credential_id` is a stable public UUID; `default` retains the old fixed
+slot when adding a profile to flat settings. A missing named locator never reads
+that slot. Profile creation assigns its locator before login. An authored profile
+without a locator must receive a unique UUID before a keyring login can save.
 
-`default < file < keyring < env < flag` is the order in `config.Layers`.
+1Password and legacy migration/rollback remain separate delivery requirements.
 
-*   `Load` never writes. File updates preserve authored values without
-    persisting the effective environment or credential layer.
-*   Decode is **strict** (`ErrorUnused: true`): unknown keys are rejected,
-    not ignored. A key rename without migration breaks existing files —
-    see "Changing the config shape".
+## Resolution and provenance
 
-## File
+`default < file < keyring < env < flag` is the order defined by `config.Layers`.
 
-`DefaultPath` uses `x/shell.ConfigDir("jira", "config.toml")`. `--config`
-selects a file independently of profile selection. Use the configuration owner
-for reads and publication; do not hardcode paths in commands.
+*   `Load` reads without writing. A missing default file is normal; an absent
+    file selected through `--config` is an error for settings reads.
+*   `Options.Path` overrides the global `--config` selection, which overrides
+    `DefaultPath`. The path selects the file; it is not a setting value.
+*   A supplied credential store contributes its complete site, account and
+    token tuple. If the effective site differs from that stored site after
+    normalization, resolution removes the entire keyring layer and warns.
+    Never send a stored token to a site selected from another layer.
+*   `JIRA_*` overlays supported keys only. Empty values are unset; unknown
+    variables and `JIRA_ALIASES` are ignored. File aliases remain literal keys.
+*   `--timeout` supplies the flag layer. Preserve its explicit-set bit:
+    `--timeout=0` disables the deadline, while omission retains lower layers.
+*   Decode the file independently before merging so environment values cannot
+    hide unknown keys or invalid declared types. TOML decoding is strict;
+    the merged environment permits the required string-to-type conversions.
+*   `Config.Validate` requires complete account settings only where a Jira
+    client needs them. Keep local discovery and preference operations usable
+    without credentials. This does not waive decode or save-time validation.
 
-## Profiles and credentials
+`config list` reports effective values, their winning sources, the selected
+profile and path. Its credential constructor respects `keyring=false`. `config get KEY`
+reads only the authored file, preserving absent versus explicit empty, false
+and zero. Both use the configuration owner's redaction, including credential
+userinfo in URLs; neither prints a token.
 
-`[profiles.NAME]` holds public account and workflow settings. Theme, glyph,
-query-directory and alias settings belong at the root. An editor can be global
-or overridden by a profile. Tokens never belong in named profile tables.
+## File selection and publication
 
-The OS keyring stores the site, account and token together. A profile selects its
-own stable `credential_id`; `default` selects the existing fixed slot. A named
-profile without a locator never falls back to that slot. Give an authored
-profile a unique UUID before saving credentials with `auth login`.
+`DefaultPath` uses the pinned `x/shell.ConfigDir("jira", "config.toml")`.
+An absolute `XDG_CONFIG_HOME` overrides the platform fallback. The fallback is
+`~/.config/jira/config.toml` on Unix and `%AppData%\jira\config.toml` on Windows.
+Use the owner; never hardcode those paths in command handlers.
 
-`JIRA_API_TOKEN` can supply an environment token. Implicit profile-derived token
-variables, 1Password storage and provider-to-provider `auth migrate` are not
-implemented here. Legacy conversion and rollback require a separate owner.
+*   `ReadFile` refuses an absent explicit path. `OpenFile` permits a missing
+    update target and follows existing config links, refusing dangling links.
+*   `File.Save` validates the candidate before atomic replacement through the
+    pinned `x/os.AtomicWrite`. Changed files have mode `0600`; newly created
+    directories are private and existing parent permissions are retained.
+    Unchanged bytes leave file metadata untouched.
+*   Save checks the original bytes, existence and resolved link target.
+    A detected conflict is `ErrFileChanged`. These checks are not a filesystem
+    compare-and-swap or a lock against arbitrary external writers.
+*   `OpenNewFile` and `File.Create` own initialization. They refuse existing
+    names, directories and dangling links without reading their contents.
+    Creation stages a private sibling through `AtomicWrite`, then publishes
+    through atomic no-clobber `os.Link`. Unsupported filesystems fail; never
+    replace that boundary with a clobbering rename or a partial direct write.
+*   A creation directory-sync error can occur after publication. Preserve
+    `created=true` in the typed error receipt; inspect the destination before
+    retrying. Do not infer rollback from a storage error.
 
-## Env vars (prefix `JIRA_`)
+## Local commands
 
-| Var | Effect |
-|-----|--------|
-| `JIRA_PROFILE` | selects an existing profile unless `--profile` is set |
-| `JIRA_THEME` (+ `_LIGHT`/`_DARK` via clib's `SetEnvPrefix("JIRA")`) | theme override for help, plain output, and the TUI |
-| `JIRA_READ_ONLY` | truthy set (`1/true/yes/on`) blocks mutations; wins on the OFF→ON direction only |
-| `JIRA_ADF_STRICT` | ADF mode override (flag > env > path default) |
-| `JIRA_MAX_RETRY_WAIT` | rate-limit retry budget (Go duration); unparseable → default, never silently disabled |
-| `JIRA_LIVETEST_PROJECT` | live-suite target project (a dedicated probe project) |
-| `JIRA_NO_UPDATE_CHECK` | non-empty disables the passive update check (handled inside clive/notify; the name derives from the binary name) |
-| `NO_COLOR` | presence disables color and hyperlinks (per no-color.org, unprefixed); `--color=always` overrides. There is no JIRA_NO_COLOR — the JIRA env prefix covers clog/clib theme/level/hyperlink vars, not this |
+`config profile` lists, adds, renames, selects the default and removes named
+profiles through the file publication owner. These operations open no providers.
 
-Agent detection (`CLAUDECODE`, `AI_AGENT`, …) lives in
-`internal/cli/detector.go` and selects compact output — it is not config.
+Build commands through `command.Spec` and the shared typed output/View path.
+Mark local mutations with `MutatesLocalState`; do not invent a Jira transport
+gate or credential dependency for file-only work.
 
-## Theme resolution (`internal/config/theme.go`)
+*   `config init` requires explicit `--base-url` and `--email` in every mode.
+    Validate both before file I/O. It never prompts, reads credentials or
+    contacts Jira. Preview creates no files or directories and persists no
+    defaults or environment values; real creation uses the shared owner.
+*   `config set` prepares scalar settings through `PrepareSetting` or
+    `PrepareSettings`. Credentials are refused and aliases require their
+    command-tree validation owner. Preserve other declared values without
+    writing the effective merged configuration. Changed saves normalize TOML;
+    unchanged typed values preserve authored bytes and comments.
+*   `config edit` edits a copy and validates before saving. Editor precedence
+    is `JIRA_EDITOR`, the stored `editor`, `VISUAL`, then `EDITOR`, with no
+    guessed fallback. An explicit `JIRA_EDITOR` permits repairing invalid TOML.
+    Split executable arguments with the pinned shell helper; run without a
+    shell. Real edits require a terminal; preview launches nothing.
+    Rejected edits retain a recovery-copy receipt. Terminal supervision belongs
+    to `command.RunEditor`, including cancellation and mode restoration.
 
-*   Selectable names = `"auto"` + clib's presets (`clibtheme.Names()`), no
-    jira-cli aliasing. `JIRA_THEME` wins over the config key on every path.
-*   `"auto"` (background detection) is **opt-in, never the default** —
-    detection misfires silently under tmux/SSH/container exec, and a wrong
-    guess is worse than the fixed dark palette. Keep that comment-documented
-    rationale intact if you touch it.
-*   Validation is write-time only (`config theme --name`); config **load**
-    deliberately does not validate, so a theme clib later renames degrades
-    to the dark fallback at render instead of blocking every command.
+Credentials belong to `auth login`, the credential-store adapter and the shared
+client construction path. Never add a setting command that persists a token.
+The current backend is the OS keyring; environment credentials may override it.
+Do not advertise 1Password or provider-to-provider `auth migrate` as implemented.
 
-## Changing the config shape
+## Theme selection
 
-*   A purely additive key (new, optional, defaulted) lands with: the loader
-    default, the TOML docs, and the schema surface together — one PR.
-*   A breaking change (rename, retype, remove) must keep strict decode from
-    rejecting existing files: provide an upgrade path (migration or
-    load-time tolerance) and tests proving an old file still loads. There
-    is no legacy conversion command yet; named documents use explicit
-    `format_version=1`.
-*   A profile `editor` overrides the global `editor`. Keep new per-profile
-    settings on the same pattern.
+`internal/cli/theme.go` owns theme resolution; `config theme` uses the shared
+setting and custom-theme owners. Follow the `configure-theme` embedded guide.
 
-## Command boundaries
+*   Theme environment precedence is `JIRA_THEME`, `CLIB_THEME`, `CLOG_THEME`,
+    then `THEME`. A usable environment preset precedes the file preset.
+    Library-only names can be consumed at startup; do not promise perfect
+    settings provenance for a variable intentionally removed before loading.
+*   Custom `theme_path` resolves relative to the selected configuration file.
+    Invalid custom palettes warn and retain the preset fallback.
+*   Without a selected theme, use `COLORFGBG` and then the dark fallback.
+    Do not introduce an active terminal-background probe during startup.
+*   Invalid theme names warn at rendering; invalid glyph vocabulary fails
+    decoding. Preserve that intentional distinction.
 
-Configuration reads and credential resolution use the shared configuration
-owner through root dependencies. Do not reconstruct the removed `loader.go`,
-`LoadOrInit` or command-local profile helpers.
+## Changing the contract
+
+Update supported keys, defaults, validators, provenance, typed outputs,
+help/schema/completion and executable guide examples together. Preserve strict
+file decoding and provide a verified upgrade path for breaking changes.
+The embedded guides and runtime schema describe current user workflows;
+these rules identify their implementation owners and invariants.

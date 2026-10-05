@@ -1,0 +1,3 @@
+kind: changed
+body: "Refuse existing config initialization targets, including files, directories and dangling links, in previews and live execution. Publish a new target exclusively so a competing creator is not overwritten. Retain an acknowledged creation if later durability fails; a failed receipt does not always mean no file exists."
+time: 2026-10-04T23:14:44.425087583-04:00

@@ -39,6 +39,7 @@ jira alias import aliases.yaml --config aliases.toml --dry-run --output=json
 jira config get read_only --output=json
 jira config list --output=json --jq '.data.settings[] | select(.key == "read_only")'
 jira config set read_only false --config aliases.toml --dry-run --output=json
+jira config init --base-url https://example.atlassian.net --email person@example.com --config new-settings.toml --dry-run --output=json
 jira issue attachment download 10042 --to . --as=report.bin --dry-run --output=json
 ```
 
@@ -110,6 +111,20 @@ proposed replacement stay skipped. Changed saves normalize TOML formatting and
 preserve declared settings. Previews and no-ops preserve file bytes.
 
 ### Create a settings file
+
+`config init --base-url URL --email EMAIL` creates a new settings file using
+only the two explicit account values. Both flags are required in every mode.
+The command never prompts, accesses credentials or contacts Jira. Environment
+values and defaults are not saved. Use `--config PATH` to select the destination
+or omit it to use the platform configuration path. Preview with `--dry-run`,
+then repeat without it and with `--no-input` to publish. `would_create` describes
+the candidate. `created` reports publication and remains false during preview.
+Existing files, directories and dangling links are refused with `config_changed`,
+including during preview. Use `config set` or `config edit` to update them.
+Creation requires filesystem hard-link support and never replaces a competing
+creator. On a storage error, inspect the selected file before retrying: a
+directory sync can fail after publication, in which case `created=true` remains
+in the error receipt. Credentials belong to `auth login`.
 
 ### Edit settings in an editor
 

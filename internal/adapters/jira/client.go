@@ -655,7 +655,7 @@ func (c *Client) GetRemoteLinks(ctx context.Context, key string) (core.RemoteLin
 // was rides back on the result so the layer above can say so — the
 // status code is the only place Jira reports it.
 func (c *Client) AddRemoteLink(ctx context.Context, key string, body wire.RemoteLinkRequest) (core.RemoteLinkWrite, error) {
-	if err := core.ValidateRemoteLinkURL(body.Object.URL); err != nil {
+	if _, err := core.ValidateRemoteLinkRequest(body); err != nil {
 		return core.RemoteLinkWrite{}, err
 	}
 	req, err := c.newRequest(ctx, http.MethodPost, []string{"rest", "api", "3", "issue", key, "remotelink"}, nil, body)

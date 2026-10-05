@@ -630,7 +630,13 @@ func readCapped(field, label, source string, r io.Reader) ([]byte, error) {
 // a --markdown that command does not have would fail looking the
 // canonical flag up.
 func (f *BodyFlags) ResolveAliases(fs *pflag.FlagSet) error {
-	return ResolveHiddenAliases(fs, bodyAliasesFor(f.names))
+	if err := ResolveHiddenAliases(fs, bodyAliasesFor(f.names)); err != nil {
+		return err
+	}
+	if f.names.jsonInput != "" {
+		return ValidateJSONInput(fs)
+	}
+	return nil
 }
 
 // Conflict enforces §2.1's rule: the three routes are alternatives, so

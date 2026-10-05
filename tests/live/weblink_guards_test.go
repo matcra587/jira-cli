@@ -2,7 +2,71 @@
 
 package live
 
-import "testing"
+import (
+	"crypto/sha256"
+	"os"
+	"path/filepath"
+	"slices"
+	"testing"
+)
+
+func TestLiveNativeWeblinkOwnershipGrammar(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "native.json")
+	data := []byte(`{"object":{"url":"https://example.com","title":"Example"}}`)
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	r := &liveRun{verified: true, manifest: liveManifest{Issues: []ownedIssue{
+		{Key: "KEY-1", ID: "1"}, {Key: "KEY-2", ID: "2"}, {Key: "KEY-3", ID: "3", Deleted: true},
+	}}}
+	keys := []string{"KEY-1", "KEY-2"}
+	for _, binding := range [][]string{keys, {"KEY-4", "KEY-2"}, {"KEY-3", "KEY-2"}, {"KEY-1", "KEY-1"}} {
+		r.weblinkInputs = append(r.weblinkInputs, ownedWeblinkInput{keys: slices.Clone(binding), path: path, digest: sha256.Sum256(data)})
+	}
+	args := nativeWeblinkArgs(keys, path)
+	for _, suffix := range [][]string{nil, {"--dry-run"}} {
+		if err := r.checkMutation(keys, append(slices.Clone(args), suffix...)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for name, test := range map[string]struct{ keys, args []string }{
+		"foreign":            {[]string{"KEY-4", "KEY-2"}, nativeWeblinkArgs([]string{"KEY-4", "KEY-2"}, path)},
+		"inactive":           {[]string{"KEY-3", "KEY-2"}, nativeWeblinkArgs([]string{"KEY-3", "KEY-2"}, path)},
+		"repeated":           {[]string{"KEY-1", "KEY-1"}, nativeWeblinkArgs([]string{"KEY-1", "KEY-1"}, path)},
+		"undeclared":         {[]string{"KEY-2", "KEY-1"}, args},
+		"changed-binding":    {[]string{"KEY-1"}, nativeWeblinkArgs([]string{"KEY-1"}, path)},
+		"different-file":     {keys, nativeWeblinkArgs(keys, path+".other")},
+		"stdin":              {keys, nativeWeblinkArgs(keys, "-")},
+		"repeated-input":     {keys, append(slices.Clone(args), "--json-input="+path)},
+		"flag-merge":         {keys, append(slices.Clone(args), "--url=https://example.com")},
+		"native-turned-flag": {keys, []string{"issue", "weblink", "add", "KEY-1", "KEY-2", "--url="}},
+		"selector":           {keys, append(slices.Clone(args), "--jql=project=KEY")},
+		"hidden-alias":       {keys, append(slices.Clone(args), "--from-json="+path)},
+		"changed-preview":    {keys, append(slices.Clone(args), "--dry-run=false")},
+		"changed-workers":    {keys, append(slices.Clone(args), "--parallelism=99")},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := r.checkMutation(test.keys, test.args); err == nil {
+				t.Fatal("native remote-link owner admitted an unauthored mutation")
+			}
+		})
+	}
+	t.Run("changed-bytes", func(t *testing.T) {
+		if err := os.WriteFile(path, []byte(`{}`), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := r.checkMutation(keys, args); err == nil {
+			t.Fatal("native remote-link owner admitted changed input")
+		}
+	})
+	t.Run("unverified", func(t *testing.T) {
+		r.verified = false
+		if err := r.checkMutation(keys, args); err == nil {
+			t.Fatal("native remote-link owner admitted unverified credentials")
+		}
+	})
+}
 
 func TestLiveWeblinkMutationOwnershipGrammar(t *testing.T) {
 	t.Parallel()

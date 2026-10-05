@@ -83,6 +83,11 @@ accompanies it. Read that resource to inspect its body before adding another.
 
 ### Submit native transition input
 
+When using `--json-input`, provide a file path or `-` for standard input. An
+explicit empty value is refused before input reads or Jira requests. Omitting
+the flag preserves the command's other input routes. Empty values inside a
+native request remain governed by that request's schema.
+
 For a full native transition request, write `transition.json` with the target and
 native containers, then preview it:
 
@@ -256,6 +261,14 @@ retains the composed request. Unusable lists or write acknowledgements report
 write. Successful live add outcomes carry a positive link ID and `created`.
 Delete takes both the issue key and its link ID, with no `--force`. Local
 previews and read-only enforcement still apply.
+
+`issue weblink add --json-input FILE` reads a complete native remote-link
+request. Use `-` for standard input. Supply `object.url` and `object.title`,
+with optional application, icon, status, and extension data. Explicit flags
+can fill omitted members, but a member supplied by both routes is refused,
+including an empty or null member. Native input preserves authored values.
+The URL-as-title fallback applies to the flag-only route. `data.payload`
+retains the complete composed request in previews and write outcomes.
 
 Ranking sends at most 50 distinct explicit issues in one ordered request, with
 exactly one `--before` or `--after` anchor outside that source list. The argument

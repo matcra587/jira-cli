@@ -13,6 +13,23 @@ import (
 // An unusable write acknowledgement requires inspection before retrying.
 var ErrWeblinkResponseInvalid = errors.New("invalid remote-link response")
 
+// ValidateRemoteLinkRequest checks the effective native input before transport.
+// Optional values retain their authored presence; Jira owns their interpretation.
+func ValidateRemoteLinkRequest(request jira.RemoteLinkRequest) (jira.RemoteIssueLinkRequest, error) {
+	native, err := request.Native()
+	if err != nil {
+		return native, err
+	}
+	if !native.Object.Set || native.Object.Null {
+		return native, errors.New("web link needs an object")
+	}
+	object := native.Object.Value
+	if !object.URL.Set || object.URL.Null || !object.Title.Set || object.Title.Null {
+		return native, errors.New("web link object needs string url and title members")
+	}
+	return native, ValidateRemoteLinkURL(object.URL.Value)
+}
+
 // ValidateRemoteLinkURL permits absolute HTTP and HTTPS targets without
 // contacting them. Both command preflight and the adapter use this boundary.
 func ValidateRemoteLinkURL(raw string) error {

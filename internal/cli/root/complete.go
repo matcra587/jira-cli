@@ -31,6 +31,9 @@ func runCompletionAction(ctx context.Context, program *concobra.Program, sink *f
 	if !ok {
 		return false, 0
 	}
+	// Completion bypasses alias expansion. Resolve its selected config before
+	// the handler or an early refusal can emit warnings or human diagnostics.
+	resolveProgramTheme(program)
 	// The boundary renders through the resolved format, and nothing has
 	// parsed yet on this path — seed it from the raw argv exactly as the
 	// normal dispatch does.

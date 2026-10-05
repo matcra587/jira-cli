@@ -31,6 +31,10 @@ jira boards list --all --output=json
 `--help` on a command prints the long form with worked examples; `-h` prints the
 short one.
 
+`jira config --help` describes initialization, stored settings and effective
+configuration provenance. Read `jira guide discover-cli` for configuration and
+authentication discovery, and `jira guide configure-theme` for palettes.
+
 ADF conversion uses the shared Markdown body converter and validates the
 candidate. Strict mode refuses dropped content; inspect the retained candidate
 and `diagnostics` before explicitly accepting loss. `adf render` returns a

@@ -159,8 +159,14 @@ file = ".mise/tasks/upstream-check"
 description = "Download Go module dependencies"
 run = "go mod download"
 
-# The docs pipeline (docs:gen / nav-check / build / serve) returns when
-# cmd/gen-docs is rebuilt for the 0.16 command tree.
+["docs:build"]
+description = "Build the documentation site with strict validation"
+run = "uvx --from zensical==0.0.60 zensical build --clean --strict -f zensical.toml"
+
+["docs:serve"]
+description = "Serve the documentation site with live reload"
+raw_args = true
+file = ".mise/tasks/docs-serve"
 
 ["deps:update"]
 description = "Update direct Go dependencies to latest patch releases"

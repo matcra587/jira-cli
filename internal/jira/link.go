@@ -1,5 +1,12 @@
 package jira
 
+import (
+	"bytes"
+	"encoding/json"
+	"encoding/json/jsontext"
+	"fmt"
+)
+
 // LinkIssueRequest is the request body for POST /rest/api/3/issueLink.
 //
 // A hand-written request type rather than a reuse of the generated
@@ -70,37 +77,69 @@ type LinkIssueRef struct {
 	Key string `json:"key"`
 }
 
-// RemoteLinkRequest is the request body for POST
-// /rest/api/3/issue/{key}/remotelink — a REMOTE link (an arbitrary URL
-// attached to an issue), which is a different resource from the issue
-// links above and reached through a different endpoint. The CLI keeps
-// the two apart as `weblink` and `link`, and so does this file.
-//
-// The endpoint is create-OR-update, keyed on GlobalId: a POST carrying a
-// GlobalId that already exists on the issue REPLACES that link and
-// answers 200, where a new one answers 201. The CLI publishes which
-// happened rather than hiding it (see envelope.IssueWeblinkAddOutput).
-type RemoteLinkRequest struct {
-	// Object is the item being linked to. Required by the endpoint, and
-	// the only member the CLI's own flags fill.
-	Object RemoteLinkObject `json:"object"`
-	// GlobalId is the caller's own identifier for the remote item,
-	// omitted when they gave none. Spelled GlobalId rather than GlobalID
-	// to match the wire key it marshals to; the CLI-facing field on the
-	// envelope uses the Go-idiomatic spelling.
-	GlobalId string `json:"globalId,omitempty"` //nolint:revive // the wire spells it globalId; see the field comment
-	// Relationship describes how the issue relates to the item ("causes",
-	// "mentioned in"). Free text on this endpoint, unlike an issue link's
-	// type, which must exist on the site.
-	Relationship string `json:"relationship,omitempty"`
+// RemoteLinkRequest retains authored request values for POST
+// /rest/api/3/issue/{key}/remotelink. The generated RemoteIssueLinkRequest
+// describes their meaning; raw members preserve known string escapes, explicit
+// nulls, and future extensions. Values are immutable after composition so every
+// fan-out target receives the same request. A globalId makes this create or
+// replace, and the write receipt distinguishes those outcomes.
+type RemoteLinkRequest map[string]json.RawMessage
+
+func (v RemoteLinkRequest) MarshalJSON() ([]byte, error) {
+	return MarshalNoEscape(map[string]json.RawMessage(v))
 }
 
-// RemoteLinkObject is the linked item itself. Url and Title are the
-// endpoint's only required members, which is exactly the pair `weblink
-// add` takes as flags.
-type RemoteLinkObject struct {
-	URL   string `json:"url"`
-	Title string `json:"title"`
-	// Summary is optional prose shown under the title.
-	Summary string `json:"summary,omitempty"`
+// UnmarshalJSON rejects ambiguous authoring input and retains all value bytes.
+// Required-field and URL checks run after convenience flags have been merged.
+func (v *RemoteLinkRequest) UnmarshalJSON(data []byte) error {
+	if !jsontext.Value(data).IsValid() {
+		return fmt.Errorf("jira: remote-link payload must contain valid JSON with unique member names")
+	}
+	members, err := DecodeNativeObject(data, remoteIssueLinkRequestKeys)
+	if err != nil {
+		return err
+	}
+	decodeOptional := func(raw json.RawMessage, keys []string) (map[string]json.RawMessage, error) {
+		if len(raw) == 0 || bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+			return nil, nil
+		}
+		return DecodeNativeObject(raw, keys)
+	}
+	if _, err := decodeOptional(members["application"], applicationKeys); err != nil {
+		return fmt.Errorf("jira: remote-link application: %w", err)
+	}
+	if raw, present := members["object"]; present {
+		object, err := DecodeNativeObject(raw, remoteObjectKeys)
+		if err != nil {
+			return fmt.Errorf("jira: remote-link object: %w", err)
+		}
+		if _, err := decodeOptional(object["icon"], iconKeys); err != nil {
+			return fmt.Errorf("jira: remote-link object.icon: %w", err)
+		}
+		status, err := decodeOptional(object["status"], statusKeys)
+		if err != nil {
+			return fmt.Errorf("jira: remote-link object.status: %w", err)
+		}
+		if _, err := decodeOptional(status["icon"], iconKeys); err != nil {
+			return fmt.Errorf("jira: remote-link object.status.icon: %w", err)
+		}
+	}
+	*v = members
+	return nil
+}
+
+// Native inspects the request through the selected schema without replacing
+// its authored bytes. Validation also covers requests built by alternate clients.
+func (v RemoteLinkRequest) Native() (RemoteIssueLinkRequest, error) {
+	var native RemoteIssueLinkRequest
+	raw, err := v.MarshalJSON()
+	if err != nil {
+		return native, err
+	}
+	var checked RemoteLinkRequest
+	if err := checked.UnmarshalJSON(raw); err != nil {
+		return native, err
+	}
+	err = json.Unmarshal(raw, &native)
+	return native, err
 }

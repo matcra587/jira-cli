@@ -45,13 +45,20 @@ func newWeblinkAdd(deps Deps) *cobra.Command {
 		// Identity for the keyed reason link create records: the slot is
 		// data.results[].issue, which every keyed command fills and the
 		// audit's M1 axis checks there.
-		Identity: true,
-		Keyed:    true,
-		Use:      "add ISSUE_KEY...",
-		Short:    "Attach a web link to issues",
+		Identity:    true,
+		Passthrough: true,
+		Keyed:       true,
+		Use:         "add ISSUE_KEY...",
+		Short:       "Attach a web link to issues",
 		Long: "Attach a URL to one or more issues.\n\n" +
+			"`--json-input` reads a complete native remote-link request from a " +
+			"file, or `-` for standard input. It supports `application`, object " +
+			"`icon` and `status`, and future request members. Native `object.url` " +
+			"and `object.title` are required. Explicit flags can supply omitted " +
+			"members; setting the same member in both routes is refused. " +
+			"The complete composed request is available at `data.payload`.\n\n" +
 			"`--url` requires an absolute HTTP or HTTPS URL. `--title` is " +
-			"optional; omitting it uses the URL as the title. A preview " +
+			"optional for flag-only input; omitting it uses the URL as the title. A preview " +
 			"checks URL syntax without fetching the target.\n\n" +
 			"**`--global-id` makes this create-or-REPLACE.** Without it, every " +
 			"run adds another link — run it twice and the issue carries the URL " +
@@ -87,17 +94,26 @@ func newWeblinkAdd(deps Deps) *cobra.Command {
 			"# with a relationship and a summary\n" +
 			"$ jira issue weblink add KEY-123 --url https://example.com/pr/9 --title 'PR 9' --relationship 'is implemented by' --summary 'Adds the retry loop.'\n\n" +
 			"# preview the request without sending it\n" +
-			"$ jira issue weblink add KEY-123 --url https://example.com --title Example --dry-run",
+			"$ jira issue weblink add KEY-123 --url https://example.com --title Example --dry-run\n\n" +
+			"# attach a native link with application, icon and status metadata\n" +
+			"$ jira issue weblink add KEY-123 --json-input remote-link.json\n\n" +
+			"# inspect the complete native request\n" +
+			"$ jira issue weblink add KEY-123 --json-input remote-link.json --dry-run --output=json --jq '.data.payload'",
 		Args: command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY"}}},
 		Flags: func(c *cobra.Command) {
 			cmd = c
+			link.cmd = c
 			command.AddKeyedFlags(c, &keyed)
 			command.AddMutationFlags(c, &mut)
+			command.AddStringVar(c, &link.jsonInput, command.FlagJSONInput, "",
+				"Read a complete native remote-link request from a JSON file, or `-` for standard input",
+				command.FlagOpts{Terse: "Native link payload", Placeholder: "path"})
+			command.AddHiddenAliases(c, command.ADFRouteAliases())
 			command.AddStringVar(c, &link.url, flagURL, "",
 				"The URL to attach",
 				command.FlagOpts{Terse: "Target URL", Placeholder: "url"})
 			command.AddStringVar(c, &link.title, flagTitle, "",
-				"The link's display text; defaults to the URL when omitted or empty",
+				"The link's display text; flag-only input defaults to the URL when omitted or empty",
 				command.FlagOpts{Terse: "Link title", Placeholder: "text"})
 			command.AddStringVar(c, &link.summary, flagSummary, "",
 				"Optional prose shown under the title",
@@ -110,6 +126,9 @@ func newWeblinkAdd(deps Deps) *cobra.Command {
 				command.FlagOpts{Terse: "Dedupe id", Placeholder: "id"})
 		},
 		Validate: func() error {
+			if err := resolvePayloadAliases(cmd.Flags()); err != nil {
+				return err
+			}
 			if err := keyed.Validate(); err != nil {
 				return err
 			}
@@ -130,6 +149,8 @@ func newWeblinkAdd(deps Deps) *cobra.Command {
 // struct so the handler's signature does not grow a parameter per flag —
 // commentAddOptions' own reasoning.
 type weblinkFlags struct {
+	cmd          *cobra.Command
+	jsonInput    string
 	url          string
 	title        string
 	summary      string
@@ -143,6 +164,18 @@ type weblinkFlags struct {
 // The shared boundary requires an absolute HTTP or HTTPS URL with a host.
 // Validation does not fetch the target, and previews remain local.
 func (f weblinkFlags) validate() error {
+	if f.jsonInput != "" {
+		if f.cmd != nil && f.cmd.Flags().Changed(flagURL) {
+			if err := core.ValidateRemoteLinkURL(f.url); err != nil {
+				e := cli.NewInputError(cli.CodeFlagValueInvalid, "--"+flagURL+": "+err.Error())
+				e.Field = flagURL
+				return e
+			}
+		}
+		// Native input and collisions require reading the payload. They are
+		// checked during composition, before client construction.
+		return nil
+	}
 	if f.url == "" {
 		e := cli.NewInputError(cli.CodeFlagRequired, fmt.Sprintf(
 			"a web link needs a target — give one with --%s", flagURL,
@@ -161,25 +194,6 @@ func (f weblinkFlags) validate() error {
 	return nil
 }
 
-// request builds the wire payload. One request for every key: the link
-// is composed before the fan-out starts, so all N issues get a
-// byte-identical payload — runCommentAdd's compose-once, for its reason.
-func (f weblinkFlags) request() jira.RemoteLinkRequest {
-	title := f.title
-	if title == "" {
-		title = f.url
-	}
-	return jira.RemoteLinkRequest{
-		Object: jira.RemoteLinkObject{
-			URL:     f.url,
-			Title:   title,
-			Summary: f.summary,
-		},
-		GlobalId:     f.globalID,
-		Relationship: f.relationship,
-	}
-}
-
 // runWeblinkAdd composes the link once and either previews it or
 // attaches it to every key.
 //
@@ -187,14 +201,23 @@ func (f weblinkFlags) request() jira.RemoteLinkRequest {
 // unchanged and for its reason.
 func runWeblinkAdd(ctx context.Context, deps Deps, inv command.Invocation, link weblinkFlags, parallelism int) (envelope.IssueWeblinkAddOutput, error) {
 	var zero envelope.IssueWeblinkAddOutput
-	req := link.request()
+	req, native, err := link.compose(ctx, inv)
+	if err != nil {
+		return zero, err
+	}
+	payload, err := req.MarshalJSON()
+	if err != nil {
+		return zero, err
+	}
+	object := native.Object.Value
 	out := envelope.IssueWeblinkAddOutput{
 		MutationState: envelope.MutationState{DryRun: inv.DryRun},
-		URL:           req.Object.URL,
-		Title:         req.Object.Title,
-		Summary:       req.Object.Summary,
-		Relationship:  req.Relationship,
-		GlobalID:      req.GlobalId,
+		Payload:       payload,
+		URL:           object.URL.Value,
+		Title:         object.Title.Value,
+		Summary:       object.Summary.Value,
+		Relationship:  native.Relationship.Value,
+		GlobalID:      native.GlobalID.Value,
 	}
 	if inv.DryRun {
 		out.Results = weblinkPreviewResults(inv.Args)
@@ -356,6 +379,8 @@ func renderWeblinkAddPreview(v *output.View, out envelope.IssueWeblinkAddOutput)
 	if out.GlobalID != "" {
 		v.Line(cli.Text(fmt.Sprintf("Would replace any existing link with the global id %q.", out.GlobalID)))
 	}
+	v.Section("Payload")
+	v.Block(cli.Text(string(out.Payload)))
 	v.Hint("Nothing was sent. Drop --dry-run to apply it.")
 }
 
