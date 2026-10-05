@@ -292,5 +292,5 @@ func metadataCacheScope(deps *Deps, local bool) (cachecmd.MetadataScope, error) 
 	} else {
 		err = core.ErrCacheManagementUnsupported
 	}
-	return cachecmd.MetadataScope{Site: prefs.BaseURL, Store: store}, err
+	return cachecmd.MetadataScope{Site: prefs.BaseURL, Email: prefs.Account, Store: store}, err
 }

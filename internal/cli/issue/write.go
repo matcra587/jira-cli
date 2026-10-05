@@ -16,25 +16,9 @@ import (
 	"github.com/matcra587/jira-cli/internal/jira"
 )
 
-// There is deliberately no `--generate-json` here, and the name is being
-// KEPT FREE rather than merely left unimplemented.
-//
-// A local one was built and removed. It composed the payload and printed
-// it instead of sending — which is what `--dry-run` already does, byte for
-// byte: the two envelopes differed only in a boolean. A second spelling of
-// a flag this CLI already ships is the same fault §7 rejects `--custom`
-// for, and the standard has to apply in both directions.
-//
-// `--dry-run` IS the discovery affordance. It publishes `data.payload`,
-// and those bytes feed straight back through `--json-input`, so a caller
-// learns the schema from the command they were already going to run.
-//
-// The name is reserved for the design's §2.1 feature, which is genuinely
-// different: a LIVE createmeta/editmeta read that returns a skeleton
-// enriched from the site — required flags, allowed values, real custom
-// field ids — with a name-to-id resolution and pagination behind it. That
-// feature deserves the good name, and it could not have had it if a local
-// payload-printer were sitting on it.
+// --dry-run composes authored input locally. The separate --generate-json
+// route reads live context-specific metadata through input_discovery.go;
+// it does not share this composition or mutation path.
 
 // issueWriteFlags is the whole input surface `issue create` and `issue
 // edit` share: the three routes of §2.1 plus the discovery flag.

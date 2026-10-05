@@ -26,7 +26,7 @@ func newTransitionList(deps Deps) *cobra.Command {
 			"The read requests expand=transitions.fields. Machine results retain the complete native response at results[].data, including schemas, allowed values, defaults and unknown extensions. A field absent from returned metadata is not proof that Jira accepts it. Human output marks required fields when Jira supplies that fact.\n\n" +
 			"This command only reads and works in read-only mode. Results follow issue order; partial failure does not discard successful reads. Total failure, timeout and interruption retain all joined outcomes. Discovery is a snapshot, not a guarantee that a later transition will succeed. --web is refused; use issue view ISSUE_KEY --web for an issue page.",
 		Example: "$ jira issue transition list KEY-123\n\n$ jira issue transition list KEY-123 KEY-124 --parallelism 1 --output=json",
-		Args:    command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY"}}},
+		Args:    command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY", Predictor: "issuekey"}}},
 		Flags: func(c *cobra.Command) {
 			cmd = c
 			command.AddKeyedFlags(c, &keyed)

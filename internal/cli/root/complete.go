@@ -3,6 +3,7 @@ package root
 import (
 	"context"
 	"fmt"
+	"io"
 	"maps"
 	"slices"
 	"strings"
@@ -12,12 +13,14 @@ import (
 	"github.com/gechr/clog"
 	concobra "github.com/gechr/conductor/cli/cobra"
 	xslices "github.com/gechr/x/slices"
+	"github.com/spf13/pflag"
 
 	changelog "github.com/matcra587/jira-cli"
 	"github.com/matcra587/jira-cli/internal/adf"
 	"github.com/matcra587/jira-cli/internal/agentguides"
 	"github.com/matcra587/jira-cli/internal/cli"
 	cachecmd "github.com/matcra587/jira-cli/internal/cli/cache"
+	"github.com/matcra587/jira-cli/internal/cli/command"
 	"github.com/matcra587/jira-cli/internal/config"
 )
 
@@ -89,13 +92,80 @@ var completionKinds = map[string]func(args []string) []string{
 			return release.Version + "\t" + release.Date
 		})
 	},
-	"guide":         guideCandidates,
-	"alias":         aliasCandidates,
-	"savedquery":    savedQueryCandidates,
-	"configkey":     func(_ []string) []string { return config.Keys() },
-	"cacheresource": func(_ []string) []string { return cachecmd.ResourceNames() },
-	"configsetkey":  func(_ []string) []string { return config.WritableSettingKeys() },
-	"configvalue":   configValueCandidates,
+	"guide":              guideCandidates,
+	"alias":              aliasCandidates,
+	"savedquery":         savedQueryCandidates,
+	"configkey":          func(_ []string) []string { return config.Keys() },
+	"cacheresource":      func(_ []string) []string { return cachecmd.ResourceNames() },
+	"cacheclearresource": func(_ []string) []string { return cachecmd.ClearResourceNames() },
+	"issuekey":           issueKeyCandidates,
+	"attachmentissuekey": attachmentIssueKeyCandidates,
+	"transitionissuekey": transitionIssueKeyCandidates,
+	"configsetkey":       func(_ []string) []string { return config.WritableSettingKeys() },
+	"configvalue":        configValueCandidates,
+}
+
+type completionContext struct {
+	files                 []string
+	transition, status    string
+	jql, filter, fromFile string
+}
+
+// completionPositionals separates clib's forwarded valued flags from prior
+// positionals. The callback has no current word or future tokens, so ambiguous
+// file/status slots offer nothing rather than guessing from an issue-key shape.
+func completionPositionals(args []string) (completionContext, []string, error) {
+	var ctx completionContext
+	probe := pflag.NewFlagSet("completion-context", pflag.ContinueOnError)
+	probe.SetOutput(io.Discard)
+	probe.Usage = func() {}
+	probe.ParseErrorsAllowlist.UnknownFlags = true
+	probe.String(cli.FlagConfig, "", "")
+	probe.StringP(cli.FlagProfile, "P", "", "") //nolint:gocritic // parse-only probe; public flags use command metadata
+	files := probe.StringSlice("file", nil, "")
+	transition := probe.String("transition", "", "")
+	status := probe.String("status", "", "")
+	jql := probe.String(command.FlagJQL, "", "")
+	filter := probe.String(command.FlagFilter, "", "")
+	fromFile := probe.String(command.FlagFromFile, "", "")
+	if err := probe.Parse(args); err != nil {
+		return ctx, nil, err
+	}
+	ctx.files, ctx.transition, ctx.status = *files, *transition, *status
+	ctx.jql, ctx.filter, ctx.fromFile = *jql, *filter, *fromFile
+	return ctx, probe.Args(), nil
+}
+
+func attachmentIssueKeyCandidates(args []string) []string {
+	ctx, positionals, err := completionPositionals(args)
+	if err != nil || len(ctx.files) == 0 && len(positionals) > 0 {
+		return nil
+	}
+	return issueKeyCandidates(args)
+}
+
+func transitionIssueKeyCandidates(args []string) []string {
+	ctx, positionals, err := completionPositionals(args)
+	if err != nil || ctx.jql != "" || ctx.filter != "" || ctx.fromFile != "" {
+		return nil
+	}
+	if ctx.transition == "" && ctx.status == "" && len(positionals) > 0 {
+		return nil
+	}
+	return issueKeyCandidates(args)
+}
+
+func issueKeyCandidates(args []string) []string {
+	resolved, err := config.Load(config.Options{Path: globalFlagLayer(args).Path})
+	if err != nil || config.ValidateBaseURL(resolved.Config.BaseURL) != nil || strings.TrimSpace(resolved.Config.Email) == "" {
+		return nil
+	}
+	store, err := newScopedDiskCache(resolved.Config.BaseURL, resolved.Config.Email)
+	if err != nil {
+		return nil
+	}
+	keys, _, _ := cachecmd.RecentIssueKeys(store)
+	return keys
 }
 
 func savedQueryCandidates(args []string) []string {

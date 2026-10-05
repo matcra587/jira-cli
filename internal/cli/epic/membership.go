@@ -54,7 +54,7 @@ func newAdd(deps Deps) *cobra.Command {
 		Long: "The last positional argument is one epic key; preceding arguments are child keys. " +
 			"The destination is read and checked as an epic before any PUT. This replaces each child's current parent. " + membershipHelp,
 		Example: "$ jira epic add KEY-1 KEY-2 KEY-100 --no-input\n\n# Preview the exact assignment\n$ jira epic add KEY-1:3 KEY-100 --dry-run --output=json",
-		Args:    command.ArgSpec{Min: 2, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY"}, {Name: "EPIC_KEY"}}},
+		Args:    command.ArgSpec{Min: 2, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY", Predictor: "issuekey"}, {Name: "EPIC_KEY", Predictor: "issuekey"}}},
 		Flags:   o.flags, Validate: o.validate, Human: renderMembership, Warnings: membershipWarnings,
 		RetainOnError: func(out envelope.EpicMembershipOutput) bool { return len(out.Results) > 0 },
 		Run: func(ctx context.Context, inv command.Invocation) (envelope.EpicMembershipOutput, error) {
@@ -76,7 +76,7 @@ func newRemove(deps Deps) *cobra.Command {
 			"Subtasks and non-epic parents are refused. An already unparented issue succeeds without a PUT. " +
 			"Local previews do not establish the current parent. Parent checks and writes are separate requests; Jira provides no atomic compare-and-set here. " + membershipHelp,
 		Example: "$ jira epic remove KEY-1 KEY-2 --no-input\n\n# Preview removals without contacting Jira\n$ jira epic remove KEY-1:3 --dry-run --output=json",
-		Args:    command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY"}}},
+		Args:    command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY", Predictor: "issuekey"}}},
 		Flags:   o.flags, Validate: o.validate, Human: renderMembership, Warnings: membershipWarnings,
 		RetainOnError: func(out envelope.EpicMembershipOutput) bool { return len(out.Results) > 0 },
 		Run: func(ctx context.Context, inv command.Invocation) (envelope.EpicMembershipOutput, error) {
@@ -147,13 +147,20 @@ type membershipOutcome struct {
 	err    error
 }
 
-func membershipOne(ctx context.Context, client core.JiraClient, key, parent string, request jira.IssueWriteRequest, dryRun bool, mut command.MutationFlags) membershipOutcome {
+func membershipOne(ctx context.Context, client core.JiraClient, key, parent string, request jira.IssueWriteRequest, dryRun bool, mut command.MutationFlags) (outcome membershipOutcome) {
 	data := &envelope.EpicMembershipData{RemoteValidated: true}
 	if err := ctx.Err(); err != nil {
 		return membershipFailure(key, err)
 	}
 	if parent == "" {
 		read, err := client.GetIssue(ctx, key, []string{"parent", "issuetype"})
+		// A native child response remains observed when hierarchy validation
+		// refuses the mutation before any write.
+		defer func() {
+			if outcome.result.Err != nil {
+				outcome.result.Err.JiraResponse = outcome.result.Err.JiraResponse || read.Issue != nil
+			}
+		}()
 		if err != nil {
 			return membershipFailure(key, err)
 		}

@@ -114,7 +114,7 @@ func newDelete(deps Deps) *cobra.Command {
 		// The "name something" refusal moves to SelectorFlags.Validate,
 		// which can say BOTH routes; cobra's arity check could only ever
 		// have said the one it knows about.
-		Args: command.ArgSpec{Min: 0, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY"}}},
+		Args: command.ArgSpec{Min: 0, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY", Predictor: "issuekey"}}},
 		Flags: func(c *cobra.Command) {
 			cmd = c
 			command.AddKeyedFlags(c, &keyed)

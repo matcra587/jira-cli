@@ -105,7 +105,7 @@ func newAttachmentAdd(deps Deps) *cobra.Command {
 			"$ jira issue attachment add KEY-123 report.pdf --dry-run\n\n" +
 			"# just the new attachment ids, as json\n" +
 			"$ jira issue attachment add KEY-123 report.pdf --output=json --jq '.data.results[].data.attachments[].id'",
-		Args: command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY"}}},
+		Args: command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY", Predictor: "attachmentissuekey"}}},
 		Flags: func(c *cobra.Command) {
 			cmd = c
 			command.AddKeyedFlags(c, &keyed)

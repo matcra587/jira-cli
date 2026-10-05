@@ -83,7 +83,7 @@ func newRank(deps Deps) *cobra.Command {
 			"$ jira issue rank KEY-123 KEY-124 KEY-125 --before KEY-999\n\n" +
 			"# preview the move without sending it\n" +
 			"$ jira issue rank KEY-123 --before KEY-999 --dry-run",
-		Args: command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY"}}},
+		Args: command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY", Predictor: "issuekey"}}},
 		Flags: func(c *cobra.Command) {
 			cmd = c
 			// WithoutParallelism, and the reason is stronger than the
@@ -96,10 +96,10 @@ func newRank(deps Deps) *cobra.Command {
 			command.AddMutationFlags(c, &mut)
 			command.AddStringVar(c, &before, flagBefore, "",
 				"Put the issues immediately above this one",
-				command.FlagOpts{Terse: "Rank above", Placeholder: "key"})
+				command.FlagOpts{Terse: "Rank above", Placeholder: "key", Complete: "predictor=issuekey"})
 			command.AddStringVar(c, &after, flagAfter, "",
 				"Put the issues immediately below this one",
-				command.FlagOpts{Terse: "Rank below", Placeholder: "key"})
+				command.FlagOpts{Terse: "Rank below", Placeholder: "key", Complete: "predictor=issuekey"})
 		},
 		Validate: func() error {
 			if err := keyed.Validate(); err != nil {

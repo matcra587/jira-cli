@@ -1,6 +1,6 @@
 package envelope
 
-// SelectorState is the shared embed for a write whose targets can be
+// SelectorState is the shared embed for an operation whose targets can be
 // named by a SELECTOR (`--jql`, `--filter`, `--from-file`) instead of
 // positionally.
 //
@@ -13,7 +13,7 @@ package envelope
 // — must not be the fact only the human renderer can see.
 //
 // Absent entirely when the caller named their keys positionally. A
-// selector block on every write would make `selector: null` the common
+// selector block on every operation would make `selector: null` the common
 // case and teach a consumer to skip the field.
 type SelectorState struct {
 	Selector *SelectorSummary `json:"selector,omitempty"`

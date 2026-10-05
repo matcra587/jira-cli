@@ -91,7 +91,7 @@ func newWeblinkList(deps Deps) *cobra.Command {
 			"$ jira issue weblink list KEY-123 KEY-124\n\n" +
 			"# just the urls, as json\n" +
 			"$ jira issue weblink list KEY-123 --output=json --jq '.data.results[].data.weblinks[].url'",
-		Args: command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY"}}},
+		Args: command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY", Predictor: "issuekey"}}},
 		Flags: func(c *cobra.Command) {
 			cmd = c
 			command.AddKeyedFlags(c, &keyed)

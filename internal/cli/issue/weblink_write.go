@@ -99,7 +99,7 @@ func newWeblinkAdd(deps Deps) *cobra.Command {
 			"$ jira issue weblink add KEY-123 --json-input remote-link.json\n\n" +
 			"# inspect the complete native request\n" +
 			"$ jira issue weblink add KEY-123 --json-input remote-link.json --dry-run --output=json --jq '.data.payload'",
-		Args: command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY"}}},
+		Args: command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY", Predictor: "issuekey"}}},
 		Flags: func(c *cobra.Command) {
 			cmd = c
 			link.cmd = c
@@ -451,7 +451,7 @@ func newWeblinkDelete(deps Deps) *cobra.Command {
 			"# check what would go, without deleting\n" +
 			"$ jira issue weblink delete KEY-123 10042 --dry-run",
 		Args: command.ArgSpec{Min: 2, Max: 2, Positions: []command.Arg{
-			{Name: "ISSUE_KEY"},
+			{Name: "ISSUE_KEY", Predictor: "issuekey"},
 			{Name: "WEBLINK_ID"},
 		}},
 		Flags: func(c *cobra.Command) {

@@ -161,10 +161,24 @@ const CodeIssueCreateFollowupFailed = "issue_create_followup_failed"
 // CodeIssueCloneSourceInvalid reports source or metadata that cannot be copied safely.
 const CodeIssueCloneSourceInvalid = "issue_clone_source_invalid"
 
+// Input discovery distinguishes invalid upstream metadata and unavailable local
+// readers from project-specific type selection failures. A local unknown type
+// is not Jira's HTTP 404; callers can inspect retained native candidates.
+const (
+	CodeIssueMetadataResponseInvalid = "issue_metadata_response_invalid"
+	CodeIssueMetadataUnavailable     = "issue_metadata_unavailable"
+	CodeIssueTypeUnknown             = "issue_type_unknown"
+	CodeIssueTypeAmbiguous           = "issue_type_ambiguous"
+)
+
 // registry maps every code to its exit and hint. The shared not-found hint
 // stays resource-neutral on purpose: jira_not_found covers every Jira 404
 // (issue, board, user, …), so it says "identifier", never "issue key".
 var registry = map[string]spec{
+	CodeIssueMetadataResponseInvalid: {exit: ExitServer, hint: "Retry the metadata read or inspect its native endpoint with `jira api get`. Incomplete or contradictory metadata cannot establish an input skeleton."},
+	CodeIssueMetadataUnavailable:     {exit: ExitValidation, hint: "Use a configured Jira adapter that supports live issue input discovery. Help and schema remain available without opening a client."},
+	CodeIssueTypeUnknown:             {exit: ExitValidation, hint: "Rerun with --output=json to inspect this project's available issue types in data.issue_types, then choose one with --type."},
+	CodeIssueTypeAmbiguous:           {exit: ExitValidation, hint: "Rerun with --output=json to inspect matching issue types in data.issue_types, then use one explicit issue-type ID with --type."},
 	CodeUpdateUnsupported:            {exit: ExitValidation, hint: "Use the original installation method, or install a published release; inspect `jira update --help`."},
 	CodeUpdateFailed:                 {exit: ExitServer, hint: "Inspect the retained update receipt and installed executable before retrying. Check release availability, installation permissions and package-manager diagnostics."},
 	CodeUpdateOwnership:              {exit: ExitValidation, hint: "Run the executable owned by matcra587/tap/jira, or update the current copy through its original installation method. Other copies are preserved."},
@@ -234,7 +248,7 @@ var registry = map[string]spec{
 	CodeJQEvalFailed:          {exit: ExitValidation, hint: "The expression is valid but does not fit this document — inspect the real shape with `--output=json` and no filter."},
 	CodeJQOutputTooLarge:      {exit: ExitValidation, hint: "Narrow the expression — it produced more output than the CLI will buffer."},
 	CodeReadOnlyBlocked:       {exit: ExitValidation, hint: "Read-only mode is on, so writes are refused before they reach Jira — clear it to allow this command to mutate."},
-	CodeCacheIO:               {exit: ExitValidation, hint: "Inspect base_url and email with `jira config list`, then check available space and permissions in the metadata cache. Inspect retained per-entry outcomes before retrying a clear."},
+	CodeCacheIO:               {exit: ExitValidation, hint: "Inspect base_url and email with `jira config list`, then check available space and permissions in the metadata cache. Inspect retained observations before retrying the cache operation."},
 	CodeLocalIO:               {exit: ExitValidation, hint: "A local file operation failed — check free space and the permissions on the config directory."},
 	CodeConfigChanged:         {exit: ExitValidation, hint: "Inspect the current configuration, then reapply your change on top of it."},
 	CodeAliasInvalid:          {exit: ExitValidation, hint: "Inspect `jira alias list`; fix the named alias or delete it with `jira alias delete NAME --force`."},
@@ -247,6 +261,14 @@ var registry = map[string]spec{
 	CodeConfigInvalid:         {exit: ExitValidation, hint: "Fix the setting where it is defined — `jira config list` shows each value and the layer it came from."},
 	CodePathInvalid:           {exit: ExitValidation, hint: "That value cannot be part of a request path — check the identifier for separators, dots, or characters that are not part of a key."},
 	CodeJQOutputConflict:      {exit: ExitValidation, hint: "`--jq` filters machine output — drop it, or ask for `--output=json` or `--output=compact`."},
+}
+
+// HasJiraResponse reports a retained native HTTP failure independently of its
+// taxonomy. Local refusals can share an exit code with native request failures,
+// so callers must not infer whether Jira answered from that code or prose.
+func HasJiraResponse(err error) bool {
+	response, ok := errors.AsType[*adapterjira.APIError](err)
+	return ok && response.StatusCode != 0
 }
 
 // MapError resolves any error to its taxonomy entry. Tier order matters:
@@ -287,6 +309,10 @@ func MapError(err error) Classification {
 	// import this package. They sit ahead of the API tier: a request the
 	// gate refused never reached Jira, so it has no status to classify.
 	switch {
+	case errors.Is(err, core.ErrIssueMetadataInvalid):
+		return newError(CodeIssueMetadataResponseInvalid, err)
+	case errors.Is(err, core.ErrIssueMetadataUnavailable):
+		return newError(CodeIssueMetadataUnavailable, err)
 	case errors.Is(err, core.ErrIssueCloneSourceInvalid):
 		return newError(CodeIssueCloneSourceInvalid, err)
 	case errors.Is(err, core.ErrIssueCreateResponseInvalid):
@@ -345,6 +371,15 @@ func MapError(err error) Classification {
 		e := newError(inputErr.Code, err)
 		e.Field = inputErr.Field
 		e.Suggestions = slices.Clone(inputErr.Suggestions)
+		return e
+	}
+	if resolution, ok := errors.AsType[*core.IssueTypeResolutionError](err); ok {
+		code := CodeIssueTypeUnknown
+		if resolution.Ambiguous {
+			code = CodeIssueTypeAmbiguous
+		}
+		e := newError(code, err)
+		e.Field = "type"
 		return e
 	}
 	if apiErr, ok := errors.AsType[*adapterjira.APIError](err); ok {

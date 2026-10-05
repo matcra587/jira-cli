@@ -36,7 +36,7 @@ func newList(deps Deps) *cobra.Command {
 			"Incomplete walks retain validated earlier pages, report complete=false with a reason, and expose read_error for later failures. " +
 			"An empty page before total is incomplete rather than proof of an empty issue. Offset lists are observations, not transaction snapshots.",
 		Example: "$ jira worklog list KEY-123 --output=json\n\n# Drain several issues\n$ jira worklog list KEY-1 KEY-2 --all --parallelism=2\n\n# Resume a page\n$ jira worklog list KEY-123 --start=50 --limit=25",
-		Args:    command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY"}}},
+		Args:    command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY", Predictor: "issuekey"}}},
 		Flags: func(cmd *cobra.Command) {
 			o.cmd = cmd
 			command.AddKeyedFlags(cmd, &o.keyed)

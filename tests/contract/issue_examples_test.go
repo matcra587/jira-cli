@@ -30,7 +30,7 @@ func TestIssueHelpJSONExamples(t *testing.T) {
 		want     string
 		requests []string
 	}{
-		{name: "create-preview", command: "create", match: "> issue.json"},
+		{name: "create-preview", command: "create", match: "--dry-run --output=json --jq '.data.payload' > issue.json"},
 		{name: "create-key", command: "create", match: "--summary 'Ship it' --output=json", want: "KEY-900\n", requests: []string{"POST /rest/api/3/issue"}},
 		{name: "edit-failures", command: "edit", match: "--output=json --jq", requests: []string{"PUT /rest/api/3/issue/KEY-123", "PUT /rest/api/3/issue/KEY-124"}},
 		{name: "clone-keys", command: "clone", match: "--output=json --jq", want: "KEY-901\nKEY-902\n", requests: []string{"GET /rest/api/3/issue/KEY-123", "GET /rest/api/3/issue/KEY-124", "POST /rest/api/3/issue", "POST /rest/api/3/issue"}},

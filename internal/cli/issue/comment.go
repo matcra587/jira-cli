@@ -217,7 +217,7 @@ func newCommentList(deps Deps) *cobra.Command {
 			"$ jira issue comment list KEY-123 --limit 10 --output=json\n\n" +
 			"# the whole thread, oldest first\n" +
 			"$ jira issue comment list KEY-123 --all --order oldest",
-		Args: command.ArgSpec{Min: 1, Max: 1, Positions: []command.Arg{{Name: "ISSUE_KEY"}}},
+		Args: command.ArgSpec{Min: 1, Max: 1, Positions: []command.Arg{{Name: "ISSUE_KEY", Predictor: "issuekey"}}},
 		Flags: func(c *cobra.Command) {
 			cmd = c
 			command.AddIntVar(c, &limit, flagCommentLimit, defaultCommentLimit,

@@ -108,4 +108,8 @@ type KeyError struct {
 	// Hint says what to do about it. Non-empty for every code the
 	// taxonomy knows, exactly as errors[].hint is.
 	Hint string `json:"hint"`
+	// JiraResponse retains an actual native response from the joined producer,
+	// including a successful read followed by a local refusal.
+	// It does not change the public error shape or the winning process error.
+	JiraResponse bool `json:"-"`
 }

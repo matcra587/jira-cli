@@ -29,6 +29,9 @@ func newFieldTypes() *cobra.Command {
 			"/rest/api/3/issue/KEY-123/editmeta describes an issue's editable fields and operations; " +
 			"/rest/api/3/issue/createmeta/PROJECT/issuetypes/TYPE_ID lists paginated create fields. " +
 			"These reads require authentication. Use the actual project, issue type and field context to obtain allowed values. " +
+			"issue create --generate-json --project KEY_OR_ID --type NAME_OR_ID collects all context-specific create metadata pages and a native placeholder skeleton. " +
+			"issue edit ISSUE_KEY... --generate-json keeps each issue's editable field metadata and skeleton separate. " +
+			"These authenticated reads work in read-only mode. Fill wanted values and remove unused optional fields or operations before submitting the extracted payload. " +
 			"JSON carries rows at .data.types; compact at .types. An example is a field value, not a whole request payload.",
 		Example: "$ jira agent fieldtypes --output=json\n\n" +
 			"$ jira agent fieldtypes --jq '.data.types[] | select(.name == \"user\") | .example'",

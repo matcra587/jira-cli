@@ -2,6 +2,15 @@ package envelope
 
 import "encoding/json"
 
+// CacheIssueKeysOutput reports local, bounded history without implying Jira
+// freshness. Malformed or missing history retains an explicit empty array.
+type CacheIssueKeysOutput struct {
+	IssueKeys  []string `json:"issue_keys"`
+	Count      int      `json:"count"`
+	CacheState string   `json:"cache_state"`
+	WrittenAt  string   `json:"written_at,omitempty"`
+}
+
 // CacheClearEntry reports a planned entry and its acknowledged deletion.
 // ID is an opaque local filename, never a caller-supplied path. Unknown
 // resources include malformed entries whose logical key cannot be trusted.
@@ -27,6 +36,7 @@ type CacheClearOutput struct {
 }
 
 func init() {
+	Register("cache.issuekeys", CacheIssueKeysOutput{}, map[string]any{"description": "Selected site/account recent issue keys, newest first; local history has no TTL and is never fetched from Jira."})
 	Register("cache.clear", CacheClearOutput{}, map[string]any{"description": "Selected site/account cache removal, including local previews and retained partial outcomes."})
 }
 

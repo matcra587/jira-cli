@@ -406,9 +406,9 @@ func isFilterID(id string) bool {
 // excessive empty pages and duplicate keys refuse the entire selection rather
 // than handing a partial or repeated target set to confirmation and fan-out.
 //
-// fields is nil, which asks Jira for its narrowest response (id only, per
-// jira.SearchRequest). The key is a top-level member of every issue in
-// the result, so nothing here needs a field fetched.
+// Enhanced search defaults to IDs only. Request key explicitly on every page:
+// its top-level location does not make it present in the default response.
+// Selectors need no other issue fields before confirmation and fan-out.
 func searchKeys(ctx context.Context, client core.JiraClient, jql, kind string) ([]string, error) {
 	keys, err := Spin(ctx, "Resolving --"+kind, func(ctx context.Context) ([]string, error) {
 		keys := []string{}
@@ -420,7 +420,7 @@ func searchKeys(ctx context.Context, client core.JiraClient, jql, kind string) (
 				return nil, err
 			}
 			size := MaxSelectorKeys + 1 - len(keys)
-			read, err := client.SearchIssues(ctx, jql, nil, token, size)
+			read, err := client.SearchIssues(ctx, jql, []string{"key"}, token, size)
 			if err != nil {
 				return nil, err
 			}

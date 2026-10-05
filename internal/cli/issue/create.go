@@ -77,6 +77,19 @@ func newCreate(deps Deps) *cobra.Command {
 			"`--project`, `--type` and `--summary` are required, from a flag or " +
 			"from the payload — Jira rejects a create without them, and " +
 			"refusing locally costs a round trip less.\n\n" +
+			"`--generate-json --project KEY_OR_ID --type NAME_OR_ID` reads live " +
+			"project-specific create metadata, resolves the actual project/type " +
+			"IDs and walks every issue-type and field page. It returns native " +
+			"requiredness, allowed values, schemas, defaults and actual custom " +
+			"field IDs alongside a native `fields`/`update` skeleton. Remaining " +
+			"null values are placeholders: fill wanted values and remove " +
+			"unwanted optional fields or update operations before submitting " +
+			"through `--json-input`. No custom value or default is guessed. " +
+			"The read works without `--summary` and in read-only mode, prompts " +
+			"for nothing and refuses mutation or authored-input flags, including " +
+			"`--dry-run`. Metadata is a snapshot, not a guarantee for a later " +
+			"write. Machine results report `issue.create.input`; `data.complete` " +
+			"describes the metadata walk, not submission readiness.\n\n" +
 			"A local `--dry-run` composes the whole request and stops. It never " +
 			"contacts Jira, so `data.payload` is byte-identical to what a live " +
 			"run sends, but it cannot tell you whether the project exists or " +
@@ -104,6 +117,10 @@ func newCreate(deps Deps) *cobra.Command {
 			"does not exist yet.",
 		Example: "# the smallest useful create\n" +
 			"$ jira issue create --project ENG --type Task --summary 'Rotate the signing key'\n\n" +
+			"# read live field definitions and a native skeleton\n" +
+			"$ jira issue create --generate-json --project ENG --type Task --output=json\n\n" +
+			"# save only the skeleton, then fill values and remove unused fields\n" +
+			"$ jira issue create --generate-json --project ENG --type Task --output=compact --jq '.payload' > issue.json\n\n" +
 			"# with a description written as Markdown\n" +
 			"$ jira issue create --project ENG --type Bug --summary 'Login loops' --markdown 'Reproduced on staging.'\n\n" +
 			"# preview the request without sending it\n" +
@@ -122,6 +139,7 @@ func newCreate(deps Deps) *cobra.Command {
 		Args: command.ArgSpec{},
 		Flags: func(c *cobra.Command) {
 			in.register(c, command.CreateIssueVerb)
+			registerInputDiscovery(c)
 			// --validate-remote joins --verify now that something backs it:
 			// resolving `@me` in a preview is a real read against the site,
 			// which is exactly what the flag opts into (see
@@ -129,6 +147,14 @@ func newCreate(deps Deps) *cobra.Command {
 			// three-branch shape it selects).
 			command.AddMutationFlags(c, &mut, command.WithVerify(), command.WithValidateRemote())
 		},
+		Read: command.WhenBoolRead(flagGenerateJSON, command.ReadSpec[envelope.IssueCreateInputOutput]{
+			Op: "issue.create.input", Passthrough: true, Human: renderCreateInput,
+			Validate:      func() error { return validateCreateInput(&in) },
+			RetainOnError: func(out envelope.IssueCreateInputOutput) bool { return len(out.Project) > 0 },
+			Run: func(ctx context.Context, _ command.Invocation) (envelope.IssueCreateInputOutput, error) {
+				return runCreateInput(ctx, deps, in.fields.Project, in.fields.IssueType)
+			},
+		}),
 		Validate: func() error {
 			if err := in.validate(); err != nil {
 				return err
@@ -343,11 +369,8 @@ func renderCreatePreview(v *output.View, out envelope.IssueCreateOutput) {
 	// reset mid-span (axis H5).
 	v.Section("Payload")
 	v.Block(cli.Text(string(out.Payload)))
-	// The hint names the round trip because this preview IS the discovery
-	// affordance — there is no separate --generate-json (see write.go). A
-	// caller who cannot tell that these bytes are valid input for
-	// --json-input would go looking for a flag that deliberately does not
-	// exist.
+	// This local preview publishes the composed request for round-trip use.
+	// Live --generate-json separately discovers context-specific field metadata.
 	v.Hint("Nothing was sent. Drop --dry-run to create it, or save this payload and pass it back with --json-input.")
 }
 

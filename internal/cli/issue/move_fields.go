@@ -33,7 +33,7 @@ func newMoveFields(deps Deps) *cobra.Command {
 			"A successful PUT confirms the field write was acknowledged, not a project migration.",
 		Example: "$ echo '{\"fields\":{\"issuetype\":{\"id\":\"10001\"}}}' | jira issue move fields KEY-1 --json-input - --dry-run --output=json\n\n" +
 			"$ jira issue move fields KEY-1 KEY-2 --json-input fields.json --force --output=json",
-		Args: command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY"}}},
+		Args: command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY", Predictor: "issuekey"}}},
 		Flags: func(cmd *cobra.Command) {
 			in.cmd = cmd
 			command.AddKeyedFlags(cmd, &keyed)

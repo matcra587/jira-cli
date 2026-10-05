@@ -247,7 +247,21 @@ func newProgramWithTheme(deps *Deps, stdout, stderr io.Writer, resolveTheme func
 	// not a convention.
 	program.Root.AddCommand(issuecmd.New(issuecmd.Deps{
 		JiraClient: deps.JiraClient,
-		Cache:      deps.Cache,
+		IssueMetadata: func() (issuecmd.InputDiscoveryClient, error) {
+			if deps.JiraClient == nil {
+				return nil, core.ErrIssueMetadataUnavailable
+			}
+			client, err := deps.JiraClient()
+			if err != nil {
+				return nil, err
+			}
+			reader, ok := client.(issuecmd.InputDiscoveryClient)
+			if !ok {
+				return nil, core.ErrIssueMetadataUnavailable
+			}
+			return reader, nil
+		},
+		Cache: deps.Cache,
 		// The real dialog, as `auth logout` already gets below. A test
 		// hands the command an answer instead.
 		Confirm: prompt.Confirm.Run,
@@ -437,6 +451,7 @@ type failureSink struct {
 	detect   func() cli.Detection
 	format   output.Format
 	op       string
+	command  *cobra.Command
 	resolved bool
 }
 
@@ -456,8 +471,10 @@ func (s *failureSink) seed(root *cobra.Command, args []string) {
 	// Best-effort operation attribution: the command the argv names, or
 	// the root when it names none (the unknown-command path).
 	s.op = "root"
+	s.command = nil
 	if cmd, _, err := root.Find(args); err == nil {
 		s.op = opName(cmd)
+		s.command = cmd
 	}
 	probe := pflag.NewFlagSet("selector-probe", pflag.ContinueOnError)
 	probe.ParseErrorsAllowlist.UnknownFlags = true
@@ -497,6 +514,9 @@ func (s *failureSink) exitCode(err error) int {
 }
 
 func (s *failureSink) exitCodeContext(ctx context.Context, err error) int {
+	if s.command != nil {
+		s.op = opName(s.command)
+	}
 	e := cli.MapError(err)
 	var resultErr *cli.ResultError
 	if errors.As(err, &resultErr) && resultErr.Mutation {
@@ -591,6 +611,9 @@ func (s *failureSink) exitCodeContext(ctx context.Context, err error) int {
 // envelope carries ("jira issue view" → "issue.view"; the bare root is
 // "root").
 func opName(cmd *cobra.Command) string {
+	if selected, ok := command.SelectedReadMeta(cmd); ok {
+		return selected.Op
+	}
 	parts := strings.Fields(cmd.CommandPath())
 	if len(parts) <= 1 {
 		return "root"
@@ -657,6 +680,15 @@ func newRoot(deps *Deps, sink *failureSink, renderer *help.Renderer) *cobra.Comm
 			command.EmitWarnings()
 		}
 		ctx := cli.WithFormat(cmd.Context(), format)
+		ctx = command.WithIssueKeyRecorder(ctx, func(keys []string) {
+			if deps.Cache == nil {
+				return
+			}
+			store, err := deps.Cache()
+			if err == nil && store != nil {
+				_ = cachecmd.RecordIssueKeys(store, keys) //nolint:errcheck // Disposable completion history cannot fail the observed operation.
+			}
+		})
 		if filter != nil {
 			ctx = cli.WithFilter(ctx, filter)
 		}
@@ -666,6 +698,7 @@ func newRoot(deps *Deps, sink *failureSink, renderer *help.Renderer) *cobra.Comm
 		// now.
 		sink.format = format
 		sink.op = opName(cmd)
+		sink.command = cmd
 		sink.resolved = true
 		return nil
 	}

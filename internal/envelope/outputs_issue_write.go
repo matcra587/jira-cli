@@ -38,10 +38,9 @@ type IssueCreateOutput struct {
 	// own reason: `--json-input` may carry custom fields no model here can
 	// name, and re-typing the document to publish it would drop precisely
 	// the members a caller reached for that route to send. It is also what
-	// makes `--dry-run` the discovery affordance this command needs: the
-	// bytes published here are bytes a caller can feed straight back in
-	// through `--json-input`, which is why there is no separate
-	// `--generate-json` flag (see internal/cli/issue/write.go).
+	// lets a caller feed a composed local preview straight back through
+	// `--json-input`. Live --generate-json publishes a separate read shape
+	// with context-specific metadata and unfilled value placeholders.
 	Payload json.RawMessage `json:"payload"`
 	// DescriptionRoute names which of the three input routes produced the
 	// description: "adf" when the whole payload came from --json-input,

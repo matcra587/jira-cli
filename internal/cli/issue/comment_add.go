@@ -117,7 +117,7 @@ func newCommentAdd(deps Deps) *cobra.Command {
 		// Min is 0 because a selector replaces the positionals entirely;
 		// SelectorFlags.Validate gives the "name something" refusal, which
 		// can name both routes where cobra's arity check could not.
-		Args: command.ArgSpec{Min: 0, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY"}}},
+		Args: command.ArgSpec{Min: 0, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY", Predictor: "issuekey"}}},
 		Flags: func(c *cobra.Command) {
 			cmd = c
 			command.AddKeyedFlags(c, &keyed)

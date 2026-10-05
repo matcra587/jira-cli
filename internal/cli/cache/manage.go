@@ -44,7 +44,7 @@ func New(deps Deps) *cobra.Command {
 		Long:    "Prime visible metadata or clear disposable local entries for the selected site/account. Previews and local management open no Jira client or credential store; they require explicit public scope. Live primers retain ordinary keyring account resolution.",
 		Example: "$ jira cache clear --dry-run --output=json",
 	}
-	cmd.AddCommand(newClear(deps), newRefresh(deps.Primers))
+	cmd.AddCommand(newClear(deps), newRefresh(deps.Primers), newIssueKeys(deps), newInspect(deps.Primers))
 	addPrimers(cmd, deps.Primers)
 	return cmd
 }
@@ -65,7 +65,7 @@ func newClear(deps Deps) *cobra.Command {
 			"$ jira cache clear boards --force --no-input\n\n" +
 			"# clear all active metadata, including malformed entries\n" +
 			"$ jira cache clear --force --output=json",
-		Args: command.ArgSpec{Max: 1, Positions: []command.Arg{{Name: "RESOURCE", Predictor: "cacheresource"}}},
+		Args: command.ArgSpec{Max: 1, Positions: []command.Arg{{Name: "RESOURCE", Predictor: "cacheclearresource"}}},
 		Flags: func(cmd *cobra.Command) {
 			command.AddMutationFlags(cmd, &mut, command.WithHeadlessForce("clearing cached metadata"))
 		},
@@ -82,9 +82,9 @@ func runClear(ctx context.Context, deps Deps, inv command.Invocation, force bool
 	if len(inv.Args) != 0 {
 		out.Resource = inv.Args[0]
 	}
-	if len(inv.Args) != 0 && !slices.Contains(ResourceNames(), out.Resource) {
+	if len(inv.Args) != 0 && !slices.Contains(ClearResourceNames(), out.Resource) {
 		err := cli.NewInputError(cli.CodeArgValueInvalid, "unknown cache resource")
-		err.Field, err.Suggestions = "RESOURCE", cli.SuggestValues(out.Resource, ResourceNames())
+		err.Field, err.Suggestions = "RESOURCE", cli.SuggestValues(out.Resource, ClearResourceNames())
 		return out, err
 	}
 
@@ -149,6 +149,8 @@ func runClear(ctx context.Context, deps Deps, inv command.Invocation, force bool
 
 func resourceForKey(key string) string {
 	switch {
+	case key == IssueKeysKey:
+		return "issuekeys"
 	case key == BoardListKey || strings.HasPrefix(key, BoardSelectorPrefix):
 		return "boards"
 	case strings.HasPrefix(key, LinkTypesPrefix):

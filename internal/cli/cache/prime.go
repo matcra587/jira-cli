@@ -17,10 +17,11 @@ import (
 )
 
 // MetadataScope selects the same site/account namespace as existing consumers.
-// Site is needed only for the existing site-qualified link type key.
+// Site supplies the existing site-qualified link type key and inspection scope identity.
 type MetadataScope struct {
 	Store core.Cache
 	Site  string
+	Email string
 }
 
 // PrimeDeps separates offline scope inspection from authenticated collection.

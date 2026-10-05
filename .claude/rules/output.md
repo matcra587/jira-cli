@@ -202,10 +202,10 @@ All user-visible failures map through `internal/cli/errors.go`:
     a transport class.** A miss the CLI computes locally — a `--type` value
     absent from the fetched issuetypes list, a name not in a cached set — is
     **validation (exit 3)**, typed at its source with a dedicated error
-    (`jira.IssueTypeUnknownError`), not a `&APIError{StatusCode: 404}` that
+    (`core.IssueTypeResolutionError`), not a `&APIError{StatusCode: 404}` that
     would drag it into not-found (exit 2). Real 404s come only from the
-    transport (`client.go`). Guarded by
-    `TestNoSyntheticAPIErrorStatusInServices` in `tests/guardrails`.
+    transport. `internal/cli/errors_test.go` exercises these distinctions in
+    `TestMapError`; inspect new error construction sites during review too.
 *   Stable snake_case codes with a `hint` that adds action beyond
     `message`; Jira HTTP statuses map to `jira_*` codes and hints in
     lockstep tables guarded by a test.

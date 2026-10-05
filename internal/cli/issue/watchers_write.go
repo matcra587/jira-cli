@@ -151,7 +151,7 @@ func newWatchersAdd(deps Deps) *cobra.Command {
 			"$ jira issue watchers add KEY-123 --user 5b10a2844c20165700ede21g --no-readback\n\n" +
 			"# just the keys that took it, as json\n" +
 			"$ jira issue watchers add KEY-123 KEY-124 --user 5b10a2844c20165700ede21g --output=json --jq '.data.results[] | select(.ok) | .issue.key'",
-		Args: command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY"}}},
+		Args: command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY", Predictor: "issuekey"}}},
 		Flags: func(c *cobra.Command) {
 			cmd = c
 			addWatcherWriteFlags(c, &keyed, &mut, &user)
@@ -245,7 +245,7 @@ func newWatchersRemove(deps Deps) *cobra.Command {
 			"$ jira issue watchers remove KEY-123 --user 5b10a2844c20165700ede21g --no-readback\n\n" +
 			"# who is left watching, as json\n" +
 			"$ jira issue watchers remove KEY-123 --user 5b10a2844c20165700ede21g --output=json --jq '.data.results[].data.readback.watchers[].display_name'",
-		Args: command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY"}}},
+		Args: command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY", Predictor: "issuekey"}}},
 		Flags: func(c *cobra.Command) {
 			cmd = c
 			addWatcherWriteFlags(c, &keyed, &mut, &user)

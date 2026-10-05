@@ -1923,6 +1923,10 @@ func checkSuccessSchemaTruth(cap Capture, m command.Meta) (bool, string) {
 	// Per-op depth. The flat table above can say a key is present; only
 	// these can say what is inside it.
 	switch m.Op {
+	case "issue.create.input":
+		return checkIssueInputFields(data, true)
+	case "issue.edit.input":
+		return checkIssueInputFields(data, false)
 	case "issue.create":
 		if data["attempted"] != true || data["applied"] != true {
 			return false, "native creation success must publish attempted=true and applied=true"
