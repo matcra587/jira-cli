@@ -62,6 +62,7 @@ func TestInventoryReconcilesCleanAndExact(t *testing.T) {
 		"jira issue weblink add|", "jira issue weblink delete|", "jira issue weblink list|",
 		"jira jql build|", "jira jql reference|", "jira jql validate|",
 		"jira me|",
+		"jira open|",
 		"jira release-notes|",
 		"jira update|",
 		"jira user search|", "jira version|", "jira worklog add|", "jira worklog list|", "jira|",

@@ -94,7 +94,7 @@ func openInBrowser(open browserOpener, targetURL string) error {
 	}
 }
 
-// openForHuman is --web's own machine/human split: it opens targetURL
+// openForHuman shares the machine/human split for open and --web: it opens targetURL
 // ONLY when this invocation's resolved output format is human — the same
 // resolved-format signal issue view's own isHuman (view.go's runView)
 // and issue list's own fetchCountEstimate gate already read
@@ -113,17 +113,19 @@ func openInBrowser(open browserOpener, targetURL string) error {
 // cli.AddWarning is the mechanism, and the reason it is the only one is
 // recorded once at its own declaration (internal/cli/warnings.go) rather
 // than restated here.
-func openForHuman(ctx context.Context, open browserOpener, targetURL string) {
+func openForHuman(ctx context.Context, open browserOpener, targetURL string) bool {
 	format, ok := cli.FormatFromContext(ctx)
 	if !ok || format != output.FormatHuman {
-		return
+		return false
 	}
 	if err := openInBrowser(open, targetURL); err != nil {
 		cli.AddWarning(envelope.Warning{
 			Type:    envelope.WarningBrowserOpenFailed,
 			Message: fmt.Sprintf("could not open a browser (%v) — the URL is printed below", err),
 		})
+		return false
 	}
+	return true
 }
 
 // openIssueBrowseTarget resolves key's browse URL and, on a human
@@ -137,9 +139,8 @@ func openForHuman(ctx context.Context, open browserOpener, targetURL string) {
 // identical down to the error string, with nothing forcing them to stay
 // that way; the next verb added under the group would have made a third.
 //
-// The client is constructed but never fetched through: --web answers
-// from the key alone, and paying for a round trip to open a page would
-// be a fetch nobody asked for.
+// Production resolves the site from settings only. A URL-only command never
+// constructs a Jira client or opens credentials, including for local history.
 //
 // A key that cannot become a browse URL (cli.IssueBrowseURL's own shape
 // gate — see its doc comment) fails the command outright, rather than
@@ -154,24 +155,55 @@ func openForHuman(ctx context.Context, open browserOpener, targetURL string) {
 // supply a fake and prove nothing here spawns a real browser; the
 // production execOpener is passed by each command's own Run closure.
 func openIssueBrowseTarget(ctx context.Context, deps Deps, key string, open browserOpener) (string, error) {
-	client, err := deps.JiraClient()
+	target, err := issueBrowseTarget(ctx, deps, key)
 	if err != nil {
 		return "", err
 	}
-	target, ok := cli.IssueBrowseURL(client.BaseURL(), key)
+	openForHuman(ctx, open, target)
+	return target, nil
+}
+
+// issueBrowseTarget resolves a URL without fetching an issue. Production uses
+// settings only; embedded callers may provide an existing client's site.
+func issueBrowseTarget(ctx context.Context, deps Deps, key string) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	var site string
+	if deps.BrowseSite != nil {
+		var err error
+		site, err = deps.BrowseSite()
+		if err != nil {
+			return "", err
+		}
+	} else if deps.JiraClient != nil {
+		client, err := deps.JiraClient()
+		if err != nil {
+			return "", err
+		}
+		site = client.BaseURL()
+	}
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	if site == "" {
+		e := cli.NewInputError(cli.CodeConfigInvalid, "opening an issue requires a configured base_url")
+		e.Field = "base_url"
+		return "", e
+	}
+	target, ok := cli.IssueBrowseURL(site, key)
 	if !ok {
 		e := cli.NewInputError(cli.CodePathInvalid,
 			fmt.Sprintf("%q is not a shape a Jira browse URL can be built from", key))
 		e.Field = "ISSUE_KEY"
 		return "", e
 	}
-	openForHuman(ctx, open, target)
 	return target, nil
 }
 
-// renderWebURL is --web's own human render: one line naming the URL this
-// invocation resolved — shared by all three commands so the wording
-// cannot drift between them. Printed unconditionally whenever a caller
+// renderWebURL shares the human render for open and --web: one line naming
+// the URL this invocation resolved, so the wording cannot drift between
+// callers. Printed unconditionally whenever a caller
 // reaches it, whether or not openForHuman's own browser launch actually
 // succeeded (see its own doc comment): a copy-pasteable URL is useful
 // either way. webURL is CLI-built from a validated site plus an already-

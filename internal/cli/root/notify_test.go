@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/matcra587/jira-cli/internal/cli"
+	jqlcmd "github.com/matcra587/jira-cli/internal/cli/jql"
 	updatecmd "github.com/matcra587/jira-cli/internal/cli/update"
 	"github.com/matcra587/jira-cli/internal/selfupdate"
 )
@@ -42,6 +43,9 @@ func notificationProgram(t *testing.T, tool *notificationTool) (*concobra.Progra
 	t.Setenv("JIRA_NO_UPDATE_CHECK", "")
 	dir := t.TempDir()
 	deps := testDeps(t)
+	deps.BuildPreferences = func() (jqlcmd.BuildPreferences, error) {
+		return jqlcmd.BuildPreferences{BaseURL: "https://example.invalid"}, nil
+	}
 	deps.NotifyTool = tool
 	deps.NotifyOptions = []notify.Option{notify.WithCacheDir(dir), notify.WithCurrentVersion("v1.0.0")}
 	deps.Update = updatecmd.Deps{Detect: func() (selfupdate.Install, error) {
@@ -65,6 +69,7 @@ func TestPassiveUpdateSkipsDiscoveryAndPreview(t *testing.T) {
 		args []string
 	}{
 		{name: "root", args: nil},
+		{name: "open", args: []string{"open", "KEY-1", "--output=json"}},
 		{name: "help", args: []string{"help"}},
 		{name: "leaf help", args: []string{"probe", "--help"}},
 		{name: "version", args: []string{"version"}},
