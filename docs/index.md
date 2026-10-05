@@ -1,6 +1,6 @@
 ---
 title: jira-cli
-description: Terminal-first Jira Cloud CLI for developer and agent workflows — currently mid-rebuild, with the output contract landed first.
+description: Discover Jira workflows, structured output, safe mutation previews, and the built-in CLI guides.
 icon: material/rocket-launch-outline
 ---
 
@@ -10,26 +10,43 @@ Terminal-first Jira Cloud CLI for developer and agent workflows.
 
 !!! warning "This branch is a rebuild in progress"
 
-    jira-cli is being rewritten from the ground up. The Jira-facing commands
-    are not back yet. What is documented here is what the binary on this
-    branch actually does — nothing is described ahead of shipping, because
-    documentation that runs ahead of the code is worse than no documentation
-    at all.
+    The v0.16 CLI includes Jira workflows and local discovery, but release
+    acceptance is still in progress. Installation methods below select
+    published releases; they do not install this development branch.
 
 ## What ships today
 
-Two commands, plus the root surface and the flags every command shares.
+Use the installed binary's help and guides to discover its commands and
+supported inputs:
 
 ```sh
-jira version      # version, and build provenance where the binary carries it
-jira completion fish
+jira --help
+jira issue --help
+jira agent guide discover-cli
+jira agent schema --output=json
 ```
 
-`jira version` prints the bare version string for a person and the full
-build detail — commit, dirty state, build date, Go toolchain, target
-platform — in the machine modes. `jira completion <shell>` writes a
-completion script to stdout for `bash`, `elvish`, `fish`, `nu`, `pwsh`, or
-`zsh`; run it with `--help` for the per-shell install line.
+The command tree includes issue reads and mutations, JQL search, boards,
+epics, worklogs, configuration, authentication, aliases, caches, release notes,
+and updates. `jira api` provides an explicit Jira platform and Agile API
+fallback. Local `jira adf` commands convert, render, validate, lint, and explain
+native documents. These capabilities do not establish lossless remote editing
+or protection against concurrent writes.
+
+The embedded guides describe the installed command tree. Start with
+`discover-cli`, then use `safe-mutation` for previews and write outcomes or
+`machine-output` for schemas and output modes:
+
+```sh
+jira agent guide safe-mutation
+jira agent guide machine-output
+jira api get --help
+jira adf --help
+```
+
+`jira version` reports version and available build provenance.
+`jira completion <shell>` writes a completion script for `bash`, `elvish`,
+`fish`, `nu`, `pwsh`, or `zsh`; its help describes installation.
 
 Every command carries the same flags:
 
@@ -46,13 +63,18 @@ Every command carries the same flags:
 `-h` prints short help; `--help` prints the long form, including worked
 examples. `-V` and `--version` print the bare version string.
 
-## What is not here yet
+## Preview a mutation
 
-Issues, search, boards, epics, worklogs, config, auth, the TUI — none of it
-is on this branch. Earlier releases shipped those commands; their
-documentation was removed rather than left standing, because it described a
-binary you cannot install from here. It returns page by page as each command
-lands, generated from the live command tree so it cannot drift again.
+An explicit preview assembles the request locally without creating an issue:
+
+```sh
+jira issue create --project PROJ --type Task --summary "Preview an issue" --dry-run --no-input --output=json
+```
+
+For a real write, use metadata from your project and follow the command's help.
+Use `--no-input` in scripts to suppress prompts; destructive operations may also
+require explicit confirmation flags. Inspect reported outcomes before retrying a write whose
+result is uncertain. The TUI is a separate milestone.
 
 ## Explore
 

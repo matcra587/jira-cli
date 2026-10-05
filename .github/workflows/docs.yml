@@ -1,10 +1,7 @@
 name: docs
 
-# Manual-only while the 0.16 rebuild has no docs pipeline: the push trigger
-# invoked `mise run docs:build`, which was pruned with cmd/gen-docs. Restore
-# the push+paths trigger (docs/**, CHANGELOG.md, .changes/**, zensical.toml,
-# this file, .mise.toml, mise.lock, tasks.toml) when the docs pipeline is
-# rebuilt for the 0.16 command tree.
+# Publication remains manual while the 0.16 rebuild is in progress.
+# docs:build validates the committed site; command discovery lives in the CLI.
 on:
   workflow_dispatch:
 

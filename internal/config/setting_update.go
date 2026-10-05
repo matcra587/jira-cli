@@ -158,6 +158,12 @@ func (u *SettingsUpdate) Save(ctx context.Context) (bool, error) {
 	return u.file.Save(ctx, u.candidate)
 }
 
+// Create publishes the candidate only if the selected file still does not
+// exist. It retains the shared validation and no-clobber creation boundary.
+func (u *SettingsUpdate) Create(ctx context.Context) (bool, error) {
+	return u.file.Create(ctx, u.candidate)
+}
+
 // PrepareSettings validates all assignments before preparing a single candidate.
 // Keys and receipts are ordered deterministically. No defaults, environment or
 // credentials enter the file; unchanged typed values retain authored bytes.

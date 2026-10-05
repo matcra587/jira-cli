@@ -6217,6 +6217,167 @@
       "status": "pass"
     },
     {
+      "op": "config.init",
+      "category": "dry_run",
+      "mode": "compact",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "config.init",
+      "category": "dry_run",
+      "mode": "compact",
+      "axis": "M7",
+      "status": "pass"
+    },
+    {
+      "op": "config.init",
+      "category": "dry_run",
+      "mode": "human_color",
+      "axis": "H5",
+      "status": "pass"
+    },
+    {
+      "op": "config.init",
+      "category": "dry_run",
+      "mode": "human",
+      "axis": "H2",
+      "status": "pass"
+    },
+    {
+      "op": "config.init",
+      "category": "dry_run",
+      "mode": "human",
+      "axis": "H3",
+      "status": "pass"
+    },
+    {
+      "op": "config.init",
+      "category": "dry_run",
+      "mode": "human",
+      "axis": "H4",
+      "status": "pass"
+    },
+    {
+      "op": "config.init",
+      "category": "dry_run",
+      "mode": "json",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "config.init",
+      "category": "dry_run",
+      "mode": "json",
+      "axis": "M7",
+      "status": "pass"
+    },
+    {
+      "op": "config.init",
+      "category": "failure",
+      "mode": "compact",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "config.init",
+      "category": "failure",
+      "mode": "json",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "config.init",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "config.init",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "config.init",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "config.init",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "config.init",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "config.init",
+      "category": "success",
+      "mode": "human_color",
+      "axis": "H5",
+      "status": "pass"
+    },
+    {
+      "op": "config.init",
+      "category": "success",
+      "mode": "human",
+      "axis": "H3",
+      "status": "pass"
+    },
+    {
+      "op": "config.init",
+      "category": "success",
+      "mode": "human",
+      "axis": "H4",
+      "status": "pass"
+    },
+    {
+      "op": "config.init",
+      "category": "success",
+      "mode": "json",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "config.init",
+      "category": "success",
+      "mode": "json",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "config.init",
+      "category": "success",
+      "mode": "json",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "config.init",
+      "category": "success",
+      "mode": "json",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "config.init",
+      "category": "success",
+      "mode": "json",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
       "op": "config.list",
       "category": "failure",
       "mode": "compact",
@@ -6357,6 +6518,790 @@
       "status": "pass"
     },
     {
+      "op": "config.profile.add",
+      "category": "dry_run",
+      "mode": "compact",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.add",
+      "category": "dry_run",
+      "mode": "compact",
+      "axis": "M7",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.add",
+      "category": "dry_run",
+      "mode": "human_color",
+      "axis": "H5",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.add",
+      "category": "dry_run",
+      "mode": "human",
+      "axis": "H2",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.add",
+      "category": "dry_run",
+      "mode": "human",
+      "axis": "H3",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.add",
+      "category": "dry_run",
+      "mode": "human",
+      "axis": "H4",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.add",
+      "category": "dry_run",
+      "mode": "json",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.add",
+      "category": "dry_run",
+      "mode": "json",
+      "axis": "M7",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.add",
+      "category": "failure",
+      "mode": "compact",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.add",
+      "category": "failure",
+      "mode": "json",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.add",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.add",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.add",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.add",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.add",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.add",
+      "category": "success",
+      "mode": "human_color",
+      "axis": "H5",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.add",
+      "category": "success",
+      "mode": "human",
+      "axis": "H3",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.add",
+      "category": "success",
+      "mode": "human",
+      "axis": "H4",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.add",
+      "category": "success",
+      "mode": "json",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.add",
+      "category": "success",
+      "mode": "json",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.add",
+      "category": "success",
+      "mode": "json",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.add",
+      "category": "success",
+      "mode": "json",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.add",
+      "category": "success",
+      "mode": "json",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.default",
+      "category": "dry_run",
+      "mode": "compact",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.default",
+      "category": "dry_run",
+      "mode": "compact",
+      "axis": "M7",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.default",
+      "category": "dry_run",
+      "mode": "human_color",
+      "axis": "H5",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.default",
+      "category": "dry_run",
+      "mode": "human",
+      "axis": "H2",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.default",
+      "category": "dry_run",
+      "mode": "human",
+      "axis": "H3",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.default",
+      "category": "dry_run",
+      "mode": "human",
+      "axis": "H4",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.default",
+      "category": "dry_run",
+      "mode": "json",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.default",
+      "category": "dry_run",
+      "mode": "json",
+      "axis": "M7",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.default",
+      "category": "failure",
+      "mode": "compact",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.default",
+      "category": "failure",
+      "mode": "json",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.default",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.default",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.default",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.default",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.default",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.default",
+      "category": "success",
+      "mode": "human_color",
+      "axis": "H5",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.default",
+      "category": "success",
+      "mode": "human",
+      "axis": "H3",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.default",
+      "category": "success",
+      "mode": "human",
+      "axis": "H4",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.default",
+      "category": "success",
+      "mode": "json",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.default",
+      "category": "success",
+      "mode": "json",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.default",
+      "category": "success",
+      "mode": "json",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.default",
+      "category": "success",
+      "mode": "json",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.default",
+      "category": "success",
+      "mode": "json",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.list",
+      "category": "failure",
+      "mode": "compact",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.list",
+      "category": "failure",
+      "mode": "json",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.list",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.list",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.list",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.list",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.list",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.list",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M7",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.list",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.list",
+      "category": "success",
+      "mode": "human_color",
+      "axis": "H5",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.list",
+      "category": "success",
+      "mode": "human",
+      "axis": "H1",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.list",
+      "category": "success",
+      "mode": "human",
+      "axis": "H3",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.list",
+      "category": "success",
+      "mode": "human",
+      "axis": "H4",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.list",
+      "category": "success",
+      "mode": "json",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.list",
+      "category": "success",
+      "mode": "json",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.list",
+      "category": "success",
+      "mode": "json",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.list",
+      "category": "success",
+      "mode": "json",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.list",
+      "category": "success",
+      "mode": "json",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.list",
+      "category": "success",
+      "mode": "json",
+      "axis": "M7",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.list",
+      "category": "success",
+      "mode": "json",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.remove",
+      "category": "dry_run",
+      "mode": "compact",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.remove",
+      "category": "dry_run",
+      "mode": "compact",
+      "axis": "M7",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.remove",
+      "category": "dry_run",
+      "mode": "human_color",
+      "axis": "H5",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.remove",
+      "category": "dry_run",
+      "mode": "human",
+      "axis": "H2",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.remove",
+      "category": "dry_run",
+      "mode": "human",
+      "axis": "H3",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.remove",
+      "category": "dry_run",
+      "mode": "human",
+      "axis": "H4",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.remove",
+      "category": "dry_run",
+      "mode": "json",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.remove",
+      "category": "dry_run",
+      "mode": "json",
+      "axis": "M7",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.remove",
+      "category": "failure",
+      "mode": "compact",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.remove",
+      "category": "failure",
+      "mode": "json",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.remove",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.remove",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.remove",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.remove",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.remove",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.remove",
+      "category": "success",
+      "mode": "human_color",
+      "axis": "H5",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.remove",
+      "category": "success",
+      "mode": "human",
+      "axis": "H3",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.remove",
+      "category": "success",
+      "mode": "human",
+      "axis": "H4",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.remove",
+      "category": "success",
+      "mode": "json",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.remove",
+      "category": "success",
+      "mode": "json",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.remove",
+      "category": "success",
+      "mode": "json",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.remove",
+      "category": "success",
+      "mode": "json",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.remove",
+      "category": "success",
+      "mode": "json",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.rename",
+      "category": "dry_run",
+      "mode": "compact",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.rename",
+      "category": "dry_run",
+      "mode": "compact",
+      "axis": "M7",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.rename",
+      "category": "dry_run",
+      "mode": "human_color",
+      "axis": "H5",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.rename",
+      "category": "dry_run",
+      "mode": "human",
+      "axis": "H2",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.rename",
+      "category": "dry_run",
+      "mode": "human",
+      "axis": "H3",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.rename",
+      "category": "dry_run",
+      "mode": "human",
+      "axis": "H4",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.rename",
+      "category": "dry_run",
+      "mode": "json",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.rename",
+      "category": "dry_run",
+      "mode": "json",
+      "axis": "M7",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.rename",
+      "category": "failure",
+      "mode": "compact",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.rename",
+      "category": "failure",
+      "mode": "json",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.rename",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.rename",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.rename",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.rename",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.rename",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.rename",
+      "category": "success",
+      "mode": "human_color",
+      "axis": "H5",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.rename",
+      "category": "success",
+      "mode": "human",
+      "axis": "H3",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.rename",
+      "category": "success",
+      "mode": "human",
+      "axis": "H4",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.rename",
+      "category": "success",
+      "mode": "json",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.rename",
+      "category": "success",
+      "mode": "json",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.rename",
+      "category": "success",
+      "mode": "json",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.rename",
+      "category": "success",
+      "mode": "json",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "config.profile.rename",
+      "category": "success",
+      "mode": "json",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
       "op": "config.set",
       "category": "dry_run",
       "mode": "compact",
@@ -12667,6 +13612,13 @@
       "op": "issue.weblink.add",
       "category": "success",
       "mode": "compact",
+      "axis": "M10",
+      "status": "pass"
+    },
+    {
+      "op": "issue.weblink.add",
+      "category": "success",
+      "mode": "compact",
       "axis": "M12",
       "status": "pass"
     },
@@ -12731,6 +13683,13 @@
       "category": "success",
       "mode": "json",
       "axis": "M1",
+      "status": "pass"
+    },
+    {
+      "op": "issue.weblink.add",
+      "category": "success",
+      "mode": "json",
+      "axis": "M10",
       "status": "pass"
     },
     {

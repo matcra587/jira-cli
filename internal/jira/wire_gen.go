@@ -807,6 +807,35 @@ func (v *RemoteIssueLink) UnmarshalJSON(data []byte) error {
 	return unmarshalKeepExtra(data, (*remoteIssueLinkAlias)(v), &v.Extra, remoteIssueLinkKeys)
 }
 
+// RemoteIssueLinkRequest mirrors the vendored Jira Platform schema "RemoteIssueLinkRequest".
+type RemoteIssueLinkRequest struct {
+	Application  Nullable[Application]  `json:"application,omitzero"`
+	GlobalID     Nullable[string]       `json:"globalId,omitzero"`
+	Object       Nullable[RemoteObject] `json:"object,omitzero"`
+	Relationship Nullable[string]       `json:"relationship,omitzero"`
+
+	// Extra carries every property of the payload this model does not
+	// declare, verbatim, so unmodeled data survives a round-trip.
+	Extra map[string]json.RawMessage `json:"-"`
+}
+
+type remoteIssueLinkRequestAlias RemoteIssueLinkRequest
+
+var remoteIssueLinkRequestKeys = []string{
+	"application",
+	"globalId",
+	"object",
+	"relationship",
+}
+
+func (v RemoteIssueLinkRequest) MarshalJSON() ([]byte, error) {
+	return marshalMergeExtra(remoteIssueLinkRequestAlias(v), v.Extra, remoteIssueLinkRequestKeys)
+}
+
+func (v *RemoteIssueLinkRequest) UnmarshalJSON(data []byte) error {
+	return unmarshalKeepExtra(data, (*remoteIssueLinkRequestAlias)(v), &v.Extra, remoteIssueLinkRequestKeys)
+}
+
 // Application mirrors the vendored Jira Platform schema "Application".
 type Application struct {
 	Name Nullable[string] `json:"name,omitzero"`
@@ -1335,6 +1364,7 @@ var wireSchemaProperties = map[string][]string{
 	"Transitions":            transitionsKeys,
 	"IssueTransition":        issueTransitionKeys,
 	"RemoteIssueLink":        remoteIssueLinkKeys,
+	"RemoteIssueLinkRequest": remoteIssueLinkRequestKeys,
 	"Application":            applicationKeys,
 	"RemoteObject":           remoteObjectKeys,
 	"Icon":                   iconKeys,

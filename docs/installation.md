@@ -233,7 +233,8 @@ handle this for you; the one-line installer prints a PATH-fix hint; for
 
 ## Update jira
 
-There is no self-update command. Update through whichever channel installed
+Use `jira update --help` to inspect the built-in update command and its supported
+installation channels. You can also update through the channel that installed
 the binary:
 
 === "Homebrew"
@@ -282,8 +283,17 @@ the binary:
 
 ## Uninstall jira
 
-The binary is all there is to remove: on this branch `jira` stores no
-credentials and writes no config or cache.
+Removing the executable leaves local settings, aliases, saved queries, caches
+and stored credentials. Use `jira config profile list` to find named profiles,
+then inspect each with `jira config list --profile NAME` and
+`jira auth status --profile NAME`. These commands redact credentials.
+For a flat configuration, omit `--profile`.
+
+To remove a stored credential, use `jira auth logout --profile NAME` before
+removing the executable. Repeat for each profile whose credential you want to
+remove. It asks for confirmation; its help describes the explicit confirmation
+flag for unattended use. Logout does not revoke the token at Atlassian or remove
+an environment variable that supplies a token.
 
 === "Homebrew"
 
@@ -315,10 +325,30 @@ credentials and writes no config or cache.
 
 === "go install"
 
+    On Linux or macOS, remove the executable from the resolved Go binary
+    directory:
+
     ```sh
-    rm -f "$(go env GOBIN)/jira" 2>/dev/null \
-      || rm -f "$(go env GOPATH)/bin/jira"
+    (
+        set -e
+        JIRA_GO_BIN_DIR="$(go env GOBIN)"
+        if [ -z "$JIRA_GO_BIN_DIR" ]; then
+            JIRA_GO_PATH="$(go env GOPATH)"
+            JIRA_GO_PATH="${JIRA_GO_PATH%%:*}"
+            test -n "$JIRA_GO_PATH"
+            JIRA_GO_BIN_DIR="$JIRA_GO_PATH/bin"
+        fi
+        case "$JIRA_GO_BIN_DIR" in
+            /*) ;;
+            *) exit 1 ;;
+        esac
+        rm -f -- "$JIRA_GO_BIN_DIR/jira"
+    )
     ```
+
+    On Windows, inspect `go env GOBIN GOPATH` and remove `jira.exe` from the
+    resolved installation directory. Windows uses a different path separator;
+    the POSIX example above is for Linux and macOS.
 
 === "Pre-built binaries"
 
@@ -329,12 +359,8 @@ credentials and writes no config or cache.
     1.  Installed somewhere other than `/usr/local/bin`? Remove it from there
         instead, e.g. `rm -f "$HOME/.local/bin/jira"`.
 
-??? note "Left over from an earlier release?"
-    Releases before the rebuild stored credentials in the OS keyring or a
-    1Password vault, and wrote config under
-    `${XDG_CONFIG_HOME:-$HOME/.config}/jira-cli` (on Windows,
-    `%AppData%\jira-cli`) with a cache under
-    `${XDG_CACHE_HOME:-$HOME/.cache}/jira-cli` (`%LocalAppData%\cache\jira-cli`).
-    Uninstalling the binary leaves those behind — delete the directories, and
-    remove the keyring or 1Password item through the OS keychain app or
-    `op item delete`.
+??? note "Settings from an earlier release"
+    Earlier releases may also leave profile metadata or a 1Password item.
+    Removing the executable does not migrate or remove those records. Review
+    their contents and ownership before removing them; a shared 1Password item
+    may be used by other tools or machines.

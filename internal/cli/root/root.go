@@ -8,11 +8,13 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	clibcobra "github.com/gechr/clib/cli/cobra"
 	"github.com/gechr/clib/complete"
 	"github.com/gechr/clib/help"
+	"github.com/gechr/clib/theme"
 	"github.com/gechr/clive/updater"
 	"github.com/gechr/clog"
 	"github.com/gechr/clog/fx/spinner"
@@ -56,17 +58,21 @@ const (
 	description = "Terminal-first Jira Cloud CLI for developer and agent workflows"
 )
 
+// enableRunHookTraversal publishes Cobra's process-wide policy before a program
+// can execute. Later constructors must not write while existing commands read it.
+var enableRunHookTraversal = sync.OnceFunc(func() {
+	cobra.EnableTraverseRunHooks = true
+})
+
 // Run builds the runtime and command tree and executes one invocation,
 // returning the process exit code. The Conductor runtime must exist before
 // anything logs — clog re-reads the environment when the prefix changes —
 // so construction happens here, never in command packages.
 func Run(ctx context.Context, args []string) int {
-	// FIRST, before the runtime exists: --config decides which file the
-	// theme is read from, and the theme is resolved during conductor
-	// setup. Seeding after that would leave --config governing every
-	// adapter but not the colors.
+	// Assemble the real grammar without resolving the file theme: aliases
+	// may select another config, and theme resolution is once per process.
 	applyGlobalFlags(args)
-	program, sink := newProgram(defaultDeps(), os.Stdout, os.Stderr) //nolint:contextcheck // the PersistentPreRunE closure reads cmd.Context(), which cobra derives from the ctx below at Execute time — there is no other context to pass
+	program, sink := newProgramWithTheme(defaultDeps(), os.Stdout, os.Stderr, cli.BootstrapTheme) //nolint:contextcheck // the PersistentPreRunE closure reads cmd.Context(), which cobra derives from the ctx below at Execute time — there is no other context to pass
 	// Completion actions are handled BEFORE cobra parses anything, with
 	// OUR dynamic handler — conductor's own preflight passes a nil
 	// handler, which would make every `predictor=` flag silently
@@ -79,16 +85,26 @@ func Run(ctx context.Context, args []string) int {
 	sink.seed(program.Root, args)
 	expanded, err := prepareAliasArgs(ctx, program.Root, args)
 	if err != nil {
+		resolveProgramTheme(program)
 		return sink.exitCodeContext(ctx, err)
 	}
 	if !slices.Equal(expanded, args) {
-		// An expansion can carry --config or --timeout. Resolve the final
-		// argv before constructing the runtime that owns its theme and lazy
-		// adapters, just as a directly authored invocation does.
+		// Lazy adapters read this final flag layer only when invoked.
 		applyGlobalFlags(expanded)
-		program, sink = newProgram(defaultDeps(), os.Stdout, os.Stderr) //nolint:contextcheck // the lazy PersistentPreRunE closure receives the execution context below
 	}
+	resolveProgramTheme(program)
 	return execute(ctx, program, sink, expanded)
+}
+
+// resolveProgramTheme settles the settings theme before execution or early
+// output. Conductor 0.1.16 exposes its runtime and clib 0.7.17 its renderer
+// theme. Help callbacks retain the renderer pointer, so updating it preserves
+// the assembled grammar and the renderer's options without rebuilding either.
+func resolveProgramTheme(program *concobra.Program) {
+	selected := cli.HelpTheme()
+	program.Runtime.App.Theme = selected
+	program.Runtime.Theme = selected
+	program.Runtime.Renderer.Theme = selected.Init()
 }
 
 // execute runs one invocation with the guards that must fire before
@@ -123,6 +139,12 @@ func NewProgram(deps *Deps, stdout, stderr io.Writer) *concobra.Program {
 // process stderr, because conductor wires clog's writer at ApplyFlags
 // time and re-pointing it belongs to the logger work.
 func newProgram(deps *Deps, stdout, stderr io.Writer) (*concobra.Program, *failureSink) {
+	return newProgramWithTheme(deps, stdout, stderr, cli.HelpTheme)
+}
+
+// newProgramWithTheme retains one construction path while allowing startup to
+// defer settings resolution until aliases have selected the invocation config.
+func newProgramWithTheme(deps *Deps, stdout, stderr io.Writer, resolveTheme func() *theme.Theme) (*concobra.Program, *failureSink) {
 	// Before conductor: its EnvPrefix option makes clog and clib re-read
 	// the environment, and an unusable theme name has to be taken out of
 	// their way first or they print about it themselves.
@@ -154,14 +176,14 @@ func newProgram(deps *Deps, stdout, stderr io.Writer) (*concobra.Program, *failu
 		// Guessing wrong costs colors tuned for the wrong background,
 		// which is visible and fixed with JIRA_THEME. Asking costs five
 		// seconds of nothing, with no clue why.
-		Theme: cli.HelpTheme(),
+		Theme: resolveTheme(),
 	})
 
 	// Without this, cobra runs only the NEAREST PersistentPreRunE — a
 	// subcommand declaring its own would silently skip output resolution.
 	// The hook-chaining note on newRoot stays as documentation; this makes
 	// it structural.
-	cobra.EnableTraverseRunHooks = true
+	enableRunHookTraversal()
 
 	quietLevelLabels()
 

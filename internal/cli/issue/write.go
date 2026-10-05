@@ -115,39 +115,13 @@ func (f *issueWriteFlags) validate() error {
 	return f.fields.Conflict()
 }
 
-// resolvePayloadAliases folds --from-json and --body-adf into
-// --json-input, following BodyFlags.ResolveAliases' rule exactly: agreeing
-// signals are fine, a disagreement is refused, and the message names only
-// the canonical flag because an alias is a spelling help never showed.
-//
-// Package-level rather than a method, because `issue clone` owns
-// --json-input too and folds the same aliases into it. The table is shared
-// (command.ADFRouteAliases), so the folding has to be as well — two copies
-// of this loop is how one command would start accepting a spelling the
-// other refused.
+// resolvePayloadAliases uses the shared flag owner so canonical and hidden
+// input spellings agree before any file is read.
 func resolvePayloadAliases(fs *pflag.FlagSet) error {
-	for _, a := range command.ADFRouteAliases() {
-		if !fs.Changed(a.Flag) {
-			continue
-		}
-		alias := fs.Lookup(a.Flag).Value.String()
-		canon := fs.Lookup(command.FlagJSONInput)
-		if fs.Changed(command.FlagJSONInput) {
-			if got := canon.Value.String(); got != alias {
-				e := cli.NewInputError(cli.CodeFlagConflict, fmt.Sprintf(
-					"--%s was given two different values (%q and %q) — it was set more than once, so pick the one you meant",
-					command.FlagJSONInput, got, alias,
-				))
-				e.Field = command.FlagJSONInput
-				return e
-			}
-			continue
-		}
-		if err := canon.Value.Set(alias); err != nil {
-			return err
-		}
+	if err := command.ResolveHiddenAliases(fs, command.ADFRouteAliases()); err != nil {
+		return err
 	}
-	return nil
+	return command.ValidateJSONInput(fs)
 }
 
 // routeConflict enforces §2.1's blanket refusal between the ADF route and

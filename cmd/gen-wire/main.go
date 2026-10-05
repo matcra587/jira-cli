@@ -122,6 +122,7 @@ var generatedSchemas = []string{
 	// fixed by the platform schema — so hand-writing it would only be a
 	// second place for it to drift.
 	"RemoteIssueLink",
+	"RemoteIssueLinkRequest",
 	"Application",
 	"RemoteObject",
 	"Icon",

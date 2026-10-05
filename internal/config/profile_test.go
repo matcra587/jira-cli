@@ -179,3 +179,102 @@ func TestProfileFoundationInvalidOrUnselectedCannotReadCredentials(t *testing.T)
 		t.Fatal("missing named locator allowed write")
 	}
 }
+
+func TestProfileFoundationManagementKeepsDurableLocators(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "settings.toml")
+	open := func() *config.File {
+		t.Helper()
+		file, err := config.OpenFile(t.Context(), path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return file
+	}
+	first, err := open().PrepareProfileAdd("work", "https://work.example.invalid", "work@example.invalid")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("preparation created settings")
+	}
+	if saved, err := first.Save(t.Context()); err != nil || !saved {
+		t.Fatal("first publication", err)
+	}
+	profiles, err := open().Profiles()
+	if err != nil || len(profiles) != 1 || profiles[0].CredentialID == "" || !profiles[0].Default {
+		t.Fatal("missing durable locator", err)
+	}
+	id := profiles[0].CredentialID
+	second, err := open().PrepareProfileAdd("personal", "https://personal.example.invalid", "personal@example.invalid")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := second.Save(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	rename, err := open().PrepareProfileRename("work", "office")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := rename.Save(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	profiles, err = open().Profiles()
+	if err != nil || len(profiles) != 2 || profiles[0].Name != "office" || profiles[0].CredentialID != id || !profiles[0].Default {
+		t.Fatal("rename changed locator or default", err)
+	}
+	if _, err := open().PrepareProfileRemove("office"); !errors.Is(err, config.ErrFileInvalid) {
+		t.Fatal("removed default while another profile remains", err)
+	}
+	changeDefault, err := open().PrepareProfileDefault("personal")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := changeDefault.Save(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	remove, err := open().PrepareProfileRemove("office")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := remove.Save(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	profiles, err = open().Profiles()
+	if err != nil || len(profiles) != 1 || profiles[0].Name != "personal" || !profiles[0].Default {
+		t.Fatal("remove affected remaining profile", err)
+	}
+}
+
+func TestProfileFoundationConversionPreservesFlatLocation(t *testing.T) {
+	t.Parallel()
+	path := foundationConfig(t, "base_url='https://flat.example.invalid'\nemail='flat@example.invalid'\neditor='shared-editor'\n")
+	file, err := config.OpenFile(t.Context(), path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	update, err := file.PrepareProfileAdd("second", "https://second.example.invalid", "second@example.invalid")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := update.Save(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := config.Load(config.Options{Path: path, Profile: "default", Environ: func() []string { return nil }})
+	if err != nil || loaded.Config.CredentialID != "default" || loaded.Config.BaseURL != "https://flat.example.invalid" || loaded.Config.Editor != "shared-editor" {
+		t.Fatal("flat conversion changed identity", err)
+	}
+	file, err = config.OpenFile(t.Context(), path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	file, err = file.SelectProfile("second")
+	if err != nil {
+		t.Fatal(err)
+	}
+	reservation, err := file.PrepareCredentialID()
+	if err != nil || reservation.WouldChange() {
+		t.Fatal("reservation replaced existing locator", err)
+	}
+}

@@ -46,7 +46,7 @@ func TestInventoryReconcilesCleanAndExact(t *testing.T) {
 		"jira cache boards|", "jira cache clear|", "jira cache epics|", "jira cache fields|",
 		"jira cache issuetypes|", "jira cache labels|", "jira cache linktypes|", "jira cache priorities|",
 		"jira cache projects|", "jira cache refresh|", "jira cache resolutions|", "jira cache statuses|",
-		"jira completion|", "jira config edit|", "jira config get|", "jira config list|", "jira config set|", "jira config theme|",
+		"jira completion|", "jira config edit|", "jira config get|", "jira config init|", "jira config list|", "jira config profile add|", "jira config profile default|", "jira config profile list|", "jira config profile remove|", "jira config profile rename|", "jira config set|", "jira config theme|",
 		"jira epic add|", "jira epic board|", "jira epic list|", "jira epic remove|",
 		"jira guide|",
 		"jira issue attachment add|", "jira issue attachment delete|",

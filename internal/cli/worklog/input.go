@@ -42,6 +42,9 @@ func (f *inputFlags) validate() error {
 	if err := command.ResolveHiddenAliases(f.cmd.Flags(), payloadAliases()); err != nil {
 		return err
 	}
+	if err := command.ValidateJSONInput(f.cmd.Flags()); err != nil {
+		return err
+	}
 	if err := f.body.Conflict(); err != nil {
 		return err
 	}

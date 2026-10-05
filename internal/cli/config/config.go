@@ -27,13 +27,15 @@ func New(deps Deps) *cobra.Command {
 			"then `JIRA_*` environment variables — with later layers winning. " +
 			"`config list` shows the EFFECTIVE value of each setting and which " +
 			"layer supplied it, so a surprising value can be traced to its source. " +
+			"`config init --base-url URL --email EMAIL` creates a new file from " +
+			"explicit account metadata without overwriting existing settings. " +
 			"`config get KEY` reads only the stored file value, " +
 			"`config set KEY VALUE` validates and stores one setting, and " +
 			"`config edit` opens the file itself. `config theme` inspects or selects " +
 			"a built-in or custom palette.",
 		Args: cobra.NoArgs,
 	}
-	cmd.AddCommand(newList(deps), newGet(), newSet(), newTheme(), newEdit())
+	cmd.AddCommand(newList(deps), newGet(), newSet(), newInit(), newProfile(), newTheme(), newEdit())
 	command.SetMeta(cmd, command.Meta{
 		Op:                "config",
 		NoSuccessEnvelope: "a bare group prints help, not an operation result",

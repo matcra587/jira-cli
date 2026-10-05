@@ -1,5 +1,7 @@
 package envelope
 
+import "encoding/json"
+
 // A REMOTE link is not an issue link, and this file is not
 // outputs_issue_link.go for that reason rather than for tidiness.
 //
@@ -96,6 +98,9 @@ type WeblinkView struct {
 type IssueWeblinkAddOutput struct {
 	// MutationState carries dry_run on both paths.
 	MutationState
+	// Payload is the complete native request on preview and write paths,
+	// including application, icon, status, and extension data.
+	Payload json.RawMessage `json:"payload"`
 	// URL, Title, Summary and Relationship are the composed request,
 	// present on both paths so a preview can be diffed against a live
 	// run.
@@ -184,7 +189,10 @@ func init() {
 				"description": "The absolute HTTP or HTTPS URL being linked to. Identical on both paths; local validation does not fetch it.",
 			},
 			"title": map[string]any{
-				"description": "The effective display text, defaulting to the URL when --title is omitted or empty. Identical on preview and live paths.",
+				"description": "The effective display text. Flag-only input defaults to the URL when --title is omitted or empty. Native input requires object.title or a nonconflicting --title flag. Identical on preview and live paths.",
+			},
+			"payload": map[string]any{
+				"description": "The complete effective native remote-link request, including application, icon, status and extension data. Retained on preview, live, total-failure and interrupted outcomes.",
 			},
 			"global_id": map[string]any{
 				"description": "The caller's own de-duplication key, when given. A link whose global_id already exists on the issue is replaced; results[].data.created reports which happened. Replacement clears omitted summary and relationship fields.",

@@ -275,6 +275,16 @@ func ResolvedTheme() *theme.Theme {
 	if t := themeFromConfig(); t != nil {
 		return t
 	}
+	return BootstrapTheme()
+}
+
+// BootstrapTheme supplies a nonnil theme without reading settings. Startup
+// uses it to assemble the command grammar before aliases select the final
+// config file. ConfigureTheme must run first to establish environment priority.
+func BootstrapTheme() *theme.Theme {
+	if t := currentTheme(); t != nil {
+		return t
+	}
 	if t := themeFromColorFGBG(); t != nil {
 		return t
 	}
@@ -297,7 +307,7 @@ func ResolvedTheme() *theme.Theme {
 // name once per prompt.
 //
 // Credentials is deliberately nil: that skips the keyring layer
-// entirely. The theme is needed before the command tree is built, and
+// entirely. The settings theme is resolved before output, and
 // opening an OS credential store to pick a color would be slow on every
 // command and, on macOS, could prompt for a password to answer a
 // question nobody asked.

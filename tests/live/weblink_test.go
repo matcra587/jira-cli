@@ -4,8 +4,10 @@ package live
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -25,6 +27,8 @@ type (
 	ownedWeblinkInput struct {
 		keys   []string
 		recipe weblinkRecipe
+		path   string
+		digest [sha256.Size]byte
 	}
 )
 
@@ -64,6 +68,7 @@ func (r *liveRun) checkWeblinkMutation(keys, args []string) error {
 		return errors.New("remote-link targets differ from their ownership declaration")
 	}
 	var recipe weblinkRecipe
+	var nativePath string
 	seen := map[string]bool{}
 	for ; i < len(args); i++ {
 		flag, value, hasValue := strings.Cut(args[i], "=")
@@ -72,6 +77,11 @@ func (r *liveRun) checkWeblinkMutation(keys, args []string) error {
 		}
 		seen[flag] = true
 		switch flag {
+		case "--json-input":
+			if !hasValue || value == "" || value == "-" {
+				return errors.New("native remote-link mutation requires its registered file")
+			}
+			nativePath = value
 		case "--dry-run":
 			if hasValue {
 				return errors.New("remote-link mutation changes an authored boolean")
@@ -104,8 +114,25 @@ func (r *liveRun) checkWeblinkMutation(keys, args []string) error {
 			return errors.New("remote-link mutation contains an unauthored option")
 		}
 	}
+	if nativePath != "" {
+		for _, flag := range []string{"--url", "--title", "--summary", "--relationship", "--global-id"} {
+			if seen[flag] {
+				return errors.New("native remote-link mutation contains an unauthored flag merge")
+			}
+		}
+		for _, input := range r.weblinkInputs {
+			if input.path == nativePath && slices.Equal(input.keys, keys) {
+				data, err := os.ReadFile(nativePath)
+				if err == nil && sha256.Sum256(data) == input.digest {
+					return nil
+				}
+				return errors.New("native remote-link input changed after registration")
+			}
+		}
+		return errors.New("native remote-link input is not registered for these owned targets")
+	}
 	for _, input := range r.weblinkInputs {
-		if slices.Equal(input.keys, keys) && input.recipe == recipe && seen["--url"] {
+		if input.path == "" && slices.Equal(input.keys, keys) && input.recipe == recipe && seen["--url"] {
 			return nil
 		}
 	}

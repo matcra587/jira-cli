@@ -266,6 +266,7 @@ func TestEmbeddedGuideRunRecipesExecute(t *testing.T) {
 	aliasContent := "[aliases]\nmine='version'\n"
 	aliasFile := aliasConfig(t, aliasContent)
 	aliasImport := apiInput(t, []byte("newName: version\n"))
+	newSettings := filepath.Join(t.TempDir(), "missing", "settings.toml")
 	paletteFile := apiInput(t, []byte("base='light'\n[colors]\nhelp_command='#123456'\n"))
 	issue := `{"id":"10123","key":"KEY-123","fields":{"summary":"Fixture","status":{"id":"1","name":"To Do"},"project":{"key":"KEY"},"issuetype":{"id":"10044","name":"Task"}}}`
 	var reads, searches, userSearches, boardReads, projectReads, worklogReads, taskReads atomic.Int32
@@ -366,6 +367,8 @@ func TestEmbeddedGuideRunRecipesExecute(t *testing.T) {
 			}
 			for i, arg := range args {
 				switch arg {
+				case "new-settings.toml":
+					args[i] = newSettings
 				case "./palette.toml":
 					args[i] = paletteFile
 				case "search.json":
@@ -425,7 +428,10 @@ func TestEmbeddedGuideRunRecipesExecute(t *testing.T) {
 	if err != nil || string(stored) != aliasContent {
 		t.Fatal("published local alias previews changed settings")
 	}
-	if count != 75 || reads.Load() != 2 || searches.Load() != 1 || userSearches.Load() != 3 || boardReads.Load() != 3 || projectReads.Load() != 3 || worklogReads.Load() != 1 || taskReads.Load() != 1 || jqlParses.Load() != 3 || jqlReferences.Load() != 1 || transitionReads.Load() != 1 {
+	if _, err := os.Stat(filepath.Dir(newSettings)); !os.IsNotExist(err) {
+		t.Fatal("published initialization preview created settings or its parent")
+	}
+	if count != 76 || reads.Load() != 2 || searches.Load() != 1 || userSearches.Load() != 3 || boardReads.Load() != 3 || projectReads.Load() != 3 || worklogReads.Load() != 1 || taskReads.Load() != 1 || jqlParses.Load() != 3 || jqlReferences.Load() != 1 || transitionReads.Load() != 1 {
 		t.Fatalf("guide recipe coverage changed: recipes=%d GET=%d search=%d user-search=%d boards=%d projects=%d worklogs=%d", count, reads.Load(), searches.Load(), userSearches.Load(), boardReads.Load(), projectReads.Load(), worklogReads.Load())
 	}
 }
