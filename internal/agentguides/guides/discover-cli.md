@@ -3,7 +3,7 @@ slug: discover-cli
 title: Discover commands before acting
 description: Read the installed CLI's guides, canonical command tree, flags and output shapes.
 when_to_use: When starting a Jira CLI task or recovering from an unfamiliar command or flag.
-commands: [jira, jira agent guide, jira agent schema, jira alias, jira config, jira auth whoami, jira me, jira issue attachment, jira release-notes, jira update]
+commands: [jira, jira agent guide, jira agent schema, jira alias, jira config, jira auth whoami, jira me, jira open, jira issue attachment, jira release-notes, jira update]
 order: 10
 ---
 
@@ -30,6 +30,8 @@ jira --output=json
 jira agent guide --output=json
 jira agent schema --output=json
 jira agent schema --path 'issue create' --jq '.data.schema'
+jira agent schema --path open --output=json
+jira open KEY-123 --output=json
 jira release-notes --latest --output=json
 jira rn 0.7.7 --output=compact
 jira alias list --config aliases.toml --output=json
@@ -62,6 +64,25 @@ privacy-hidden email and additional fields. Read `accountId`, `accountType`,
 `displayName`, `emailAddress` and `timeZone` from that account rather than
 configured settings. Human output shows the returned identity. Use `auth status`
 when credential source and token masking are the information needed.
+
+### Open an issue URL
+
+`open ISSUE_KEY` resolves one issue's browse URL from the configured site,
+without fetching Jira or accessing credentials. Machine modes return
+`issue.key`, `web_url` and `opened=false`. Human output starts the selected
+browser and always prints the URL. `BROWSER` names one executable, including
+paths with spaces. It is not a shell command or argument list. When unset,
+the platform default is used. A failed process start produces a warning and
+keeps the usable URL. `opened=true` reports process handoff, not page loading
+or issue existence. Exactly one distinct key is required after the normal
+comma/range expansion. Equivalent duplicate keys collapse to one key.
+
+URL-only issue view/comment reads with `--web` use the same settings-only
+URL handling. Completion history uses only a site and account
+explicitly present in configuration. Without that account scope, the URL read
+does not update history. No
+keyring lookup is performed to record a locally resolved URL. Native browser
+appearance and Jira access permissions require their own verification.
 
 ### Read CLI release notes
 

@@ -162,7 +162,7 @@ func newProgramWithTheme(deps *Deps, stdout, stderr io.Writer, resolveTheme func
 		Updater:     notifier,
 		// Keep local discovery and configuration free of release I/O. The
 		// framework already skips update, version, help and completion.
-		NotifySkip:    []string{"", "up", "agent", "guide", "config", "alias", "auth", "me", "adf", "jql", "release-notes", "rn"},
+		NotifySkip:    []string{"", "up", "agent", "guide", "config", "alias", "auth", "me", "adf", "jql", "open", "release-notes", "rn"},
 		NotifyOptions: notificationOptions(deps, sink),
 		// Supplying a theme is what avoids conductor calling
 		// theme.Auto(), which asks the terminal for its background color
@@ -245,7 +245,7 @@ func newProgramWithTheme(deps *Deps, stdout, stderr io.Writer, resolveTheme func
 	// Issues. The first domain handed a Jira client — which is what makes
 	// "config list cannot open one" a property the type system holds,
 	// not a convention.
-	program.Root.AddCommand(issuecmd.New(issuecmd.Deps{
+	issueDeps := issuecmd.Deps{
 		JiraClient: deps.JiraClient,
 		IssueMetadata: func() (issuecmd.InputDiscoveryClient, error) {
 			if deps.JiraClient == nil {
@@ -265,7 +265,14 @@ func newProgramWithTheme(deps *Deps, stdout, stderr io.Writer, resolveTheme func
 		// The real dialog, as `auth logout` already gets below. A test
 		// hands the command an answer instead.
 		Confirm: prompt.Confirm.Run,
-	}))
+	}
+	if deps.BuildPreferences != nil {
+		issueDeps.BrowseSite = func() (string, error) {
+			prefs, err := deps.BuildPreferences()
+			return prefs.BaseURL, err
+		}
+	}
+	program.Root.AddCommand(issuecmd.New(issueDeps), issuecmd.NewOpen(issueDeps))
 
 	// Credentials. Constructors, not instances: nothing opens the
 	// keyring or a network client until a RunE that needs one runs.
@@ -680,11 +687,24 @@ func newRoot(deps *Deps, sink *failureSink, renderer *help.Renderer) *cobra.Comm
 			command.EmitWarnings()
 		}
 		ctx := cli.WithFormat(cmd.Context(), format)
+		browseOnly := cmd.CommandPath() == cmd.Root().Name()+" open"
+		if cmd.Flags().Lookup("web") != nil {
+			web, err := cmd.Flags().GetBool("web")
+			if err != nil {
+				return err
+			}
+			browseOnly = browseOnly || web
+		}
 		ctx = command.WithIssueKeyRecorder(ctx, func(keys []string) {
-			if deps.Cache == nil {
+			constructor := deps.Cache
+			if browseOnly {
+				// A local URL must not open credentials merely to record history.
+				constructor = func() (core.Cache, error) { return configuredCache(deps) }
+			}
+			if constructor == nil {
 				return
 			}
-			store, err := deps.Cache()
+			store, err := constructor()
 			if err == nil && store != nil {
 				_ = cachecmd.RecordIssueKeys(store, keys) //nolint:errcheck // Disposable completion history cannot fail the observed operation.
 			}

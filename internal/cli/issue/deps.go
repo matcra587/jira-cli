@@ -13,6 +13,10 @@ import (
 // client — which is what makes the "config list cannot open one"
 // property load-bearing rather than theoretical.
 type Deps struct {
+	// BrowseSite resolves the configured site without credentials or a client.
+	// A nil seam retains the supplied client's site for embedded callers.
+	BrowseSite func() (string, error)
+
 	// JiraClient returns the configured Jira client.
 	JiraClient func() (core.JiraClient, error)
 

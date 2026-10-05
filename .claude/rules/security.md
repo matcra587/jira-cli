@@ -7,7 +7,7 @@ paths:
   - "internal/config/**/*.go"
   - "internal/jira/**/*.go"
   - "internal/cli/**/*.go"
-  - "internal/browser/**/*.go"
+  - "internal/cli/issue/web.go"
   - "internal/editor/**/*.go"
 ---
 
@@ -59,8 +59,10 @@ even completion candidates) is third-party text:
     `G306` sets the permission bar at `0750`;
     the reviewed `G304` exemption list (stdin, editor roundtrip, cache,
     docs gen, loaders) grows only with the same review.
-*   Browser opens go through `internal/browser` (reviewed `gosec` nolints
-    live there) — don't open URLs from anywhere else.
+*   Issue browser opens go through `internal/cli/issue/web.go`; its reviewed
+    process boundary receives separate argv entries. URL-only issue reads use
+    settings without credentials, and optional local history requires explicit
+    site/account scope. Machine modes return the URL without launching a browser.
 
 ## Enforcement is layered, not a redaction filter
 

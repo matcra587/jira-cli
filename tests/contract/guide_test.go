@@ -451,7 +451,7 @@ func TestEmbeddedGuideRunRecipesExecute(t *testing.T) {
 	if _, err := os.Stat(filepath.Dir(newSettings)); !os.IsNotExist(err) {
 		t.Fatal("published initialization preview created settings or its parent")
 	}
-	if count != 80 || inputMetadataReads.Load() != 4 || reads.Load() != 2 || searches.Load() != 1 || userSearches.Load() != 3 || boardReads.Load() != 3 || projectReads.Load() != 3 || worklogReads.Load() != 1 || taskReads.Load() != 1 || jqlParses.Load() != 3 || jqlReferences.Load() != 1 || transitionReads.Load() != 1 {
+	if count != 82 || inputMetadataReads.Load() != 4 || reads.Load() != 2 || searches.Load() != 1 || userSearches.Load() != 3 || boardReads.Load() != 3 || projectReads.Load() != 3 || worklogReads.Load() != 1 || taskReads.Load() != 1 || jqlParses.Load() != 3 || jqlReferences.Load() != 1 || transitionReads.Load() != 1 {
 		t.Fatalf("guide recipe coverage changed: recipes=%d GET=%d search=%d user-search=%d boards=%d projects=%d worklogs=%d", count, reads.Load(), searches.Load(), userSearches.Load(), boardReads.Load(), projectReads.Load(), worklogReads.Load())
 	}
 }

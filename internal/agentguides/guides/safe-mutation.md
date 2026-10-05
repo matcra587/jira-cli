@@ -14,6 +14,16 @@ inspect the prepared request. Local preview changes nothing and sends no Jira
 request. Where supported, `--validate-remote` opts a preview into metadata or
 account reads without submitting the mutation.
 
+### Quote comma-separated values
+
+Comma-separated flags accept one CSV record per occurrence. Use CSV quotes
+inside the shell argument for literal commas or quotes, and repeat the flag for
+additional values. Quoted literal LF and CR values remain unchanged where CSV
+can preserve them. Inputs that discard later records, skip blank lines or
+normalize CRLF are refused before command execution. Attachment paths can use
+positional arguments for literal line endings that CSV cannot preserve. Native
+field values can use the command's JSON input route where supported.
+
 ## Run
 
 ### Preview, submit and verify the selected change

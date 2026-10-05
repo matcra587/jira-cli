@@ -118,8 +118,18 @@ func TestPublishRejectsInterveningChange(t *testing.T) {
 				if !xos.IsUnix() {
 					t.Skip("Unix permission-bit comparison")
 				}
-				if err := os.Chmod(path, 0o700); err != nil { //nolint:gosec // owned executable fixture must retain execute permission
+				// Toggle an observed bit so restrictive creation umasks cannot
+				// turn the intervening permission change into a no-op.
+				changedMode := target.info.Mode().Perm() ^ 0o040
+				if err := os.Chmod(path, changedMode); err != nil {
 					t.Fatal(err)
+				}
+				info, err := os.Stat(path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if info.Mode().Perm() != changedMode || info.Mode().Perm() == target.info.Mode().Perm() {
+					t.Fatal("intervening permission change was not applied")
 				}
 				want = "original executable"
 			case "symlink":

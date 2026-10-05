@@ -191,6 +191,7 @@ func AddStringVar(cmd *cobra.Command, p *string, name, value, usage string, opts
 func AddStringSliceVar(cmd *cobra.Command, p *[]string, name string, value []string, usage string, opts FlagOpts) {
 	fs := cmd.Flags()
 	fs.StringSliceVarP(p, name, opts.Shorthand, value, usage)
+	preserveCSVInput(fs.Lookup(name))
 	clibcobra.Extend(fs.Lookup(name), clibcobra.FlagExtra{
 		Terse:       opts.Terse,
 		Placeholder: opts.Placeholder,

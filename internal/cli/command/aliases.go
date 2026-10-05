@@ -117,6 +117,7 @@ func AddHiddenAliases(cmd *cobra.Command, aliases []HiddenAlias) {
 		case "stringSlice":
 			var discard []string
 			fs.StringSliceVar(&discard, a.Flag, nil, usage)
+			preserveCSVInput(fs.Lookup(a.Flag))
 		default:
 			panic(fmt.Sprintf("command: %q aliases --%s to --%s, whose type %s has no alias form",
 				cmd.Name(), a.Flag, a.Canonical, canon.Value.Type()))
