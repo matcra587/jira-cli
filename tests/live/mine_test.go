@@ -94,7 +94,7 @@ func TestLiveMine(t *testing.T) {
 			t.Fatal("current-account domain search differs from the independent native result")
 		}
 	}
-	raw := r.success(t, "issue", "mine", "--jql=key = "+assigned[0]+" OR key = "+control+" ORDER BY key ASC", "--all")
+	raw := waitAssignedSearch(t, r, account.AccountID.Value, assigned[:1], "mine", []string{"--jql=key = " + assigned[0] + " OR key = " + control + " ORDER BY key ASC"})
 	if raw.Data.Truncated || !raw.Data.Pagination.IsLast || !mineMatches(raw.Data.Issues, assigned[:1], account.AccountID.Value) {
 		t.Fatal("raw OR escaped the required current-account scope")
 	}
@@ -105,8 +105,8 @@ func TestLiveMine(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "assigned.jql"), []byte("key = "+assigned[0]+" OR key = "+control+" ORDER BY key ASC"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	saved, _, exit := r.invoke(t, t.Context(), []string{"JIRA_READ_ONLY=true", "JIRA_QUERIES_PATH=" + dir}, "issue", "mine", "--saved=assigned", "--all")
-	if exit != 0 || !saved.OK || saved.Data.Truncated || !saved.Data.Pagination.IsLast || !mineMatches(saved.Data.Issues, assigned[:1], account.AccountID.Value) {
+	saved := waitAssignedSearch(t, r, account.AccountID.Value, assigned[:1], "mine", []string{"--saved=assigned"}, "JIRA_QUERIES_PATH="+dir)
+	if !saved.OK || saved.Data.Truncated || !saved.Data.Pagination.IsLast || !mineMatches(saved.Data.Issues, assigned[:1], account.AccountID.Value) {
 		t.Fatal("saved OR escaped the independently established current-account scope")
 	}
 	malformed := "key = " + assigned[0] + ") OR key = " + control + " OR (key = " + assigned[0]
@@ -162,7 +162,7 @@ func mineAssignmentMatches(assignee jira.Nullable[jira.User], accountID string, 
 // fixtures may trigger another bounded read; a foreign or unassigned result is
 // an immediate failure, and no mutation is retried by this index wait. Return
 // the validated result itself: a later identical search may hit a stale index.
-func waitAssignedSearch(t *testing.T, r *liveRun, accountID string, keys []string, verb string, args []string) liveFrame {
+func waitAssignedSearch(t *testing.T, r *liveRun, accountID string, keys []string, verb string, args []string, extraEnv ...string) liveFrame {
 	t.Helper()
 	if accountID == "" || len(keys) == 0 || (verb != "mine" && verb != "list") {
 		t.Fatal("current-account index wait requires a known account, owned expected set and supported search route")
@@ -171,7 +171,7 @@ func waitAssignedSearch(t *testing.T, r *liveRun, accountID string, keys []strin
 	defer cancel()
 	for {
 		query := append([]string{"issue", verb}, args...)
-		frame, _, exit := r.invoke(t, ctx, []string{"JIRA_READ_ONLY=true"}, append(query, "--all")...)
+		frame, _, exit := r.invoke(t, ctx, append(slices.Clone(extraEnv), "JIRA_READ_ONLY=true"), append(query, "--all")...)
 		if exit != 0 || !frame.OK || frame.Data.Issues == nil || frame.Data.Truncated || !frame.Data.Pagination.IsLast || frame.Data.Pagination.Returned != len(frame.Data.Issues) {
 			t.Fatal("current-account index wait received a failed or incomplete read")
 		}

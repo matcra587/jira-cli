@@ -16,6 +16,10 @@ type Deps struct {
 	// JiraClient returns the configured Jira client.
 	JiraClient func() (core.JiraClient, error)
 
+	// IssueMetadata returns the authenticated read-only input-discovery seam.
+	// Its constructor stays lazy; inspecting help or schema never opens it.
+	IssueMetadata func() (InputDiscoveryClient, error)
+
 	// Cache returns the process's metadata cache, constructed on first use
 	// like the client above.
 	//
@@ -45,4 +49,11 @@ type Deps struct {
 	// need the same thing, and threading it per command would mean four
 	// signatures instead of one field.
 	Confirm func(prompt.Confirm) (bool, error)
+}
+
+// InputDiscoveryClient joins the existing three-method metadata reader with
+// one project-identity read needed by create. It exposes no write operation.
+type InputDiscoveryClient interface {
+	core.IssueMetadataClient
+	core.IssueCreateProjectClient
 }

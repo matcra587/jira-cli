@@ -265,7 +265,11 @@ func typeArgErrors(cmd *cobra.Command) {
 			// OnlyValidArgs fails for its own reasons, and relabelling
 			// those as an unknown command would tell the caller to fix a
 			// verb that was never wrong.
-			if isNoArgs(orig) && c.HasSubCommands() && len(args) > 0 {
+			noArgs := isNoArgs(orig)
+			if metadata, ok := command.SelectedReadMeta(c); ok && metadata.Args != nil {
+				noArgs = metadata.Args.Min == 0 && metadata.Args.Max == 0
+			}
+			if noArgs && c.HasSubCommands() && len(args) > 0 {
 				return unknownCommandError(c, args[0])
 			}
 			return cli.NewInputError(cli.CodeArgCountInvalid, err.Error())

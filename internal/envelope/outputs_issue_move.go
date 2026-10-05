@@ -43,6 +43,20 @@ type IssueMoveOutput struct {
 	Receipt           *jira.SubmittedBulkOperation `json:"receipt,omitempty"`
 	ReceiptError      *KeyError                    `json:"receipt_error,omitempty"`
 	KeyedResults[IssueMoveData]
+	// ReadStarted excludes locally retained plans before any identity read.
+	ReadStarted bool `json:"-"`
+}
+
+// IssueReadStarted reports actual identity work before move submission.
+func (out IssueMoveOutput) IssueReadStarted() bool { return out.ReadStarted }
+
+// RecentIssueKeys retains requested identities after joined identity work,
+// including failed or queued rows, without observing client setup refusals.
+func (out IssueMoveOutput) RecentIssueKeys() []string {
+	if !out.ReadStarted {
+		return nil
+	}
+	return out.KeyedResults.RecentIssueKeys()
 }
 
 type IssueMoveData struct {

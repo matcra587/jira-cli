@@ -92,6 +92,20 @@ func newEdit(deps Deps) *cobra.Command {
 			"It is also the route to a tenant's custom fields, which ride the " +
 			"payload under their own ids and reach Jira untouched — there is " +
 			"deliberately no `--field key=value`.\n\n" +
+			"`--generate-json` reads complete live edit metadata for each " +
+			"requested issue, using explicit keys or the selectors below. It " +
+			"preserves every native field definition and actual custom field " +
+			"ID, with a separate native `fields`/`update` skeleton for each " +
+			"context. Null values are placeholders: fill wanted values and " +
+			"remove unwanted fields or update operations before submitting " +
+			"through `--json-input`. No values or defaults are guessed, and " +
+			"contexts are never merged. This is a read: it works in read-only " +
+			"mode, prompts for nothing, honors bounded selector resolution and " +
+			"`--parallelism`, and refuses authored-input or mutation flags, " +
+			"including `--dry-run`, `--force`, `--notify` and `--verify`. " +
+			"Results report `issue.edit.input`; partial and total failures " +
+			"retain ordered outcomes. Metadata is a snapshot, not permission " +
+			"or a guarantee for a later edit.\n\n" +
 			"`--dry-run` composes the request and stops, so `data.payload` is " +
 			"byte-identical to what a live run sends — but it cannot tell you " +
 			"whether the issues exist or whether the values are valid on them. " +
@@ -118,6 +132,10 @@ func newEdit(deps Deps) *cobra.Command {
 			"to a list of keys.",
 		Example: "# retitle one issue\n" +
 			"$ jira issue edit KEY-123 --summary 'Rotate the signing key before Q4'\n\n" +
+			"# inspect each issue's own input metadata and native skeleton\n" +
+			"$ jira issue edit KEY-123 KEY-124 --generate-json --output=json\n\n" +
+			"# extract one skeleton; fill wanted values and remove unused fields\n" +
+			"$ jira issue edit KEY-123 --generate-json --output=compact --jq '.results[0].data.payload' > issue.json\n\n" +
 			"# add a label to several issues at once\n" +
 			"$ jira issue edit KEY-123 KEY-124 --label needs-triage\n\n" +
 			"# add one label and remove another\n" +
@@ -147,10 +165,11 @@ func newEdit(deps Deps) *cobra.Command {
 		// Min is 0 because a selector replaces the positionals entirely;
 		// SelectorFlags.Validate gives the "name something" refusal, which
 		// can name both routes where cobra's arity check could not.
-		Args: command.ArgSpec{Min: 0, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY"}}},
+		Args: command.ArgSpec{Min: 0, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY", Predictor: "issuekey"}}},
 		Flags: func(c *cobra.Command) {
 			command.AddKeyedFlags(c, &keyed)
 			in.register(c, command.EditIssueVerb)
+			registerInputDiscovery(c)
 			// --validate-remote joins --verify for create's reason: resolving
 			// `@me` in a preview is a real read against the site. It now
 			// covers a second such read — resolving a selector — and --force
@@ -160,6 +179,22 @@ func newEdit(deps Deps) *cobra.Command {
 			command.AddMutationFlags(c, &mut, command.WithVerify(), command.WithValidateRemote(), command.WithForce(), command.WithNotify())
 			command.AddSelectorFlags(c, &sel)
 		},
+		Read: command.WhenBoolRead(flagGenerateJSON, command.ReadSpec[envelope.IssueEditInputOutput]{
+			Op: "issue.edit.input", Identity: true, Keyed: true, Passthrough: true, Human: renderEditInput,
+			Validate: func() error {
+				if err := validateInputDiscoveryFlags(in.cmd, command.FlagParallelism, command.FlagJQL, command.FlagFilter, command.FlagFromFile); err != nil {
+					return err
+				}
+				if err := keyed.Validate(); err != nil {
+					return err
+				}
+				return sel.Validate(len(in.cmd.Flags().Args()))
+			},
+			RetainOnError: func(out envelope.IssueEditInputOutput) bool { return len(out.Results) > 0 },
+			Run: func(ctx context.Context, inv command.Invocation) (envelope.IssueEditInputOutput, error) {
+				return runEditInput(ctx, deps, inv, sel, keyed.Parallelism)
+			},
+		}),
 		Validate: func() error {
 			if err := keyed.Validate(); err != nil {
 				return err
@@ -510,9 +545,8 @@ func renderEditPreview(v *output.View, out envelope.IssueEditOutput) {
 	// mid-span (axis H5).
 	v.Section("Payload")
 	v.Block(cli.Text(string(out.Payload)))
-	// The hint names the round trip for renderCreatePreview's reason:
-	// this preview IS the discovery affordance, there being no separate
-	// --generate-json (see write.go).
+	// The local preview can be reused as native input. Live --generate-json
+	// separately discovers each issue's editable fields and operations.
 	v.Hint("Nothing was sent. Drop --dry-run to apply it, or save this payload and pass it back with --json-input.")
 }
 

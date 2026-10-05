@@ -194,7 +194,7 @@ func newTransition(deps Deps) *cobra.Command {
 		// SelectorFlags.Validate own the refusals from here; cobra's arity
 		// check cannot express "keys OR a selector, and a status either
 		// way".
-		Args: command.ArgSpec{Min: 0, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY"}}},
+		Args: command.ArgSpec{Min: 0, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY", Predictor: "transitionissuekey"}}},
 		Flags: func(c *cobra.Command) {
 			cmd = c
 			command.AddKeyedFlags(c, &keyed)
@@ -787,10 +787,17 @@ func collectOutcomes(outcomes []transitionOutcome) ([]envelope.KeyedResult[envel
 // route the workflow allows. It returns a result rather than an error
 // because a failure here is data — the entry the caller reads at
 // data.results[] — and not the command's own failure.
-func transitionOne(ctx context.Context, client core.JiraClient, key string, plan transitionPlan) transitionOutcome {
+func transitionOne(ctx context.Context, client core.JiraClient, key string, plan transitionPlan) (outcome transitionOutcome) {
 	if err := ctx.Err(); err != nil {
 		return failedTransitionResult(key, err)
 	}
+	var observed bool
+	client = transitionReadObserver{JiraClient: client, observed: &observed}
+	defer func() {
+		if outcome.result.Err != nil {
+			outcome.result.Err.JiraResponse = outcome.result.Err.JiraResponse || observed
+		}
+	}()
 	view, err := resolveTransition(ctx, client, key, plan)
 	if err != nil {
 		return failedTransitionResult(key, err)
@@ -831,6 +838,19 @@ func transitionOne(ctx context.Context, client core.JiraClient, key string, plan
 		return separateComment(ctx, client, key, plan, data)
 	}
 	return transitionOutcome{result: okTransitionResult(key, data)}
+}
+
+// transitionReadObserver retains a native metadata response even when resolving
+// its contents produces a local refusal. Each worker owns its observation.
+type transitionReadObserver struct {
+	core.JiraClient
+	observed *bool
+}
+
+func (c transitionReadObserver) GetTransitions(ctx context.Context, key string) (core.TransitionRead, error) {
+	read, err := c.JiraClient.GetTransitions(ctx, key)
+	*c.observed = *c.observed || read.Transitions != nil
+	return read, err
 }
 
 // separateComment posts the comment as its own request, after a

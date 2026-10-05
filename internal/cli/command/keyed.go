@@ -193,6 +193,15 @@ func (f KeyedFlags) Validate() error {
 func KeyedFailure[T interface {
 	Verdict() (bool, *envelope.KeyError)
 }](results []T, raw []error) error {
+	// Retain every native response before the severity policy selects one
+	// original cause or returns early for a successful row. That selected
+	// cause cannot represent all joined work for best-effort local observers.
+	for i, r := range results {
+		_, failure := r.Verdict()
+		if failure != nil && i < len(raw) {
+			failure.JiraResponse = failure.JiraResponse || cli.HasJiraResponse(raw[i])
+		}
+	}
 	worst := -1
 	var worstError *envelope.KeyError
 	for i, r := range results {
@@ -282,6 +291,7 @@ var keyFailureSeverity = map[string]int{
 	cli.CodeIssueDeleteResponseInvalid:   2,
 	cli.CodeIssueCreateResponseInvalid:   2,
 	cli.CodeIssueCreateFollowupFailed:    2,
+	cli.CodeIssueMetadataResponseInvalid: 2,
 	cli.CodeIssueCloneSourceInvalid:      2,
 	cli.CodeBulkOperationResponseInvalid: 2,
 	cli.CodeBulkOperationFailed:          2,
@@ -333,40 +343,44 @@ var keyFailureSeverity = map[string]int{
 	// User discovery is a single read, outside issue fan-out.
 	cli.CodeUserSearchResponseInvalid:  0,
 	cli.CodeCurrentUserResponseInvalid: 0,
-	cli.CodeJQLResponseInvalid:         0,
-	cli.CodeBoardCacheUnavailable:      0,
-	"validation_failed":                0,
-	cli.CodeInsecureScheme:             0,
-	cli.CodeCommandUnknown:             0,
-	cli.CodeFlagUnknown:                0,
-	cli.CodeFlagForeign:                0,
-	cli.CodeFlagRequired:               0,
-	cli.CodeFlagValueMissing:           0,
-	cli.CodeFlagValueInvalid:           0,
-	cli.CodeADFInvalid:                 0,
-	cli.CodeADFTypeUnknown:             0,
-	cli.CodeADFContentLoss:             0,
-	cli.CodeFlagSyntaxInvalid:          0,
-	cli.CodeArgCountInvalid:            0,
-	cli.CodeArgValueInvalid:            0,
-	cli.CodeFlagNotApplicable:          0,
-	cli.CodeFlagConflict:               0,
-	cli.CodeJQExpressionInvalid:        0,
-	cli.CodeJQEvalFailed:               0,
-	cli.CodeJQOutputTooLarge:           0,
-	cli.CodeJQOutputConflict:           0,
-	cli.CodeReadOnlyBlocked:            0,
-	cli.CodeLocalIO:                    0,
-	cli.CodeConfigChanged:              0,
-	cli.CodeAliasInvalid:               0,
-	cli.CodeSavedQueryUnknown:          0,
-	cli.CodeSavedQueryInvalid:          0,
-	cli.CodeEditorMissing:              0,
-	cli.CodeEditorFailed:               0,
-	cli.CodeTerminalRestoreFailed:      0,
-	cli.CodeTerminalRequired:           0,
-	cli.CodeConfigInvalid:              0,
-	cli.CodePathInvalid:                0,
+	// Local metadata capability and type resolution precede issue reads.
+	cli.CodeIssueMetadataUnavailable: 0,
+	cli.CodeIssueTypeUnknown:         0,
+	cli.CodeIssueTypeAmbiguous:       0,
+	cli.CodeJQLResponseInvalid:       0,
+	cli.CodeBoardCacheUnavailable:    0,
+	"validation_failed":              0,
+	cli.CodeInsecureScheme:           0,
+	cli.CodeCommandUnknown:           0,
+	cli.CodeFlagUnknown:              0,
+	cli.CodeFlagForeign:              0,
+	cli.CodeFlagRequired:             0,
+	cli.CodeFlagValueMissing:         0,
+	cli.CodeFlagValueInvalid:         0,
+	cli.CodeADFInvalid:               0,
+	cli.CodeADFTypeUnknown:           0,
+	cli.CodeADFContentLoss:           0,
+	cli.CodeFlagSyntaxInvalid:        0,
+	cli.CodeArgCountInvalid:          0,
+	cli.CodeArgValueInvalid:          0,
+	cli.CodeFlagNotApplicable:        0,
+	cli.CodeFlagConflict:             0,
+	cli.CodeJQExpressionInvalid:      0,
+	cli.CodeJQEvalFailed:             0,
+	cli.CodeJQOutputTooLarge:         0,
+	cli.CodeJQOutputConflict:         0,
+	cli.CodeReadOnlyBlocked:          0,
+	cli.CodeLocalIO:                  0,
+	cli.CodeConfigChanged:            0,
+	cli.CodeAliasInvalid:             0,
+	cli.CodeSavedQueryUnknown:        0,
+	cli.CodeSavedQueryInvalid:        0,
+	cli.CodeEditorMissing:            0,
+	cli.CodeEditorFailed:             0,
+	cli.CodeTerminalRestoreFailed:    0,
+	cli.CodeTerminalRequired:         0,
+	cli.CodeConfigInvalid:            0,
+	cli.CodePathInvalid:              0,
 }
 
 // keyedCommands records which commands called AddKeyedFlags, keyed by

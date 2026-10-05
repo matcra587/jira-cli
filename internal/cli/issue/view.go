@@ -123,8 +123,7 @@ func newView(deps Deps) *cobra.Command {
 			"$ jira issue view KEY-123 --fields summary,status --output=json\n\n" +
 			"# pull one value out (--jq forces json; no --output needed)\n" +
 			"$ jira issue view KEY-123 --jq '.data.issue.fields.status.name'",
-		// Predictor issuekey is omitted until its completion emitter lands.
-		Args: command.ArgSpec{Min: 1, Max: 1, Positions: []command.Arg{{Name: "ISSUE_KEY"}}},
+		Args: command.ArgSpec{Min: 1, Max: 1, Positions: []command.Arg{{Name: "ISSUE_KEY", Predictor: "issuekey"}}},
 		Flags: func(c *cobra.Command) {
 			cmd = c
 			command.AddStringSliceVar(c, &fields, "fields", nil,

@@ -107,7 +107,7 @@ func newWatchersList(deps Deps) *cobra.Command {
 			"$ jira issue watchers list KEY-123 KEY-124 KEY-125\n\n" +
 			"# just the human watchers, as json\n" +
 			"$ jira issue watchers list KEY-123 --output=json --jq '.data.results[].data.watchers[] | select(.account_type == \"atlassian\") | {account_id, display_name}'",
-		Args: command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY"}}},
+		Args: command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY", Predictor: "issuekey"}}},
 		Flags: func(c *cobra.Command) {
 			cmd = c
 			command.AddKeyedFlags(c, &keyed)

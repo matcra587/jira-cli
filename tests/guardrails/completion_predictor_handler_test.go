@@ -41,6 +41,15 @@ func TestDeclaredPredictorsAreHandled(t *testing.T) {
 	}
 }
 
+func TestIssueKeyHistoryCompletesRankTargetsAndAnchors(t *testing.T) {
+	sites := declaredPredictors(guardProgram(t).Generator())["issuekey"]
+	for _, site := range []string{"jira issue rank <arg 1>", "jira issue rank --before", "jira issue rank --after"} {
+		if !slices.Contains(sites, site) {
+			t.Errorf("recent issue history is not offered at %s", site)
+		}
+	}
+}
+
 // TestPredictorWalkSeesBothDeclarationChannels is the fixture that keeps
 // the guard above honest while the real tree declares zero predictors: a
 // clib bump that moved either declaration channel would otherwise leave

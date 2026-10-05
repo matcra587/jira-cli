@@ -175,7 +175,7 @@ func newLinkCreate(deps Deps) *cobra.Command {
 			"$ jira issue link create KEY-123 --to KEY-456 --type blocks --dry-run --validate-remote\n\n" +
 			"# just the keys that took the link, as json\n" +
 			"$ jira issue link create KEY-123 KEY-124 --to KEY-999 --type blocks --output=json --jq '.data.results[] | select(.ok) | .issue.key'",
-		Args: command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY"}}},
+		Args: command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY", Predictor: "issuekey"}}},
 		Flags: func(c *cobra.Command) {
 			cmd = c
 			command.AddKeyedFlags(c, &keyed)

@@ -276,7 +276,7 @@ func newClone(deps Deps) *cobra.Command {
 		// Min is 0 because a selector replaces the positionals entirely;
 		// SelectorFlags.Validate gives the "name something" refusal, which
 		// can name both routes where cobra's arity check could not.
-		Args: command.ArgSpec{Min: 0, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY"}}},
+		Args: command.ArgSpec{Min: 0, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY", Predictor: "issuekey"}}},
 		Flags: func(c *cobra.Command) {
 			cmd = c
 			command.AddKeyedFlags(c, &keyed)
@@ -622,8 +622,15 @@ func cloneOne(
 	opts cloneOptions,
 	overrides jira.IssueWriteRequest,
 	schemas func() (map[string]string, error),
-) cloneOutcome {
+) (outcome cloneOutcome) {
 	read, err := client.GetIssue(ctx, key, []string{"*all"})
+	// Source identity survives local payload composition failures after the
+	// native read, independently of the error chosen for the joined batch.
+	defer func() {
+		if outcome.result.Err != nil {
+			outcome.result.Err.JiraResponse = outcome.result.Err.JiraResponse || read.Issue != nil
+		}
+	}()
 	if err != nil {
 		return failedCloneResult(key, err)
 	}

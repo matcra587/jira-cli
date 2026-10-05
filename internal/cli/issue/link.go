@@ -118,7 +118,7 @@ func newLinkList(deps Deps) *cobra.Command {
 			"$ jira issue link list KEY-123 KEY-124 KEY-125\n\n" +
 			"# one at a time, as json\n" +
 			"$ jira issue link list KEY-123 KEY-124 --parallelism 1 --output=json",
-		Args: command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY"}}},
+		Args: command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY", Predictor: "issuekey"}}},
 		Flags: func(c *cobra.Command) {
 			cmd = c
 			command.AddKeyedFlags(c, &keyed)

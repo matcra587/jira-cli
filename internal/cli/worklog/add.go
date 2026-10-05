@@ -32,7 +32,7 @@ func newAdd(deps Deps) *cobra.Command {
 			"`--notify=false` requests notification suppression; output reports the request, not delivery. Jira applies its default automatic remaining-estimate adjustment. " +
 			"Use `jira api` for other estimate-adjustment policies. A failed key does not stop the others; only total failure fails the command.",
 		Example: "$ jira worklog add KEY-123 --time-spent 2h30m --no-input\n\n# Preview time and a comment\n$ jira worklog add KEY-1:3 --time-spent 1d --started 2026-01-02T12:30:00Z --markdown 'Investigated the incident.' --dry-run --output=json",
-		Args:    command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY"}}},
+		Args:    command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY", Predictor: "issuekey"}}},
 		Flags: func(cmd *cobra.Command) {
 			command.AddKeyedFlags(cmd, &keyed)
 			command.AddMutationFlags(cmd, &mut, command.WithNotify())

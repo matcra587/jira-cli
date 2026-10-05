@@ -37,7 +37,7 @@ func newMove(deps Deps) *cobra.Command {
 			"A move can change project, type, workflow and field values. It requires confirmation; scripts and agents must pass --force. Previews never prompt. The POST is submitted once and never automatically replayed. Its 201 acknowledges a job, not moved issues. Without --wait, return that receipt immediately. With --wait, bounded reads observe terminal progress; only explicit processed issue IDs confirm application. Failed/inaccessible outcomes remain visible. Original issue keys remain in ordered results, with stable IDs when resolved.\n\n" +
 			"Cancellation and later read failures retain the task identity and last valid progress. Resume with `jira issue move status TASK_ID`, never by repeating the submission. A polling bound returns poll_limit_reached=true and does not claim completion. Native notification behavior belongs to sendBulkNotification in the payload. Use `jira issue move fields` for the historical confirmed fields/update PUT workflow; native bulk migration requires targetToSourcesMapping.",
 		Example: "$ jira issue move KEY-1 --json-input move.json --dry-run --output=json\n\n$ jira issue move KEY-1 --json-input move.json --force --wait --max-polls 60 --poll-interval 1s --output=json",
-		Args:    command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY"}}},
+		Args:    command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY", Predictor: "issuekey"}}},
 		Flags: func(cmd *cobra.Command) {
 			flags.cmd = cmd
 			command.AddKeyedFlags(cmd, &keyed, command.WithoutParallelism("one native bulk job is submitted; identity reads are bounded and serial"))
@@ -175,6 +175,7 @@ func runMove(ctx context.Context, deps Deps, inv command.Invocation, flags moveF
 		if err := ctx.Err(); err != nil {
 			return out, err
 		}
+		out.ReadStarted = true
 		read, err := client.GetIssue(ctx, key, []string{"summary"})
 		if err != nil {
 			return out, err

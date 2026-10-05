@@ -39,6 +39,12 @@ func TestMapError(t *testing.T) {
 		{name: "server error", err: apiErr(503), wantCode: "jira_server_error", wantExit: ExitServer},
 		{name: "wrapped api error", err: fmt.Errorf("get issue: %w", apiErr(404)), wantCode: "jira_not_found", wantExit: ExitNotFound},
 		{name: "malformed current account", err: fmt.Errorf("resolve: %w", adapterjira.ErrCurrentUserResponseInvalid), wantCode: CodeCurrentUserResponseInvalid, wantExit: ExitServer},
+		{name: "malformed issue metadata", err: fmt.Errorf("read: %w", core.ErrIssueMetadataInvalid), wantCode: CodeIssueMetadataResponseInvalid, wantExit: ExitServer},
+		{name: "unavailable metadata client", err: fmt.Errorf("setup: %w", core.ErrIssueMetadataUnavailable), wantCode: CodeIssueMetadataUnavailable, wantExit: ExitValidation},
+		{name: "unknown project issue type", err: &core.IssueTypeResolutionError{Requested: "missing"}, wantCode: CodeIssueTypeUnknown, wantExit: ExitValidation},
+		{name: "ambiguous project issue type", err: &core.IssueTypeResolutionError{Requested: "Task", Ambiguous: true}, wantCode: CodeIssueTypeAmbiguous, wantExit: ExitValidation},
+		{name: "canceled metadata", err: errors.Join(core.ErrIssueMetadataInvalid, context.Canceled), wantCode: "canceled", wantExit: ExitCanceled},
+		{name: "expired metadata", err: errors.Join(core.ErrIssueMetadataUnavailable, context.DeadlineExceeded), wantCode: "timeout", wantExit: ExitTimeout},
 		{name: "canceled current account", err: errors.Join(adapterjira.ErrCurrentUserResponseInvalid, context.Canceled), wantCode: "canceled", wantExit: ExitCanceled},
 		{name: "timed out current account", err: errors.Join(adapterjira.ErrCurrentUserResponseInvalid, context.DeadlineExceeded), wantCode: "timeout", wantExit: ExitTimeout},
 		{name: "bulk operation receipt", err: fmt.Errorf("accepted move: %w", adapterjira.ErrBulkOperationResponseInvalid), wantCode: "bulk_operation_response_invalid", wantExit: ExitServer},
@@ -117,7 +123,7 @@ func TestRegistryIsComplete(t *testing.T) {
 	t.Parallel()
 	statuses := []int{400, 401, 403, 404, 405, 409, 412, 429, 500, 502, 503}
 	codes := map[string]bool{"canceled": true, "timeout": true, "validation_failed": true, "output_write_failed": true, CodeRedirectRefused: true, CodeAPIResponseIncomplete: true}
-	for _, err := range []error{attachmentfiles.ErrInvalid, core.ErrAttachmentResponseInvalid, core.ErrCommentResponseInvalid, core.ErrTransitionResponseInvalid, core.ErrTransitionReadInvalid, core.ErrWeblinkResponseInvalid, core.ErrRankResponseInvalid, core.ErrIssueDeleteResponseInvalid, core.ErrIssueCreateResponseInvalid, core.ErrIssueCreateFollowupFailed} {
+	for _, err := range []error{attachmentfiles.ErrInvalid, core.ErrAttachmentResponseInvalid, core.ErrCommentResponseInvalid, core.ErrTransitionResponseInvalid, core.ErrTransitionReadInvalid, core.ErrWeblinkResponseInvalid, core.ErrRankResponseInvalid, core.ErrIssueDeleteResponseInvalid, core.ErrIssueCreateResponseInvalid, core.ErrIssueCreateFollowupFailed, core.ErrIssueMetadataInvalid, core.ErrIssueMetadataUnavailable, &core.IssueTypeResolutionError{}, &core.IssueTypeResolutionError{Ambiguous: true}} {
 		codes[MapError(err).Code] = true
 	}
 	for _, s := range statuses {

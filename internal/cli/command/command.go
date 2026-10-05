@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"slices"
 	"sync"
 
 	"github.com/gechr/x/terminal"
@@ -134,6 +135,9 @@ type Spec[T any] struct {
 	// envelope always carries Op. Kept as []Meta because a variant is a
 	// whole operation with its own Variant name.
 	Variants []Meta
+	// Read is one boolean-selected read with a separately typed result. New
+	// owns its selection, validation, metadata and emission on this path.
+	Read *ReadVariant
 
 	// Use, Short, Long and Example are the help surface. Short is
 	// mandatory — an empty one drops the command out of grouped help,
@@ -229,6 +233,10 @@ func New[T any](spec Spec[T]) (*cobra.Command, error) {
 	if err := spec.validate(); err != nil {
 		return nil, err
 	}
+	read, err := spec.Read.bind(spec.Op, spec.Args, spec.Variants)
+	if err != nil {
+		return nil, err
+	}
 
 	var noPager bool
 	cmd := &cobra.Command{
@@ -239,6 +247,14 @@ func New[T any](spec Spec[T]) (*cobra.Command, error) {
 		Example: spec.Example,
 		Args:    spec.Args.validator(),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if read != nil && read.selected(cmd) {
+				if read.validate != nil {
+					if err := read.validate(); err != nil {
+						return err
+					}
+				}
+				return read.run(cmd, invocation(cmd, args), *read.meta.Args)
+			}
 			if format, ok := cli.FormatFromContext(cmd.Context()); spec.HumanHelp != nil && ok && format == output.FormatHuman {
 				return output.RenderHelp(cmd.Context(), cmd.ErrOrStderr(), spec.HumanHelp)
 			}
@@ -247,17 +263,8 @@ func New[T any](spec Spec[T]) (*cobra.Command, error) {
 					return err
 				}
 			}
-			data, err := spec.Run(cmd.Context(), Invocation{
-				Args:            args,
-				Stdin:           cmd.InOrStdin(),
-				StdinIsTerminal: stdinIsTerminal(cmd),
-				DryRun:          dryRunFlag(cmd),
-				Interactive:     interactive(cmd),
-				NoInput:         noInput(cmd),
-				// Read at run time from the field cobra's -V template
-				// prints, so the flag and the command cannot disagree.
-				Version: cmd.Root().Version,
-			})
+			data, err := spec.Run(cmd.Context(), invocation(cmd, args))
+			recordIssueKeys(cmd.Context(), data, dryRunFlag(cmd), spec.Args, args, err)
 			var warnings []envelope.Warning
 			if spec.Warnings != nil {
 				warnings = spec.Warnings(data)
@@ -274,6 +281,20 @@ func New[T any](spec Spec[T]) (*cobra.Command, error) {
 
 	if spec.Flags != nil {
 		spec.Flags(cmd)
+	}
+	if read != nil {
+		if err := read.checkFlag(cmd); err != nil {
+			return nil, err
+		}
+		if read.meta.Args.Min != spec.Args.Min || read.meta.Args.Max != spec.Args.Max {
+			defaultArgs, readArgs := spec.Args.validator(), read.meta.Args.validator()
+			cmd.Args = func(c *cobra.Command, args []string) error {
+				if read.selected(c) {
+					return readArgs(c, args)
+				}
+				return defaultArgs(c, args)
+			}
+		}
 	}
 	if spec.PageHuman {
 		AddBoolVar(cmd, &noPager, FlagNoPager, false, "Print directly instead of paging long human output", FlagOpts{Terse: "Print without pager"})
@@ -318,9 +339,17 @@ func New[T any](spec Spec[T]) (*cobra.Command, error) {
 	case !meta.Keyed && keyed:
 		return nil, fmt.Errorf("command: %q calls command.AddKeyedFlags but does not declare Keyed; its results[] contract would go unchecked", meta.Op)
 	}
+	if read != nil && read.meta.Keyed != meta.Keyed {
+		return nil, fmt.Errorf("command: read %q keyed declaration must match the path's shared keyed surface", read.meta.Op)
+	}
 
-	SetMeta(cmd, meta, spec.Variants...)
-	if spec.Human != nil || spec.HumanHelp != nil {
+	variants := slices.Clone(spec.Variants)
+	if read != nil {
+		variants = append(variants, read.meta)
+		setReadVariant(cmd, read)
+	}
+	SetMeta(cmd, meta, variants...)
+	if spec.Human != nil || spec.HumanHelp != nil || read != nil && read.human {
 		recordHuman(cmd)
 	}
 	return cmd, nil
@@ -362,14 +391,10 @@ func (s Spec[T]) validate() error {
 		return fmt.Errorf("command: %q has no Run", s.Op)
 	}
 
-	reg, ok := envelope.Registered(s.Op)
-	if !ok {
-		return fmt.Errorf("command: %q has no envelope registration; register its Output struct in internal/envelope", s.Op)
+	if err := registeredOutput[T](s.Op); err != nil {
+		return err
 	}
 	var zero T
-	if got, want := reflect.TypeOf(zero), reflect.TypeOf(reg.Sample); got != want {
-		return fmt.Errorf("command: %q returns %v but registered %v", s.Op, got, want)
-	}
 	// Variants get the same check. They do not select what is emitted,
 	// but the inventory publishes them as operations this command
 	// reports, and one registered under a different Output type would
@@ -384,6 +409,28 @@ func (s Spec[T]) validate() error {
 		}
 	}
 	return nil
+}
+
+func registeredOutput[T any](op string) error {
+	reg, ok := envelope.Registered(op)
+	if !ok {
+		return fmt.Errorf("command: %q has no envelope registration; register its Output struct in internal/envelope", op)
+	}
+	var zero T
+	if got, want := reflect.TypeOf(zero), reflect.TypeOf(reg.Sample); got != want {
+		return fmt.Errorf("command: %q returns %v but registered %v", op, got, want)
+	}
+	return nil
+}
+
+func invocation(cmd *cobra.Command, args []string) Invocation {
+	return Invocation{
+		Args: args, Stdin: cmd.InOrStdin(), StdinIsTerminal: stdinIsTerminal(cmd),
+		DryRun: dryRunFlag(cmd), Interactive: interactive(cmd), NoInput: noInput(cmd),
+		// Use the runtime root version, including the host's injection, so the
+		// result and the command's --version output describe the same build.
+		Version: cmd.Root().Version,
+	}
 }
 
 // dryRunFlag reads the --dry-run flag when the command registered one.

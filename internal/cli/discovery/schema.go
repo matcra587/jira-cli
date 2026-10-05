@@ -67,6 +67,7 @@ func selectSchema(tree docent.Command, path string, shapes bool) (docent.Command
 		tree = tree.PoolShapes()
 	} else {
 		tree = tree.StripShapes()
+		stripVariantSchemas(&tree)
 	}
 	// The version belongs on the emitted root, including selected subtrees.
 	if tree.Extensions == nil {
@@ -74,6 +75,13 @@ func selectSchema(tree docent.Command, path string, shapes bool) (docent.Command
 	}
 	tree.Extensions["contract_version"] = envelope.ContractVersion
 	return tree, nil
+}
+
+func stripVariantSchemas(tree *docent.Command) {
+	delete(tree.Extensions, "operation_schemas")
+	for i := range tree.Children {
+		stripVariantSchemas(&tree.Children[i])
+	}
 }
 
 func materializeHelp(cmd *cobra.Command) {
@@ -89,8 +97,24 @@ func enrich(cmd *cobra.Command, tree *docent.Command) error {
 		// Variants share a command path but remain explicit operation facts.
 		// The default operation owns this node's output schema.
 		operations := make([]Operation, 0, len(metas))
+		variantSchemas := make(map[string]any)
+		variantArgs := make(map[string]any)
 		for i, meta := range metas {
-			operations = append(operations, Operation{Op: meta.Op, Variant: meta.Variant, Class: string(meta.Class()), NoSuccessEnvelope: meta.NoSuccessEnvelope})
+			operation := Operation{Op: meta.Op, Variant: meta.Variant, Class: string(meta.Class()), NoSuccessEnvelope: meta.NoSuccessEnvelope}
+			if i > 0 {
+				if meta.NoSuccessEnvelope == "" {
+					reg, exists := envelope.Registered(meta.Op)
+					if !exists {
+						return fmt.Errorf("discovery: %s has no output schema for %s", cmd.CommandPath(), meta.Op)
+					}
+					variantSchemas[meta.Op] = reg.Schema
+					operation.HasOutputSchema = true
+				}
+				if meta.Args != nil {
+					variantArgs[meta.Op] = map[string]any{"min": meta.Args.Min, "max": meta.Args.Max, "positions": slices.Clone(meta.Args.Positions)}
+				}
+			}
+			operations = append(operations, operation)
 			if i == 0 {
 				if meta.Args != nil {
 					tree.Extensions["arguments"] = meta.Args
@@ -106,6 +130,14 @@ func enrich(cmd *cobra.Command, tree *docent.Command) error {
 			}
 		}
 		tree.Extensions["operations"] = operations
+		if len(variantSchemas) > 0 {
+			// JSON-native containers keep Docent's defensive copying intact;
+			// each operation has a different, registered output shape.
+			tree.Extensions["operation_schemas"] = variantSchemas
+		}
+		if len(variantArgs) > 0 {
+			tree.Extensions["operation_arguments"] = variantArgs
+		}
 	}
 	// Hidden compatibility flags are accepted but deliberately unadvertised.
 	// Docent includes them; filtering is a host policy, without mutating Cobra.
@@ -142,4 +174,5 @@ type Operation struct {
 	Variant           string `json:"variant,omitempty"`
 	Class             string `json:"class"`
 	NoSuccessEnvelope string `json:"no_success_envelope,omitempty"`
+	HasOutputSchema   bool   `json:"has_output_schema,omitempty"`
 }

@@ -84,7 +84,7 @@ func newCommentDelete(deps Deps) *cobra.Command {
 			"# check what would go, without deleting or asking\n" +
 			"$ jira issue comment delete KEY-123 10042 --dry-run",
 		Args: command.ArgSpec{Min: 2, Max: 2, Positions: []command.Arg{
-			{Name: "ISSUE_KEY"},
+			{Name: "ISSUE_KEY", Predictor: "issuekey"},
 			{Name: "COMMENT_ID"},
 		}},
 		Flags: func(c *cobra.Command) {

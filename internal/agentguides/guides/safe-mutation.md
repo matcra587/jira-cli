@@ -47,6 +47,44 @@ even with `--force`.
 
 ### Check field readback and remote metadata
 
+Discover live input before composing a request when fields depend on the Jira
+context:
+
+```sh
+jira issue create --generate-json --project KEY --type Task --output=json
+jira issue edit KEY-123 --generate-json --output=json
+```
+
+Create discovery requires an explicit project key or ID and issue-type name or
+ID, without a summary. It resolves actual native identities and collects every
+create metadata page. Edit discovery retains each issue's edit metadata and
+skeleton separately. Both reads require authentication, work in read-only mode,
+and ask no mutation confirmation. Edit also supports `--jql`, `--filter` or
+`--from-file` through complete selection bounded at 100 issues.
+
+The operations are `issue.create.input` and `issue.edit.input`. Create JSON
+retains the skeleton at `data.payload`. Edit JSON retains it at
+`data.results[].data.payload`. With `--output=compact`, those paths omit only
+the outer `data` wrapper.
+Use compact `--jq '.payload'` for create, or
+`--jq '.results[0].data.payload'` for one explicit edit target, to extract native
+input. Native metadata includes actual field IDs, requiredness, allowed values,
+schemas, defaults, operations and future members. No value or default is chosen.
+Null payload values are placeholders. Fill wanted values, keep required create
+fields, and remove unwanted optional fields or update actions before submitting
+through `--json-input`. A create `complete: true` means collection finished,
+not that the unfilled payload is ready to submit.
+
+Discovery refuses authored-input and mutation options, including explicitly
+empty or false options, `--dry-run`, `--verify`, `--force` and `--notify` where
+registered. Keep local composition previews separate from live metadata reads.
+`issue_type_unknown` and `issue_type_ambiguous` retain native candidates at
+`data.issue_types`. Choose an actual ID rather than guessing from a name.
+`issue_metadata_response_invalid` reports incomplete or unusable native metadata,
+while `issue_metadata_unavailable` reports missing client capability. Retry or
+inspect discovery before constructing input. Metadata remains a snapshot and
+does not guarantee a later write will be accepted.
+
 `issue delete` requires `--force` in scripts and retains ordered outcomes after
 total failure or interruption. Jira refuses parents with subtasks unless
 `--delete-subtasks` is explicit. That flag requests deletion of the subtasks too.

@@ -41,7 +41,7 @@ func TestCacheClearPreflightNeverOpensStorage(t *testing.T) {
 	}{
 		{name: "headless", inv: command.Invocation{}, cancel: false, code: cli.CodeFlagRequired},
 		{name: "unknown resource", inv: command.Invocation{Args: []string{"boardz"}, DryRun: true}, cancel: false, code: cli.CodeArgValueInvalid},
-		{name: "unsupported producer", inv: command.Invocation{Args: []string{"issuekeys"}, DryRun: true}, code: cli.CodeArgValueInvalid},
+		{name: "unsupported producer", inv: command.Invocation{Args: []string{"attachments"}, DryRun: true}, code: cli.CodeArgValueInvalid},
 		{name: "canceled", inv: command.Invocation{DryRun: true}, cancel: true, code: cli.CodeCanceled},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

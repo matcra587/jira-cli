@@ -3,7 +3,7 @@ slug: cache-metadata
 title: Prime and inspect scoped metadata
 description: Store native Jira metadata, inspect freshness locally and refresh explicitly without losing partial outcomes.
 when_to_use: Before repeated metadata discovery or when refreshing a cached board list or issue link types.
-commands: [jira cache labels, jira cache projects, jira cache epics, jira cache fields, jira cache issuetypes, jira cache linktypes, jira cache boards, jira cache statuses, jira cache priorities, jira cache resolutions, jira cache refresh, jira cache clear]
+commands: [jira cache labels, jira cache projects, jira cache epics, jira cache fields, jira cache issuetypes, jira cache linktypes, jira cache boards, jira cache statuses, jira cache priorities, jira cache resolutions, jira cache refresh, jira cache issuekeys, jira cache inspect, jira cache clear]
 order: 42
 ---
 
@@ -26,6 +26,8 @@ jira cache fields --dry-run --output=json
 jira cache boards --dry-run --force --output=json
 jira cache linktypes --dry-run --ttl-minutes=60 --output=json
 jira cache refresh fields labels --dry-run --parallelism=2 --output=json
+jira cache issuekeys --output=json
+jira cache inspect --output=json
 ```
 
 Inspect the preview before removing `--dry-run`. The real command can change local
@@ -39,6 +41,13 @@ its results keep the requested order and use only the first occurrence of each n
 It defaults to one worker. Set `--parallelism`, or `-p`, to a value from 1 to 16
 to change the number of workers.
 
+### Check what is available locally
+
+A malformed entry wrapper does not provide a trustworthy key, size or write
+time. Whole-cache inspection still shows unknown entries. `unclassified`
+counts those entries across the selected site/account cache, even when you
+inspect only one resource.
+
 ## Save
 
 ### Did this command write an entry?
@@ -49,13 +58,33 @@ The native objects preserve unknown members and explicit nulls. Boards also
 return an enriched native snapshot in `payload`, including associated project
 keys and project failures.
 
+`saved` acknowledges a write made by this invocation. Reusing an existing entry
+sets `from_cache=true`, `attempted=false` and `saved=false`.
+In a preview, `would_fetch` tells you whether the real invocation would collect
+new metadata.
+Old data can remain available for inspection without being fresh.
+
+### Is the cached collection complete?
+
+Inspection returns `entries[]` and `resources[]`. Keep each resource's
+`cache_state`, `ttl_minutes`, count and information needed to resume collection.
+There are two different meanings of `complete`: the inspection's value reports
+whether the local scan finished. A resource's value describes its cached
+collection.
+
+An entry's presence does not prove that its payload is valid. The inventory
+scan and resource reads are separate observations, and another process can
+change the cache between them. `known_payload_bytes` excludes wrappers and
+entries with unknown sizes.
+
 ## Preconditions
 
 ### Which account does a preview use?
 
-Previews require public `base_url` and `email` settings or environment values.
-They open no credential store or Jira client and create no cache storage.
-A keyring-only account cannot select an offline preview scope.
+Previews need public `base_url` and `email` values from settings or the
+environment. They open no credential store or Jira client and create no cache
+storage. An account available only from the keyring cannot select the cache
+for an offline preview.
 
 Local history reads, completion and inspection need the same explicit public
 site and account values. They do not open the credential store or contact Jira.

@@ -119,7 +119,7 @@ func newCommentEdit(deps Deps) *cobra.Command {
 			"# fix a typo without emailing everyone about it\n" +
 			"$ jira issue comment edit KEY-123 10042 --markdown 'Fixed.' --notify=false",
 		Args: command.ArgSpec{Min: 2, Max: 2, Positions: []command.Arg{
-			{Name: "ISSUE_KEY"},
+			{Name: "ISSUE_KEY", Predictor: "issuekey"},
 			{Name: "COMMENT_ID"},
 		}},
 		Flags: func(c *cobra.Command) {

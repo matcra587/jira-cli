@@ -131,6 +131,17 @@ func TestLiveCacheMetadataCollectors(t *testing.T) {
 	}
 	liveEnv := []string{"JIRA_READ_ONLY=true", "XDG_CACHE_HOME=" + cacheDir}
 	localEnv := append(slices.Clone(liveEnv), "JIRA_EMAIL="+identity.Data.Email, "JIRA_API_TOKEN=", "JIRA_KEYRING=false", "DBUS_SESSION_BUS_ADDRESS=/dev/null")
+	inspect := func(t *testing.T, resources ...string) envelope.CacheInspectOutput {
+		t.Helper()
+		frame, raw, exit := r.invoke(t, t.Context(), localEnv, append([]string{"cache", "inspect"}, resources...)...)
+		var decoded struct {
+			Data envelope.CacheInspectOutput `json:"data"`
+		}
+		if exit != 0 || !frame.OK || json.Unmarshal(raw, &decoded) != nil || !decoded.Data.Complete || decoded.Data.Email != identity.Data.Email || decoded.Data.Count != len(decoded.Data.Entries) {
+			t.Fatal("credential-free native cache inspection lost scope or observations; inspect local receipts")
+		}
+		return decoded.Data
+	}
 	reader := metadataCLIReader{t: t, r: r}
 	for _, resource := range metacache.MetadataResources() {
 		t.Run(resource.Name, func(t *testing.T) {
@@ -191,6 +202,14 @@ func TestLiveCacheMetadataCollectors(t *testing.T) {
 			if !forced.Attempted || !forced.Saved || forced.FromCache || !forced.Complete {
 				t.Fatal("native forced primer did not fetch and replace metadata")
 			}
+			inspected := inspect(t, resource.Name)
+			if inspected.Resource != resource.Name || inspected.Count != 1 || len(inspected.Resources) != 1 || inspected.KnownPayloadBytes <= 0 || inspected.Unclassified != 0 {
+				t.Fatal("native inspection omitted the persisted producer entry")
+			}
+			row := inspected.Resources[0]
+			if row.Resource != resource.Name || row.CacheState != "fresh" || row.TTLMinutes == nil || *row.TTLMinutes != int(resource.DefaultTTL.Minutes()) || row.Count != forced.Count || row.Pages != forced.Pages || row.Complete != forced.Complete || row.WrittenAt == "" {
+				t.Fatal("native inspection disagrees with the actual producer snapshot")
+			}
 			if resource.Name == "boards" {
 				frame, raw, exit := r.invoke(t, t.Context(), liveEnv, "boards", "list", "--all")
 				var consumer struct {
@@ -219,6 +238,10 @@ func TestLiveCacheMetadataCollectors(t *testing.T) {
 			after := prime(localEnv, "--dry-run")
 			if !after.WouldFetch || after.FromCache || after.Count != 0 || after.Attempted || after.Saved {
 				t.Fatal("native clear left the selected primer entry reusable")
+			}
+			inspected = inspect(t, resource.Name)
+			if inspected.Count != 0 || len(inspected.Resources) != 1 || inspected.Resources[0].CacheState != "missing" || inspected.Resources[0].Count != 0 || inspected.Resources[0].Complete {
+				t.Fatal("native inspection fabricated a cleared producer snapshot")
 			}
 			if resource.Name == "projects" && !slices.ContainsFunc(value.Items, func(raw json.RawMessage) bool {
 				var project struct {
@@ -286,4 +309,89 @@ func TestLiveCacheMetadataCollectors(t *testing.T) {
 			t.Fatal("native forced refresh ignored freshness or collection controls")
 		}
 	}
+	t.Run("inspection", func(t *testing.T) {
+		out := inspect(t)
+		if out.Resource != "all" || out.Count != 10 || len(out.Resources) != 11 || out.Unclassified != 0 || out.KnownPayloadBytes <= 0 {
+			t.Fatal("whole-scope native inspection omitted persisted metadata or resource summaries")
+		}
+		for _, row := range out.Resources {
+			if row.Resource == "issuekeys" {
+				if row.CacheState != "missing" || row.TTLMinutes != nil {
+					t.Fatal("native inspection fabricated issue history or an expiry policy")
+				}
+			} else if row.CacheState != "fresh" || !row.Complete || row.TTLMinutes == nil || row.WrittenAt == "" {
+				t.Fatal("native inspection rejected complete cached producer data")
+			}
+		}
+	})
+	t.Run("issue history", func(t *testing.T) {
+		readHistory := func(want []string) {
+			t.Helper()
+			frame, raw, exit := r.invoke(t, t.Context(), localEnv, "cache", "issuekeys")
+			var decoded struct {
+				Data envelope.CacheIssueKeysOutput `json:"data"`
+			}
+			if exit != 0 || !frame.OK || json.Unmarshal(raw, &decoded) != nil || !slices.Equal(decoded.Data.IssueKeys, want) || decoded.Data.Count != len(want) {
+				t.Fatal("native persisted issue history differs from typed observations; inspect local receipts")
+			}
+		}
+		readHistory([]string{})
+		readKey := requiredEnv(t, "JIRA_LIVE_READ_KEY")
+		frame, _, exit := r.invoke(t, t.Context(), liveEnv, "issue", "view", readKey, "--fields=summary")
+		if exit != 0 || !frame.OK {
+			t.Fatal("native read fixture view failed")
+		}
+		readHistory([]string{readKey})
+		frame, raw, exit := r.invoke(t, t.Context(), liveEnv, "issue", "list", "--project="+r.manifest.Project, "--limit=2")
+		var listed struct {
+			Data envelope.IssueListOutput `json:"data"`
+		}
+		if exit != 0 || !frame.OK || json.Unmarshal(raw, &listed) != nil || len(listed.Data.Issues) != 2 {
+			t.Fatal("native history search did not return two actual identities")
+		}
+		want := []string{}
+		for _, issue := range listed.Data.Issues {
+			want = append(want, issue.Key)
+		}
+		if !slices.Contains(want, readKey) {
+			want = append(want, readKey)
+		}
+		readHistory(want)
+		out := inspect(t, "issuekeys")
+		if out.Count != 1 || len(out.Resources) != 1 || out.Resources[0].Count != len(want) || out.Resources[0].CacheState != "present" || !out.Resources[0].Complete || out.Resources[0].TTLMinutes != nil {
+			t.Fatal("native inspection disagrees with credential-free persisted issue history")
+		}
+		refresh(localEnv, "fields", "labels", "--dry-run")
+		refresh(liveEnv, "fields", "labels")
+		frame, _, exit = r.invoke(t, t.Context(), localEnv, "issue", "edit", readKey, "--summary=Local history preview", "--dry-run")
+		if exit != 0 || !frame.OK {
+			t.Fatal("credential-free issue preview failed")
+		}
+		readHistory(want)
+		for _, preview := range []bool{true, false} {
+			args := []string{"cache", "clear", "issuekeys", "--force"}
+			if preview {
+				args = append(args, "--dry-run")
+			}
+			frame, raw, exit = r.invoke(t, t.Context(), localEnv, args...)
+			var cleared struct {
+				Data envelope.CacheClearOutput `json:"data"`
+			}
+			if exit != 0 || !frame.OK || json.Unmarshal(raw, &cleared) != nil || cleared.Data.WouldRemove != 1 || preview && cleared.Data.Removed != 0 || !preview && cleared.Data.Removed != 1 {
+				t.Fatal("native issue-history clear lost its actual inventory or acknowledgement")
+			}
+			if preview {
+				readHistory(want)
+			} else {
+				readHistory([]string{})
+			}
+		}
+		frame, raw, exit = r.invoke(t, t.Context(), localEnv, "cache", "fields", "--dry-run")
+		var fieldSnapshot struct {
+			Data envelope.CachePrimeOutput `json:"data"`
+		}
+		if exit != 0 || !frame.OK || json.Unmarshal(raw, &fieldSnapshot) != nil || !fieldSnapshot.Data.FromCache {
+			t.Fatal("issue-history clear removed unrelated native metadata")
+		}
+	})
 }

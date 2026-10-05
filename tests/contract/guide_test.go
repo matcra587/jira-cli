@@ -2,6 +2,7 @@ package contract
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -272,9 +273,22 @@ func TestEmbeddedGuideRunRecipesExecute(t *testing.T) {
 	var reads, searches, userSearches, boardReads, projectReads, worklogReads, taskReads atomic.Int32
 	var jqlParses, jqlReferences atomic.Int32
 	var transitionReads atomic.Int32
+	var inputMetadataReads atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.Method + " " + r.URL.Path {
+		case "GET /rest/api/3/project/KEY":
+			inputMetadataReads.Add(1)
+			_, _ = io.WriteString(w, `{"id":"10402","key":"KEY"}`)
+		case "GET /rest/api/3/issue/createmeta/10402/issuetypes":
+			inputMetadataReads.Add(1)
+			_, _ = io.WriteString(w, `{"startAt":0,"maxResults":50,"total":1,"issueTypes":[{"id":"10044","name":"Task"}]}`)
+		case "GET /rest/api/3/issue/createmeta/10402/issuetypes/10044":
+			inputMetadataReads.Add(1)
+			_, _ = fmt.Fprintf(w, `{"startAt":0,"maxResults":50,"total":1,"fields":[%s]}`, inputDiscoveryField)
+		case "GET /rest/api/3/issue/KEY-123/editmeta":
+			inputMetadataReads.Add(1)
+			_, _ = fmt.Fprintf(w, `{"fields":{"customfield_14002":%s}}`, inputDiscoveryField)
 		case "POST /rest/api/3/jql/parse":
 			jqlParses.Add(1)
 			var request struct {
@@ -407,6 +421,12 @@ func TestEmbeddedGuideRunRecipesExecute(t *testing.T) {
 					t.Fatal("published mutation preview did not retain its dry-run receipt")
 				}
 			}
+			if slices.Contains(args, "--generate-json") {
+				var f frame
+				if json.Unmarshal([]byte(stdout), &f) != nil || !f.OK || f.Meta.Command != "issue."+args[1]+".input" {
+					t.Fatal("published live input recipe did not execute the typed read operation")
+				}
+			}
 			if strings.HasPrefix(line, "jira issue transition ") {
 				var f nativeTransitionFrame
 				var payload map[string]json.RawMessage
@@ -431,7 +451,7 @@ func TestEmbeddedGuideRunRecipesExecute(t *testing.T) {
 	if _, err := os.Stat(filepath.Dir(newSettings)); !os.IsNotExist(err) {
 		t.Fatal("published initialization preview created settings or its parent")
 	}
-	if count != 76 || reads.Load() != 2 || searches.Load() != 1 || userSearches.Load() != 3 || boardReads.Load() != 3 || projectReads.Load() != 3 || worklogReads.Load() != 1 || taskReads.Load() != 1 || jqlParses.Load() != 3 || jqlReferences.Load() != 1 || transitionReads.Load() != 1 {
+	if count != 80 || inputMetadataReads.Load() != 4 || reads.Load() != 2 || searches.Load() != 1 || userSearches.Load() != 3 || boardReads.Load() != 3 || projectReads.Load() != 3 || worklogReads.Load() != 1 || taskReads.Load() != 1 || jqlParses.Load() != 3 || jqlReferences.Load() != 1 || transitionReads.Load() != 1 {
 		t.Fatalf("guide recipe coverage changed: recipes=%d GET=%d search=%d user-search=%d boards=%d projects=%d worklogs=%d", count, reads.Load(), searches.Load(), userSearches.Load(), boardReads.Load(), projectReads.Load(), worklogReads.Load())
 	}
 }

@@ -4551,6 +4551,286 @@
       "status": "pass"
     },
     {
+      "op": "cache.inspect",
+      "category": "failure",
+      "mode": "compact",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "cache.inspect",
+      "category": "failure",
+      "mode": "json",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "cache.inspect",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "cache.inspect",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "cache.inspect",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "cache.inspect",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "cache.inspect",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "cache.inspect",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M7",
+      "status": "pass"
+    },
+    {
+      "op": "cache.inspect",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "cache.inspect",
+      "category": "success",
+      "mode": "human_color",
+      "axis": "H5",
+      "status": "pass"
+    },
+    {
+      "op": "cache.inspect",
+      "category": "success",
+      "mode": "human",
+      "axis": "H1",
+      "status": "pass"
+    },
+    {
+      "op": "cache.inspect",
+      "category": "success",
+      "mode": "human",
+      "axis": "H3",
+      "status": "pass"
+    },
+    {
+      "op": "cache.inspect",
+      "category": "success",
+      "mode": "human",
+      "axis": "H4",
+      "status": "pass"
+    },
+    {
+      "op": "cache.inspect",
+      "category": "success",
+      "mode": "json",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "cache.inspect",
+      "category": "success",
+      "mode": "json",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "cache.inspect",
+      "category": "success",
+      "mode": "json",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "cache.inspect",
+      "category": "success",
+      "mode": "json",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "cache.inspect",
+      "category": "success",
+      "mode": "json",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "cache.inspect",
+      "category": "success",
+      "mode": "json",
+      "axis": "M7",
+      "status": "pass"
+    },
+    {
+      "op": "cache.inspect",
+      "category": "success",
+      "mode": "json",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "cache.issuekeys",
+      "category": "failure",
+      "mode": "compact",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "cache.issuekeys",
+      "category": "failure",
+      "mode": "json",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "cache.issuekeys",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "cache.issuekeys",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "cache.issuekeys",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "cache.issuekeys",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "cache.issuekeys",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "cache.issuekeys",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M7",
+      "status": "pass"
+    },
+    {
+      "op": "cache.issuekeys",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "cache.issuekeys",
+      "category": "success",
+      "mode": "human_color",
+      "axis": "H5",
+      "status": "pass"
+    },
+    {
+      "op": "cache.issuekeys",
+      "category": "success",
+      "mode": "human",
+      "axis": "H1",
+      "status": "pass"
+    },
+    {
+      "op": "cache.issuekeys",
+      "category": "success",
+      "mode": "human",
+      "axis": "H3",
+      "status": "pass"
+    },
+    {
+      "op": "cache.issuekeys",
+      "category": "success",
+      "mode": "human",
+      "axis": "H4",
+      "status": "pass"
+    },
+    {
+      "op": "cache.issuekeys",
+      "category": "success",
+      "mode": "json",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "cache.issuekeys",
+      "category": "success",
+      "mode": "json",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "cache.issuekeys",
+      "category": "success",
+      "mode": "json",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "cache.issuekeys",
+      "category": "success",
+      "mode": "json",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "cache.issuekeys",
+      "category": "success",
+      "mode": "json",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "cache.issuekeys",
+      "category": "success",
+      "mode": "json",
+      "axis": "M7",
+      "status": "pass"
+    },
+    {
+      "op": "cache.issuekeys",
+      "category": "success",
+      "mode": "json",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
       "op": "cache.issuetypes",
       "category": "dry_run",
       "mode": "compact",
@@ -10095,6 +10375,182 @@
       "status": "pass"
     },
     {
+      "op": "issue.create.input",
+      "variant": "--generate-json",
+      "category": "failure",
+      "mode": "compact",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "issue.create.input",
+      "variant": "--generate-json",
+      "category": "failure",
+      "mode": "json",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "issue.create.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M10",
+      "status": "pass"
+    },
+    {
+      "op": "issue.create.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "issue.create.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "issue.create.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "issue.create.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "issue.create.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "issue.create.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M7",
+      "status": "pass"
+    },
+    {
+      "op": "issue.create.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "issue.create.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "human_color",
+      "axis": "H5",
+      "status": "pass"
+    },
+    {
+      "op": "issue.create.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "human",
+      "axis": "H1",
+      "status": "pass"
+    },
+    {
+      "op": "issue.create.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "human",
+      "axis": "H3",
+      "status": "pass"
+    },
+    {
+      "op": "issue.create.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "human",
+      "axis": "H4",
+      "status": "pass"
+    },
+    {
+      "op": "issue.create.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "json",
+      "axis": "M10",
+      "status": "pass"
+    },
+    {
+      "op": "issue.create.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "json",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "issue.create.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "json",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "issue.create.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "json",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "issue.create.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "json",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "issue.create.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "json",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "issue.create.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "json",
+      "axis": "M7",
+      "status": "pass"
+    },
+    {
+      "op": "issue.create.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "json",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
       "op": "issue.create",
       "category": "dry_run",
       "mode": "compact",
@@ -10467,6 +10923,214 @@
     },
     {
       "op": "issue.delete",
+      "category": "success",
+      "mode": "json",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.input",
+      "variant": "--generate-json",
+      "category": "failure",
+      "mode": "compact",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.input",
+      "variant": "--generate-json",
+      "category": "failure",
+      "mode": "json",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M1",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M10",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M3",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M7",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "human_color",
+      "axis": "H5",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "human",
+      "axis": "H1",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "human",
+      "axis": "H3",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "human",
+      "axis": "H4",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "json",
+      "axis": "M1",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "json",
+      "axis": "M10",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "json",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "json",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "json",
+      "axis": "M3",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "json",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "json",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "json",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.input",
+      "variant": "--generate-json",
+      "category": "success",
+      "mode": "json",
+      "axis": "M7",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.input",
+      "variant": "--generate-json",
       "category": "success",
       "mode": "json",
       "axis": "M8",
