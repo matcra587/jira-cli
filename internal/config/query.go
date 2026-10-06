@@ -73,14 +73,7 @@ func LoadQueries(ctx context.Context, dir string) (map[string]Query, error) {
 			return nil, fmt.Errorf("saved query %q: %w", name, err)
 		}
 		path := filepath.Join(dir, entry.Name())
-		info, err := os.Stat(path)
-		if err != nil {
-			return nil, fmt.Errorf("inspect saved query %q: %w", name, err)
-		}
-		if !info.Mode().IsRegular() {
-			return nil, fmt.Errorf("saved query %q must be a regular file", name)
-		}
-		data, err := os.ReadFile(path) //nolint:gosec // files selected from the configured saved-query directory
+		data, err := readFileInput(path)
 		if err != nil {
 			return nil, fmt.Errorf("read saved query %q: %w", name, err)
 		}

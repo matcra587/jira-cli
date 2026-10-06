@@ -16,7 +16,7 @@ import (
 
 func TestThemeInputOpenDoesNotWaitForFIFO(t *testing.T) {
 	if path := os.Getenv("JIRA_TEST_THEME_FIFO"); path != "" {
-		file, err := openThemeInput(path)
+		file, err := openFileInput(path)
 		if err != nil {
 			t.Fatal(err)
 		}

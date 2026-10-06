@@ -88,8 +88,14 @@ settings and aliases. Unchanged typed values retain authored bytes and metadata.
 
 ## Preconditions
 
-The selected settings file must have valid syntax and declared types. Selection
-validates the same custom palette during preview and publication. Relative
+### Check the settings file and palette path
+
+If the selected settings file exists, it must be a regular file with valid syntax
+and declared types. Symlinks to regular settings files are supported. A live
+selection can create a missing settings file. A preview creates nothing.
+Selection validates the same custom palette during preview and publication.
+`config theme --path` resolves relative paths from the current working directory
+and stores an absolute path. Relative
 paths authored directly as `theme_path` resolve beside the selected settings
 file, independently of the working directory. `config set theme_path VALUE`
 stores a scalar path; use `config theme --path VALUE` to validate its palette.

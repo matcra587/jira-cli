@@ -155,7 +155,7 @@ func LoadThemeFile(ctx context.Context, path string) (*ThemeFile, error) {
 	if !info.Mode().IsRegular() || info.Size() > MaxThemeFileBytes {
 		return nil, fmt.Errorf("%w: theme input must be a regular file of at most %d bytes", ErrThemeFileInvalid, MaxThemeFileBytes)
 	}
-	file, err := openThemeInput(path)
+	file, err := openFileInput(path)
 	if err != nil {
 		return nil, fmt.Errorf("open theme file: %w", err)
 	}

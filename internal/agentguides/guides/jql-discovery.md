@@ -155,6 +155,9 @@ Each `NAME.jql` file contains JQL, optionally preceded by YAML `---` or TOML
 `+++` frontmatter with `name`, `description` and `project` string metadata.
 Unknown metadata is ignored. The project metadata never adds a hidden filter.
 Empty JQL, malformed frontmatter and path-shaped names are refused.
+Use regular files or symlinks to regular files. Other input types are refused.
+Unix FIFO inputs do not wait for a writer. Each query is read from one opened
+regular file, so replacing its pathname does not change that read's contents.
 
 ```sh
 jira config set queries_path ./queries --no-input

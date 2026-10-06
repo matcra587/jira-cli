@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"time"
 
-	xos "github.com/gechr/x/os"
 	"github.com/gechr/x/shell"
 
 	"github.com/matcra587/jira-cli/internal/core"
@@ -83,11 +82,7 @@ func (c *DiskCache) Get(key string) ([]byte, time.Time, bool) {
 	}
 	defer root.Close() //nolint:errcheck // Read-only descriptor cleanup does not change the cached value.
 	name := filepath.Base(c.path(key))
-	info, err := root.Lstat(name)
-	if err != nil || !info.Mode().IsRegular() {
-		return nil, time.Time{}, false
-	}
-	raw, err := root.ReadFile(name)
+	raw, err := readCacheEntry(root, name)
 	if err != nil {
 		return nil, time.Time{}, false
 	}
@@ -103,9 +98,9 @@ func (c *DiskCache) Get(key string) ([]byte, time.Time, bool) {
 
 // Set stores value under key, stamped with the current time.
 //
-// AtomicWrite publishes a complete entry from a temporary file in the same
-// directory, cleans up any failed publication and syncs the file before rename.
-// On Unix it also syncs the directory. A failed directory sync can return an
+// Publication keeps the identity-checked root open through temporary creation,
+// file sync, rename and Unix directory sync. Replacing the namespace pathname
+// cannot redirect an in-flight write. A failed directory sync can return an
 // error after publication; callers still treat cache storage as best effort.
 func (c *DiskCache) Set(key string, value []byte) error {
 	if err := os.MkdirAll(c.dir, 0o700); err != nil {
@@ -115,16 +110,14 @@ func (c *DiskCache) Set(key string, value []byte) error {
 	if err != nil {
 		return err
 	}
-	if err := root.Close(); err != nil {
-		return err
-	}
 	raw, err := json.Marshal(diskEntry{Key: key, Written: c.clock(), Value: value})
 	if err != nil {
-		return err
+		return errors.Join(err, root.Close())
 	}
 	// 0o600: a cache of one user's Jira configuration is not a secret, but
 	// it is not other users' business either, and it costs nothing.
-	return xos.AtomicWrite(c.path(key), raw, 0o600)
+	err = writeCacheEntry(root, filepath.Base(c.path(key)), raw)
+	return errors.Join(err, root.Close())
 }
 
 // Forget removes one entry, which is what an explicit `--refresh` does

@@ -159,6 +159,10 @@ terminal stdin and stderr. It validates exact edited bytes, permits repairing
 an invalid existing config, and refuses a changed, removed or redirected file.
 Rejected work is saved privately beside the resolved target with a `.rejected`
 suffix when possible. Inspect the error for its location or recovery failure.
+The editor must leave a regular file or a symlink to one. Nonregular scratch
+input is refused without publication. Saved regular bytes remain recoverable
+after editor failure or cancellation. Unreadable input retains its read cause
+alongside the editor or cancellation error.
 This local snapshot check is not an atomic lock against external writers.
 
 ### Distinguish stored settings from effective values

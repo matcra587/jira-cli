@@ -34,6 +34,7 @@ type File struct {
 	path                string
 	original            []byte
 	exists              bool
+	missingCause        error // retained native read failure for an absent explicit path
 }
 
 // SelectedPath selects the global --config path or the platform default.
@@ -58,7 +59,7 @@ func OpenFile(ctx context.Context, path string) (*File, error) {
 	if err != nil {
 		return nil, fmt.Errorf("resolve config link: %w", err)
 	}
-	data, err := os.ReadFile(resolved) //nolint:gosec // selected config path, resolved through the shared path/link owners
+	data, err := readFileInput(resolved)
 	exists := err == nil
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, fmt.Errorf("read config: %w", err)
@@ -72,8 +73,11 @@ func OpenFile(ctx context.Context, path string) (*File, error) {
 			return nil, fmt.Errorf("inspect missing config: %w", linkErr)
 		}
 	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	profile, profileErr := captureFileProfile()
-	return &File{requested: requested, path: resolved, original: data, exists: exists, profileSelection: profile, profileSelectionErr: profileErr}, nil
+	return &File{requested: requested, path: resolved, original: data, exists: exists, profileSelection: profile, profileSelectionErr: profileErr, missingCause: err}, nil
 }
 
 // ReadFile permits an absent default file but refuses an absent explicitly
@@ -86,7 +90,7 @@ func ReadFile(ctx context.Context, path string) (*File, error) {
 		return nil, err
 	}
 	if explicit && !file.Exists() {
-		return nil, fmt.Errorf("read config %s: %w", file.Path(), os.ErrNotExist)
+		return nil, fmt.Errorf("read config %s: %w", file.Path(), file.missingCause)
 	}
 	return file, nil
 }
@@ -120,7 +124,7 @@ func (f *File) Save(ctx context.Context, data []byte) (bool, error) {
 	if resolved != f.path {
 		return false, ErrFileChanged
 	}
-	current, err := os.ReadFile(f.path)
+	current, err := readFileInput(f.path)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return false, fmt.Errorf("re-read config: %w", err)
 	}

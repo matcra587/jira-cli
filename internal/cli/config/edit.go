@@ -104,6 +104,8 @@ func newEdit() *cobra.Command {
 			"the save. Rejected edits are kept beside the target file with a " +
 			"`.rejected` suffix; the error reports whether that recovery copy " +
 			"was saved.\n\n" +
+			"The editor must leave a regular saved file; symlinks to regular " +
+			"files are supported.\n\n" +
 			"On Unix, cancellation interrupts the editor, allowing it to save " +
 			"before exiting; an ignored interrupt triggers a kill after two " +
 			"seconds. Other platforms kill it immediately. Saved changes are " +
@@ -212,17 +214,24 @@ func editFile(ctx context.Context, path string, edit func(scratch string) error)
 	}
 	defer os.RemoveAll(filepath.Dir(scratchPath)) //nolint:errcheck // scratch cleanup must not replace the edit outcome
 
-	if err := edit(scratchPath); err != nil {
-		if saved, readErr := os.ReadFile(scratchPath); readErr == nil && !bytes.Equal(saved, original) { //nolint:gosec // editor scratch file owned by this invocation
-			return zero, rejectEdit(file.Path(), saved, err)
-		}
-		return zero, err
+	editorErr := edit(scratchPath)
+	// Capture one regular-file snapshot, even after cancellation, so saved work
+	// remains recoverable. The shared owner refuses Unix FIFOs without waiting
+	// for a writer. Publication continues to require the command's live context.
+	// This cannot interrupt arbitrary regular-file filesystem I/O.
+	snapshot, err := cfg.ReadFile(context.WithoutCancel(ctx), scratchPath)
+	if ctxErr := ctx.Err(); ctxErr != nil && !errors.Is(editorErr, ctxErr) {
+		editorErr = errors.Join(ctxErr, editorErr)
 	}
-	// Validate the bytes that will be saved, not a second read of the scratch
-	// path: an editor can leave a background writer after its process exits.
-	edited, err := os.ReadFile(scratchPath) //nolint:gosec // editor scratch file owned by this invocation
 	if err != nil {
-		return zero, localIO("read edited file", err)
+		return zero, errors.Join(editorErr, localIO("read edited file", err))
+	}
+	edited := snapshot.Contents()
+	if editorErr != nil {
+		if !bytes.Equal(edited, original) {
+			return zero, rejectEdit(file.Path(), edited, editorErr)
+		}
+		return zero, editorErr
 	}
 	if err := ctx.Err(); err != nil {
 		if !bytes.Equal(original, edited) {
@@ -417,8 +426,12 @@ func editorError(variable, msg string) *cli.InputError {
 	return e
 }
 
-// localIO types a filesystem failure so it does not land on the generic
-// validation advice. Nothing about the caller's input was wrong.
+// localIO distinguishes invalid configuration input from a native filesystem
+// failure, preserving the original cause alongside its actionable category.
 func localIO(what string, err error) error {
-	return fmt.Errorf("%w: %w", configError(cli.CodeLocalIO, what), err)
+	code := cli.CodeLocalIO
+	if errors.Is(err, cfg.ErrFileInvalid) {
+		code = cli.CodeConfigInvalid
+	}
+	return fmt.Errorf("%w: %w", configError(code, what), err)
 }

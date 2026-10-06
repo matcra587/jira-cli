@@ -39,6 +39,89 @@ func TestEditCancellationRefusesSaveAndPreservesWork(t *testing.T) {
 	assertRejectedEdit(t, path, edited)
 }
 
+func TestEditScratchFailureKeepsNativeEditorAndContextCauses(t *testing.T) {
+	t.Parallel()
+	for _, outcome := range []string{"success", "failure", "canceled_success", "canceled_failure"} {
+		t.Run(outcome, func(t *testing.T) {
+			t.Parallel()
+			path := filepath.Join(t.TempDir(), "settings.toml")
+			const original = "read_only=false\n"
+			if err := os.WriteFile(path, []byte(original), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			editorErr := cli.NewInputError(cli.CodeEditorFailed, "editor failed after removing its scratch file")
+			var scratchPath string
+			_, err := editFile(ctx, path, func(scratch string) error {
+				scratchPath = scratch
+				if err := os.Remove(scratch); err != nil {
+					return err
+				}
+				if strings.HasPrefix(outcome, "canceled_") {
+					cancel()
+				}
+				if strings.HasSuffix(outcome, "failure") {
+					return editorErr
+				}
+				return nil
+			})
+			var native *os.PathError
+			if !errors.Is(err, os.ErrNotExist) || !errors.As(err, &native) || native.Path != scratchPath || native.Op != "open" {
+				t.Fatalf("scratch read lost its native cause: %v", err)
+			}
+			wantCode := cli.CodeLocalIO
+			if strings.HasSuffix(outcome, "failure") {
+				wantCode = cli.CodeEditorFailed
+				if !errors.Is(err, editorErr) {
+					t.Fatalf("scratch read lost editor failure: %v", err)
+				}
+			}
+			if strings.HasPrefix(outcome, "canceled_") {
+				wantCode = cli.CodeCanceled
+				if !errors.Is(err, context.Canceled) {
+					t.Fatalf("scratch read lost cancellation: %v", err)
+				}
+			}
+			if cli.MapError(err).Code != wantCode {
+				t.Fatalf("scratch read lost its actionable category: %v", err)
+			}
+			after, readErr := os.ReadFile(path)
+			if readErr != nil || string(after) != original {
+				t.Fatalf("scratch read failure changed settings: %q, %v", after, readErr)
+			}
+		})
+	}
+}
+
+func TestEditCanceledFailedEditorPreservesRegularSavedWork(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "settings.toml")
+	const original = "read_only=false\n"
+	const edited = "# saved despite editor failure\nread_only=true\n"
+	if err := os.WriteFile(path, []byte(original), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	editorErr := cli.NewInputError(cli.CodeEditorFailed, "editor failed after saving")
+	_, err := editFile(ctx, path, func(scratch string) error {
+		if err := os.WriteFile(scratch, []byte(edited), 0o600); err != nil {
+			return err
+		}
+		cancel()
+		return editorErr
+	})
+	if !errors.Is(err, context.Canceled) || !errors.Is(err, editorErr) || cli.MapError(err).Code != cli.CodeCanceled {
+		t.Fatalf("failed editor lost cancellation or its original error: %v", err)
+	}
+	after, readErr := os.ReadFile(path)
+	if readErr != nil || string(after) != original {
+		t.Fatalf("canceled failed editor published settings: %q, %v", after, readErr)
+	}
+	assertRejectedEdit(t, path, edited)
+}
+
 func TestCanceledEditNeverInvokesEditorOrCreatesDirectories(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "missing", "config.toml")
 	ctx, cancel := context.WithCancel(t.Context())
