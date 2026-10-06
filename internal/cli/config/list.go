@@ -2,6 +2,7 @@ package config
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -45,10 +46,16 @@ func newList(deps Deps) *cobra.Command {
 			// redaction is applied per key, not per layer.
 			store, err := deps.Credentials()
 			if err != nil {
+				if errors.Is(err, cfg.ErrFileInvalid) {
+					return envelope.ConfigListOutput{}, localIO("read config", err)
+				}
 				return envelope.ConfigListOutput{}, err
 			}
 			resolved, err := cfg.Load(cfg.Options{Credentials: store})
 			if err != nil {
+				if errors.Is(err, cfg.ErrFileInvalid) {
+					return envelope.ConfigListOutput{}, localIO("read config", err)
+				}
 				return envelope.ConfigListOutput{}, err
 			}
 			return buildOutput(resolved), nil

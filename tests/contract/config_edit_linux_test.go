@@ -115,6 +115,14 @@ func TestConfigEditorHelperProcess(t *testing.T) {
 			os.Exit(23)
 		}
 	}
+	if strings.HasPrefix(mode, "fifo_") {
+		if err := os.Remove(scratch); err != nil {
+			os.Exit(29)
+		}
+		if err := unix.Mkfifo(scratch, 0o600); err != nil {
+			os.Exit(30)
+		}
+	}
 	data, err := json.Marshal(readyEditor{PID: os.Getpid(), Scratch: scratch})
 	if err != nil || os.WriteFile(marker, data, 0o600) != nil {
 		os.Exit(24)
@@ -124,6 +132,13 @@ func TestConfigEditorHelperProcess(t *testing.T) {
 		os.Exit(0)
 	case "failure":
 		os.Exit(25)
+	case "fifo_success":
+		os.Exit(0)
+	case "fifo_failure":
+		os.Exit(25)
+	case "fifo_graceful":
+		<-interrupt
+		os.Exit(0)
 	case "graceful":
 		<-interrupt
 		if err := os.WriteFile(scratch, []byte("# editor saved work\nread_only=true\n"), 0o600); err != nil {
@@ -135,6 +150,78 @@ func TestConfigEditorHelperProcess(t *testing.T) {
 		os.Exit(27)
 	default:
 		os.Exit(28)
+	}
+}
+
+func TestConfigEditorRefusesScratchFIFOAfterExitOrCancellation(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		mode string
+		code string
+		exit int
+	}{
+		{mode: "fifo_success", code: "config_invalid", exit: 3},
+		{mode: "fifo_failure", code: "editor_failed", exit: 3},
+		{mode: "fifo_graceful", code: "canceled", exit: 6},
+	} {
+		t.Run(tc.mode, func(t *testing.T) {
+			t.Parallel()
+			_, input := editorPTY(t)
+			_, diagnostics := editorPTY(t)
+			beforeInput, beforeDiagnostics := editorTermios(t, input), editorTermios(t, diagnostics)
+			dir := t.TempDir()
+			path, marker := filepath.Join(dir, "settings.toml"), filepath.Join(dir, "ready.json")
+			const original = "read_only=false\n"
+			const earlier = "# earlier rejected work\nread_only=true\n"
+			for _, fixture := range []struct{ path, body string }{{path: path, body: original}, {path: path + ".rejected", body: earlier}} {
+				if err := os.WriteFile(fixture.path, []byte(fixture.body), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			executable, err := os.Executable()
+			if err != nil {
+				t.Fatal(err)
+			}
+			editor := strings.Join([]string{shell.Quote(executable), "-test.run=^TestConfigEditorHelperProcess$", "--", tc.mode, shell.Quote(marker)}, " ")
+			var emergency *time.Timer
+			var scratch string
+			var editorPID int
+			hook := func(process *os.Process) {
+				ready := waitEditorReady(t, marker)
+				scratch, editorPID = ready.Scratch, ready.PID
+				emergency = time.AfterFunc(3*time.Second, func() { _ = process.Kill() })
+				if tc.mode == "fifo_graceful" {
+					if err := process.Signal(os.Interrupt); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
+			defer func() {
+				if emergency != nil {
+					emergency.Stop()
+				}
+			}()
+			stdout, _, exit := runBinaryIOStarted(t, []string{"JIRA_EDITOR=" + editor, "JIRA_TEST_EDITOR_PROCESS=1", "JIRA_KEYRING=false", "GORACE=atexit_sleep_ms=0", "TMPDIR=" + dir}, input, diagnostics, hook, "config", "edit", "--config", path, "--output=json")
+			var result apiFrame
+			if exit != tc.exit || json.Unmarshal([]byte(stdout), &result) != nil || result.OK || len(result.Errors) != 1 || result.Errors[0].Code != tc.code || len(result.Data) != 0 && string(result.Data) != "null" {
+				t.Fatalf("scratch FIFO blocked or fabricated a result: exit=%d stdout=%q", exit, stdout)
+			}
+			if editorTermios(t, input) != beforeInput || editorTermios(t, diagnostics) != beforeDiagnostics {
+				t.Fatal("scratch refusal left borrowed terminals changed")
+			}
+			if err := unix.Kill(editorPID, 0); !errors.Is(err, unix.ESRCH) {
+				t.Fatalf("editor was not reaped: %v", err)
+			}
+			for _, fixture := range []struct{ path, body string }{{path: path, body: original}, {path: path + ".rejected", body: earlier}} {
+				got, err := os.ReadFile(fixture.path)
+				if err != nil || string(got) != fixture.body {
+					t.Fatalf("scratch refusal changed stored work: %q, %v", got, err)
+				}
+			}
+			if _, err := os.Stat(filepath.Dir(scratch)); !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf("scratch directory survived refusal: %v", err)
+			}
+		})
 	}
 }
 

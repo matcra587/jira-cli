@@ -56,21 +56,14 @@ func (c *DiskCache) Entries(ctx context.Context) ([]core.CacheEntry, error) {
 			continue
 		}
 		entry := core.CacheEntry{ID: file.Name(), Malformed: true}
-		info, err := root.Lstat(file.Name())
+		raw, err := readCacheEntry(root, file.Name())
 		if errors.Is(err, fs.ErrNotExist) {
 			continue // a concurrent clear removed the entry
 		}
-		if err != nil {
+		if err != nil && !errors.Is(err, errUnsafeCacheEntry) {
 			return result, err
 		}
-		if info.Mode().IsRegular() {
-			raw, err := root.ReadFile(file.Name())
-			if errors.Is(err, fs.ErrNotExist) {
-				continue
-			}
-			if err != nil {
-				return result, err
-			}
+		if err == nil {
 			var stored diskEntry
 			if json.Unmarshal(raw, &stored) == nil && stored.Key != "" &&
 				filepath.Base(c.path(stored.Key)) == file.Name() && !stored.Written.IsZero() {

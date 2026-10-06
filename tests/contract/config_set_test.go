@@ -349,7 +349,9 @@ func TestConfigSetIORefusalNeverReportsPublicationOrChangesSelectedDirectory(t *
 			}
 			stdout, _, exit := runBinaryEnv(t, []string{"JIRA_KEYRING=false"}, args...)
 			var result apiFrame
-			if exit != 3 || json.Unmarshal([]byte(stdout), &result) != nil || result.OK || len(result.Errors) != 1 || result.Errors[0].Code != "local_io_failed" || len(result.Data) != 0 && string(result.Data) != "null" {
+			// Descriptor validation refuses a directory as invalid settings
+			// input before attempting to consume its contents.
+			if exit != 3 || json.Unmarshal([]byte(stdout), &result) != nil || result.OK || len(result.Errors) != 1 || result.Errors[0].Code != "config_invalid" || len(result.Data) != 0 && string(result.Data) != "null" {
 				t.Fatalf("I/O refusal fabricated success or data: exit=%d out=%q", exit, stdout)
 			}
 		}

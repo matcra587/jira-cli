@@ -1,3 +1,3 @@
 kind: changed
-body: "Protect settings and downloads with bound file/directory identities and retained publication outcomes. Retain existing attachment files after failed downloads or pre-publication overwrite failures. A later durability failure retains the acknowledged new file; inspect its receipt before retrying."
+body: "Protect settings, caches and downloads with bound file/directory identities and retained publication outcomes. Refuse substituted nonregular inputs, and retain existing attachment files after failed downloads or pre-publication overwrite failures. A later durability failure retains the acknowledged new file; inspect its receipt before retrying."
 time: 2026-10-02T12:11:15.510965858-04:00

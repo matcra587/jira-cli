@@ -76,6 +76,10 @@ Use the owner; never hardcode those paths in command handlers.
 
 *   `ReadFile` refuses an absent explicit path. `OpenFile` permits a missing
     update target and follows existing config links, refusing dangling links.
+    Layered loads, snapshots and save re-reads validate an opened regular-file
+    descriptor before reading bytes. Unix opens are nonblocking so FIFO inputs
+    refuse without waiting for a writer. This does not impose a file-size limit
+    or interrupt arbitrary regular-file filesystem I/O.
 *   `File.Save` validates the candidate before atomic replacement through the
     pinned `x/os.AtomicWrite`. Changed files have mode `0600`; newly created
     directories are private and existing parent permissions are retained.
@@ -117,11 +121,26 @@ gate or credential dependency for file-only work.
     shell. Real edits require a terminal; preview launches nothing.
     Rejected edits retain a recovery-copy receipt. Terminal supervision belongs
     to `command.RunEditor`, including cancellation and mode restoration.
+    Read the editor's saved scratch bytes through the raw file snapshot owner.
+    Capture regular saved work after cancellation for recovery, then refuse
+    publication through the original context. Nonregular scratch input is
+    refused; editor, context and native read causes remain inspectable.
 
 Credentials belong to `auth login`, the credential-store adapter and the shared
 client construction path. Never add a setting command that persists a token.
 The current backend is the OS keyring; environment credentials may override it.
 Do not advertise 1Password or provider-to-provider `auth migrate` as implemented.
+
+## Saved queries
+
+`LoadQueries` reads literal `.jql` filename stems in filename order through the
+same opened-descriptor reader as settings files. Regular symlinks are supported;
+nonregular targets are refused before reading. Unix FIFO refusal does not wait
+for a writer. A pathname replacement after opening leaves the read on its
+original regular descriptor; this is not a filesystem compare-and-swap.
+Preserve native read causes, nil results on failure, metadata and authored JQL.
+Check cancellation before reads and before returning; no credentials or Jira
+client are needed for local query discovery or `--as-jql`.
 
 ## Theme selection
 

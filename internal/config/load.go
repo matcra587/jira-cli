@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -14,7 +15,6 @@ import (
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/knadh/koanf/providers/confmap"
 	koanfenv "github.com/knadh/koanf/providers/env/v2"
-	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/v2"
 
 	"github.com/matcra587/jira-cli/internal/core"
@@ -192,7 +192,9 @@ func Load(opts Options) (*Resolved, error) {
 	// File, if present.
 	fileLayer := koanf.New(delim)
 	exists := true
-	data, err := file.Provider(path).ReadBytes()
+	// The previous file provider cleaned paths before opening them. Retain
+	// that selection rule while reporting the caller's authored spelling.
+	data, err := readFileInput(filepath.Clean(path))
 	if err != nil {
 		if !errors.Is(err, fs.ErrNotExist) {
 			return nil, fmt.Errorf("load config file %s: %w", path, err)

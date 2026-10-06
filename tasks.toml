@@ -101,6 +101,31 @@ fi
 go test -v -tags=nativekeyring -count=1 -timeout=3m -run='^TestNativeKeyring' ./tests/contract
 """
 
+["test:cache-sync"]
+description = "Verify Linux cache publication with native sync fault injection"
+run = """
+if [ "$(go env GOHOSTOS)" != "linux" ]; then
+  echo "The native cache sync gate requires Linux." >&2
+  exit 1
+fi
+if ! command -v strace >/dev/null 2>&1; then
+  echo "The native cache sync gate requires strace." >&2
+  exit 1
+fi
+go test -v -tags=nativecachesync -count=1 -timeout=3m -run='^TestDiskCacheNativeSync' ./internal/adapters
+"""
+
+["test:query-swap"]
+description = "Verify Linux saved-query reads during native pathname replacement"
+run = """
+if [ "$(go env GOHOSTOS)" != "linux" ] || [ "$(go env GOOS)" != "linux" ]; then
+  echo "The native saved-query swap gate requires Linux host and target." >&2
+  exit 1
+fi
+# The test requires strace or JIRA_TEST_STRACE and fails if tracing is unavailable.
+go test -v -tags=queryswap -count=1 -timeout=60s -run='^TestSavedQueryFileSwapKeepsOpenedRegularSnapshot$' ./tests/contract
+"""
+
 # The metadata-driven anti-gap suite (tests/audit): exact-leaf inventory,
 # expected-cell matrix, corpus captures of the real binary, agent-dx
 # checklist. Hermetic — httptest loopback only, guarded by an unroutable

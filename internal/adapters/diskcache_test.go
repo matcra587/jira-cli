@@ -30,7 +30,9 @@ func TestDiskCacheFailedPublicationRemovesTemporaryFile(t *testing.T) {
 		t.Fatal("failed publication reported success")
 	}
 	var renameError *os.LinkError
-	if !errors.As(err, &renameError) || renameError.Op != "rename" || renameError.New != destination {
+	nativeFailure := nativeCacheRenameFailure(t, filepath.Base(destination))
+	if !errors.As(err, &renameError) || renameError.Op != nativeFailure.Op ||
+		renameError.New != nativeFailure.New || !errors.Is(err, nativeFailure.Err) {
 		t.Fatalf("publication did not preserve the rename error: %v", err)
 	}
 	entries, err := os.ReadDir(cache.dir)
@@ -44,6 +46,36 @@ func TestDiskCacheFailedPublicationRemovesTemporaryFile(t *testing.T) {
 	if err != nil || string(raw) != "untouched" {
 		t.Fatalf("failed publication changed destination: %q, %v", raw, err)
 	}
+}
+
+// Root.Rename's native operation name differs across platforms. Obtain its
+// cause independently of DiskCache rather than assuming os.Rename's shape.
+func nativeCacheRenameFailure(t *testing.T, destination string) *os.LinkError {
+	t.Helper()
+	root, err := os.OpenRoot(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := root.Close(); err != nil {
+			t.Error(err)
+		}
+	})
+	if err := root.WriteFile("source", []byte("source"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := root.Mkdir(destination, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := root.WriteFile(filepath.Join(destination, "keep"), []byte("retained"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	err = root.Rename("source", destination)
+	var nativeFailure *os.LinkError
+	if !errors.As(err, &nativeFailure) {
+		t.Fatalf("native Root.Rename probe did not fail with a link error: %v", err)
+	}
+	return nativeFailure
 }
 
 func TestDiskCachePersistsExactBytesTimestampAndPrivatePermissions(t *testing.T) {

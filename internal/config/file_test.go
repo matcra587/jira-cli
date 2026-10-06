@@ -9,6 +9,16 @@ import (
 	"time"
 )
 
+func TestReadFilePreservesNativeMissingInputCause(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "missing.toml")
+	_, err := ReadFile(t.Context(), path)
+	var native *os.PathError
+	if !errors.Is(err, os.ErrNotExist) || !errors.As(err, &native) || native.Path != path || native.Op != "open" {
+		t.Fatalf("explicit read lost its native missing-file cause: %v", err)
+	}
+}
+
 func TestFileNoopPreservesMetadataWithoutTrustingInvalidBytes(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
