@@ -4,8 +4,6 @@ package audit
 
 import (
 	"encoding/json"
-	"fmt"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -72,26 +70,11 @@ func TestProfileOutputAuditMeasuresEveryNewCell(t *testing.T) {
 			}
 			if cell.Axis == AxisM12 {
 				check = func(cap Capture, _ command.Meta) (bool, string) {
-					siblingMode := ModeJSON
-					if cap.Mode == ModeJSON {
-						siblingMode = ModeCompact
-					}
-					sibling, ok := captures[cap.Scenario.ID+"|"+string(siblingMode)]
+					sibling, ok := siblingModeCaptureFrom(captures, cap)
 					if !ok {
 						return false, "no sibling machine capture"
 					}
-					mine, err := successData(cap)
-					if err != nil {
-						return false, err.Error()
-					}
-					theirs, err := successData(sibling)
-					if err != nil {
-						return false, "sibling capture: " + err.Error()
-					}
-					if !reflect.DeepEqual(mine, theirs) {
-						return false, fmt.Sprintf("data differs across modes: %v vs %v", mine, theirs)
-					}
-					return true, ""
+					return checkSuccessDeterminismPair(cap, sibling)
 				}
 			}
 			if ok, detail := check(capture, member.Meta); !ok {

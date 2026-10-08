@@ -27,6 +27,7 @@ func newInspect(deps PrimeDeps) *cobra.Command {
 			"With a resource, select its inventory and producer summary; boards includes saved-filter selector entries. Unknown or malformed entries appear in the whole-scope inventory. " +
 			"Accepted resources: " + strings.Join(ClearResourceNames(), ", ") + ".\n\n" +
 			"Resource freshness uses each producer's default TTL and actual payload validator. Issue-key history has no TTL. " +
+			"Transition hints have a five-minute TTL from the observed read and one summary per issue at resources[].issue_key. They are recorded by explicit issue transition list reads, not a remote cache primer. " +
 			"Inventory entries describe stored wrappers; their presence does not prove payload validity. Malformed wrappers have no trusted key, size or write time. " +
 			"Resources retain collector bounds and resume facts. Use a resource primer with --dry-run to inspect native values. " +
 			"Reads are not locked or atomic with other processes; a concurrent write or clear can change the later resource observation. " +
@@ -99,6 +100,14 @@ func runInspect(ctx context.Context, deps PrimeDeps, inv command.Invocation) (en
 		if err := ctx.Err(); err != nil {
 			return out, err
 		}
+		if name == "transitions" {
+			rows, err := inspectTransitionHints(ctx, scope.Store, entries)
+			out.Resources = append(out.Resources, rows...)
+			if err != nil {
+				return out, err
+			}
+			continue
+		}
 		row := envelope.CacheInspectResource{Resource: name}
 		var written time.Time
 		if name == "issuekeys" {
@@ -141,7 +150,11 @@ func renderInspect(v *output.View, env envelope.Envelope) error {
 		v.Line("inspection incomplete; retained observations may omit entries or resources")
 	}
 	for _, row := range out.Resources {
-		v.Line(cli.Text(row.Resource), cli.Text(row.CacheState), strconv.Itoa(row.Count), "cached items")
+		label := row.Resource
+		if row.IssueKey != "" {
+			label += " " + row.IssueKey
+		}
+		v.Line(cli.Text(label), cli.Text(row.CacheState), strconv.Itoa(row.Count), "cached items")
 		if row.TruncatedReason != "" {
 			v.Line("collection bounded by", cli.Text(row.TruncatedReason))
 		}

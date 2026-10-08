@@ -19,6 +19,9 @@ pipeable, composable. The contract serves what Jira is; nothing is silent
 
 ## Architecture
 
+`AGENTS.md` is the cross-agent entrypoint for these project standards. Update it
+and the relevant `.claude/rules/` owner documentation when a capability changes.
+
 *   **cmd/jira → internal/cli/root** — conductor (cli/cobra) dispatch;
     composition root with lazy Deps (help/version construct no client);
     the error taxonomy in `internal/cli` maps to the 0–8 exit contract
@@ -41,6 +44,15 @@ pipeable, composable. The contract serves what Jira is; nothing is silent
     `jql/parse` reads are the ONLY retryable requests;
     writes are never auto-replayed, redirects on unsafe methods are
     refused, `Retry-After` is clamped and jittered.
+*   **internal/cli/completion/native** — licensed backports of reviewed clib
+    Bash/PowerShell/Zsh generator repairs through `complete.RegisterShell`. The root registers
+    them once before exposing generators. Reuse clib's public metadata and
+    validation; do not rewrite printed scripts or break versioned `go install`
+    with a module replacement. Other shells use their native library generators.
+*   **internal/cli/cache/transitions.go** — bounded per-issue ID/name/destination
+    hints from explicit successful workflow reads. The observed read starts the
+    five-minute TTL; site/account scope remains adapter-owned. Completion reads
+    local hints only and never uses cached availability as mutation permission.
 
 ## Hard rules
 
@@ -75,3 +87,13 @@ tree before trusting any path, function, or package they name.**
 The embedded guides and runtime schema (`jira agent guide`, `jira agent schema`)
 are the authoritative CLI behavior sources. Update them with behavior changes;
 keep workflow instructions in the embedded guides rather than copying them here.
+
+Completion generation removes Cobra's combined boolean `h/help` spec when
+Conductor supplies separate short and long help descriptions. Keep this repair
+at the shared `WithGenerator` model boundary: duplicate options break Fish's
+`argparse` dispatch before a predictor can run. Exercise the generated script.
+Completed failed transition discovery invalidates old hints even if another
+issue subsequently cancels the command; canceled or unstarted reads do not.
+
+Native cache acceptance uses descriptor-relative readers matching Windows delete
+sharing, with independent wrapper decoding; see `.claude/rules/tests.md`.

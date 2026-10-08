@@ -38,7 +38,7 @@ func newMoveFields(deps Deps) *cobra.Command {
 			in.cmd = cmd
 			command.AddKeyedFlags(cmd, &keyed)
 			command.AddMutationFlags(cmd, &mutation, command.WithForce())
-			command.AddStringVar(cmd, &in.jsonInput, command.FlagJSONInput, "", "Read a fields/update issue payload from a file; - reads standard input", command.FlagOpts{Terse: "Native field payload", Placeholder: "path"})
+			command.AddStringVar(cmd, &in.jsonInput, command.FlagJSONInput, "", "Read a fields/update issue payload from a file; - reads standard input", command.FlagOpts{Terse: "Native field payload", Placeholder: "path", Hint: "file"})
 			command.AddHiddenAliases(cmd, command.ADFRouteAliases())
 		},
 		Validate: func() error {

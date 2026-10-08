@@ -131,7 +131,7 @@ func newView(deps Deps) *cobra.Command {
 					"'comment'/'comments' or Jira's '*all' wildcard renders every "+
 					"comment in the response ('-comment'/'-comments' always "+
 					"suppresses that, even alongside a wildcard)",
-				command.FlagOpts{Terse: "Fields", Placeholder: "list"})
+				command.FlagOpts{Terse: "Fields", Placeholder: "list", Complete: "predictor=cachefield,comma"})
 			command.AddStringSliceVar(c, &expand, "expand", nil,
 				"Native issue expansions (comma-separated); replaces the preset; --expand= disables them",
 				command.FlagOpts{Terse: "Expansions", Placeholder: "list", Enum: strings.Split(command.IssueExpansionValues, ",")})

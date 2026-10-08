@@ -304,6 +304,17 @@ func fwParse(t *testing.T, r fwResult) fwEnvelope {
 	return env
 }
 
+// fwSuccess validates execution before callers interpret or credit result data.
+// fwParse also serves refusals, so decoding alone cannot establish success.
+func fwSuccess(t *testing.T, r fwResult) fwEnvelope {
+	t.Helper()
+	env := fwParse(t, r)
+	if r.Exit != 0 || !env.OK || len(env.Errs) != 0 {
+		t.Fatalf("expected successful invocation, got exit=%d ok=%t errors=%d\nstdout: %s\nstderr: %s", r.Exit, env.OK, len(env.Errs), r.Stdout, r.Stderr)
+	}
+	return env
+}
+
 // fwHasWarning reports whether the envelope carries a warning of the
 // given type.
 func fwHasWarning(env fwEnvelope, typ string) bool {

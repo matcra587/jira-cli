@@ -216,6 +216,13 @@ func TestCommittedBaselineParses(t *testing.T) {
 	if err := json.Unmarshal(raw, &doc); err != nil {
 		t.Fatalf("baseline does not parse: %v", err)
 	}
+	members, problems := liveMembers()
+	if len(problems) > 0 {
+		t.Fatalf("baseline inventory is not clean: %v", problems)
+	}
+	if problems := verifyMatrix(expectedCells(members), doc.Cells, exemptions); len(problems) > 0 {
+		t.Errorf("baseline does not reconcile with the current inventory: %v", problems)
+	}
 	for _, cell := range doc.Cells {
 		if cell.Status != "pass" && !isExempt(ExpectedCell{Op: cell.Op, Variant: cell.Variant, Category: Category(cell.Category), Mode: Mode(cell.Mode), Axis: Axis(cell.Axis)}) {
 			t.Errorf("baseline carries a non-exempt red cell %s — the zero-red ratchet forbids committing it", cell.Key())

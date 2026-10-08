@@ -74,11 +74,12 @@ type BodyFlags struct {
 
 // bodyNames is one command's body-flag spellings.
 type bodyNames struct {
-	jsonInput string
-	markdown  string
-	file      string
-	jsonHelp  string
-	jsonTerse string
+	jsonInput   string
+	markdown    string
+	file        string
+	jsonHelp    string
+	jsonTerse   string
+	jsonForward bool
 }
 
 // BodyOption customizes AddBodyFlags. Functional options for the reason
@@ -86,6 +87,12 @@ type bodyNames struct {
 // same way, and a registrar that forced one spelling would re-ship the
 // undiscoverable flag name §3.1 exists to fix.
 type BodyOption func(*bodyNames)
+
+// WithJSONInputForwarding declares that native input changes positional roles.
+// Completion receives only the authored path; it must never read its contents.
+func WithJSONInputForwarding() BodyOption {
+	return func(n *bodyNames) { n.jsonForward = true }
+}
 
 // WithJSONInputHelp declares the JSON surface of a compound input owner.
 // It changes registration only; that owner must parse its native request and
@@ -179,11 +186,11 @@ func AddBodyFlags(cmd *cobra.Command, f *BodyFlags, opts ...BodyOption) {
 		FlagOpts{Terse: "Body as Markdown", Placeholder: "text"})
 	AddStringVar(cmd, &f.MarkdownFile, names.file, "",
 		"Read the Markdown body from this file, or `-` for standard input",
-		FlagOpts{Terse: "Body from file", Placeholder: "path"})
+		FlagOpts{Terse: "Body from file", Placeholder: "path", Hint: "file"})
 	if names.jsonInput != "" {
 		AddStringVar(cmd, &f.JSONInput, names.jsonInput, "",
 			names.jsonHelp,
-			FlagOpts{Terse: names.jsonTerse, Placeholder: "path"})
+			FlagOpts{Terse: names.jsonTerse, Placeholder: "path", Hint: "file", Forward: names.jsonForward})
 	}
 
 	AddHiddenAliases(cmd, bodyAliasesFor(names))

@@ -59,7 +59,7 @@ func (f *issueWriteFlags) register(cmd *cobra.Command, verb command.IssueWriteVe
 	command.AddIssueFieldFlags(cmd, &f.fields, verb)
 	command.AddStringVar(cmd, &f.jsonInput, command.FlagJSONInput, "",
 		"Read the whole native issue payload, including fields, update and other request members, from this JSON file, or `-` for standard input",
-		command.FlagOpts{Terse: "Payload from file", Placeholder: "path"})
+		command.FlagOpts{Terse: "Payload from file", Placeholder: "path", Hint: "file"})
 
 	// The ADF route's own aliases, registered against the flag THIS
 	// command owns. They come from the shared table rather than a second

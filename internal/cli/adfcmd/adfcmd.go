@@ -25,7 +25,7 @@ const flagInput = "input"
 // New constructs local commands without a client or credential capability.
 func New() *cobra.Command {
 	group := &cobra.Command{Use: "adf", Short: "Convert and review rich text without contacting Jira", Args: cobra.NoArgs}
-	group.AddCommand(newConvert(), newRender(), newValidate(), newLint(), newExplain())
+	group.AddCommand(newConvert(), newRender(), newValidate(), newLint(), newExplain(), newEdit())
 	return group
 }
 
@@ -132,28 +132,34 @@ func newRender() *cobra.Command {
 }
 
 func addInput(c *cobra.Command, input *string, kind string) {
-	command.AddStringVar(c, input, flagInput, command.StdinPath, kind+" file; - reads piped stdin", command.FlagOpts{Terse: "Input file", Placeholder: "file"})
+	command.AddStringVar(c, input, flagInput, command.StdinPath, kind+" file; - reads piped stdin", command.FlagOpts{Terse: "Input file", Placeholder: "file", Hint: "file"})
 }
 
 func readInput(ctx context.Context, inv command.Invocation, path string) ([]byte, error) {
+	return readTextInput(ctx, inv, flagInput, path, false)
+}
+
+// Empty edited Markdown is meaningful: it deletes all editable source regions.
+// Native documents and ordinary authoring input retain their nonempty contract.
+func readTextInput(ctx context.Context, inv command.Invocation, field, path string, allowEmpty bool) ([]byte, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	data, err := command.ReadInputFileContext(ctx, flagInput, path, inv.Stdin, inv.StdinIsTerminal)
+	data, err := command.ReadInputFileContext(ctx, field, path, inv.Stdin, inv.StdinIsTerminal)
 	if err != nil {
 		return nil, err
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	if xstrings.IsBlank(string(data)) {
-		err := cli.NewInputError(cli.CodeFlagValueInvalid, "--input is empty; supply Markdown or a native ADF document")
-		err.Field = flagInput
+	if !allowEmpty && xstrings.IsBlank(string(data)) {
+		err := cli.NewInputError(cli.CodeFlagValueInvalid, "--"+field+" is empty; supply Markdown or a native ADF document")
+		err.Field = field
 		return nil, err
 	}
 	if !utf8.Valid(data) {
-		err := cli.NewInputError(cli.CodeFlagValueInvalid, "--input must contain valid UTF-8 text")
-		err.Field = flagInput
+		err := cli.NewInputError(cli.CodeFlagValueInvalid, "--"+field+" must contain valid UTF-8 text")
+		err.Field = field
 		return nil, err
 	}
 	return data, nil

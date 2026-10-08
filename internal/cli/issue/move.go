@@ -42,7 +42,7 @@ func newMove(deps Deps) *cobra.Command {
 			flags.cmd = cmd
 			command.AddKeyedFlags(cmd, &keyed, command.WithoutParallelism("one native bulk job is submitted; identity reads are bounded and serial"))
 			command.AddMutationFlags(cmd, &flags.mutation, command.WithForce(), command.WithValidateRemote())
-			command.AddStringVar(cmd, &flags.input, command.FlagJSONInput, "", "Read the whole native bulk move request from a file; - reads standard input", command.FlagOpts{Terse: "Native move payload", Placeholder: "path"})
+			command.AddStringVar(cmd, &flags.input, command.FlagJSONInput, "", "Read the whole native bulk move request from a file; - reads standard input", command.FlagOpts{Terse: "Native move payload", Placeholder: "path", Hint: "file"})
 			command.AddHiddenAliases(cmd, command.ADFRouteAliases())
 			flags.poll.register(cmd)
 		},

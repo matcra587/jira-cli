@@ -9,10 +9,23 @@ order: 42
 
 ## Decide
 
-Select `labels`, `projects`, `epics`, `fields`, `issuetypes`, `linktypes`, `boards`,
-`statuses`, `priorities` or `resolutions`. Each primer reads visible metadata
-and stores it for the selected site and account. A validated fresh entry avoids
-Jira requests. `--force` fetches again regardless of freshness.
+Use the cache when you need to reuse Jira metadata or supply local shell
+suggestions. Entries belong to the selected site and account. A valid, fresh
+entry saves a Jira request. `--force` fetches again even if the entry is fresh.
+
+Choose `labels`, `projects`, `epics`, `fields`, `issuetypes`, `linktypes`,
+`boards`, `statuses`, `priorities` or `resolutions`. Each command reads metadata
+visible to your account and stores it locally. This is called priming the cache.
+
+Use `cache inspect` to check what is already stored. Use `cache refresh` to
+check several resources together. Use `cache clear` to remove entries. Clearing
+does not refresh them. Recent issue keys and transition hints have separate
+rules below.
+
+Previews, inspection and completion need public `base_url` and `email` values
+from settings or the environment. Check Preconditions before running the
+examples. Fetching new metadata requires authentication. These local reads and
+previews do not open credentials.
 
 ## Run
 
@@ -47,6 +60,59 @@ A malformed entry wrapper does not provide a trustworthy key, size or write
 time. Whole-cache inspection still shows unknown entries. `unclassified`
 counts those entries across the selected site/account cache, even when you
 inspect only one resource.
+
+To remove entries, use `cache clear`. A live clear in headless, agent or
+`--no-input` mode requires `--force`. A clear preview needs no `--force`.
+Removing entries does not collect replacement metadata.
+
+### Use recent issue keys
+
+`cache issuekeys` shows the selected account's fifty most recent issue keys,
+newest first. Issue reads and live issue operations record valid typed keys in
+the ordinary account-scoped cache. Repeating a key moves it to the front.
+Keys from one search enter history together, in Jira's order, ahead of older
+entries. A history-recording failure does not fail the
+operation that produced the key.
+
+Previews leave history unchanged. History does not expire, and refresh leaves
+it alone. Use `cache clear issuekeys --force` to reset it. Completion reads the
+same history locally. Missing or malformed history produces no candidates.
+
+### Get shell suggestions from the cache
+
+Completion uses fresh local snapshots of the ten resources. It applies each
+resource's default freshness period, rather than fetching or refreshing data.
+It never contacts Jira, opens credentials or changes storage.
+
+On supported flags, projects offer keys, fields offer native IDs, and epics
+offer issue keys. Named metadata retains its names. Board-name selectors offer
+locally unambiguous names. Board-ID selectors offer numeric IDs, including boards
+with ambiguous names. For example, `--board` selects names and `--board-id`
+selects IDs. Board descriptions include observed
+type and project information, with incomplete project enrichment marked.
+
+Missing, stale, future-dated or malformed snapshots produce no suggestions.
+A fresh snapshot can still contain only some values, and a value may be
+unavailable for the project or operation you intend. Inspect the cache and
+explicitly prime or refresh it when needed. CSV flags complete comma-separated
+values. Repeated epic `--project` values remain literal.
+
+Attachment completion changes with the input form:
+
+| Input form | Positional suggestions | Flag suggestions |
+| --- | --- | --- |
+| Without `--file` | Recent issue keys for the first argument; local paths for later arguments | Not applicable |
+| With `--file` | Issue keys in every position | CSV file paths for `--file` |
+
+A quoted comma remains part of a filename, and completed CSV fields keep their
+spelling. Quote the whole CSV argument when any member needs quoting. This
+matters especially when continuing a bare comma expression in PowerShell.
+Path suggestions list one bounded local directory. They read neither file
+contents nor credentials. Missing or incomplete inventories give no suggestions.
+
+In Fish, an unquoted separate value can be ambiguous when it resembles the
+active inline option: `--file --file=name`. Quote the whole CSV field to
+complete that literal filename: `--file '"--file=name"'`.
 
 ## Save
 

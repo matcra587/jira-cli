@@ -7,11 +7,13 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
 
+	"github.com/matcra587/jira-cli/internal/cli"
 	"github.com/matcra587/jira-cli/internal/envelope"
 )
 
@@ -111,6 +113,26 @@ func TestIssueHistoryBinaryRecordsAcrossProcessesAndScopesWithoutChangingPreview
 	if exit != 0 || stdout != "DEMO-3\nDEMO-1\nDEMO-2\n" {
 		t.Fatalf("completion exit=%d stdout=%q stderr=%q", exit, stdout, stderr)
 	}
+	for _, tc := range []struct {
+		kind string
+		args []string
+		want string
+	}{
+		{kind: "attachmentissuekey", want: "DEMO-3\nDEMO-1\nDEMO-2\n"},
+		{kind: "attachmentissuekey", args: []string{"DEMO-1"}},
+		{kind: "attachmentissuekey", args: []string{"--file=DEMO-99", "DEMO-1"}, want: "DEMO-3\nDEMO-1\nDEMO-2\n"},
+		{kind: "transitionissuekey", args: []string{"DEMO-1"}},
+		{kind: "transitionissuekey", args: []string{"--transition=31", "DEMO-1"}, want: "DEMO-3\nDEMO-1\nDEMO-2\n"},
+		{kind: "transitionissuekey", args: []string{"--status=31", "DEMO-1"}, want: "DEMO-3\nDEMO-1\nDEMO-2\n"},
+		{kind: "transitionissuekey", args: []string{"--transition=31", "--jql=project = DEMO"}},
+		{kind: "transitionissuekey", args: []string{"--json-input=absent", "DEMO-1"}},
+	} {
+		args := append([]string{"--@complete=" + tc.kind, "--"}, tc.args...)
+		stdout, stderr, exit := runBinaryEnv(t, local, args...)
+		if exit != 0 || stdout != tc.want {
+			t.Fatalf("contextual completion %v exit=%d stdout=%q stderr=%q, want %q", args, exit, stdout, stderr, tc.want)
+		}
+	}
 	stdout, stderr, exit = runBinaryEnv(t, local, "cache", "clear", "issuekeys", "--dry-run", "--output=json")
 	if exit != 0 || !strings.Contains(stdout, `"would_remove":1`) {
 		t.Fatalf("clear preview exit=%d stdout=%q stderr=%q", exit, stdout, stderr)
@@ -144,6 +166,7 @@ func TestIssueInputDiscoveryBinaryRecordsHistoryOnlyAfterReads(t *testing.T) {
 		selector      bool
 		localRefused  bool
 		authRefused   bool
+		authMissing   bool
 		nativeRefused bool
 		nativeStatus  int
 		nativeCode    string
@@ -158,7 +181,8 @@ func TestIssueInputDiscoveryBinaryRecordsHistoryOnlyAfterReads(t *testing.T) {
 		{name: "agent", mode: "agent", wantRequests: 1, wantKeys: []string{"DEMO-1"}},
 		{name: "selector", mode: "json", selector: true, wantRequests: 3, wantKeys: []string{"DEMO-1", "DEMO-2"}},
 		{name: "local refusal", mode: "json", localRefused: true, wantExit: 3},
-		{name: "credential configuration refusal", mode: "json", authRefused: true, wantExit: 3},
+		{name: "credential store refusal", mode: "json", authRefused: true, wantExit: cli.ExitAuth},
+		{name: "missing token refusal", mode: "json", authMissing: true, wantExit: cli.ExitValidation},
 		{name: "native refusal", mode: "json", nativeRefused: true, wantExit: 2, wantRequests: 1, wantKeys: []string{"DEMO-1"}},
 		{name: "native bad request", mode: "json", nativeStatus: http.StatusBadRequest, nativeCode: "jira_bad_request", wantExit: 3, wantRequests: 1, wantKeys: []string{"DEMO-1"}},
 		{name: "native precondition failure", mode: "json", nativeStatus: http.StatusPreconditionFailed, nativeCode: "jira_precondition_failed", wantExit: 3, wantRequests: 1, wantKeys: []string{"DEMO-1"}},
@@ -166,6 +190,9 @@ func TestIssueInputDiscoveryBinaryRecordsHistoryOnlyAfterReads(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+			if tc.authRefused && runtime.GOOS != "linux" {
+				t.Skip("unavailable-store fixture requires isolated Linux D-Bus")
+			}
 			var requests atomic.Int32
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				requests.Add(1)
@@ -218,6 +245,9 @@ func TestIssueInputDiscoveryBinaryRecordsHistoryOnlyAfterReads(t *testing.T) {
 			if tc.authRefused {
 				env = append(env, "JIRA_API_TOKEN=", "JIRA_KEYRING=true", "DBUS_SESSION_BUS_ADDRESS=/dev/null")
 			}
+			if tc.authMissing {
+				env = append(env, "JIRA_API_TOKEN=", "JIRA_KEYRING=false")
+			}
 			if tc.renderRefused {
 				args = append(args, `--jq=error("filter refused")`)
 			}
@@ -237,19 +267,25 @@ func TestIssueInputDiscoveryBinaryRecordsHistoryOnlyAfterReads(t *testing.T) {
 					t.Fatalf("native refusal lost its retained typed row or taxonomy: err=%v want=%s stdout=%q", err, tc.nativeCode, stdout)
 				}
 			}
-			if tc.localRefused || tc.authRefused {
+			if tc.localRefused || tc.authRefused || tc.authMissing {
 				var f struct {
 					Errors []envelope.Error `json:"errors"`
 				}
 				wantCode := "flag_not_applicable"
 				if tc.authRefused {
+					wantCode = cli.CodeAuthStoreUnavailable
+				}
+				if tc.authMissing {
 					wantCode = "validation_failed"
 				}
 				if err := json.Unmarshal([]byte(stdout), &f); err != nil || len(f.Errors) != 1 || f.Errors[0].Code != wantCode {
 					t.Fatalf("pre-read refusal lost its established taxonomy: err=%v want=%s stdout=%q", err, wantCode, stdout)
 				}
-				if tc.authRefused && !strings.Contains(f.Errors[0].Message, "api_token not set") {
+				if tc.authMissing && !strings.Contains(f.Errors[0].Message, "api_token not set") {
 					t.Fatal("credential control refused something other than the missing token")
+				}
+				if tc.authRefused && strings.Contains(f.Errors[0].Message, "api_token not set") {
+					t.Fatal("unavailable credential store was reported as a missing token")
 				}
 			}
 			local := append(slices.Clone(env), "JIRA_API_TOKEN=", "JIRA_KEYRING=true", "DBUS_SESSION_BUS_ADDRESS=/dev/null")
@@ -375,20 +411,26 @@ func TestIssueHistoryOrdinaryBinaryRetainsNativeValidationFailures(t *testing.T)
 		status       int
 		localRefused bool
 		authRefused  bool
+		authMissing  bool
 		readOnly     bool
 		wantRequests int32
 		wantKeys     []string
+		wantExit     int
 	}{
 		{name: "native bad request", status: http.StatusBadRequest, code: "jira_bad_request", wantRequests: 1, wantKeys: []string{"DEMO-1"}},
 		{name: "native precondition failure", status: http.StatusPreconditionFailed, code: "jira_precondition_failed", wantRequests: 1, wantKeys: []string{"DEMO-1"}},
 		{name: "native conflict", status: http.StatusConflict, code: "jira_request_failed", wantRequests: 1, wantKeys: []string{"DEMO-1"}},
 		{name: "native unprocessable entity", status: http.StatusUnprocessableEntity, code: "jira_request_failed", wantRequests: 1, wantKeys: []string{"DEMO-1"}},
 		{name: "local body refusal", localRefused: true, code: "flag_required"},
-		{name: "credential configuration refusal", authRefused: true, code: "validation_failed"},
+		{name: "credential store refusal", authRefused: true, code: cli.CodeAuthStoreUnavailable, wantExit: cli.ExitAuth},
+		{name: "missing token refusal", authMissing: true, code: "validation_failed"},
 		{name: "read only refusal", readOnly: true, code: "read_only_blocked"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+			if tc.authRefused && runtime.GOOS != "linux" {
+				t.Skip("unavailable-store fixture requires isolated Linux D-Bus")
+			}
 			var requests atomic.Int32
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				requests.Add(1)
@@ -413,6 +455,9 @@ func TestIssueHistoryOrdinaryBinaryRetainsNativeValidationFailures(t *testing.T)
 			if tc.authRefused {
 				env = append(env, "JIRA_API_TOKEN=", "JIRA_KEYRING=true", "DBUS_SESSION_BUS_ADDRESS=/dev/null")
 			}
+			if tc.authMissing {
+				env = append(env, "JIRA_API_TOKEN=", "JIRA_KEYRING=false")
+			}
 			body := "Authored comment"
 			if tc.localRefused {
 				body = ""
@@ -422,7 +467,11 @@ func TestIssueHistoryOrdinaryBinaryRetainsNativeValidationFailures(t *testing.T)
 				Errors []envelope.Error               `json:"errors"`
 				Data   envelope.IssueCommentAddOutput `json:"data"`
 			}
-			if exit != 3 || requests.Load() != tc.wantRequests || json.Unmarshal([]byte(stdout), &f) != nil || len(f.Errors) != 1 || f.Errors[0].Code != tc.code {
+			wantExit := tc.wantExit
+			if wantExit == 0 {
+				wantExit = cli.ExitValidation
+			}
+			if exit != wantExit || requests.Load() != tc.wantRequests || json.Unmarshal([]byte(stdout), &f) != nil || len(f.Errors) != 1 || f.Errors[0].Code != tc.code {
 				t.Fatalf("ordinary native refusal exit=%d requests=%d want=%d code=%s; stdout=%q stderr=%q", exit, requests.Load(), tc.wantRequests, tc.code, stdout, stderr)
 			}
 			if tc.wantRequests != 0 && (len(f.Data.Results) != 1 || f.Data.Results[0].Err == nil || f.Data.Results[0].Err.Code != tc.code) {

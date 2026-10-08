@@ -234,7 +234,7 @@ func newCommentList(deps Deps) *cobra.Command {
 			command.AddStringVar(c, &order, flagCommentOrder, "",
 				fmt.Sprintf("Read the thread %s-first (the default) or %s-first",
 					orderNewest, orderOldest),
-				command.FlagOpts{Terse: "Thread order", Placeholder: "direction"})
+				command.FlagOpts{Terse: "Thread order", Placeholder: "direction", Enum: []string{orderNewest, orderOldest}})
 		},
 		Validate: func() error {
 			if start < 0 {

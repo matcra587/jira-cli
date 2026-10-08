@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -83,6 +84,32 @@ func TestProfileCommandsStayLocalAndPreserveOtherProfiles(t *testing.T) {
 	}
 	if len(listing.Data.Profiles) != 1 || listing.Data.Profiles[0].Name != "personal" {
 		t.Fatalf("wrong removal: %+v", listing.Data)
+	}
+}
+
+func TestProfileCompletionUsesSelectedFileWithoutCredentials(t *testing.T) {
+	t.Setenv("JIRA_PROFILE", "")
+	if err := os.Unsetenv("JIRA_PROFILE"); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "settings.toml")
+	data := "format_version = 1\ndefault_profile = 'work'\n[profiles.work]\nbase_url = 'https://example.invalid'\nemail = 'person@example.invalid'\n[profiles.other]\nbase_url = 'https://other.example.invalid'\n"
+	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	names := profileCandidates([]string{"--config", path})
+	if !slices.Equal(names, []string{"other\tConfigured profile", "work\tConfigured profile"}) {
+		t.Fatalf("wrong completion: %q", names)
+	}
+	layer := globalFlagLayer([]string{"issue", "list", "-P", "other", "--config", path})
+	if layer.Profile != "other" || !layer.ProfileSet || layer.Path != path {
+		t.Fatalf("global selection lost: %+v", layer)
+	}
+	applyGlobalFlags(nil)
+	program, _ := newProgram(testDeps(t), &bytes.Buffer{}, &bytes.Buffer{})
+	flag := program.Root.PersistentFlags().Lookup("profile")
+	if flag == nil || flag.Shorthand != "P" {
+		t.Fatal("profile flag missing from real tree")
 	}
 }
 

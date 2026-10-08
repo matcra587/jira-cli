@@ -34,21 +34,17 @@ var _ core.CredentialStore = (*Store)(nil)
 // New returns the operating system credential store.
 func New() *Store { return &Store{} }
 
-// Get returns the stored credential. EVERY failure to read one — nothing
-// stored, a locked keychain, a denied prompt, an absent Secret Service, a
-// `security` binary that failed — comes back as core.ErrNoCredential,
-// because they all mean the same thing to a caller resolving
-// configuration: there is no credential here, fall through to the
-// environment.
-//
-// The alternative was matching backend error text, which is guesswork:
-// anything phrased differently took down every command, because every
-// command resolves config. Writes still report loudly (see Set) — there,
-// "I could not save it" and "I saved it" are not interchangeable.
+// Get distinguishes an absent entry from a store that cannot be read.
+// Configuration owns fallback to explicit environment credentials; the
+// adapter must retain the cause so authentication does not mistake a locked
+// or unavailable store for an account that has never logged in.
 func (s *Store) Get(account string) (string, error) {
 	secret, err := keyring.Get(service, account)
-	if err != nil {
+	if errors.Is(err, keyring.ErrNotFound) {
 		return "", core.ErrNoCredential
+	}
+	if err != nil {
+		return "", fmt.Errorf("read credential from the system keyring: %w", err)
 	}
 	return secret, nil
 }

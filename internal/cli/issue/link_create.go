@@ -182,10 +182,10 @@ func newLinkCreate(deps Deps) *cobra.Command {
 			command.AddMutationFlags(c, &mut, command.WithValidateRemote())
 			command.AddStringVar(c, &to, flagTo, "",
 				"The issue at the other end of the link",
-				command.FlagOpts{Terse: "Link target", Placeholder: "key"})
+				command.FlagOpts{Terse: "Link target", Placeholder: "key", Complete: "predictor=issuekey"})
 			command.AddStringVar(c, &linkType, flagType, "",
 				"The relationship, as a link type name or either of its phrasings",
-				command.FlagOpts{Terse: "Relationship", Placeholder: "type"})
+				command.FlagOpts{Terse: "Relationship", Placeholder: "type", Complete: "predictor=cachelinktype"})
 			// The type list this resolves against is cached, so the two
 			// flags that govern the cache belong here as well as on
 			// `link types` — a caller who suspects a stale list wants to
@@ -204,7 +204,7 @@ func newLinkCreate(deps Deps) *cobra.Command {
 				// an identical one-line description, one taking an issue
 				// payload and one a link body, is the drift worth spending
 				// two words to avoid.
-				command.FlagOpts{Terse: "Link payload", Placeholder: "path"})
+				command.FlagOpts{Terse: "Link payload", Placeholder: "path", Hint: "file"})
 			command.AddHiddenAliases(c, command.ADFRouteAliases())
 		},
 		Validate: func() error {

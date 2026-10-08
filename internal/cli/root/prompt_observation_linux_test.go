@@ -6,8 +6,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"os/exec"
 	"strings"
@@ -184,11 +182,7 @@ func TestPromptObservationFailureProcess(t *testing.T) {
 	if os.Getenv("JIRA_TEST_PROMPT_OBSERVATION_FAILURE") != "1" {
 		return
 	}
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-	}))
-	defer server.Close()
-	runPromptContextProcess(t, server.URL, "missing fixture marker", false, []string{"auth", "logout"})
+	runPromptContextProcess(t, "https://example.invalid", "missing fixture marker", false, []string{"auth", "logout"})
 }
 
 func TestPromptObservationFailureDiagnostics(t *testing.T) {

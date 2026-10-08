@@ -153,6 +153,26 @@ ADF rendering returns a Markdown review projection with `lossy` and sorted
 `lossy_constructs`. Future nodes retain child content and labeled placeholders.
 Keep the original native document. This projection cannot provide lossless edits.
 
+Use `adf edit prepare --input document.json --jq '.data.markdown'` for an
+anchored editing artifact. Retain the exact original native document separately.
+Keep the anchor comments on their own top-level lines. Editable regions may be
+changed, removed or reordered. Protected regions may be moved but must remain
+unchanged and present exactly once. Text outside anchors inserts new blocks.
+`adf edit apply --input document.json --markdown-file edited.md` returns a native
+candidate at `document`. An empty edited file removes all editable regions. It
+cannot remove protected state. Unchanged blocks retain their original native
+bytes, including unknown server extensions. Newly authored blocks pass local
+schema validation. Refused edits exit 3 and retain typed `diagnostics` with
+`kind`, optional `region` and `reason`, without a partial document.
+
+`adf edit merge --input document.json --markdown-file edited.md --current current.json`
+reconciles the original snapshot, anchored local edits and a separately read
+current native document. It keeps current root extensions and untouched blocks.
+Conflicts and ambiguous identities are refused. Both operations are local reads
+that leave input files unchanged and need no credentials. At most one input can
+be `-` for piped stdin. A successful local merge does not protect a later Jira write.
+Replacing a remote document still requires a server-enforced precondition.
+
 ### Check ADF and native field capabilities
 
 `agent adf-matrix` lists every pinned node/mark definition and context variant.

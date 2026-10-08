@@ -279,13 +279,26 @@ func mergeSchema(base, override map[string]any) map[string]any {
 func cloneSchema(node map[string]any) map[string]any {
 	out := make(map[string]any, len(node))
 	for k, v := range node {
-		if m, ok := v.(map[string]any); ok {
-			out[k] = cloneSchema(m)
-			continue
-		}
-		out[k] = v
+		out[k] = cloneSchemaValue(v)
 	}
 	return out
+}
+
+func cloneSchemaValue(value any) any {
+	switch value := value.(type) {
+	case map[string]any:
+		return cloneSchema(value)
+	case []any:
+		out := slices.Clone(value)
+		for i, child := range out {
+			out[i] = cloneSchemaValue(child)
+		}
+		return out
+	case []string:
+		return slices.Clone(value)
+	default:
+		return value
+	}
 }
 
 // nullableElem reports whether t is a Nullable[T] wrapper and returns T.

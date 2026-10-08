@@ -35,6 +35,7 @@ import (
 	cachecmd "github.com/matcra587/jira-cli/internal/cli/cache"
 	"github.com/matcra587/jira-cli/internal/cli/command"
 	"github.com/matcra587/jira-cli/internal/cli/completion"
+	"github.com/matcra587/jira-cli/internal/cli/completion/native"
 	configcmd "github.com/matcra587/jira-cli/internal/cli/config"
 	"github.com/matcra587/jira-cli/internal/cli/discovery"
 	epiccmd "github.com/matcra587/jira-cli/internal/cli/epic"
@@ -145,6 +146,7 @@ func newProgram(deps *Deps, stdout, stderr io.Writer) (*concobra.Program, *failu
 // newProgramWithTheme retains one construction path while allowing startup to
 // defer settings resolution until aliases have selected the invocation config.
 func newProgramWithTheme(deps *Deps, stdout, stderr io.Writer, resolveTheme func() *theme.Theme) (*concobra.Program, *failureSink) {
+	native.Register()
 	// Before conductor: its EnvPrefix option makes clog and clib re-read
 	// the environment, and an unusable theme name has to be taken out of
 	// their way first or they print about it themselves.
@@ -200,6 +202,10 @@ func newProgramWithTheme(deps *Deps, stdout, stderr io.Writer, resolveTheme func
 	// standard trio are contract surface a leaf's reader needs, not
 	// noise to hide.
 	program := concobra.New(runtime, root,
+		concobra.WithGenerator(func(gen *complete.Generator) {
+			normalizeCompletionHelp(gen)
+			command.ForwardCompletion(root, gen)
+		}),
 		concobra.WithAlwaysShowDescription(),
 		concobra.WithSections(clibcobra.WithShowInheritedFlagsOnSubcommands()),
 		concobra.WithExitCode(sink.exitCode))
@@ -291,6 +297,13 @@ func newProgramWithTheme(deps *Deps, stdout, stderr io.Writer, resolveTheme func
 	// `jira help` read as an unknown command. Materialize it now
 	// (idempotent; the audit inventory does the same for its walk).
 	program.Root.InitDefaultHelpCmd()
+	for _, child := range program.Root.Commands() {
+		if child.Name() == "help" {
+			child.Use = "help [COMMAND...]"
+			child.Annotations = map[string]string{"clib": "dynamic-args='helppath'"}
+			break
+		}
+	}
 	guides, err := agentguides.Load()
 	if err != nil {
 		panic(err) // embedded guide violations are construction errors
@@ -299,11 +312,7 @@ func newProgramWithTheme(deps *Deps, stdout, stderr io.Writer, resolveTheme func
 		return discovery.Build(program.Root)
 	}})
 	program.Root.AddCommand(agent, agentcmd.NewGuide(guides))
-	tree, err := discovery.Build(program.Root)
-	if err != nil {
-		panic(err) // malformed discovery wiring cannot ship as an incomplete schema
-	}
-	agentcmd.SealPaths(agent, tree)
+	agentcmd.SealPaths(agent, program.Root)
 
 	// After the tree is complete: every arity failure leaves typed, so
 	// arg validation carries a stable code like every other input error.

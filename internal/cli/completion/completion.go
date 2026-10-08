@@ -19,6 +19,11 @@ import (
 // arg that validates here cannot fail to resolve there.
 var shells = []string{shell.Bash, shell.Elvish, shell.Fish, shell.Nu, shell.Pwsh, shell.Zsh}
 
+// Shells returns the shell names accepted by the completion command.
+func Shells() []string {
+	return slices.Clone(shells)
+}
+
 // New returns the `jira completion` command. The generator is injected
 // as a constructor because the completion spec is derived from the
 // fully assembled tree — the root package owns that assembly, and
@@ -39,7 +44,8 @@ func New(generator func() *complete.Generator) *cobra.Command {
 			"$ jira completion fish > ~/.config/fish/completions/jira.fish\n\n" +
 			"# install for zsh via a directory on $fpath\n" +
 			"$ jira completion zsh > ~/.zsh/completions/_jira",
-		ValidArgs: shells,
+		ValidArgs:   shells,
+		Annotations: map[string]string{"clib": "dynamic-args='shell'"},
 		// Typed at the source: an arity miss and a wrong shell name are
 		// different mistakes with different recoveries, so each carries
 		// its own code, the offender rides Field, and near-miss shells

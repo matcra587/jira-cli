@@ -112,7 +112,7 @@ func newAttachmentAdd(deps Deps) *cobra.Command {
 			command.AddMutationFlags(c, &mut)
 			command.AddStringSliceVar(c, &files, flagFile, nil,
 				"A file to upload; repeatable, and it makes every positional an issue key",
-				command.FlagOpts{Terse: "File to upload", Placeholder: "path"})
+				command.FlagOpts{Terse: "File to upload", Placeholder: "path", Forward: true})
 		},
 		Validate: func() error {
 			if err := keyed.Validate(); err != nil {

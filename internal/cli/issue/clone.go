@@ -297,7 +297,7 @@ func newClone(deps Deps) *cobra.Command {
 			// reaching for it here to override the same fields.
 			command.AddStringVar(c, &jsonInput, command.FlagJSONInput, "",
 				"Read native clone overrides, including fields, update and other request members, from this JSON file, or `-` for standard input",
-				command.FlagOpts{Terse: "Overrides from file", Placeholder: "path"})
+				command.FlagOpts{Terse: "Overrides from file", Placeholder: "path", Hint: "file"})
 			command.AddHiddenAliases(c, command.ADFRouteAliases())
 			command.AddStringSliceVar(c, &replaceRaw, flagReplace, nil,
 				"Replace `old=new` in the copied summary (repeatable, applied in order)",

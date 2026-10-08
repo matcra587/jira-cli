@@ -57,6 +57,12 @@ type Resolved struct {
 	// of disabling it.
 	Warnings []string
 
+	// CredentialError retains a failed store read without stopping local
+	// settings resolution or explicit environment credentials. Callers that
+	// require authentication consult it when no usable token was resolved.
+	// It is never included in public settings or warning text.
+	CredentialError error `json:"-"`
+
 	sources map[string]Layer
 }
 
@@ -173,6 +179,7 @@ func Load(opts Options) (*Resolved, error) {
 	}
 
 	var warnings []string
+	var credentialError error
 	// storedSite is the site the credential record belongs to, kept so
 	// the tuple check below can tell whether it still applies.
 	var storedSite string
@@ -313,7 +320,8 @@ func Load(opts Options) (*Resolved, error) {
 			// without the layer and surface it as a warning.
 			warnings = append(warnings, credErr.Error())
 		default:
-			return nil, credErr
+			credentialError = credErr
+			warnings = append(warnings, "the credential store could not be read; stored credentials were not used")
 		}
 	}
 
@@ -378,14 +386,15 @@ func Load(opts Options) (*Resolved, error) {
 	}
 
 	return &Resolved{
-		NamedProfiles:  doc.named,
-		Profile:        profile,
-		DefaultProfile: doc.defaultProfile,
-		Warnings:       warnings,
-		Config:         cfg,
-		Path:           path,
-		FileExists:     exists,
-		sources:        provenance(layers),
+		NamedProfiles:   doc.named,
+		Profile:         profile,
+		DefaultProfile:  doc.defaultProfile,
+		Warnings:        warnings,
+		CredentialError: credentialError,
+		Config:          cfg,
+		Path:            path,
+		FileExists:      exists,
+		sources:         provenance(layers),
 	}, nil
 }
 

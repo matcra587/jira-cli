@@ -124,7 +124,7 @@ func TestCacheInspectSelectionRetainsUnknownInventoryWithoutTrustingMalformedFac
 				}
 			}
 		} else {
-			if out.Count != 5 || len(out.Entries) != 5 || out.KnownPayloadBytes != 36 || len(out.Resources) != 11 {
+			if out.Count != 5 || len(out.Entries) != 5 || out.KnownPayloadBytes != 36 || len(out.Resources) != 12 {
 				t.Fatalf("whole scope=%+v", out)
 			}
 			row := out.Entries[4]

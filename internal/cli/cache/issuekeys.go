@@ -144,4 +144,6 @@ func renderIssueKeys(v *output.View, env envelope.Envelope) error {
 
 // ClearResourceNames includes local history alongside fetched metadata.
 // Refresh intentionally uses only ResourceNames: issue keys have no producer.
-func ClearResourceNames() []string { return slices.Concat(ResourceNames(), []string{"issuekeys"}) }
+func ClearResourceNames() []string {
+	return slices.Concat(ResourceNames(), []string{"issuekeys", "transitions"})
+}

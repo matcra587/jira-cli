@@ -1,9 +1,9 @@
 package command
 
 import (
-	"fmt"
 	"strings"
 
+	xslices "github.com/gechr/x/slices"
 	"github.com/spf13/cobra"
 )
 
@@ -95,38 +95,23 @@ func (s ArgSpec) validator() cobra.PositionalArgs {
 	}
 }
 
-// annotation renders the clib dynamic-args tag, or "" when no position
-// declares a predictor.
-//
-// Trailing positions without one are dropped: clib repeats the LAST
-// entry for every further position, so a spec that stops declaring
-// them means "no completion past here" and the shorter list says
-// exactly that.
-//
-// An INTERIOR blank is refused instead. It cannot be dropped — that
-// would shift every later predictor onto the wrong argument — and it
-// cannot be emitted, because clib validates each entry as shell-safe,
-// rejects the empty string, and every generator validates before
-// writing. Emitting one would break `jira completion <shell>` for bash,
-// zsh, fish, nu, pwsh and elvish alike, at generation time, with
-// nothing pointing back here. A construction-time error names the
-// command instead.
+// NoCompletionPredictor occupies a positional slot without offering values.
+// clib repeats the final predictor, so an omitted trailing slot would reuse
+// the preceding predictor for an unrelated argument.
+const NoCompletionPredictor = "none"
+
+// annotation renders one predictor per declared
+// position. Blank positions use the registered empty predictor, preserving
+// their order and suppressing accidental completion from an earlier slot.
 func (s ArgSpec) annotation() (string, error) {
-	last := -1
-	for i, p := range s.Positions {
-		if p.Predictor != "" {
-			last = i
-		}
-	}
-	if last < 0 {
+	if !xslices.AnyFunc(s.Positions, func(position Arg) bool { return position.Predictor != "" }) {
 		return "", nil
 	}
-	names := make([]string, 0, last+1)
-	for _, p := range s.Positions[:last+1] {
-		if p.Predictor == "" {
-			return "", fmt.Errorf("command: positional %q has no completion predictor but a later one does; clib cannot express a gap", p.Name)
+	names := xslices.Map(s.Positions, func(position Arg) string {
+		if position.Predictor == "" {
+			return NoCompletionPredictor
 		}
-		names = append(names, p.Predictor)
-	}
+		return position.Predictor
+	})
 	return "dynamic-args='" + strings.Join(names, ",") + "'", nil
 }

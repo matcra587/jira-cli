@@ -134,6 +134,12 @@ func runLogin(ctx context.Context, deps Deps, inv command.Invocation, flags logi
 // is worse than one that fails with the flags to use.
 func gather(ctx context.Context, inv command.Invocation, deps Deps, flags loginFlags) (identity, string, error) {
 	stored, err := deps.Site()
+	// An independently supplied token can be verified without reading the old
+	// credential. Retain public defaults, but never bypass invalid settings or
+	// cancellation while resolving them.
+	if err != nil && cli.MapError(err).Code == cli.CodeAuthStoreUnavailable && deps.SiteWithoutStore != nil {
+		stored, err = deps.SiteWithoutStore()
+	}
 	if err != nil {
 		return identity{}, "", err
 	}

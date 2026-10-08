@@ -133,7 +133,7 @@ func TestCacheInspectUsesExplicitScopeWithoutAuthentication(t *testing.T) {
 				t.Fatal(err)
 			}
 			if mode == "valid" {
-				if exit != 0 || !frame.OK || calls != 1 || !frame.Data.Complete || frame.Data.Email != "person@example.com" || frame.Data.BaseURL != "https://example.com" || frame.Data.Count != 0 || len(frame.Data.Resources) != 11 {
+				if exit != 0 || !frame.OK || calls != 1 || !frame.Data.Complete || frame.Data.Email != "person@example.com" || frame.Data.BaseURL != "https://example.com" || frame.Data.Count != 0 || len(frame.Data.Resources) != 12 {
 					t.Fatalf("explicit scope=%d/%s stderr=%s", exit, &stdout, &stderr)
 				}
 			} else if exit != cli.ExitValidation || frame.OK || calls != 0 || len(frame.Errors) != 1 || frame.Errors[0].Code != cli.CodeConfigInvalid {

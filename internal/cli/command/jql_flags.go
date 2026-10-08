@@ -9,6 +9,24 @@ import (
 // input and controls before parsing. pflag v1.0.10 reads only the first CSV
 // record and can discard newlines and everything after them before validation.
 func AddJQLFilterVar(cmd *cobra.Command, values *[]string, name, usage string, opts FlagOpts) {
+	if opts.Complete == "" {
+		switch name {
+		case "project":
+			opts.Complete = "predictor=cacheproject,comma"
+		case "key":
+			opts.Complete = "predictor=issuekey,comma"
+		case "epic":
+			opts.Complete = "predictor=cacheepic,comma"
+		case "status":
+			opts.Complete = "predictor=cachestatus,comma"
+		case "type":
+			opts.Complete = "predictor=cacheissuetype,comma"
+		case "label":
+			opts.Complete = "predictor=cachelabel,comma"
+		case "priority":
+			opts.Complete = "predictor=cachepriority,comma"
+		}
+	}
 	AddStringSliceVar(cmd, values, name, nil, usage, opts)
 	flag := cmd.Flags().Lookup(name)
 	flag.Value = jqlSliceValue{Value: flag.Value, SliceValue: flag.Value.(pflag.SliceValue)}

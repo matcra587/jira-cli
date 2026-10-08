@@ -12,6 +12,9 @@ type CodedError struct {
 	// Message is the human sentence. The remedy lives in the code's
 	// static hint, not here.
 	Message string
+	// Cause retains a native failure without copying its potentially private
+	// backend detail into the public message.
+	Cause error `json:"-"`
 }
 
 // codedCodes lists every code that reaches the mapper through
@@ -22,6 +25,7 @@ var codedCodes = []string{
 	CodeCacheIO,
 	CodeCacheResponseInvalid,
 	CodeAuthMissing,
+	CodeAuthStoreUnavailable,
 	CodeCanceled,
 	CodeSelectorIncomplete,
 	CodeUserSearchResponseInvalid,
@@ -49,3 +53,5 @@ func NewCodedError(code, message string) *CodedError {
 }
 
 func (e *CodedError) Error() string { return e.Message }
+
+func (e *CodedError) Unwrap() error { return e.Cause }

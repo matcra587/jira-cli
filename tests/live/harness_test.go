@@ -100,6 +100,7 @@ type liveRun struct {
 	binary           string
 	dir              string
 	issueType        string
+	account          string
 	manifest         liveManifest
 	sequence         int
 	verified         bool
@@ -167,12 +168,14 @@ func newLiveRun(t *testing.T) *liveRun {
 	var auth struct {
 		Data struct {
 			BaseURL     string `json:"base_url"`
+			Email       string `json:"email"`
 			TokenSource string `json:"token_source"`
 		} `json:"data"`
 	}
-	if err := json.Unmarshal(stdout, &auth); err != nil || exit != 0 || !frame.OK || auth.Data.BaseURL != r.manifest.BaseURL || auth.Data.TokenSource != "keyring" {
+	if err := json.Unmarshal(stdout, &auth); err != nil || exit != 0 || !frame.OK || auth.Data.BaseURL != r.manifest.BaseURL || auth.Data.TokenSource != "keyring" || strings.TrimSpace(auth.Data.Email) == "" {
 		t.Fatal("live preflight must authenticate through the existing keyring on the expected site")
 	}
+	r.account = auth.Data.Email
 	r.verified = true
 	return r
 }
@@ -190,13 +193,26 @@ func requiredEnv(t *testing.T, key string) string {
 // including ambiguous failures; public test output reports only codes and steps.
 func (r *liveRun) invoke(t *testing.T, ctx context.Context, extraEnv []string, args ...string) (liveFrame, []byte, int) {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(ctx, time.Minute)
-	defer cancel()
 	flagsAt := slices.Index(args, "--")
 	if flagsAt < 0 {
 		flagsAt = len(args)
 	}
 	args = slices.Insert(slices.Clone(args), flagsAt, "--output=json", "--no-input", "--timeout=30s")
+	stdout, exit := r.invokeRaw(t, ctx, extraEnv, args...)
+	var frame liveFrame
+	if err := json.Unmarshal(stdout, &frame); err != nil {
+		t.Errorf("step %d: stdout is not one JSON frame: %v", r.sequence, err)
+	}
+	return frame, stdout, exit
+}
+
+// invokeRaw retains process receipts for completion callbacks, whose stdout is
+// a candidate list rather than a JSON frame. Domain invocations keep their
+// machine, timeout and headless flags in invoke.
+func (r *liveRun) invokeRaw(t *testing.T, ctx context.Context, extraEnv []string, args ...string) ([]byte, int) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
+	defer cancel()
 	cmd := exec.CommandContext(ctx, r.binary, args...)
 	cmd.Env = append(os.Environ(), "JIRA_API_TOKEN=", "JIRA_KEYRING=true", "NO_COLOR=1", "TERM=dumb")
 	if r.verified {
@@ -220,11 +236,7 @@ func (r *liveRun) invoke(t *testing.T, ctx context.Context, extraEnv []string, a
 			t.Errorf("save live receipt: %v", err)
 		}
 	}
-	var frame liveFrame
-	if err := json.Unmarshal(stdout.Bytes(), &frame); err != nil {
-		t.Errorf("step %d: stdout is not one JSON frame: %v", r.sequence, err)
-	}
-	return frame, stdout.Bytes(), exit
+	return stdout.Bytes(), exit
 }
 
 func (r *liveRun) success(t *testing.T, args ...string) liveFrame {

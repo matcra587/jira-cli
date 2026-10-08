@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"maps"
 	"net/http"
 	"net/url"
@@ -18,6 +19,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/matcra587/jira-cli/internal/cli"
 	boardcmd "github.com/matcra587/jira-cli/internal/cli/boards"
 	metacache "github.com/matcra587/jira-cli/internal/cli/cache"
 	"github.com/matcra587/jira-cli/internal/core"
@@ -131,6 +133,33 @@ func TestLiveCacheMetadataCollectors(t *testing.T) {
 	}
 	liveEnv := []string{"JIRA_READ_ONLY=true", "XDG_CACHE_HOME=" + cacheDir}
 	localEnv := append(slices.Clone(liveEnv), "JIRA_EMAIL="+identity.Data.Email, "JIRA_API_TOKEN=", "JIRA_KEYRING=false", "DBUS_SESSION_BUS_ADDRESS=/dev/null")
+	complete := func(t *testing.T, value metacache.MetadataValue, resource string) {
+		t.Helper()
+		before := metadataCacheFiles(t, cacheDir)
+		for kind, expected := range nativeMetadataCompletionValues(t, value, resource) {
+			raw, exit := r.invokeRaw(t, t.Context(), localEnv, "--@complete="+kind)
+			if exit != 0 {
+				t.Fatalf("credential-disabled native completion failed: %s", kind)
+			}
+			var actual []string
+			for line := range strings.Lines(string(raw)) {
+				line = strings.TrimSuffix(line, "\n")
+				candidate, _, _ := strings.Cut(line, "\t")
+				if candidate == "" || cli.Text(candidate) != candidate {
+					t.Fatalf("native completion emitted an unsafe candidate: %s", kind)
+				}
+				actual = append(actual, candidate)
+			}
+			slices.Sort(actual)
+			slices.Sort(expected)
+			if !slices.Equal(actual, expected) {
+				t.Fatalf("native completion differs from persisted producer identities: %s got=%d want=%d", kind, len(actual), len(expected))
+			}
+		}
+		if !maps.Equal(before, metadataCacheFiles(t, cacheDir)) {
+			t.Fatal("native completion changed cache storage")
+		}
+	}
 	inspect := func(t *testing.T, resources ...string) envelope.CacheInspectOutput {
 		t.Helper()
 		frame, raw, exit := r.invoke(t, t.Context(), localEnv, append([]string{"cache", "inspect"}, resources...)...)
@@ -210,6 +239,7 @@ func TestLiveCacheMetadataCollectors(t *testing.T) {
 			if row.Resource != resource.Name || row.CacheState != "fresh" || row.TTLMinutes == nil || *row.TTLMinutes != int(resource.DefaultTTL.Minutes()) || row.Count != forced.Count || row.Pages != forced.Pages || row.Complete != forced.Complete || row.WrittenAt == "" {
 				t.Fatal("native inspection disagrees with the actual producer snapshot")
 			}
+			complete(t, forced.CacheMetadata, resource.Name)
 			if resource.Name == "boards" {
 				frame, raw, exit := r.invoke(t, t.Context(), liveEnv, "boards", "list", "--all")
 				var consumer struct {
@@ -243,6 +273,7 @@ func TestLiveCacheMetadataCollectors(t *testing.T) {
 			if inspected.Count != 0 || len(inspected.Resources) != 1 || inspected.Resources[0].CacheState != "missing" || inspected.Resources[0].Count != 0 || inspected.Resources[0].Complete {
 				t.Fatal("native inspection fabricated a cleared producer snapshot")
 			}
+			complete(t, metacache.MetadataValue{Items: []json.RawMessage{}}, resource.Name)
 			if resource.Name == "projects" && !slices.ContainsFunc(value.Items, func(raw json.RawMessage) bool {
 				var project struct {
 					Key string `json:"key"`
@@ -311,10 +342,16 @@ func TestLiveCacheMetadataCollectors(t *testing.T) {
 	}
 	t.Run("inspection", func(t *testing.T) {
 		out := inspect(t)
-		if out.Resource != "all" || out.Count != 10 || len(out.Resources) != 11 || out.Unclassified != 0 || out.KnownPayloadBytes <= 0 {
+		if out.Resource != "all" || out.Count != 10 || len(out.Resources) != 12 || out.Unclassified != 0 || out.KnownPayloadBytes <= 0 {
 			t.Fatal("whole-scope native inspection omitted persisted metadata or resource summaries")
 		}
 		for _, row := range out.Resources {
+			if row.Resource == "transitions" {
+				if row.CacheState != "missing" || row.Count != 0 || row.Complete || row.TTLMinutes == nil || *row.TTLMinutes != 5 || row.IssueKey != "" {
+					t.Fatal("native inspection fabricated a workflow observation")
+				}
+				continue
+			}
 			if row.Resource == "issuekeys" {
 				if row.CacheState != "missing" || row.TTLMinutes != nil {
 					t.Fatal("native inspection fabricated issue history or an expiry policy")
@@ -394,4 +431,94 @@ func TestLiveCacheMetadataCollectors(t *testing.T) {
 			t.Fatal("issue-history clear removed unrelated native metadata")
 		}
 	})
+}
+
+func metadataCacheFiles(t *testing.T, dir string) map[string]string {
+	t.Helper()
+	files := map[string]string{}
+	err := fs.WalkDir(os.DirFS(dir), ".", func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		raw, err := os.ReadFile(filepath.Join(dir, path))
+		if err != nil {
+			return err
+		}
+		files[path] = string(raw)
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return files
+}
+
+// nativeMetadataCompletionValues derives candidate identities from the actual
+// persisted public-primer result, independently of the application's emitter.
+func nativeMetadataCompletionValues(t *testing.T, value metacache.MetadataValue, resource string) map[string][]string {
+	t.Helper()
+	kind := map[string]string{"labels": "cachelabel", "projects": "cacheproject", "epics": "cacheepic", "fields": "cachefield", "issuetypes": "cacheissuetype", "linktypes": "cachelinktype", "statuses": "cachestatus", "priorities": "cachepriority", "resolutions": "cacheresolution"}[resource]
+	if resource == "boards" {
+		expected := map[string][]string{"cacheboard": nil, "cacheboardid": nil}
+		if len(value.Payload) == 0 {
+			return expected
+		}
+		var payload struct {
+			Boards []envelope.BoardRow `json:"boards"`
+		}
+		if err := json.Unmarshal(value.Payload, &payload); err != nil {
+			t.Fatal(err)
+		}
+		for _, board := range payload.Boards {
+			expected["cacheboardid"] = append(expected["cacheboardid"], strconv.FormatInt(board.ID, 10))
+			matches := 0
+			for _, other := range payload.Boards {
+				if strings.EqualFold(strings.TrimSpace(board.Name), strings.TrimSpace(other.Name)) {
+					matches++
+				}
+			}
+			if matches == 1 && cli.Text(board.Name) == board.Name {
+				expected["cacheboard"] = append(expected["cacheboard"], board.Name)
+			}
+		}
+		return expected
+	}
+	if kind == "" {
+		t.Fatalf("native completion has no declared resource: %s", resource)
+	}
+	expected := map[string][]string{kind: nil}
+	seen := map[string]bool{}
+	for _, raw := range value.Items {
+		var candidate string
+		if resource == "labels" {
+			if err := json.Unmarshal(raw, &candidate); err != nil {
+				t.Fatal(err)
+			}
+		} else {
+			var item struct {
+				ID   string `json:"id"`
+				Key  string `json:"key"`
+				Name string `json:"name"`
+			}
+			if err := json.Unmarshal(raw, &item); err != nil {
+				t.Fatal(err)
+			}
+			switch resource {
+			case "fields":
+				candidate = item.ID
+			case "projects", "epics":
+				candidate = item.Key
+			default:
+				candidate = item.Name
+			}
+		}
+		if candidate != "" && cli.Text(candidate) == candidate && !seen[candidate] {
+			expected[kind] = append(expected[kind], candidate)
+			seen[candidate] = true
+		}
+	}
+	return expected
 }

@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -51,22 +50,28 @@ func TestPromptContextProcess(t *testing.T) {
 		}()
 	}
 	defer cancel()
-	os.Exit(Run(ctx, os.Args[separator+1:]))
+	// This child owns the default transport. Count requests without opening a
+	// listener so a canceled prompt cannot pass merely because networking failed.
+	var calls atomic.Int32
+	http.DefaultTransport = promptRequestTransport(func(req *http.Request) (*http.Response, error) {
+		calls.Add(1)
+		return nil, errors.New("prompt fixture forbids HTTP requests")
+	})
+	exit := Run(ctx, os.Args[separator+1:])
+	if calls.Load() != 0 {
+		os.Exit(21)
+	}
+	os.Exit(exit)
 }
 
 func TestRichPromptsHonorCommandContext(t *testing.T) {
-	var calls atomic.Int32
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		calls.Add(1)
-		w.WriteHeader(http.StatusInternalServerError)
-	}))
-	defer server.Close()
+	const site = "https://example.invalid"
 	for _, operation := range []struct {
 		name   string
 		marker string
 		args   []string
 	}{
-		{name: "login", marker: "API token", args: []string{"auth", "login", "--site", server.URL, "--email", "prompt-fixture@example.invalid"}},
+		{name: "login", marker: "API token", args: []string{"auth", "login", "--site", site, "--email", "prompt-fixture@example.invalid"}},
 		{name: "logout", marker: "Remove the stored token", args: []string{"auth", "logout"}},
 		{name: "comment delete", marker: "Delete comment", args: []string{"issue", "comment", "delete", "KEY-1", "10042"}},
 	} {
@@ -76,7 +81,10 @@ func TestRichPromptsHonorCommandContext(t *testing.T) {
 				name, wantExit, wantCode = "deadline", cli.ExitTimeout, "timeout"
 			}
 			t.Run(operation.name+"/"+name, func(t *testing.T) {
-				stdout, exit := runPromptContextProcess(t, server.URL, operation.marker, deadline, operation.args)
+				stdout, exit := runPromptContextProcess(t, site, operation.marker, deadline, operation.args)
+				if exit == 21 {
+					t.Fatal("canceled prompt contacted Jira")
+				}
 				if exit != wantExit {
 					t.Fatalf("context exit=%d, want %d", exit, wantExit)
 				}
@@ -92,12 +100,15 @@ func TestRichPromptsHonorCommandContext(t *testing.T) {
 				if frame.OK || len(frame.Errors) != 1 || frame.Errors[0].Code != wantCode {
 					t.Fatalf("wrong context error classification: %+v", frame)
 				}
-				if calls.Load() != 0 {
-					t.Fatal("canceled prompt contacted Jira")
-				}
 			})
 		}
 	}
+}
+
+type promptRequestTransport func(*http.Request) (*http.Response, error)
+
+func (f promptRequestTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
 }
 
 func runPromptContextProcess(t *testing.T, site, marker string, deadline bool, args []string) ([]byte, int) {
