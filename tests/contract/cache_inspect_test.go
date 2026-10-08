@@ -54,8 +54,8 @@ func TestCacheInspectBinaryEmptyScopeNeedsNoCredentialsOrStorage(t *testing.T) {
 			}
 			entries, ok := data["entries"].([]any)
 			resources, resourcesOK := data["resources"].([]any)
-			if !ok || len(entries) != 0 || !resourcesOK || len(resources) != 11 || data["count"] != float64(0) || data["complete"] != true || data["base_url"] != "https://example.com" || data["email"] != "person@example.com" {
-				t.Fatalf("inspection=%v, want selected scope, complete empty inventory and eleven local resource states", data)
+			if !ok || len(entries) != 0 || !resourcesOK || len(resources) != 12 || data["count"] != float64(0) || data["complete"] != true || data["base_url"] != "https://example.com" || data["email"] != "person@example.com" {
+				t.Fatalf("inspection=%v, want selected scope, complete empty inventory and twelve local resource states", data)
 			}
 			for _, row := range resources {
 				if row.(map[string]any)["cache_state"] != "missing" {
@@ -181,7 +181,7 @@ func TestCacheInspectBinaryValidatesProducerDataAndPreservesAllScopes(t *testing
 			} else if err := json.Unmarshal([]byte(stdout), &out); err != nil {
 				t.Fatal(err)
 			}
-			if !out.Complete || out.Count != 7 || len(out.Entries) != 7 || out.Unclassified != 2 || len(out.Resources) != 11 {
+			if !out.Complete || out.Count != 7 || len(out.Entries) != 7 || out.Unclassified != 2 || len(out.Resources) != 12 {
 				t.Fatalf("scoped inventory=%+v", out)
 			}
 			for _, row := range out.Resources {

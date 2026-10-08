@@ -30,7 +30,8 @@ func newList(deps Deps) *cobra.Command {
 			"the command that just ran. The source column is the answer to " +
 			"*why* a setting is what it is.\n\n" +
 			"Secrets are never printed. The config file path is shown so there " +
-			"is no separate command for finding it.",
+			"is no separate command for finding it. If the credential store cannot " +
+			"be read, other layers remain visible and a warning identifies the unavailable layer.",
 		Example: "# every setting, with its source\n" +
 			"$ jira config list\n\n" +
 			"# just the effective values, for a script\n" +
@@ -57,6 +58,12 @@ func newList(deps Deps) *cobra.Command {
 					return envelope.ConfigListOutput{}, localIO("read config", err)
 				}
 				return envelope.ConfigListOutput{}, err
+			}
+			if resolved.CredentialError != nil {
+				cli.AddWarning(envelope.Warning{
+					Type:    "credential_store_unavailable",
+					Message: "stored credentials are excluded because the credential store could not be read",
+				})
 			}
 			return buildOutput(resolved), nil
 		},

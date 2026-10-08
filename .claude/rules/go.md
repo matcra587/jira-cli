@@ -84,6 +84,14 @@ gechr deps are pre-1.0: version bumps are deliberate, dedicated changes with
 an API-diff review — never a side effect of unrelated work. The pinned
 version often trails the library; check what the pin actually provides.
 
+The licensed `internal/cli/completion/native` Bash/PowerShell/Zsh backports are a specific
+exception for demonstrated defects in the published clib generators. They use
+`complete.RegisterShell`, retain the reviewed native implementations, and delegate
+public model/validation/sorting to the pin. Preserve provenance and the MIT
+license. This is not permission to hand-write new scripts or duplicate working
+library behavior. Remove the backports when a published version passes the same
+real-shell guards without regressing contextual completion or versioned installation.
+
 ## Errors
 
 *   Wrap with `fmt.Errorf("context: %w", err)`; error strings lowercase,

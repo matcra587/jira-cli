@@ -103,7 +103,7 @@ func methodCommand[T any](deps Deps, method string, spec command.Spec[T], wrap f
 	spec.Flags = func(c *cobra.Command) {
 		cmd = c
 		command.AddStringArrayVar(c, &in.query, flagQuery, nil, "Add a literal query name=value (repeatable; commas are preserved)", command.FlagOpts{Terse: "Query parameter", Placeholder: "name=value"})
-		command.AddStringVar(c, &in.path, flagInput, "", "Send exact body bytes from FILE or - for piped stdin (1 MiB limit)", command.FlagOpts{Terse: "Request body", Placeholder: "file"})
+		command.AddStringVar(c, &in.path, flagInput, "", "Send exact body bytes from FILE or - for piped stdin (1 MiB limit)", command.FlagOpts{Terse: "Request body", Placeholder: "file", Hint: "file"})
 		command.AddStringVar(c, &in.contentType, flagContentType, "application/json", "Request body media type", command.FlagOpts{Terse: "Content type", Placeholder: "media-type"})
 		command.AddInt64Var(c, &in.maxResponseBytes, flagMaxResponseBytes, core.DefaultMaxAPIResponseBytes, "Maximum captured response bytes; 0 explicitly removes the bound", command.FlagOpts{Terse: "Response byte bound", Placeholder: "bytes"})
 		command.AddStringVar(c, &in.ifMatch, flagIfMatch, "", "Send If-Match with a quoted entity tag, list of tags, or *", command.FlagOpts{Terse: "Entity-tag precondition", Placeholder: "etag"})

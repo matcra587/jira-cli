@@ -8,5 +8,5 @@ package envelope
 func ResetRegistryForTest() {
 	registryMu.Lock()
 	defer registryMu.Unlock()
-	registrations = map[string]Registration{}
+	registrations = map[string]registration{}
 }

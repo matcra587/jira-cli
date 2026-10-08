@@ -101,8 +101,8 @@ func addBuildFlags(cmd *cobra.Command, opts *buildOptions) {
 	}
 	command.AddStringVar(cmd, &opts.filters.OrderBy, "order-by", "updated", "Sort by a field identifier; none disables ordering", command.FlagOpts{Terse: "Sort field", Placeholder: "field", Enum: []string{"updated", "created", "priority", "status", "key", "summary", "assignee", "none"}, EnumDefault: "updated"})
 	command.AddBoolVar(cmd, &opts.desc, "desc", true, "Sort descending; false selects ascending", command.FlagOpts{Terse: "Descending order"})
-	command.AddStringVar(cmd, &opts.board, "board", "", "Scope to a board's cached saved filter by exact name; empty means no scope", command.FlagOpts{Terse: "Cached board", Placeholder: "name"})
-	command.AddIntVar(cmd, &opts.boardID, "board-id", 0, "Scope to a board's cached saved filter by positive numeric ID", command.FlagOpts{Terse: "Cached board ID", Placeholder: "id"})
+	command.AddStringVar(cmd, &opts.board, "board", "", "Scope to a board's cached saved filter by exact name; empty means no scope", command.FlagOpts{Terse: "Cached board", Placeholder: "name", Complete: "predictor=cacheboard"})
+	command.AddIntVar(cmd, &opts.boardID, "board-id", 0, "Scope to a board's cached saved filter by positive numeric ID", command.FlagOpts{Terse: "Cached board ID", Placeholder: "id", Complete: "predictor=cacheboardid"})
 	opts.filters.Descending = &opts.desc
 	opts.filters.CustomOrder = true
 }

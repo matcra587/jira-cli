@@ -47,6 +47,34 @@ type ADFExplainOutput struct {
 	Entries      []adf.SupportEntry `json:"entries"`
 }
 
+// ADFEditRegion exposes immutable anchor identity and protection state.
+type ADFEditRegion struct {
+	ID        string `json:"id"`
+	NodeType  string `json:"node_type"`
+	Protected bool   `json:"protected"`
+}
+
+// ADFEditPrepareOutput pairs anchored Markdown with its native region metadata.
+// Applying it requires the exact original document; the projection is not a backup.
+type ADFEditPrepareOutput struct {
+	Markdown string          `json:"markdown"`
+	Regions  []ADFEditRegion `json:"regions"`
+}
+
+// ADFEditDiagnostic identifies a refused edit without a partial native candidate.
+type ADFEditDiagnostic struct {
+	Kind   string `json:"kind"`
+	Region string `json:"region,omitempty"`
+	Reason string `json:"reason"`
+}
+
+// ADFEditOutput carries either a preserved native candidate or edit diagnostics.
+// A local candidate does not establish a server-enforced write precondition.
+type ADFEditOutput struct {
+	Document    json.RawMessage     `json:"document,omitempty"`
+	Diagnostics []ADFEditDiagnostic `json:"diagnostics"`
+}
+
 func init() {
 	Register("adf.validate", ADFValidateOutput{}, nil)
 	Register("adf.lint", ADFLintOutput{}, nil)
@@ -57,4 +85,10 @@ func init() {
 		}},
 	})
 	Register("adf.render", ADFRenderOutput{}, nil)
+	Register("adf.edit.prepare", ADFEditPrepareOutput{}, nil)
+	for _, op := range []string{"adf.edit.apply", "adf.edit.merge"} {
+		Register(op, ADFEditOutput{}, map[string]any{
+			"properties": map[string]any{"document": map[string]any{"type": "object", "description": "Preserved native ADF candidate. Only newly authored content is schema-validated; unchanged future server state survives. This local artifact is not a remote write precondition."}},
+		})
+	}
 }

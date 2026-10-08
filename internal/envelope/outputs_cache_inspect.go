@@ -17,6 +17,7 @@ type CacheInspectEntry struct {
 // facts without copying native payloads. TTLMinutes is null for issue history.
 type CacheInspectResource struct {
 	Resource        string `json:"resource"`
+	IssueKey        string `json:"issue_key,omitempty"`
 	CacheState      string `json:"cache_state"`
 	TTLMinutes      *int   `json:"ttl_minutes"`
 	Count           int    `json:"count"`

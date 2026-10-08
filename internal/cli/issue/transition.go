@@ -119,6 +119,7 @@ func newTransition(deps Deps) *cobra.Command {
 			"value matches a transition's own name, the name of the status it " +
 			"leads to, or a transition id. A bare ID skips lookup; payloads require workflow reads.\n\n" +
 			"Discover IDs, destinations and screen field metadata with `jira issue transition list ISSUE_KEY...`.\n\n" +
+			"Positional target completion offers fresh cached IDs from explicit transition-list reads, scoped to each issue, site and account. Multiple typed keys need a common ID with the same known destination. These are offline hints, not permission or a promise that the transition remains available. Native payloads and unresolved selectors offer no target hints.\n\n" +
 			"`--json-input` accepts the whole native transition request: `transition`, " +
 			"`fields`, `update`, `historyMetadata`, `properties` and other request members. " +
 			"A payload target replaces the positional status, so every positional is an issue key. " +
@@ -201,7 +202,7 @@ func newTransition(deps Deps) *cobra.Command {
 			// AsComment: the capability shipped in 0.15 as --markdown,
 			// named for its encoding rather than its purpose, and nobody
 			// found it. --markdown still works, unlisted (design §3.1).
-			command.AddBodyFlags(c, &body, command.AsComment(), command.WithJSONInputHelp(
+			command.AddBodyFlags(c, &body, command.AsComment(), command.WithJSONInputForwarding(), command.WithJSONInputHelp(
 				"Read a whole native transition payload or an ADF comment from this JSON file, or `-` for standard input", "Payload from file",
 			))
 			// --force arrives WITH the selectors: a transition that names its
@@ -213,10 +214,10 @@ func newTransition(deps Deps) *cobra.Command {
 			command.AddSelectorFlags(c, &sel)
 			command.AddStringVar(c, &transition, flagTransition, "",
 				"The status or transition to move to, instead of the last positional",
-				command.FlagOpts{Terse: "Target status", Placeholder: "status"})
+				command.FlagOpts{Terse: "Target status", Placeholder: "status", Forward: true})
 			command.AddStringVar(c, &resolution, flagResolution, "",
 				"Set the resolution as part of the transition",
-				command.FlagOpts{Terse: "Set resolution", Placeholder: "name"})
+				command.FlagOpts{Terse: "Set resolution", Placeholder: "name", Complete: "predictor=cacheresolution"})
 			command.AddStringVar(c, &assignee, flagAssignee, "",
 				"Assign the issue as part of the transition, by Atlassian account id",
 				command.FlagOpts{Terse: "Set assignee", Placeholder: "account-id"})
@@ -536,6 +537,7 @@ func runTransition(ctx context.Context, deps Deps, inv command.Invocation, opts 
 
 	results, err := transitionFanOut(ctx, client, keys, plan, opts.parallelism)
 	out.Results = results
+	invalidateTransitionHints(deps, results)
 	return out, err
 }
 

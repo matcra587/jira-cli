@@ -1579,13 +1579,17 @@ func successData(cap Capture) (map[string]any, error) {
 // machine mode — the cross-mode half of the determinism and artifact
 // checks.
 func siblingModeCapture(cap Capture) (Capture, bool) {
-	other := ModeCompact
-	if cap.Mode == ModeCompact {
-		other = ModeJSON
-	}
 	captures, err := corpus()
 	if err != nil {
 		return Capture{}, false
+	}
+	return siblingModeCaptureFrom(captures, cap)
+}
+
+func siblingModeCaptureFrom(captures map[string]Capture, cap Capture) (Capture, bool) {
+	other := ModeCompact
+	if cap.Mode == ModeCompact {
+		other = ModeJSON
 	}
 	sibling, ok := captures[cap.Scenario.ID+"|"+string(other)]
 	return sibling, ok
@@ -2783,6 +2787,10 @@ func checkSuccessDeterminism(cap Capture, _ command.Meta) (bool, string) {
 	if !ok {
 		return false, "no sibling machine-mode capture to compare against"
 	}
+	return checkSuccessDeterminismPair(cap, sibling)
+}
+
+func checkSuccessDeterminismPair(cap, sibling Capture) (bool, string) {
 	mine, err := successData(cap)
 	if err != nil {
 		return false, err.Error()

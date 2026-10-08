@@ -1,12 +1,12 @@
 package envelope_test
 
-// No t.Parallel here: the registry map is deliberately unsynchronized
-// (registration is single-threaded startup wiring), so its tests must
-// not run concurrently with each other.
+// No t.Parallel here: tests reset the process-wide registry. Individual tests
+// may exercise concurrent readers after publishing their own declarations.
 
 import (
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/matcra587/jira-cli/internal/envelope"
@@ -50,6 +50,69 @@ func TestRegisteredUnknownOp(t *testing.T) {
 	if _, ok := envelope.Registered("registrytest.never"); ok {
 		t.Error("Registered invented an entry for an unregistered op")
 	}
+}
+
+func TestRegistrationCapturesOverridesBeforeSchemaDemand(t *testing.T) {
+	envelope.ResetRegistryForTest()
+	choices := []string{"original"}
+	example := map[string]any{"name": "original"}
+	examples := []any{example}
+	name := map[string]any{"description": "original", "enum": choices, "examples": examples}
+	overrides := map[string]any{"properties": map[string]any{"name": name}}
+	envelope.Register("registrytest.captured", registryOutput{}, overrides)
+
+	name["description"] = "changed"
+	choices[0] = "changed"
+	example["name"] = "changed"
+	examples[0] = "changed"
+	delete(overrides, "properties")
+
+	sample, ok := envelope.OutputSample("registrytest.captured")
+	if _, typed := sample.(registryOutput); !ok || !typed {
+		t.Fatal("declaration lookup lost the registered output type")
+	}
+	if _, ok := envelope.OutputSample("registrytest.missing"); ok {
+		t.Fatal("declaration lookup invented an output type")
+	}
+	reg, ok := envelope.Registered("registrytest.captured")
+	if !ok {
+		t.Fatal("registration missing")
+	}
+	properties, _ := reg.Schema["properties"].(map[string]any)
+	field, _ := properties["name"].(map[string]any)
+	values, _ := field["enum"].([]string)
+	items, _ := field["examples"].([]any)
+	if field["type"] != "string" || field["description"] != "original" || !slices.Equal(values, []string{"original"}) || len(items) != 1 {
+		t.Fatal("caller mutations changed the captured schema")
+	}
+	item, _ := items[0].(map[string]any)
+	if item["name"] != "original" {
+		t.Fatal("nested schema examples still alias authored overrides")
+	}
+}
+
+func TestRegisteredConcurrentFirstReadPreservesSchema(t *testing.T) {
+	envelope.ResetRegistryForTest()
+	envelope.Register("registrytest.concurrent", registryOutput{}, map[string]any{"description": "concurrent output"})
+	var readers sync.WaitGroup
+	for range 32 {
+		readers.Go(func() {
+			reg, ok := envelope.Registered("registrytest.concurrent")
+			if !ok || reg.Op != "registrytest.concurrent" || reg.Schema["description"] != "concurrent output" || reg.Schema["type"] != "object" {
+				t.Error("concurrent lookup lost the schema or registration identity")
+			}
+			properties, _ := reg.Schema["properties"].(map[string]any)
+			name, _ := properties["name"].(map[string]any)
+			if name["type"] != "string" {
+				t.Error("concurrent lookup published an incomplete derived schema")
+			}
+			snapshot := envelope.Snapshot()
+			if len(snapshot) != 1 || snapshot[0].Op != reg.Op || snapshot[0].Schema["description"] != "concurrent output" {
+				t.Error("concurrent snapshot disagrees with lookup")
+			}
+		})
+	}
+	readers.Wait()
 }
 
 func TestSnapshotIsSortedAndContainsRegistrations(t *testing.T) {

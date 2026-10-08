@@ -221,3 +221,47 @@ substitute a guessed mutation or silently fall back to a raw request.
 
 Read `machine-output` before writing a jq filter. Read `safe-mutation` before
 changing Jira and `raw-api` when a domain command cannot express the request.
+
+### Install shell completion
+
+Shell completion supports Bash, Elvish, Fish, Nushell, PowerShell and Zsh.
+Run `jira completion SHELL` to generate a script.
+Completion offers shell names and supported sort choices.
+Positional suggestions follow each argument’s declared role. Issue-key slots
+offer issue keys. Comment and web-link ID slots do not offer issue keys.
+
+Regenerate and load the script after upgrading the CLI. Bash inserts candidate
+identities without their display descriptions, including comma-separated values.
+Literal choices and filenames retain spaces, quotes and glob characters.
+Zsh retains dynamic suggestions on runnable commands that also have subcommands.
+Completion uses the selected local configuration for its offline suggestions.
+It does not authenticate or contact Jira. Cached suggestions are hints,
+not evidence that a later mutation is permitted.
+
+### Use cached transition suggestions
+
+After `jira issue transition list ISSUE_KEY`, positional target slots can suggest cached
+transition IDs with names and destinations. Hints belong to that issue and the
+selected site/account. They become stale five minutes after observation.
+Stale hints remain inspectable but no longer supply completion suggestions. Multiple keys
+need a shared ID with the same known destination. Inspect them with
+`jira cache inspect transitions` or remove them with
+`jira cache clear transitions --force`.
+The cache does not authorize mutations. Native input and unresolved selectors
+leave target suggestions empty, and completion never reads payload files.
+
+### Complete help topics
+
+Help topics follow the command namespace: after `jira help issue`, complete an
+issue command. After `jira help issue comment`, complete a comment command.
+Built-in command aliases use the same paths. Leaf commands and unknown topics
+offer no further topic names. These suggestions use the local command tree.
+
+### Quote CSV completion values in PowerShell
+
+PowerShell preserves quoted configuration paths and literal inserted values.
+completion descriptions remain tooltips. For CSV values containing spaces or
+commas, quote the whole argument, for example `--label 'first,space name'`.
+Completions retain CSV field quoting and selected members. Quote short inline
+CSV values too (`-f='one,two'`). Bare short inline CSV is invalid PowerShell
+syntax. Regenerate the script after upgrading to receive native generator fixes.

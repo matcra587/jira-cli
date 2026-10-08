@@ -29,7 +29,7 @@ func payloadAliases() []command.HiddenAlias {
 func (f *inputFlags) register(cmd *cobra.Command) {
 	f.cmd = cmd
 	command.AddBodyFlags(cmd, &f.body, command.WithoutADFRoute())
-	command.AddStringVar(cmd, &f.jsonInput, command.FlagJSONInput, "", "Read a whole native worklog request or legacy time_spent/comment_markdown object; - reads standard input", command.FlagOpts{Terse: "Worklog payload", Placeholder: "path"})
+	command.AddStringVar(cmd, &f.jsonInput, command.FlagJSONInput, "", "Read a whole native worklog request or legacy time_spent/comment_markdown object; - reads standard input", command.FlagOpts{Terse: "Worklog payload", Placeholder: "path", Hint: "file"})
 	command.AddStringVar(cmd, &f.timeSpent, "time-spent", "", "Integer effort in d/h/m units; replaces effort from JSON input", command.FlagOpts{Terse: "Logged effort", Placeholder: "duration"})
 	command.AddStringVar(cmd, &f.started, "started", "", "ISO date/time or now, yesterday, duration ago; replaces the JSON start time", command.FlagOpts{Terse: "Start time", Placeholder: "time"})
 	command.AddHiddenAliases(cmd, payloadAliases())

@@ -8,12 +8,9 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -23,12 +20,6 @@ import (
 )
 
 func TestPipedTokenRootHonorsCommandContext(t *testing.T) {
-	var calls atomic.Int32
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		calls.Add(1)
-		w.WriteHeader(http.StatusInternalServerError)
-	}))
-	defer server.Close()
 	for _, tc := range []struct {
 		name     string
 		deadline bool
@@ -39,7 +30,10 @@ func TestPipedTokenRootHonorsCommandContext(t *testing.T) {
 		{name: "deadline", deadline: true, wantExit: cli.ExitTimeout, wantCode: "timeout"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			stdout, exit := runTokenInputContextProcess(t, server.URL, tc.deadline)
+			stdout, exit := runTokenInputContextProcess(t, "https://example.invalid", tc.deadline)
+			if exit == 21 {
+				t.Fatal("canceled token input contacted Jira")
+			}
 			if exit != tc.wantExit {
 				t.Fatalf("token input exit=%d, want %d", exit, tc.wantExit)
 			}
@@ -54,9 +48,6 @@ func TestPipedTokenRootHonorsCommandContext(t *testing.T) {
 			}
 			if frame.OK || len(frame.Errors) != 1 || frame.Errors[0].Code != tc.wantCode {
 				t.Fatalf("wrong token input context frame: %+v", frame)
-			}
-			if calls.Load() != 0 {
-				t.Fatal("canceled token input contacted Jira")
 			}
 		})
 	}

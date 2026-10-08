@@ -179,27 +179,25 @@ that changes is a bug in the path.
 
 Raw `pflag` declarations are banned outside `command` (ruleguard
 `rawPflagDeclaration`). Declare flags with the `command.Add*` helpers
-(`AddStringVar`, `AddBoolP`, …), which register the flag and attach its
-`clib.FlagExtra` in one call:
+(`AddStringVar`, `AddBoolVar`, …), which take the owning command and
+`command.FlagOpts`, register the flag and attach clib metadata in one call:
 
 ```go
-command.AddStringVar(cmd.Flags(), &opts.Query, "query", "",
-    "Filter results by query", clib.FlagExtra{
-        Group:       "Filters",           // must exist in help.go flagGroupRank
-        Terse:       "query filter",      // short label for completions
-        Placeholder: "text",
-        Complete:    "predictor=query",   // dynamic completion (completion.go)
+command.AddStringVar(cmd, &opts.Filter, "filter", "",
+    "Use a saved query", command.FlagOpts{
+        Terse:       "Saved query",
+        Placeholder: "name",
+        Complete:    "predictor=savedquery",
     })
 ```
 
 *   Prefer the semantic bundlers for recurring clusters: `AddDryRunFlag`,
-    `ExtendPaginationFlags`, `AddIssueColumnFlags`, …; reach for generic
+    `AddListFlags`, `AddIssueFieldFlags`, …; reach for generic
     helpers only for one-offs.
 *   Enum flags carry `Enum`/`EnumTerse`/`EnumDefault` so help renders the
     values and completion offers them.
-*   A `Group` not listed in `flagGroupRank` (`command/help.go`) renders near
-    the bottom as "obviously unranked" — add new groups to the rank map
-    deliberately.
+*   `FlagOpts` owns shorthand, native file/directory hints and forwarding
+    values to dynamic callbacks. Keep these declarations at the shared boundary.
 *   Completion predictors attach through the same flag/command metadata — see
     Completion below.
 
@@ -207,51 +205,57 @@ command.AddStringVar(cmd.Flags(), &opts.Query, "query", "",
 
 Shell completion is clib-driven. Two ways to attach it:
 
-*   **Flag value** — `clib.FlagExtra{Complete: "predictor=cacheproject"}`; a
-    repeatable/comma flag adds the modifier: `"predictor=cachefield,comma"`.
-*   **Positional args** — the command's clib annotation:
-    `Annotations: map[string]string{"clib": "dynamic-args='issuekey'"}` (a
-    positional CSV — arg 1's predictor, arg 2's, …). A shared package var is the
-    idiom where many commands repeat one (`issueKeyArg`); file-path args use
-    `"clib": "complete=path"`.
+*   **Flag value** — `command.FlagOpts{Complete: "predictor=cacheproject"}`
+    passed to a `command.Add*` helper; a repeatable/comma flag adds the
+    modifier: `"predictor=cachefield,comma"`. Include the required `Terse`
+    label alongside completion metadata.
+*   **Positional args** — declare each position's `Name` and `Predictor` in
+    `command.ArgSpec`. The construction path derives the clib annotation and
+    argument validator together; do not hand-write an annotation in a handler.
 
-**Nothing is wired yet.** `completionKinds` in
-`internal/cli/root/complete.go` is an EMPTY map, no command declares
-`dynamic-args`, and `jira __complete <cmd>` reports an unknown command.
-The rules below are the contract to build against, not a description of
-what runs — the 0.15 tree has sixteen predictor kinds and twenty-one
-declaration sites, and it is the port target.
-
-That map is the single source of truth once it exists: keys are the
+`completionKinds` in `internal/cli/root/complete.go` is the dispatch owner:
+keys are the
 predictor names, values emit the candidates. A declared name with no
 entry ships a silently-empty completion, which
 `TestDeclaredPredictorsAreHandled` fails on. Adding a predictor is one
 emitter func plus one map entry, and an `ArgSpec` may name a predictor
 only in the change that registers its kind.
 
-*   Emitters run **outside `PersistentPreRunE`** (see Gotchas) — load config
-    yourself via `config.Load`, stay **null-safe** (emit nothing on a
-    missing/broken cache, never block the shell), and **sanitize** every
-    candidate through `cli.SanitizeCompletionField` (Jira text is untrusted).
-    Write only to the injected emitter writer and return write failures.
+*   Emitters run before ordinary command parsing. Resolve the selected settings
+    and public site/account scope through the completion owners; never open
+    credentials or a Jira client. Missing, malformed or stale local data offers
+    no candidates. Preserve identity, reject control-bearing names and sanitize
+    descriptions with `cli.Text`. Emitters return candidate lines; the shared
+    completion handler owns the stdout callback boundary.
 *   **Enum flags self-complete** from `Enum`/`EnumTerse` — never wire a predictor
-    for one. `FlagExtra.Hint` (`file`/`dir`/`user`/`host`/`url`/…) gives
+    for one. `FlagOpts.Hint` (`file`/`dir`/`user`/`host`/`url`/…) gives
     OS-level completion — `user`/`host` mean the OS's, not Jira's.
-*   `issuekey` completes from the per-profile recently-used key cache
-    (`internal/cache` `IssueKeysResource`), written as a side effect of
-    commands that touch keys (`command.RecordIssueKeys`/`RecordIssuesSeen`);
-    a profile with no recorded keys emits nothing.
-*   User-identifier flags (`--assignee`, `--reporter`, `--user`) complete only
-    the `me`/`none` enum values today. Completing arbitrary Jira users needs a
-    users cache resource that does not exist yet, so it is deferred — `jira user
-    search` is the discovery path meanwhile.
+*   `issuekey` reads recent issue history from the site/account-scoped cache
+    through `cache.RecentIssueKeys`. Mixed attachment and transition grammars use
+    their contextual predictors, not a whole-command filesystem fallback. Empty
+    history offers nothing. `jira user search` remains the explicit user lookup.
+*   Transition target hints use per-issue observations from successful explicit
+    `issue transition list` reads, never the global status catalog. Require fresh
+    five-minute observations; reject malformed, future and cross-scope data.
+    Multiple keys need a shared ID with identical known destination metadata.
+    Native input paths are forwarded as context only; never read their contents
+    during completion. Canceled discovery stops recording, completed failures
+    invalidate old hints, and attempted transitions invalidate their snapshot.
 *   clib is pinned in `go.mod`; `dynamic-args` / `predictor=` / `FlagExtra` are
-    stable across versions, but bumping clib is a deliberate change ([go.md](go.md)).
+    versioned APIs. Verify them against the selected source before changing the
+    dependency ([go.md](go.md)).
+*   The root registers reviewed native Bash/PowerShell/Zsh backports once through clib's
+    `complete.RegisterShell`, before exposing any generator. The owner is
+    `internal/cli/completion/native`; it reuses the library's public model,
+    validation and installation. Do not rewrite emitted scripts, lose other
+    shells, import unfinished proposals, or add a module replacement that breaks
+    versioned `go install`. Exercise generated scripts in real shells; a golden
+    or a successful callback alone does not prove correct inserted values.
 
 Under the construction path the two attachment points differ:
 
-*   **Flag predictors are unchanged** — `FlagExtra` rides the flag, declared
-    inside `Spec.Flags` through the usual `command.Add*` helpers.
+*   **Flag predictors** — declare `FlagOpts` inside `Spec.Flags` through the
+    usual `command.Add*` helpers; those helpers attach clib's `FlagExtra`.
 *   **Positional predictors come from the `ArgSpec`**, not a hand-written
     annotation. `New` sets `Annotations["clib"]` from it, so the live tree
     still carries what `TestDeclaredPredictorsAreHandled` walks; what
@@ -292,9 +296,18 @@ policy by reading env/config ad hoc:
 *   **Read-only** — `command.ReadOnlyEnabled`: `JIRA_READ_ONLY` env wins on the
     OFF→ON direction only; enforcement lives at the HTTP transport (see
     [security.md](security.md)).
-*   **ADF mode** — `command.ADFModeFor(cmd, mutation)`: flags > env
-    (`JIRA_ADF_STRICT`) > path default; mutations default strict, reads
-    best-effort; conflicting inputs resolve to the safe default.
+*   **ADF authoring** — local `adf convert` is strict by default and validates
+    every candidate against the pinned schema. Dropped content refuses with
+    `adf_content_loss`, retaining the candidate and diagnostics; explicit
+    `--adf-best-effort` or `--adf-strict=false` accepts reported loss.
+    Direct issue/comment `--markdown` routes use the same converter but warn
+    and proceed on loss. Native body input uses `command.ResolveADF` validation.
+    There is no global `JIRA_ADF_STRICT` policy. For content-sensitive authoring,
+    require successful strict conversion, inspect diagnostics, then pass the
+    extracted document to the appropriate native body/request input. A schema
+    check does not establish Jira field permissions or future write success.
+    Existing native documents use anchored `adf edit prepare/apply/merge` and
+    the preservation owner, not a render-to-Markdown conversion round trip.
 *   **Headless** — mutations require `--no-input` in agent/non-TTY context;
     destructive commands additionally require `--force`. Do not weaken either.
     This covers **local-state removals**, not just Jira writes: `cache clear`
@@ -348,7 +361,7 @@ test has ever existed here. House style, by field:
     ```
 
 *   **Flag usage strings stay plain prose** — no backticks. Placeholders and
-    enum values come from `FlagExtra` metadata (`Placeholder`, `Enum`), never
+    enum values come from `FlagOpts` metadata (`Placeholder`, `Enum`), never
     repeated inside the usage text: clib already renders
     `--query <text>  [table, json, yaml]`.
 
@@ -359,7 +372,8 @@ test has ever existed here. House style, by field:
     in the same PR as any behavior change.
 *   Contract test covers the envelope; guardrail test for any new invariant.
 *   Dry-run checked before expensive work and before early returns.
-*   New flag group added to `flagGroupRank`.
+*   New flags use `command.Add*` with complete `FlagOpts` metadata; declared
+    predictors have registered handlers.
 
 `RunE`, command-stream ownership and output-helper propagation are AST
 guardrails. The remaining points require review.
@@ -379,3 +393,23 @@ guardrails. The remaining points require review.
 *   **`jira issue edit KEY` with no field flags** opens `$EDITOR`; agent/non-TTY
     context refuses with exit 3 and a remediation hint — preserve that guard
     when touching the editor flow.
+
+Completion generation removes Cobra's combined boolean `h/help` spec when
+Conductor supplies separate short and long help descriptions. Keep this repair
+at the shared `WithGenerator` model boundary: duplicate options break Fish's
+`argparse` dispatch before a predictor can run. Exercise the generated script.
+Completed failed transition discovery invalidates old hints even if another
+issue subsequently cancels the command; canceled or unstarted reads do not.
+
+PowerShell generation uses completed literal AST values and scoped valued-flag
+metadata; it never evaluates expressions to discover context. Exclude the current
+argument and future tokens, keep callback arrays flat, preserve literal inserted
+argv and keep descriptions in tooltips. Inline flag values keep their spelling.
+Check the actual TabExpansion2 replacement, including comma arguments. Native
+PowerShell requires quoting the whole CSV argument for whitespace-bearing members.
+
+Forwarding must consume values of non-forwarded flags in the evolving command
+scope. Honor `--` before interpreting flag values. Preserve the caller's
+`LASTEXITCODE` and avoid recording errors for an absent exit-status variable.
+Bare short inline CSV is a PowerShell parse error; omit unrepairable suggestions
+and support quoted whole values instead.

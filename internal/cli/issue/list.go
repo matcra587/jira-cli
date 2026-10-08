@@ -328,7 +328,7 @@ func newIssueList(deps Deps, currentAccount bool) *cobra.Command {
 			command.AddStringSliceVar(c, &fields, "fields", nil,
 				"Restrict the fields Jira returns (comma-separated); without "+
 					"it, the fields the table's own columns need",
-				command.FlagOpts{Terse: "Fields", Placeholder: "list"})
+				command.FlagOpts{Terse: "Fields", Placeholder: "list", Complete: "predictor=cachefield,comma"})
 			command.AddBoolVar(c, &detail, "detail", false,
 				"Fetch all native fields and the full list expansion preset", command.FlagOpts{Terse: "Full details"})
 			command.AddStringSliceVar(c, &expand, "expand", nil,
@@ -355,16 +355,16 @@ func newIssueList(deps Deps, currentAccount bool) *cobra.Command {
 			command.AddStringSliceVar(c, &columns, flagColumns, nil,
 				"Choose and order the columns of the human table — "+
 					"distinct from --fields, which chooses what Jira sends",
-				command.FlagOpts{Terse: "Table columns", Placeholder: "list"})
+				command.FlagOpts{Terse: "Table columns", Placeholder: "list", Enum: issueFieldNames()})
 			command.AddBoolVar(c, &asJQL, flagAsJQL, false,
 				"Print the composed JQL and stop, without running the search",
 				command.FlagOpts{Terse: "Show composed JQL"})
 			command.AddStringVar(c, &board.name, flagBoard, "",
 				"List the issues on this board, by name; narrow it further with the filters above",
-				command.FlagOpts{Terse: "Board", Placeholder: "name"})
+				command.FlagOpts{Terse: "Board", Placeholder: "name", Complete: "predictor=cacheboard"})
 			command.AddIntVar(c, &board.id, flagBoardID, 0,
 				"List the issues on this board, by its numeric `ID` — the unambiguous form of --board",
-				command.FlagOpts{Terse: "Board id", Placeholder: "id"})
+				command.FlagOpts{Terse: "Board id", Placeholder: "id", Complete: "predictor=cacheboardid"})
 			addCacheFlags(c, &board.cacheOptions, "board")
 			command.AddStringVar(c, &created, "created", "",
 				"Match creation dates using a date, signed period, comparison or inclusive A..B range",

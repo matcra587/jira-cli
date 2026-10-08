@@ -155,6 +155,18 @@ func TestDiskCacheConcurrentReplacementNeverPublishesPartialEntry(t *testing.T) 
 	if err := cache.Set("metadata", values[0]); err != nil {
 		t.Fatal(err)
 	}
+	// Root.ReadFile uses the native descriptor-relative sharing contract. On
+	// Windows, pathname os.ReadFile omits FILE_SHARE_DELETE and can interfere
+	// with a concurrent rename instead of observing publication integrity.
+	reader, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := reader.Close(); err != nil {
+			t.Error(err)
+		}
+	})
 	var writers sync.WaitGroup
 	failures := make(chan error, 2)
 	for _, value := range values {
@@ -176,7 +188,7 @@ func TestDiskCacheConcurrentReplacementNeverPublishesPartialEntry(t *testing.T) 
 	// Join writers before TempDir cleanup, including on a failed observation.
 	defer writers.Wait()
 	for {
-		raw, err := os.ReadFile(cache.path("metadata"))
+		raw, err := reader.ReadFile(filepath.Base(cache.path("metadata")))
 		if err != nil {
 			t.Fatal(err)
 		}

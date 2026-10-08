@@ -105,12 +105,15 @@ func AddGlobalFlags(cmd *cobra.Command) {
 		Terse:       "Config file",
 		Group:       help.GlobalSection + "/3",
 		Placeholder: "path",
+		Hint:        "file",
 	})
+	markCompletionForward(fs.Lookup(cli.FlagConfig))
 
 	fs.StringP(cli.FlagProfile, "P", "", "Select a named profile instead of JIRA_PROFILE or the configured default")
 	clibcobra.Extend(fs.Lookup(cli.FlagProfile), clibcobra.FlagExtra{
-		Terse: "Profile", Group: help.GlobalSection + "/3", Placeholder: "name",
+		Terse: "Profile", Group: help.GlobalSection + "/3", Placeholder: "name", Complete: "predictor=profile",
 	})
+	markCompletionForward(fs.Lookup(cli.FlagProfile))
 
 	// No Enum: a duration is an open value, not a vocabulary. The default
 	// is spelled 0s rather than left blank so help states the actual
@@ -157,12 +160,29 @@ type FlagOpts struct {
 	Shorthand string
 	// Complete supplies a registered clib predictor for an open vocabulary.
 	Complete string
+	// Forward sends this valued flag to dynamic completion callbacks so they
+	// can distinguish positional roles without reading files or contacting Jira.
+	Forward bool
 	// Hint delegates value completion to the shell (for example, file or dir).
 	Hint string
-	// Enum supplies static completion/schema values for string flags.
+	// Enum supplies static completion/schema values for valued flags.
 	Enum        []string
 	EnumTerse   []string
 	EnumDefault string
+}
+
+// flagExtra keeps valued flags on one metadata contract; registration and
+// callback forwarding remain explicit in each typed helper.
+func (opts FlagOpts) flagExtra() clibcobra.FlagExtra {
+	return clibcobra.FlagExtra{
+		Terse:       opts.Terse,
+		Placeholder: opts.Placeholder,
+		Enum:        opts.Enum,
+		EnumTerse:   opts.EnumTerse,
+		EnumDefault: opts.EnumDefault,
+		Complete:    opts.Complete,
+		Hint:        opts.Hint,
+	}
 }
 
 // AddStringVar registers a string flag with its clib metadata in one
@@ -174,15 +194,10 @@ type FlagOpts struct {
 func AddStringVar(cmd *cobra.Command, p *string, name, value, usage string, opts FlagOpts) {
 	fs := cmd.Flags()
 	fs.StringVarP(p, name, opts.Shorthand, value, usage)
-	clibcobra.Extend(fs.Lookup(name), clibcobra.FlagExtra{
-		Terse:       opts.Terse,
-		Placeholder: opts.Placeholder,
-		Enum:        opts.Enum,
-		EnumTerse:   opts.EnumTerse,
-		EnumDefault: opts.EnumDefault,
-		Complete:    opts.Complete,
-		Hint:        opts.Hint,
-	})
+	clibcobra.Extend(fs.Lookup(name), opts.flagExtra())
+	if opts.Forward {
+		markCompletionForward(fs.Lookup(name))
+	}
 }
 
 // AddStringSliceVar registers a comma-separated string-slice flag with
@@ -192,10 +207,10 @@ func AddStringSliceVar(cmd *cobra.Command, p *[]string, name string, value []str
 	fs := cmd.Flags()
 	fs.StringSliceVarP(p, name, opts.Shorthand, value, usage)
 	preserveCSVInput(fs.Lookup(name))
-	clibcobra.Extend(fs.Lookup(name), clibcobra.FlagExtra{
-		Terse:       opts.Terse,
-		Placeholder: opts.Placeholder,
-	})
+	clibcobra.Extend(fs.Lookup(name), opts.flagExtra())
+	if opts.Forward {
+		markCompletionForward(fs.Lookup(name))
+	}
 }
 
 // AddStringArrayVar registers repeated literal values without CSV splitting.
@@ -203,14 +218,20 @@ func AddStringSliceVar(cmd *cobra.Command, p *[]string, name string, value []str
 func AddStringArrayVar(cmd *cobra.Command, p *[]string, name string, value []string, usage string, opts FlagOpts) {
 	fs := cmd.Flags()
 	fs.StringArrayVarP(p, name, opts.Shorthand, value, usage)
-	clibcobra.Extend(fs.Lookup(name), clibcobra.FlagExtra{Terse: opts.Terse, Placeholder: opts.Placeholder})
+	clibcobra.Extend(fs.Lookup(name), opts.flagExtra())
+	if opts.Forward {
+		markCompletionForward(fs.Lookup(name))
+	}
 }
 
 // AddInt64Var registers a byte bound without depending on the platform's int width.
 func AddInt64Var(cmd *cobra.Command, p *int64, name string, value int64, usage string, opts FlagOpts) {
 	fs := cmd.Flags()
 	fs.Int64VarP(p, name, opts.Shorthand, value, usage)
-	clibcobra.Extend(fs.Lookup(name), clibcobra.FlagExtra{Terse: opts.Terse, Placeholder: opts.Placeholder})
+	clibcobra.Extend(fs.Lookup(name), opts.flagExtra())
+	if opts.Forward {
+		markCompletionForward(fs.Lookup(name))
+	}
 }
 
 // AddBoolVar registers a bool flag with its clib metadata.
@@ -242,10 +263,10 @@ func AddPersistentBoolVar(cmd *cobra.Command, p *bool, name string, value bool, 
 func AddIntVar(cmd *cobra.Command, p *int, name string, value int, usage string, opts FlagOpts) {
 	fs := cmd.Flags()
 	fs.IntVarP(p, name, opts.Shorthand, value, usage)
-	clibcobra.Extend(fs.Lookup(name), clibcobra.FlagExtra{
-		Terse:       opts.Terse,
-		Placeholder: opts.Placeholder,
-	})
+	clibcobra.Extend(fs.Lookup(name), opts.flagExtra())
+	if opts.Forward {
+		markCompletionForward(fs.Lookup(name))
+	}
 }
 
 // AddDurationVar registers a duration with the same help metadata as other
@@ -253,7 +274,10 @@ func AddIntVar(cmd *cobra.Command, p *int, name string, value int, usage string,
 func AddDurationVar(cmd *cobra.Command, p *time.Duration, name string, value time.Duration, usage string, opts FlagOpts) {
 	fs := cmd.Flags()
 	fs.DurationVarP(p, name, opts.Shorthand, value, usage)
-	clibcobra.Extend(fs.Lookup(name), clibcobra.FlagExtra{Terse: opts.Terse, Placeholder: opts.Placeholder})
+	clibcobra.Extend(fs.Lookup(name), opts.flagExtra())
+	if opts.Forward {
+		markCompletionForward(fs.Lookup(name))
+	}
 }
 
 // ListFlags is the shared option set every JQL-backed list command binds
@@ -319,7 +343,7 @@ type ListFlags struct {
 func AddListFlags(cmd *cobra.Command, f *ListFlags) {
 	AddStringVar(cmd, &f.OrderBy, "order-by", "",
 		"Sort results by this field",
-		FlagOpts{Terse: "Sort field", Placeholder: "field"})
+		FlagOpts{Terse: "Sort field", Placeholder: "field", Enum: allowedOrderByFields})
 	AddBoolVar(cmd, &f.Reverse, "reverse", false,
 		"Reverse --order-by's own default direction",
 		FlagOpts{Terse: "Reverse sort"})

@@ -105,13 +105,13 @@ type SelectorFlags struct {
 func AddSelectorFlags(cmd *cobra.Command, f *SelectorFlags) {
 	AddStringVar(cmd, &f.JQL, FlagJQL, "",
 		"Act on every issue matching this JQL query, instead of naming keys",
-		FlagOpts{Terse: "Select by JQL", Placeholder: "query"})
+		FlagOpts{Terse: "Select by JQL", Placeholder: "query", Forward: true})
 	AddStringVar(cmd, &f.Filter, FlagFilter, "",
 		"Act on every issue matching this saved filter's query, by filter `ID`",
-		FlagOpts{Terse: "Select by filter", Placeholder: "id"})
+		FlagOpts{Terse: "Select by filter", Placeholder: "id", Forward: true})
 	AddStringVar(cmd, &f.FromFile, FlagFromFile, "",
 		"Act on the issue keys in this file, one per line (`-` for standard input)",
-		FlagOpts{Terse: "Keys from file", Placeholder: "path"})
+		FlagOpts{Terse: "Keys from file", Placeholder: "path", Forward: true, Hint: "file"})
 }
 
 // Given reports whether any selector was passed.

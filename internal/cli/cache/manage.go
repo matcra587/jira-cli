@@ -151,6 +151,11 @@ func resourceForKey(key string) string {
 	switch {
 	case key == IssueKeysKey:
 		return "issuekeys"
+	case strings.HasPrefix(key, TransitionHintsPrefix):
+		issue := strings.TrimPrefix(key, TransitionHintsPrefix)
+		if normalized, err := command.ParseIssueKey(issue); err == nil && normalized == issue {
+			return "transitions"
+		}
 	case key == BoardListKey || strings.HasPrefix(key, BoardSelectorPrefix):
 		return "boards"
 	case strings.HasPrefix(key, LinkTypesPrefix):

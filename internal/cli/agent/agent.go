@@ -74,19 +74,27 @@ func New(deps Deps) *cobra.Command {
 	return group
 }
 
-// SealPaths runs after assembly so help and shell completion include discovery
-// itself and every later-mounted command. The values come from the same tree.
-func SealPaths(group *cobra.Command, tree docent.Command) {
+// SealPaths reads the assembled command names for help and shell completion.
+// This walk needs no output schemas; deriving the full discovery artifact here
+// made every invocation pay for schema generation and defensive tree cloning.
+func SealPaths(group, root *cobra.Command) {
 	var values, descriptions []string
-	var walk func(docent.Command)
-	walk = func(node docent.Command) {
-		values = append(values, node.Path)
-		descriptions = append(descriptions, node.Description)
-		for _, child := range node.Children {
+	var walk func(*cobra.Command)
+	walk = func(node *cobra.Command) {
+		node.InitDefaultHelpFlag()
+		// Prime Cobra's local flag snapshot before help temporarily disables
+		// sorting. The previous discovery walk established this order too.
+		node.LocalFlags()
+		values = append(values, node.CommandPath())
+		descriptions = append(descriptions, node.Short)
+		for _, child := range node.Commands() {
+			if child.Hidden {
+				continue
+			}
 			walk(child)
 		}
 	}
-	walk(tree)
+	walk(root)
 	for _, child := range group.Commands() {
 		if child.Name() == "schema" {
 			clibcobra.Extend(child.Flags().Lookup(flagPath), clibcobra.FlagExtra{Terse: pathTerse, Placeholder: pathPlaceholder, Enum: values, EnumTerse: descriptions})

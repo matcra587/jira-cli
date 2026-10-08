@@ -75,6 +75,10 @@ type spec struct {
 // hint asks the reader to check values they never passed.
 const CodeOutputWriteFailed = "output_write_failed"
 
+// CodeAuthStoreUnavailable means a credential lookup failed, so absence and
+// validity of a stored credential remain unknown.
+const CodeAuthStoreUnavailable = "auth_store_unavailable"
+
 // CodeRedirectRefused is a server-directed request rejected by transport
 // safety. It does not establish whether the original mutation took effect.
 const CodeRedirectRefused = "redirect_refused"
@@ -205,6 +209,7 @@ var registry = map[string]spec{
 	CodeWorklogResponseInvalid:       {exit: ExitServer, hint: "Jira returned a malformed worklog response. Inspect the issue's worklogs before retrying a write; a worklog may already have been created."},
 	"jira_unauthorized":              {exit: ExitAuth, hint: "Jira rejected the credentials — check the account email, and re-run `jira auth login --with-token` if the token was revoked."},
 	CodeAuthMissing:                  {exit: ExitAuth, hint: "Pipe a token in with `jira auth login --with-token` — for example from a password manager."},
+	CodeAuthStoreUnavailable:         {exit: ExitAuth, hint: "Unlock or restore access to the system keyring and retry, or supply explicit environment credentials."},
 	"jira_forbidden":                 {exit: ExitAuth, hint: "The credentials work but lack permission for this resource — ask a Jira admin, or switch to a profile that has it."},
 	"jira_not_found":                 {exit: ExitNotFound, hint: "Check the identifier — the site answered, but nothing lives at it."},
 	"jira_bad_request":               {exit: ExitValidation, hint: "Jira rejected some of the values — fix the fields it flagged and send it again."},

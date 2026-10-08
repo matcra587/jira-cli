@@ -181,8 +181,15 @@ func newJiraClient() (core.JiraClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	resolved, err := config.Load(config.Options{Credentials: store})
+	return jiraClientFrom(config.Options{Credentials: store})
+}
+
+func jiraClientFrom(opts config.Options) (core.JiraClient, error) {
+	resolved, err := config.Load(opts)
 	if err != nil {
+		return nil, err
+	}
+	if err := credentialReadFailure(resolved); err != nil {
 		return nil, err
 	}
 	if err := resolved.Config.Validate(); err != nil {
@@ -255,12 +262,26 @@ func siteFrom(opts config.Options) (authcmd.SiteInfo, error) {
 	if err != nil {
 		return authcmd.SiteInfo{}, err
 	}
+	if err := credentialReadFailure(resolved); err != nil {
+		return authcmd.SiteInfo{}, err
+	}
 	return authcmd.SiteInfo{
 		BaseURL:     resolved.Config.BaseURL,
 		Email:       resolved.Config.Email,
 		Token:       resolved.Config.APIToken,
 		TokenSource: string(resolved.Source("api_token")),
 	}, nil
+}
+
+func credentialReadFailure(resolved *config.Resolved) error {
+	if resolved.CredentialError == nil || strings.TrimSpace(resolved.Config.APIToken) != "" {
+		return nil
+	}
+	return &cli.CodedError{
+		Code:    cli.CodeAuthStoreUnavailable,
+		Message: "the system credential store could not be read; stored credentials were not verified",
+		Cause:   resolved.CredentialError,
+	}
 }
 
 // metadataCacheScope keeps live keyring resolution in the established cache

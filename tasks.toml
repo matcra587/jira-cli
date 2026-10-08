@@ -136,14 +136,39 @@ description = "Run the output-contract audit suite"
 run = "go test -tags=outputaudit -count=1 ./tests/audit/"
 
 [fmt]
-description = "Format code with gofmt and gofumpt"
-run = ["go fmt ./...", "go tool gofumpt -w ."]
+description = "Format repository Go source with gofumpt"
+run = '''
+#!/usr/bin/env bash
+set -o pipefail
+git ls-files --cached --others --exclude-standard -z -- '*.go' |
+while IFS= read -r -d '' source_file; do
+  if [ -f "$source_file" ] && [ ! -L "$source_file" ]; then
+    printf '%s\0' "$source_file"
+  fi
+done |
+xargs -0 sh -c 'if [ "$#" -gt 0 ]; then exec go tool gofumpt -w -- "$@"; fi' --
+'''
 
 ["fmt:check"]
 description = "Check Go formatting"
 # The || exit 1 matters: command substitution swallows a missing or crashing
 # gofumpt, and an empty capture would pass the gate vacuously.
-run = 'out="$(go tool gofumpt -l .)" || exit 1; test -z "$out"'
+# Git's inventory includes new source files and respects local exclusions.
+# Preserve NUL separators for filenames containing spaces or newlines.
+run = '''
+#!/usr/bin/env bash
+set -o pipefail
+out="$(
+  git ls-files --cached --others --exclude-standard -z -- '*.go' |
+  while IFS= read -r -d '' source_file; do
+    if [ -f "$source_file" ] && [ ! -L "$source_file" ]; then
+      printf '%s\0' "$source_file"
+    fi
+  done |
+  xargs -0 sh -c 'if [ "$#" -gt 0 ]; then exec go tool gofumpt -l -- "$@"; fi' --
+)" || exit 1
+test -z "$out"
+'''
 
 ["fmt:file"]
 description = "Format Go file(s) with gofumpt"

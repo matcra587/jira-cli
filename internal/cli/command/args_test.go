@@ -70,10 +70,9 @@ func TestArbitraryArgsAcceptsAnything(t *testing.T) {
 // shell, because clib validates each entry as shell-safe and rejects
 // the empty string.
 //
-// Trailing positions without a predictor are dropped. An interior one
-// cannot be — dropping it would shift every later predictor onto the
-// wrong argument — so a spec that asks for it is refused rather than
-// silently emitting something clib will reject at generation time.
+// Positions without a predictor use an explicit empty predictor. This keeps
+// later predictors in their declared slots and prevents a trailing argument
+// from reusing an earlier predictor.
 func TestAnnotationNeverEmitsABlankSlot(t *testing.T) {
 	t.Parallel()
 	for _, tt := range []struct {
@@ -83,7 +82,7 @@ func TestAnnotationNeverEmitsABlankSlot(t *testing.T) {
 	}{
 		{name: "none declared", spec: ArgSpec{Positions: []Arg{{Name: "A"}, {Name: "B"}}}, want: ""},
 		{name: "one", spec: ArgSpec{Positions: []Arg{{Name: "KEY", Predictor: "issuekey"}}}, want: "dynamic-args='issuekey'"},
-		{name: "trailing blank dropped", spec: ArgSpec{Positions: []Arg{{Name: "KEY", Predictor: "issuekey"}, {Name: "N"}}}, want: "dynamic-args='issuekey'"},
+		{name: "trailing blank suppressed", spec: ArgSpec{Positions: []Arg{{Name: "KEY", Predictor: "issuekey"}, {Name: "N"}}}, want: "dynamic-args='issuekey,none'"},
 		{name: "two", spec: ArgSpec{Positions: []Arg{{Name: "K", Predictor: "configkey"}, {Name: "V", Predictor: "configvalue"}}}, want: "dynamic-args='configkey,configvalue'"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -102,15 +101,18 @@ func TestAnnotationNeverEmitsABlankSlot(t *testing.T) {
 	}
 }
 
-// TestInteriorBlankPredictorIsRefused pins the case that cannot be
-// expressed: clib repeats the LAST entry for further positions and
-// rejects a blank one, so "position 1 has none, position 2 does" has no
-// encoding. Refusing at construction beats emitting a CSV that breaks
-// every shell's completion script at generation time.
-func TestInteriorBlankPredictorIsRefused(t *testing.T) {
+// A blank interior position retains its slot without shifting later predictors.
+func TestInteriorBlankPredictorRetainsItsSlot(t *testing.T) {
 	t.Parallel()
-	spec := ArgSpec{Positions: []Arg{{Name: "A"}, {Name: "B", Predictor: "issuekey"}}}
-	if _, err := spec.annotation(); err == nil {
-		t.Error("a blank predictor between two positions was accepted; clib rejects the empty entry and the generated script fails for every shell")
+	got, err := (ArgSpec{Positions: []Arg{{Name: "A"}, {Name: "B", Predictor: "issuekey"}}}).annotation()
+	if err != nil || got != "dynamic-args='none,issuekey'" {
+		t.Fatalf("annotation=%q err=%v", got, err)
+	}
+}
+
+func TestUncompletedPositionalDoesNotRepeatEarlierPredictor(t *testing.T) {
+	got, err := (ArgSpec{Max: 2, Positions: []Arg{{Name: "ISSUE_KEY", Predictor: "issuekey"}, {Name: "COMMENT_ID"}}}).annotation()
+	if err != nil || got != "dynamic-args='issuekey,none'" {
+		t.Fatalf("annotation=%q err=%v; identifier must suppress issue-key completion", got, err)
 	}
 }

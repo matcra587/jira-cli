@@ -107,7 +107,7 @@ func newWeblinkAdd(deps Deps) *cobra.Command {
 			command.AddMutationFlags(c, &mut)
 			command.AddStringVar(c, &link.jsonInput, command.FlagJSONInput, "",
 				"Read a complete native remote-link request from a JSON file, or `-` for standard input",
-				command.FlagOpts{Terse: "Native link payload", Placeholder: "path"})
+				command.FlagOpts{Terse: "Native link payload", Placeholder: "path", Hint: "file"})
 			command.AddHiddenAliases(c, command.ADFRouteAliases())
 			command.AddStringVar(c, &link.url, flagURL, "",
 				"The URL to attach",

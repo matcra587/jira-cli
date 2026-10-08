@@ -186,10 +186,10 @@ func AddIssueFieldFlags(cmd *cobra.Command, f *IssueFieldFlags, verb IssueWriteV
 		FlagOpts{Terse: "Summary", Placeholder: "text"})
 	AddStringVar(cmd, &f.IssueType, FlagIssueType, "",
 		"Issue type, by name",
-		FlagOpts{Terse: "Issue type", Placeholder: "name"})
+		FlagOpts{Terse: "Issue type", Placeholder: "name", Complete: "predictor=cacheissuetype"})
 	AddStringVar(cmd, &f.Priority, FlagPriority, "",
 		"Priority, by name",
-		FlagOpts{Terse: "Priority", Placeholder: "name"})
+		FlagOpts{Terse: "Priority", Placeholder: "name", Complete: "predictor=cachepriority"})
 	AddStringVar(cmd, &f.Assignee, FlagAssignee, "",
 		"Assignee, by Atlassian account id"+MeHelp,
 		FlagOpts{Terse: "Assignee", Placeholder: "account-id"})
@@ -198,7 +198,7 @@ func AddIssueFieldFlags(cmd *cobra.Command, f *IssueFieldFlags, verb IssueWriteV
 		FlagOpts{Terse: "Reporter", Placeholder: "account-id"})
 	AddStringVar(cmd, &f.Parent, FlagParent, "",
 		"Parent issue, by key",
-		FlagOpts{Terse: "Parent", Placeholder: "KEY-1"})
+		FlagOpts{Terse: "Parent", Placeholder: "KEY-1", Complete: "predictor=issuekey"})
 	AddStringVar(cmd, &f.Due, FlagDue, "",
 		"Due date, as YYYY-MM-DD",
 		FlagOpts{Terse: "Due date", Placeholder: "date"})
@@ -210,16 +210,19 @@ func AddIssueFieldFlags(cmd *cobra.Command, f *IssueFieldFlags, verb IssueWriteV
 	// composition — so a fifth repeatable field is one row rather than
 	// four edits in four places.
 	for _, r := range f.repeatables() {
+		opts := FlagOpts{Terse: r.singular, Placeholder: "name"}
+		if r.field == fieldLabels {
+			opts.Complete = "predictor=cachelabel,comma"
+		}
 		AddStringSliceVar(cmd, r.add, r.addFlag, nil,
-			issueListFlagUsage(verb, r.singular, r.plural),
-			FlagOpts{Terse: r.singular, Placeholder: "name"})
+			issueListFlagUsage(verb, r.singular, r.plural), opts)
 	}
 
 	switch verb {
 	case CreateIssueVerb:
 		AddStringVar(cmd, &f.Project, FlagProject, "",
 			"Project to create the issue in, by key",
-			FlagOpts{Terse: "Project", Placeholder: "KEY"})
+			FlagOpts{Terse: "Project", Placeholder: "KEY", Complete: "predictor=cacheproject"})
 	case EditIssueVerb:
 		// --remaining-estimate is edit-only because at creation the
 		// remaining estimate IS the original one, so offering both on
@@ -233,9 +236,12 @@ func AddIssueFieldFlags(cmd *cobra.Command, f *IssueFieldFlags, verb IssueWriteV
 		// payload — see the FlagRemove* block for why the asymmetry the
 		// design left behind was worth closing.
 		for _, r := range f.repeatables() {
+			opts := FlagOpts{Terse: "Remove " + r.plural, Placeholder: "name"}
+			if r.field == fieldLabels {
+				opts.Complete = "predictor=cachelabel,comma"
+			}
 			AddStringSliceVar(cmd, r.remove, r.removeFlag, nil,
-				fmt.Sprintf("%s to REMOVE, repeatable", r.singular),
-				FlagOpts{Terse: "Remove " + r.plural, Placeholder: "name"})
+				fmt.Sprintf("%s to REMOVE, repeatable", r.singular), opts)
 		}
 		AddBoolVar(cmd, &f.Unassign, FlagUnassign, false,
 			"Clear the assignee, leaving the issue unassigned",

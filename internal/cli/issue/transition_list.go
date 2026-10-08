@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	xsync "github.com/gechr/x/sync"
 	"github.com/spf13/cobra"
@@ -23,6 +24,7 @@ func newTransitionList(deps Deps) *cobra.Command {
 		Op: "issue.transition.list", Identity: true, Keyed: true, Passthrough: true,
 		Use: "list ISSUE_KEY...", Short: "Discover available workflow transitions",
 		Long: "Read the available transitions for each explicit issue, including native transition IDs, destinations, screen state and returned field metadata. This replaces the historical no-target transition listing.\n\n" +
+			"Successful reads record bounded ID/name/destination hints for the selected site/account. Hints expire five minutes after the read completes; completion never fetches Jira or treats them as permission. Inspect or clear them with cache inspect transitions and cache clear transitions. Cache failures do not replace native read results.\n\n" +
 			"The read requests expand=transitions.fields. Machine results retain the complete native response at results[].data, including schemas, allowed values, defaults and unknown extensions. A field absent from returned metadata is not proof that Jira accepts it. Human output marks required fields when Jira supplies that fact.\n\n" +
 			"This command only reads and works in read-only mode. Results follow issue order; partial failure does not discard successful reads. Total failure, timeout and interruption retain all joined outcomes. Discovery is a snapshot, not a guarantee that a later transition will succeed. --web is refused; use issue view ISSUE_KEY --web for an issue page.",
 		Example: "$ jira issue transition list KEY-123\n\n$ jira issue transition list KEY-123 KEY-124 --parallelism 1 --output=json",
@@ -46,8 +48,9 @@ func newTransitionList(deps Deps) *cobra.Command {
 }
 
 type transitionReadOutcome struct {
-	result envelope.KeyedResult[jira.Transitions]
-	err    error
+	result   envelope.KeyedResult[jira.Transitions]
+	err      error
+	observed time.Time
 }
 
 func runTransitionList(ctx context.Context, deps Deps, keys []string, parallelism int) (envelope.IssueTransitionListOutput, error) {
@@ -72,14 +75,17 @@ func runTransitionList(ctx context.Context, deps Deps, keys []string, parallelis
 	for i, outcome := range outcomes {
 		out.Results[i], raw[i] = outcome.result, outcome.err
 	}
+	recordTransitionHints(ctx, deps, outcomes)
 	return out, errors.Join(err, command.KeyedFailure(out.Results, raw))
 }
 
 func readTransitionList(ctx context.Context, client core.JiraClient, key string) transitionReadOutcome {
 	row := envelope.KeyedResult[jira.Transitions]{Issue: envelope.IssueRef{Key: key}}
+	var observed time.Time
 	err := ctx.Err()
 	if err == nil {
 		read, readErr := client.GetTransitions(ctx, key)
+		observed = time.Now().UTC()
 		valid := core.ValidateTransitions(read.Transitions)
 		if valid == nil {
 			row.Data = read.Transitions
@@ -95,7 +101,7 @@ func readTransitionList(ctx context.Context, client core.JiraClient, key string)
 	} else {
 		row.OK = true
 	}
-	return transitionReadOutcome{result: row, err: err}
+	return transitionReadOutcome{result: row, err: err, observed: observed}
 }
 
 func renderTransitionList(v *output.View, env envelope.Envelope) error {

@@ -123,6 +123,9 @@ func AddHiddenAliases(cmd *cobra.Command, aliases []HiddenAlias) {
 				cmd.Name(), a.Flag, a.Canonical, canon.Value.Type()))
 		}
 		fs.Lookup(a.Flag).Hidden = true
+		if completionForward(canon) {
+			markCompletionForward(fs.Lookup(a.Flag))
+		}
 	}
 }
 

@@ -85,7 +85,7 @@ func newProfileRename() *cobra.Command {
 		Long: "Rename one profile and update default_profile when it names that profile. Credential references stay unchanged. " +
 			"Existing destination names are refused. --dry-run previews without writing.",
 		Example: "$ jira config profile rename work office --dry-run",
-		Args:    command.ArgSpec{Min: 2, Max: 2, Positions: []command.Arg{{Name: "NAME"}, {Name: "NEW_NAME"}}},
+		Args:    command.ArgSpec{Min: 2, Max: 2, Positions: []command.Arg{{Name: "NAME", Predictor: "profile"}, {Name: "NEW_NAME"}}},
 		Flags:   command.AddDryRunFlag, Human: renderProfileChange, RetainOnError: retainProfileChange,
 		Run: func(ctx context.Context, inv command.Invocation) (envelope.ConfigProfileChangeOutput, error) {
 			return changeProfile(ctx, inv, func(file *cfg.File) (*cfg.ProfileUpdate, error) {
@@ -101,7 +101,7 @@ func newProfileDefault() *cobra.Command {
 		Long: "Store the named profile as the default for later invocations. --profile and JIRA_PROFILE still override it. " +
 			"--dry-run previews without writing.",
 		Example: "$ jira config profile default work --dry-run",
-		Args:    command.ArgSpec{Min: 1, Max: 1, Positions: []command.Arg{{Name: "NAME"}}},
+		Args:    command.ArgSpec{Min: 1, Max: 1, Positions: []command.Arg{{Name: "NAME", Predictor: "profile"}}},
 		Flags:   command.AddDryRunFlag, Human: renderProfileChange, RetainOnError: retainProfileChange,
 		Run: func(ctx context.Context, inv command.Invocation) (envelope.ConfigProfileChangeOutput, error) {
 			return changeProfile(ctx, inv, func(file *cfg.File) (*cfg.ProfileUpdate, error) { return file.PrepareProfileDefault(inv.Args[0]) })
@@ -118,7 +118,7 @@ func newProfileRemove() *cobra.Command {
 			"A live removal requires --force in headless, agent or --no-input mode; an interactive terminal proceeds without a prompt. " +
 			"--dry-run previews without writing or opening credentials.",
 		Example: "$ jira config profile remove work --dry-run\n$ jira config profile remove work --force --no-input",
-		Args:    command.ArgSpec{Min: 1, Max: 1, Positions: []command.Arg{{Name: "NAME"}}},
+		Args:    command.ArgSpec{Min: 1, Max: 1, Positions: []command.Arg{{Name: "NAME", Predictor: "profile"}}},
 		Flags: func(cmd *cobra.Command) {
 			command.AddMutationFlags(cmd, &flags, command.WithHeadlessForce("profile removal"))
 		},

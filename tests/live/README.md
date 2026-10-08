@@ -251,3 +251,9 @@ Without the live build tag, this package is excluded. With the tag but without
 the explicit opt-in, only hermetic ownership and cleanup guards run. CI uses
 `mise run test:live:guards`, which explicitly disables opt-in even when the
 parent environment enables it. Skipped live tests do not establish acceptance.
+
+Transition discovery compares the complete native metadata with an independent
+raw API read, then proves both offline target callbacks from an isolated cache.
+Expected IDs come from an independent native-response projection. Credential
+storage is disabled and HTTP proxies are unreachable during callbacks; this
+checks that completion uses the observation without contacting Jira.

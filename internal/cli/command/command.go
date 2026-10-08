@@ -400,11 +400,11 @@ func (s Spec[T]) validate() error {
 	// reports, and one registered under a different Output type would
 	// promise a shape nothing here can produce.
 	for _, v := range s.Variants {
-		vreg, ok := envelope.Registered(v.Op)
+		vreg, ok := envelope.OutputSample(v.Op)
 		if !ok {
 			return fmt.Errorf("command: variant %q of %q has no envelope registration", v.Op, s.Op)
 		}
-		if got, want := reflect.TypeOf(zero), reflect.TypeOf(vreg.Sample); got != want {
+		if got, want := reflect.TypeOf(zero), reflect.TypeOf(vreg); got != want {
 			return fmt.Errorf("command: variant %q returns %v but registered %v", v.Op, got, want)
 		}
 	}
@@ -412,12 +412,12 @@ func (s Spec[T]) validate() error {
 }
 
 func registeredOutput[T any](op string) error {
-	reg, ok := envelope.Registered(op)
+	reg, ok := envelope.OutputSample(op)
 	if !ok {
 		return fmt.Errorf("command: %q has no envelope registration; register its Output struct in internal/envelope", op)
 	}
 	var zero T
-	if got, want := reflect.TypeOf(zero), reflect.TypeOf(reg.Sample); got != want {
+	if got, want := reflect.TypeOf(zero), reflect.TypeOf(reg); got != want {
 		return fmt.Errorf("command: %q returns %v but registered %v", op, got, want)
 	}
 	return nil

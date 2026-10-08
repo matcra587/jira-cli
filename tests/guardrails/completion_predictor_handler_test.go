@@ -1,6 +1,7 @@
 package guardrails
 
 import (
+	"bytes"
 	"fmt"
 	"maps"
 	"slices"
@@ -46,6 +47,63 @@ func TestIssueKeyHistoryCompletesRankTargetsAndAnchors(t *testing.T) {
 	for _, site := range []string{"jira issue rank <arg 1>", "jira issue rank --before", "jira issue rank --after"} {
 		if !slices.Contains(sites, site) {
 			t.Errorf("recent issue history is not offered at %s", site)
+		}
+	}
+}
+
+func TestIssueHistoryCompletionForwardsDeclaredContextWithoutExposingAliases(t *testing.T) {
+	gen := guardProgram(t).Generator()
+	check := func(specs []complete.Spec, names ...string) {
+		t.Helper()
+		for _, name := range names {
+			found := false
+			for _, spec := range specs {
+				if spec.LongFlag == name {
+					found = spec.Forward && spec.HasArg
+					if name == "status" && !spec.Hidden {
+						t.Error("hidden status alias became an advertised flag")
+					}
+				}
+			}
+			if !found {
+				t.Errorf("--%s does not forward its declared completion context", name)
+			}
+		}
+	}
+	check(gen.Specs, "config")
+	foundAttachment, foundTransition := false, false
+	var walk func(string, []complete.SubSpec)
+	walk = func(path string, subs []complete.SubSpec) {
+		for _, sub := range subs {
+			next := path + " " + sub.Name
+			switch next {
+			case "jira issue attachment add":
+				foundAttachment = true
+				check(sub.Specs, "file")
+				if !slices.Equal(sub.DynamicArgs, []string{"attachmentissuekey"}) {
+					t.Errorf("attachment grammar uses predictors %v", sub.DynamicArgs)
+				}
+			case "jira issue transition":
+				foundTransition = true
+				check(sub.Specs, "transition", "status", "jql", "filter", "from-file")
+				if !slices.Equal(sub.DynamicArgs, []string{"transitionissuekey"}) {
+					t.Errorf("transition grammar uses predictors %v", sub.DynamicArgs)
+				}
+			}
+			walk(next, sub.Subs)
+		}
+	}
+	walk(gen.AppName, gen.Subs)
+	if !foundAttachment || !foundTransition {
+		t.Fatal("mixed grammars disappeared from the actual generator")
+	}
+	for _, shell := range []string{"bash", "elvish", "fish", "nu", "pwsh", "zsh"} {
+		var script bytes.Buffer
+		if err := gen.Print(&script, shell); err != nil {
+			t.Errorf("%s context-forwarding script failed: %v", shell, err)
+		}
+		if !strings.Contains(script.String(), "attachmentissuekey") || !strings.Contains(script.String(), "transitionissuekey") {
+			t.Errorf("%s script lost contextual callback kinds", shell)
 		}
 	}
 }

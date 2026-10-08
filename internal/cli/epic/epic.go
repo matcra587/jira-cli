@@ -55,7 +55,7 @@ func (o *options) flags(cmd *cobra.Command) {
 	command.AddBoolVar(cmd, &o.walk.All, "all", false, "Drain epic pages up to 50 pages or 5,000 epics", command.FlagOpts{Terse: "Drain epics"})
 	command.AddBoolVar(cmd, &o.walk.Unbounded, "unbounded", false, "With --all, lift search safety caps", command.FlagOpts{Terse: "Lift search caps"})
 	command.AddStringVar(cmd, &o.cursor, "next-page-token", "", "Resume the same query from a reported cursor", command.FlagOpts{Terse: "Resume cursor", Placeholder: "token"})
-	command.AddStringArrayVar(cmd, &o.projects, "project", nil, "Restrict epics to these project keys (repeatable)", command.FlagOpts{Terse: "Projects", Placeholder: "key"})
+	command.AddStringArrayVar(cmd, &o.projects, "project", nil, "Restrict epics to these project keys (repeatable)", command.FlagOpts{Terse: "Projects", Placeholder: "key", Complete: "predictor=cacheproject"})
 }
 
 func (o *options) validate() error {

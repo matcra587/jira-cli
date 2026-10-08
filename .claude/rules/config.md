@@ -158,6 +158,10 @@ setting and custom-theme owners. Follow the `configure-theme` embedded guide.
 *   Invalid theme names warn at rendering; invalid glyph vocabulary fails
     decoding. Preserve that intentional distinction.
 
+Runtime profile completion reads names from the selected public configuration,
+never credentials or Jira. Forward file and profile selectors through shared
+flag metadata.
+
 ## Changing the contract
 
 Update supported keys, defaults, validators, provenance, typed outputs,

@@ -273,9 +273,10 @@ var keyFailureSeverity = map[string]int{
 	"timeout":        5,
 
 	// 4 — the credential. Every other key's verdict is suspect.
-	"jira_unauthorized": 4,
-	"jira_forbidden":    4,
-	cli.CodeAuthMissing: 4,
+	"jira_unauthorized":          4,
+	"jira_forbidden":             4,
+	cli.CodeAuthMissing:          4,
+	cli.CodeAuthStoreUnavailable: 4,
 
 	// 3/2 — site or transport failures. Redirect refusal requires inspection
 	// before a mutation is retried; the classification's hint preserves that.

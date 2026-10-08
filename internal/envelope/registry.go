@@ -20,21 +20,27 @@ type Registration struct {
 	Schema map[string]any
 }
 
-// registrations is the schema registry: one entry per operation,
-// registered beside the Output struct's definition as commands land.
-// Registration is single-threaded startup wiring (the same posture as
-// the human-renderer registry), so the map is not synchronized.
-// registrations is written only at startup (init-time registration) but
-// read whenever a command renders. A mutex, not because the contract
-// permits concurrent registration — it does not — but because a
-// package-level map that is written at all must not be a data race for
-// the readers, and tests legitimately re-register under -count>1.
+// Registration validates declarations at startup. Schema derivation is lazy:
+// ordinary command construction checks types without needing output schemas.
+// Each factory runs once, including under concurrent discovery readers.
+type registration struct {
+	declaration Registration
+	schema      func() map[string]any
+}
+
+func (r registration) resolved() Registration {
+	out := r.declaration
+	out.Schema = r.schema()
+	return out
+}
+
+// The mutex protects registry publication and lookup, not schema derivation.
 var (
 	registryMu    sync.RWMutex
-	registrations = map[string]Registration{}
+	registrations = map[string]registration{}
 )
 
-// Register publishes op's Output struct and its derived schema. The
+// Register publishes op's Output struct and a lazy schema factory. The
 // sample must be a struct value — the contract's no-`any` law lives
 // here: an operation cannot promise an unshaped payload. overrides is
 // the SchemaOf escape hatch for prose and refinements the type system
@@ -53,15 +59,33 @@ func Register(op string, sample any, overrides map[string]any) {
 	if t == nil || t.Kind() != reflect.Struct {
 		panic(fmt.Sprintf("envelope: operation %q must register a struct Output sample, got %T", op, sample))
 	}
-	registrations[op] = Registration{Op: op, Sample: sample, Schema: SchemaOf(sample, overrides)}
+	// Capture authored refinements now so deferring derivation does not let
+	// later caller mutations change the published contract.
+	refinements := cloneSchema(overrides)
+	registrations[op] = registration{
+		declaration: Registration{Op: op, Sample: sample},
+		schema:      sync.OnceValue(func() map[string]any { return SchemaOf(sample, refinements) }),
+	}
 }
 
-// Registered returns op's registration when one exists.
-func Registered(op string) (Registration, bool) {
+// OutputSample returns the declared output sample without deriving its schema.
+// Command constructors use it to reject missing or mismatched registrations.
+func OutputSample(op string) (any, bool) {
 	registryMu.RLock()
 	defer registryMu.RUnlock()
 	reg, ok := registrations[op]
-	return reg, ok
+	return reg.declaration.Sample, ok
+}
+
+// Registered returns op's registration, deriving its schema on first demand.
+func Registered(op string) (Registration, bool) {
+	registryMu.RLock()
+	reg, ok := registrations[op]
+	registryMu.RUnlock()
+	if !ok {
+		return Registration{}, false
+	}
+	return reg.resolved(), true
 }
 
 // Snapshot returns every registration sorted by operation name — the
@@ -70,10 +94,14 @@ func Registered(op string) (Registration, bool) {
 // no registration.
 func Snapshot() []Registration {
 	registryMu.RLock()
-	defer registryMu.RUnlock()
-	out := make([]Registration, 0, len(registrations))
+	entries := make([]registration, 0, len(registrations))
 	for _, reg := range registrations {
-		out = append(out, reg)
+		entries = append(entries, reg)
+	}
+	registryMu.RUnlock()
+	out := make([]Registration, 0, len(entries))
+	for _, reg := range entries {
+		out = append(out, reg.resolved())
 	}
 	slices.SortFunc(out, func(a, b Registration) int { return cmp.Compare(a.Op, b.Op) })
 	return out
