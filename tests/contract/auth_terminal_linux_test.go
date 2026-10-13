@@ -59,7 +59,7 @@ func testNativeKeyringAuthTerminal(t *testing.T) {
 		t.Helper()
 		return nativeKeyringTool(t, "", 0, "lookup", "service", "jira-cli", "username", "default")
 	}
-	invoke := func(t *testing.T, extra []string, steps []terminalAuthStep, wantExit int, args ...string) (frame, string) {
+	invoke := func(t *testing.T, extra []string, steps []terminalAuthStep, wantExit int, wantCode string, args ...string) (frame, string) {
 		t.Helper()
 		argv := append([]string{"--config", configPath, "--output=json"}, args...)
 		stdout, screen, exit := nativeKeyringTerminal(t, append(append([]string{}, env...), extra...), steps, argv...)
@@ -80,10 +80,6 @@ func testNativeKeyringAuthTerminal(t *testing.T) {
 			var entry struct {
 				Code string `json:"code"`
 			}
-			wantCode := "canceled"
-			if wantExit == cli.ExitValidation {
-				wantCode = "flag_required"
-			}
 			if len(result.Errors) != 1 || json.Unmarshal(result.Errors[0], &entry) != nil || entry.Code != wantCode {
 				t.Fatal("terminal command returned the wrong error classification")
 			}
@@ -93,7 +89,7 @@ func testNativeKeyringAuthTerminal(t *testing.T) {
 	pinned := []string{"auth", "login", "--site", server.URL, "--email", email}
 	absent(t)
 	t.Run("canceled first login stores nothing", func(t *testing.T) {
-		invoke(t, nil, []terminalAuthStep{{wait: "API token", input: token}, {wait: "*****", input: "\x03"}}, cli.ExitCanceled, pinned...)
+		invoke(t, nil, []terminalAuthStep{{wait: "API token", input: token}, {wait: "*****", input: "\x03"}}, cli.ExitCanceled, "canceled", pinned...)
 		absent(t)
 		if calls.Load() != 0 {
 			t.Fatal("canceled login contacted Jira")
@@ -103,7 +99,7 @@ func testNativeKeyringAuthTerminal(t *testing.T) {
 		result, screen := invoke(t, nil, []terminalAuthStep{
 			{wait: "API token", input: "\r"},
 			{wait: "API token is required", input: token + "\r"},
-		}, cli.ExitOK, pinned...)
+		}, cli.ExitOK, "", pinned...)
 		var record credentials.Record
 		if err := json.Unmarshal([]byte(stored(t)), &record); err != nil {
 			t.Fatal(err)
@@ -123,7 +119,7 @@ func testNativeKeyringAuthTerminal(t *testing.T) {
 	})
 	t.Run("canceled replacement preserves native record", func(t *testing.T) {
 		before := stored(t)
-		invoke(t, nil, []terminalAuthStep{{wait: "API token", input: "\x03"}}, cli.ExitCanceled, pinned...)
+		invoke(t, nil, []terminalAuthStep{{wait: "API token", input: "\x03"}}, cli.ExitCanceled, "canceled", pinned...)
 		if stored(t) != before || calls.Load() != 1 {
 			t.Fatal("canceled replacement changed credentials or contacted Jira")
 		}
@@ -134,14 +130,14 @@ func testNativeKeyringAuthTerminal(t *testing.T) {
 			{wait: "Jira site", input: server.URL + "\r"},
 			{wait: "Email", input: email + "\r"},
 			{wait: "API token", passwordReady: true, input: token + "\r"},
-		}, cli.ExitOK, "auth", "login")
+		}, cli.ExitOK, "", "auth", "login")
 		if !strings.Contains(screen, "Email") || stored(t) != before || calls.Load() != 2 {
 			t.Fatal("terminal login did not collect and preserve the selected identity")
 		}
 	})
 	t.Run("dumb terminal keeps login UI off machine stdout", func(t *testing.T) {
 		before := stored(t)
-		invoke(t, []string{"TERM=dumb"}, []terminalAuthStep{{passwordReady: true, input: token + "\r"}}, cli.ExitOK, pinned...)
+		invoke(t, []string{"TERM=dumb"}, []terminalAuthStep{{passwordReady: true, input: token + "\r"}}, cli.ExitOK, "", pinned...)
 		if stored(t) != before || calls.Load() != 3 {
 			t.Fatal("accessible login did not verify the same native credential once")
 		}
@@ -157,7 +153,7 @@ func testNativeKeyringAuthTerminal(t *testing.T) {
 		} {
 			t.Run(flags.name, func(t *testing.T) {
 				before := stored(t)
-				_, screen := invoke(t, flags.env, nil, cli.ExitValidation, append(append([]string{}, pinned...), flags.args...)...)
+				_, screen := invoke(t, flags.env, nil, cli.ExitValidation, "flag_required", append(append([]string{}, pinned...), flags.args...)...)
 				if strings.Contains(screen, "API token") || stored(t) != before || calls.Load() != 3 {
 					t.Fatal("headless login asked for or changed credentials")
 				}
@@ -166,7 +162,7 @@ func testNativeKeyringAuthTerminal(t *testing.T) {
 	})
 	t.Run("negative logout confirms stored identity", func(t *testing.T) {
 		before := stored(t)
-		_, screen := invoke(t, []string{"JIRA_EMAIL=" + other}, []terminalAuthStep{{wait: "Keep", input: "n\r"}}, cli.ExitCanceled, "auth", "logout")
+		_, screen := invoke(t, []string{"JIRA_EMAIL=" + other}, []terminalAuthStep{{wait: "Keep", input: "n\r"}}, cli.ExitCanceled, "canceled", "auth", "logout")
 		if !strings.Contains(screen, email) || !strings.Contains(screen, server.URL) || strings.Contains(screen, other) || !strings.Contains(screen, "not revoked") {
 			t.Fatal("logout confirmation did not identify the actual stored credential and revocation caveat")
 		}
@@ -176,27 +172,27 @@ func testNativeKeyringAuthTerminal(t *testing.T) {
 	})
 	t.Run("aborted logout preserves native record", func(t *testing.T) {
 		before := stored(t)
-		invoke(t, nil, []terminalAuthStep{{wait: "Keep", input: "\x03"}}, cli.ExitCanceled, "auth", "logout")
+		invoke(t, nil, []terminalAuthStep{{wait: "Keep", input: "\x03"}}, cli.ExitCanceled, "canceled", "auth", "logout")
 		if stored(t) != before {
 			t.Fatal("aborted logout removed the native record")
 		}
 	})
 	t.Run("dumb terminal keeps confirmation UI off machine stdout", func(t *testing.T) {
 		before := stored(t)
-		invoke(t, []string{"TERM=dumb"}, []terminalAuthStep{{wait: "[y/N]", beforeInput: []string{email, server.URL, "not revoked"}, input: "n\r"}}, cli.ExitCanceled, "auth", "logout")
+		invoke(t, []string{"TERM=dumb"}, []terminalAuthStep{{wait: "[y/N]", beforeInput: []string{email, server.URL, "not revoked"}, input: "n\r"}}, cli.ExitCanceled, "canceled", "auth", "logout")
 		if stored(t) != before || calls.Load() != 3 {
 			t.Fatal("accessible negative logout changed the native record or contacted Jira")
 		}
 	})
 	t.Run("dumb terminal default logout keeps native record", func(t *testing.T) {
 		before := stored(t)
-		invoke(t, []string{"TERM=dumb"}, []terminalAuthStep{{wait: "[y/N]", beforeInput: []string{email, server.URL, "not revoked"}, input: "\r"}}, cli.ExitCanceled, "auth", "logout")
+		invoke(t, []string{"TERM=dumb"}, []terminalAuthStep{{wait: "[y/N]", beforeInput: []string{email, server.URL, "not revoked"}, input: "\r"}}, cli.ExitCanceled, "canceled", "auth", "logout")
 		if stored(t) != before || calls.Load() != 3 {
 			t.Fatal("accessible default logout changed the native record or contacted Jira")
 		}
 	})
 	t.Run("affirmative logout removes native record", func(t *testing.T) {
-		result, _ := invoke(t, nil, []terminalAuthStep{{wait: "Keep", input: "y\r"}}, cli.ExitOK, "auth", "logout")
+		result, _ := invoke(t, nil, []terminalAuthStep{{wait: "Keep", input: "y\r"}}, cli.ExitOK, "", "auth", "logout")
 		var data struct {
 			Email            string `json:"email"`
 			RevocationNeeded bool   `json:"revocation_needed"`

@@ -2,7 +2,6 @@ package credentials
 
 import (
 	"context"
-	"errors"
 
 	"github.com/matcra587/jira-cli/internal/core"
 )
@@ -42,15 +41,4 @@ func (s *selectedStore) Set(ctx context.Context, _, value string) error {
 
 func (s *selectedStore) Delete(ctx context.Context, _ string) error {
 	return s.store.Delete(ctx, s.account)
-}
-
-// UnselectedStore cannot read or delete the legacy flat slot. A handwritten
-// named profile must select a durable public locator before storing a token.
-type UnselectedStore struct{ core.NoCredentialStore }
-
-func (UnselectedStore) Set(ctx context.Context, _, _ string) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	return errors.New("the named profile has no credential_id; set a unique UUID with jira config set credential_id before login")
 }

@@ -39,8 +39,8 @@ func TestLoginRejectsMalformedIdentityBeforeOpeningCredentialStore(t *testing.T)
 				store := newFakeStore()
 				deps := Deps{
 					Credentials: func() (core.CredentialStore, error) { opened = true; return store, nil },
-					ClientFor: func(site, email, candidate string) (core.JiraClient, error) {
-						return adapterjira.New(adapterjira.Config{BaseURL: site, Email: email, APIToken: candidate, HTTPClient: &http.Client{Transport: transport}})
+					ClientFor: func(site, email, candidate, cloudID string) (core.JiraClient, error) {
+						return adapterjira.New(adapterjira.Config{BaseURL: site, CloudID: cloudID, Email: email, APIToken: candidate, HTTPClient: &http.Client{Transport: transport}})
 					},
 				}
 				out, err := login(t.Context(), deps, identity{site: "https://example.invalid", email: "person@example.com"}, "fixture", mode.dryRun)

@@ -1,6 +1,10 @@
 package envelope
 
-import "github.com/matcra587/jira-cli/internal/jira"
+import (
+	"time"
+
+	"github.com/matcra587/jira-cli/internal/jira"
+)
 
 // IssueListOutput is the `issue.list` and `issue.mine` payload: matching issues
 // collected across a JQL search's requested cursor walk.
@@ -202,4 +206,8 @@ type IssueBoardView struct {
 	// narrowed it. Distinct from the envelope's composed `jql`, and both
 	// are published because neither can be derived from the other.
 	JQL string `json:"jql"`
+	// Precedence identifies configured scope; omitted for existing flag views.
+	Precedence string `json:"precedence,omitempty"`
+	// CachedAt is the configured scope snapshot, without a live freshness claim.
+	CachedAt *time.Time `json:"cached_at,omitempty"`
 }

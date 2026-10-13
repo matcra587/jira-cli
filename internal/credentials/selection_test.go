@@ -64,8 +64,8 @@ func TestSelectedSDKRetainsProviderLocalRecord(t *testing.T) {
 	t.Parallel()
 	store := &selectedSDKStore{memStore: newStore()}
 	selected := credentials.Select(store, "profile-stable-id")
-	err := credentials.Save(t.Context(), selected, credentials.Record{Site: "https://example.atlassian.net", Email: "person@example.com", Token: "token"})
-	if err != nil || store.account != "default" {
-		t.Fatalf("SDK account=%q, error=%v", store.account, err)
+	publication, err := credentials.SaveWithPublication(t.Context(), selected, credentials.Record{Site: "https://example.atlassian.net", Email: "person@example.com", Token: "token"})
+	if err != nil || store.account != "default" || publication.Backend != core.CredentialBackendOnePassword {
+		t.Fatalf("SDK account=%q, publication=%#v, error=%v", store.account, publication, err)
 	}
 }

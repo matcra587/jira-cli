@@ -161,18 +161,10 @@ func TestLiveExemptionTableIsClean(t *testing.T) {
 	for _, p := range validateExemptions(exemptions, expected) {
 		t.Errorf("exemption table: %s", p)
 	}
-	// Eleven per op: the five success axes × two machine modes for
-	// config.edit/auth.login/auth.logout, whose success cannot be driven
-	// without a PTY or a real keyring, PLUS three more (H3/H4 on the
-	// human mode, H5 on the human_color mode) for the same reviewed
-	// reason — their success capture is equally unreachable, human and
-	// human_color included. Every one of them is the SAME reviewed
-	// decision — if a future entry is not that, it is a new decision and
-	// belongs in review on its own terms. The exact cells, not just how
-	// many: swapping one exemption for another is a new reviewed
-	// decision, and a count cannot see it.
+	// Exact success exemptions remain only for terminal editing and native
+	// credential removal. Environment login now supplies real success captures.
 	wantExempt := []string{}
-	for _, op := range []string{"auth.login", "auth.logout", "config.edit"} {
+	for _, op := range []string{"auth.logout", "config.edit"} {
 		for _, mode := range []string{"compact", "json"} {
 			for _, axis := range []string{"M12", "M4", "M5", "M6", "M8"} {
 				wantExempt = append(wantExempt, op+"||success|"+mode+"|"+axis)
@@ -192,7 +184,7 @@ func TestLiveExemptionTableIsClean(t *testing.T) {
 	if !slices.Equal(gotExempt, wantExempt) {
 		t.Errorf("exempt cells = %v, want %v", gotExempt, wantExempt)
 	}
-	if len(exemptions) != 39 {
+	if len(exemptions) != 26 {
 		t.Errorf("exemption table has %d entries; adding one is a reviewed decision that must also move this pin", len(exemptions))
 	}
 }

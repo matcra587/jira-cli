@@ -1,7 +1,7 @@
 package config_test
 
 import (
-	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -9,281 +9,270 @@ import (
 	"testing"
 
 	"github.com/matcra587/jira-cli/internal/config"
-	"github.com/matcra587/jira-cli/internal/core"
 	"github.com/matcra587/jira-cli/internal/credentials"
 )
 
-const profileFoundation = `format_version=1
-default_profile='work'
-editor='global-editor'
+const namedConfig = `format_version = 1
+default_profile = 'work'
+theme = 'dark'
+editor = 'global-editor'
+[aliases]
+'Mixed.Name' = 'version'
 [profiles.work]
-base_url='https://work.example.invalid'
-email='work@example.invalid'
-credential_id='6261bdc7-c460-4d6a-9b67-d3d5f78fc627'
-read_only=true
-timeout='30s'
-editor='work-editor'
+base_url = 'https://work.example.invalid'
+email = 'work@example.invalid'
+credential_id = 'b6ff8a17-9f47-4e25-83b8-cf3f38466700'
+read_only = true
+timeout = '30s'
+default_project = 'DEMO'
+editor = 'work-editor'
 [profiles.personal]
-base_url='https://personal.example.invalid'
-email='personal@example.invalid'
-credential_id='de25b949-7427-45db-9e29-fe27de9d0ef7'
-read_only=false
+base_url = 'https://personal.example.invalid'
+email = 'personal@example.invalid'
+credential_id = '2a3d34d2-52a8-4dfb-b0da-0d6ff5d22428'
+read_only = false
 `
 
-type foundationStore struct {
-	records map[string]string
-	reads   int
-}
-
-func (s *foundationStore) Get(_ context.Context, key string) (string, error) {
-	s.reads++
-	if value, ok := s.records[key]; ok {
-		return value, nil
-	}
-	return "", core.ErrNoCredential
-}
-
-func (s *foundationStore) Set(_ context.Context, key, value string) error {
-	s.records[key] = value
-	return nil
-}
-
-func (s *foundationStore) Delete(_ context.Context, key string) error {
-	delete(s.records, key)
-	return nil
-}
-
-func foundationConfig(t *testing.T, data string) string {
-	t.Helper()
-	path := filepath.Join(t.TempDir(), "settings.toml")
-	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	return path
-}
-
-func TestProfileFoundationSelectionAndIndependentSettings(t *testing.T) {
-	for _, tc := range []struct{ name, option, flag, env, want string }{
-		{"default", "", "", "", "work"},
-		{"environment", "", "", "personal", "personal"},
-		{"flag", "", "work", "personal", "work"},
-		{"option", "personal", "work", "", "personal"},
+func TestNamedProfileSelectionPrecedenceAndEnvironmentCompatibility(t *testing.T) {
+	for _, tc := range []struct {
+		name, option, flag, environment, want string
+		flagSet                               bool
+	}{
+		{name: "saved default", want: "work"},
+		{name: "environment", environment: "personal", want: "personal"},
+		{name: "flag", flag: "work", flagSet: true, environment: "personal", want: "work"},
+		{name: "explicit option", option: "personal", flag: "work", flagSet: true, want: "personal"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			config.SetFlagLayer(config.FlagLayer{Profile: tc.flag, ProfileSet: tc.flag != ""})
+			config.SetFlagLayer(config.FlagLayer{Profile: tc.flag, ProfileSet: tc.flagSet})
 			t.Cleanup(func() { config.SetFlagLayer(config.FlagLayer{}) })
-			path := foundationConfig(t, profileFoundation)
+			path := writeConfig(t, namedConfig)
 			loaded, err := config.Load(config.Options{Path: path, Profile: tc.option, Environ: func() []string {
-				variables := []string{"JIRA_READ_ONLY=false", "JIRA_TIMEOUT=0s"}
-				if tc.env != "" {
-					variables = append(variables, "JIRA_PROFILE="+tc.env)
+				variables := []string{"JIRA_READ_ONLY=false", "JIRA_API_TOKEN=synthetic-token"}
+				if tc.environment != "" {
+					variables = append(variables, "JIRA_PROFILE="+tc.environment)
 				}
 				return variables
 			}})
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !loaded.NamedProfiles || loaded.Profile != tc.want || loaded.DefaultProfile != "work" || loaded.Config.ReadOnly || loaded.Config.Timeout != 0 {
-				t.Fatalf("selection changed: %+v", loaded)
+			if loaded.Profile != tc.want || loaded.DefaultProfile != "work" || loaded.Config.ReadOnly || loaded.Source("read_only") != config.LayerEnv || loaded.Config.APIToken != "synthetic-token" {
+				t.Fatal("selection or existing environment precedence changed")
+			}
+			wantEditor := "global-editor"
+			if tc.want == "work" {
+				wantEditor = "work-editor"
+			}
+			if loaded.Config.Editor != wantEditor || loaded.Config.Theme != "dark" || loaded.Config.Aliases["Mixed.Name"] != "version" {
+				t.Fatal("global settings or literal aliases lost during profile selection")
 			}
 		})
 	}
-	path := foundationConfig(t, profileFoundation)
+}
+
+func TestNamedProfileValidationCoversUnselectedDeclarations(t *testing.T) {
+	t.Parallel()
+	for name, data := range map[string]string{
+		"unknown key":            namedConfig + "read_ony=true\n",
+		"wrong type":             namedConfig + "timeout=false\n",
+		"bad site":               strings.Replace(namedConfig, "https://personal.example.invalid", "not a URL", 1),
+		"bad credential ID":      strings.Replace(namedConfig, "2a3d34d2-52a8-4dfb-b0da-0d6ff5d22428", "not-an-id", 1),
+		"duplicate credential":   strings.Replace(namedConfig, "2a3d34d2-52a8-4dfb-b0da-0d6ff5d22428", "b6ff8a17-9f47-4e25-83b8-cf3f38466700", 1),
+		"unknown default":        strings.Replace(namedConfig, "default_profile = 'work'", "default_profile = 'missing'", 1),
+		"unknown version":        strings.Replace(namedConfig, "format_version = 1", "format_version = 2", 1),
+		"floating version":       strings.Replace(namedConfig, "format_version = 1", "format_version = 1.0", 1),
+		"secret":                 namedConfig + "api_token=''\n",
+		"case alias":             namedConfig + "EMAIL='other@example.invalid'\n",
+		"global in profile":      namedConfig + "theme='light'\n",
+		"SDK location collision": strings.ReplaceAll(strings.ReplaceAll(namedConfig, "credential_id = 'b6ff8a17-9f47-4e25-83b8-cf3f38466700'", "secret_backend='1password'\nonepassword_vault='Fixture Vault'\nonepassword_item='Fixture Item'"), "credential_id = '2a3d34d2-52a8-4dfb-b0da-0d6ff5d22428'", "secret_backend='1password'\nonepassword_vault='Fixture Vault'\nonepassword_item='Fixture Item'"),
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			store := &tokenReferenceStore{}
+			_, err := config.Resolve(t.Context(), config.Options{Path: writeConfig(t, data), Profile: "work", Environ: func() []string {
+				return []string{"JIRA_BASE_URL=https://override.example.invalid", "JIRA_API_TOKEN=synthetic"}
+			}}, store)
+			if err == nil || store.reads != 0 {
+				t.Fatal("invalid unselected profile was masked or read credentials", err)
+			}
+		})
+	}
+}
+
+func TestNamedProfileStoredIdentityCannotReplaceAuthoredSelection(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct{ name, site, email string }{
+		{name: "site", site: "https://other.example.invalid", email: "work@example.invalid"},
+		{name: "account", site: "https://work.example.invalid", email: "other@example.invalid"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			raw, err := json.Marshal(credentials.Record{Version: 2, Site: tc.site, Email: tc.email, Token: "synthetic-stored"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			store := &tokenReferenceStore{raw: string(raw)}
+			loaded, err := config.Resolve(t.Context(), config.Options{Path: writeConfig(t, namedConfig), Environ: func() []string { return nil }}, store)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if loaded.Config.APIToken != "" || loaded.Config.BaseURL != "https://work.example.invalid" || loaded.Config.Email != "work@example.invalid" || len(loaded.Warnings) != 1 {
+				t.Fatal("stored tuple overwrote selected profile identity")
+			}
+		})
+	}
+}
+
+func TestNamedSettingsPreserveOtherProfilesAndUseCapturedSelection(t *testing.T) {
+	t.Setenv("JIRA_PROFILE", "personal")
+	path := writeConfig(t, namedConfig)
 	file, err := config.OpenFile(t.Context(), path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	file, err = file.SelectProfile("personal")
+	t.Setenv("JIRA_PROFILE", "work")
+	setting, err := file.Setting("read_only")
+	if err != nil || !setting.Present || setting.Value != "false" {
+		t.Fatal("file selection was not captured", err)
+	}
+	update, err := file.PrepareSettings(map[string]string{"email": "", "timeout": "0s", "read_only": "false", "editor": "personal-editor", "theme": "light"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	update, err := file.PrepareSetting("read_only", "true")
+	if changed, err := update.Save(t.Context()); err != nil || !changed {
+		t.Fatal(err)
+	}
+	personal, err := config.Load(config.Options{Path: path, Profile: "personal", Environ: func() []string { return nil }})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := update.Save(t.Context()); err != nil {
+	work, err := config.Load(config.Options{Path: path, Profile: "work", Environ: func() []string { return nil }})
+	if err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"work", "personal"} {
-		loaded, err := config.Load(config.Options{Path: path, Profile: name, Environ: func() []string { return nil }})
-		if err != nil || !loaded.Config.ReadOnly {
-			t.Fatalf("profile publication %s: %v", name, err)
-		}
-		want := "global-editor"
-		if name == "work" {
-			want = "work-editor"
-		}
-		if loaded.Config.Editor != want {
-			t.Fatal("profile editor inheritance changed")
-		}
+	if personal.Config.Email != "" || personal.Config.Timeout != 0 || personal.Config.ReadOnly || personal.Config.Editor != "personal-editor" || work.Config.Email != "work@example.invalid" || !work.Config.ReadOnly || work.Config.Editor != "work-editor" || work.Config.Theme != "light" || work.Config.Aliases["Mixed.Name"] != "version" {
+		t.Fatal("settings update lost profile boundaries or explicit zero values")
+	}
+	stale, err := file.PrepareSetting("email", "another@example.invalid")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := stale.Save(t.Context()); !errors.Is(err, config.ErrFileChanged) {
+		t.Fatal("stale profile update replaced new document", err)
 	}
 }
 
-func TestProfileFoundationStoredSlotsAndBinding(t *testing.T) {
+func TestProfileManagementKeepsCredentialLocatorAndDefault(t *testing.T) {
 	t.Parallel()
-	path := foundationConfig(t, profileFoundation)
-	store := &foundationStore{records: map[string]string{}}
-	for _, identity := range []struct{ slot, site, email, token string }{
-		{"6261bdc7-c460-4d6a-9b67-d3d5f78fc627", "https://work.example.invalid", "work@example.invalid", "work-token"},
-		{"de25b949-7427-45db-9e29-fe27de9d0ef7", "https://personal.example.invalid", "personal@example.invalid", "personal-token"},
-		{"default", "https://flat.example.invalid", "flat@example.invalid", "flat-token"},
-	} {
-		if err := credentials.Save(t.Context(), credentials.Select(store, identity.slot), credentials.Record{Site: identity.site, Email: identity.email, Token: identity.token}); err != nil {
-			t.Fatal(err)
-		}
-	}
-	for _, name := range []string{"work", "personal"} {
-		loaded, err := config.Resolve(t.Context(), config.Options{Path: path, Profile: name, Environ: func() []string { return nil }}, store)
-		if err != nil || loaded.Config.APIToken != name+"-token" {
-			t.Fatalf("slot selection %s: %v", name, err)
-		}
-	}
-	// Renaming only the profile identity retains its existing verified tuple.
-	data := strings.ReplaceAll(profileFoundation, "default_profile='work'", "default_profile='office'")
-	data = strings.ReplaceAll(data, "[profiles.work]", "[profiles.office]")
-	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	file, err := config.OpenFile(t.Context(), path)
+	if err != nil {
 		t.Fatal(err)
 	}
-	loaded, err := config.Resolve(t.Context(), config.Options{Path: path, Profile: "office", Environ: func() []string { return nil }}, store)
-	if err != nil || loaded.Config.APIToken != "work-token" {
-		t.Fatal("rename lost credential", err)
-	}
-	if err := credentials.Save(t.Context(), credentials.Select(store, "6261bdc7-c460-4d6a-9b67-d3d5f78fc627"), credentials.Record{Site: "https://other.example.invalid", Email: "work@example.invalid", Token: "other-token"}); err != nil {
-		t.Fatal(err)
-	}
-	loaded, err = config.Resolve(t.Context(), config.Options{Path: path, Profile: "office", Environ: func() []string { return nil }}, store)
-	if err != nil || loaded.Config.APIToken != "" || loaded.Config.BaseURL != "https://work.example.invalid" || len(loaded.Warnings) != 1 {
-		t.Fatal("stored metadata replaced authored identity", err)
-	}
-	if _, err := credentials.Load(t.Context(), store); err != nil {
-		t.Fatal("flat credential changed", err)
-	}
-}
-
-func TestProfileFoundationInvalidOrUnselectedCannotReadCredentials(t *testing.T) {
-	t.Parallel()
-	for name, data := range map[string]string{
-		"unknown key":             profileFoundation + "misspelled=true\n",
-		"invalid unselected site": strings.ReplaceAll(profileFoundation, "https://personal.example.invalid", "invalid"),
-		"duplicate slot":          strings.ReplaceAll(profileFoundation, "de25b949-7427-45db-9e29-fe27de9d0ef7", "6261bdc7-c460-4d6a-9b67-d3d5f78fc627"),
-		"invalid flat slot":       "credential_id='invalid'\n",
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			store := &foundationStore{records: map[string]string{}}
-			_, err := config.Resolve(t.Context(), config.Options{Path: foundationConfig(t, data), Environ: func() []string { return nil }}, store)
-			if err == nil || store.reads != 0 {
-				t.Fatal("invalid declarations reached provider")
-			}
-		})
-	}
-	for _, data := range []string{"format_version=1\ndefault_profile=''\n[profiles]\n", strings.ReplaceAll(profileFoundation, "credential_id='6261bdc7-c460-4d6a-9b67-d3d5f78fc627'\n", "")} {
-		store := &foundationStore{records: map[string]string{}}
-		loaded, err := config.Resolve(t.Context(), config.Options{Path: foundationConfig(t, data), Environ: func() []string { return nil }}, store)
-		if err != nil || !loaded.NamedProfiles || store.reads != 0 {
-			t.Fatal("missing named locator reached flat provider", err)
-		}
-	}
-	if err := credentials.Save(t.Context(), credentials.UnselectedStore{}, credentials.Record{Token: "synthetic-token"}); err == nil || errors.Is(err, core.ErrNoCredential) {
-		t.Fatal("missing named locator allowed write")
-	}
-}
-
-func TestProfileFoundationManagementKeepsDurableLocators(t *testing.T) {
-	t.Parallel()
-	path := filepath.Join(t.TempDir(), "settings.toml")
-	open := func() *config.File {
-		t.Helper()
-		file, err := config.OpenFile(t.Context(), path)
-		if err != nil {
-			t.Fatal(err)
-		}
-		return file
-	}
-	first, err := open().PrepareProfileAdd("work", "https://work.example.invalid", "work@example.invalid")
+	add, err := file.PrepareProfileAdd("work", "https://work.example.invalid", "work@example.invalid")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
-		t.Fatal("preparation created settings")
+		t.Fatal("preview created configuration")
 	}
-	if saved, err := first.Save(t.Context()); err != nil || !saved {
-		t.Fatal("first publication", err)
+	if changed, err := add.Save(t.Context()); err != nil || !changed {
+		t.Fatal(err)
 	}
-	profiles, err := open().Profiles()
-	if err != nil || len(profiles) != 1 || profiles[0].CredentialID == "" || !profiles[0].Default {
-		t.Fatal("missing durable locator", err)
-	}
-	id := profiles[0].CredentialID
-	second, err := open().PrepareProfileAdd("personal", "https://personal.example.invalid", "personal@example.invalid")
+	file, err = config.OpenFile(t.Context(), path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := second.Save(t.Context()); err != nil {
-		t.Fatal(err)
+	profiles, err := file.Profiles()
+	if err != nil || len(profiles) != 1 || profiles[0].Name != "work" || !profiles[0].Default || profiles[0].CredentialID == "" || profiles[0].CredentialID == "default" {
+		t.Fatal("first profile did not persist independent locator", err)
 	}
-	rename, err := open().PrepareProfileRename("work", "office")
+	id := profiles[0].CredentialID
+	rename, err := file.PrepareProfileRename("work", "renamed")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err := rename.Save(t.Context()); err != nil {
 		t.Fatal(err)
 	}
-	profiles, err = open().Profiles()
-	if err != nil || len(profiles) != 2 || profiles[0].Name != "office" || profiles[0].CredentialID != id || !profiles[0].Default {
-		t.Fatal("rename changed locator or default", err)
-	}
-	if _, err := open().PrepareProfileRemove("office"); !errors.Is(err, config.ErrFileInvalid) {
-		t.Fatal("removed default while another profile remains", err)
-	}
-	changeDefault, err := open().PrepareProfileDefault("personal")
+	file, err = config.OpenFile(t.Context(), path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := changeDefault.Save(t.Context()); err != nil {
-		t.Fatal(err)
+	profiles, err = file.Profiles()
+	if err != nil || profiles[0].Name != "renamed" || profiles[0].CredentialID != id || !profiles[0].Default {
+		t.Fatal("rename changed credential identity", err)
 	}
-	remove, err := open().PrepareProfileRemove("office")
+	remove, err := file.PrepareProfileRemove("renamed")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err := remove.Save(t.Context()); err != nil {
 		t.Fatal(err)
 	}
-	profiles, err = open().Profiles()
-	if err != nil || len(profiles) != 1 || profiles[0].Name != "personal" || !profiles[0].Default {
-		t.Fatal("remove affected remaining profile", err)
+	loaded, err := config.Load(config.Options{Path: path, Environ: func() []string { return nil }})
+	if err != nil || loaded.Profile != "" || loaded.Config.Email != "" {
+		t.Fatal("last removal retained selected identity", err)
 	}
 }
 
-func TestProfileFoundationConversionPreservesFlatLocation(t *testing.T) {
+func TestFlatToNamedProfilesPreservesAuthoredSettingsAndDefaultSlot(t *testing.T) {
 	t.Parallel()
-	path := foundationConfig(t, "base_url='https://flat.example.invalid'\nemail='flat@example.invalid'\neditor='shared-editor'\n")
+	path := writeConfig(t, "base_url='https://old.example.invalid'\nemail='old@example.invalid'\nread_only=false\ntheme='dark'\n[aliases]\n'Mixed.Name'='version'\n")
 	file, err := config.OpenFile(t.Context(), path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	update, err := file.PrepareProfileAdd("second", "https://second.example.invalid", "second@example.invalid")
+	add, err := file.PrepareProfileAdd("new", "https://new.example.invalid", "new@example.invalid")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := update.Save(t.Context()); err != nil {
+	if _, err := add.Save(t.Context()); err != nil {
 		t.Fatal(err)
 	}
-	loaded, err := config.Load(config.Options{Path: path, Profile: "default", Environ: func() []string { return nil }})
-	if err != nil || loaded.Config.CredentialID != "default" || loaded.Config.BaseURL != "https://flat.example.invalid" || loaded.Config.Editor != "shared-editor" {
-		t.Fatal("flat conversion changed identity", err)
+	loaded, err := config.Load(config.Options{Path: path, Environ: func() []string { return nil }})
+	if err != nil || loaded.Profile != "default" || loaded.Config.CredentialID != "default" || loaded.Config.BaseURL != "https://old.example.invalid" || loaded.Config.Aliases["Mixed.Name"] != "version" {
+		t.Fatal("flat conversion changed existing identity or locator", err)
 	}
-	file, err = config.OpenFile(t.Context(), path)
+}
+
+func TestCapturedConfigurationRetainsFileAndEnvironmentAcrossRebuilds(t *testing.T) {
+	t.Parallel()
+	path := writeConfig(t, namedConfig)
+	variables := []string{"JIRA_PROFILE=personal", "JIRA_EMAIL=captured@example.invalid"}
+	opts, err := config.CaptureOptions(t.Context(), config.Options{Path: path, Environ: func() []string { return variables }})
 	if err != nil {
 		t.Fatal(err)
 	}
-	file, err = file.SelectProfile("second")
-	if err != nil {
+	variables[0], variables[1] = "JIRA_PROFILE=work", "JIRA_EMAIL=changed@example.invalid"
+	if err := os.WriteFile(path, []byte("unknown_key=true\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	reservation, err := file.PrepareCredentialID()
-	if err != nil || reservation.WouldChange() {
-		t.Fatal("reservation replaced existing locator", err)
+	loaded, err := config.Load(opts)
+	if err != nil || loaded.Profile != "personal" || loaded.Config.Email != "captured@example.invalid" || loaded.Config.BaseURL != "https://personal.example.invalid" {
+		t.Fatal("captured invocation reread external state", err)
+	}
+}
+
+func TestUnknownNamedSelectionAndEmptyFlagRefuse(t *testing.T) {
+	path := writeConfig(t, namedConfig)
+	for _, name := range []string{"missing", "bad.name"} {
+		if _, err := config.Load(config.Options{Path: path, Profile: name, Environ: func() []string { return nil }}); err == nil {
+			t.Fatal("unknown profile accepted")
+		}
+	}
+	config.SetFlagLayer(config.FlagLayer{ProfileSet: true})
+	t.Cleanup(func() { config.SetFlagLayer(config.FlagLayer{}) })
+	if _, err := config.Load(config.Options{Path: path, Environ: func() []string { return nil }}); err == nil {
+		t.Fatal("empty explicit selector became default")
+	}
+}
+
+func TestExplicitEmptyProfileEnvironmentRefusesBeforeProvider(t *testing.T) {
+	path := writeConfig(t, namedConfig)
+	_, err := config.Load(config.Options{Path: path, Environ: func() []string { return []string{"JIRA_PROFILE="} }})
+	if !errors.Is(err, config.ErrFileInvalid) {
+		t.Fatalf("empty explicit profile must be invalid configuration: %v", err)
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -99,6 +100,7 @@ func newIssueList(deps Deps, currentAccount bool) *cobra.Command {
 		all, unbounded, asJQL                bool
 		nextPageToken                        string
 		composedJQL                          string
+		presetOrder                          bool
 		columns                              []string
 		// boardView is the resolved board, carried from Run to the
 		// envelope so a caller can see WHICH board answered and what query
@@ -379,6 +381,19 @@ func newIssueList(deps Deps, currentAccount bool) *cobra.Command {
 			command.AddHiddenAliases(c, listAliases)
 		},
 		Validate: func() error {
+			if cmd.Flags().Changed(flagBoard) && cmd.Flags().Changed(flagBoardID) {
+				input := cli.NewInputError(cli.CodeFlagConflict, "--board and --board-id are alternatives")
+				input.Field = flagBoard
+				return input
+			}
+			if cmd.Flags().Changed(flagBoardID) && board.id <= 0 {
+				input := cli.NewInputError(cli.CodeFlagValueInvalid, "--board-id must be a positive board id")
+				input.Field = flagBoardID
+				return input
+			}
+			if cmd.Flags().Changed(flagBoard) && strings.TrimSpace(board.name) == "" {
+				board.name = ""
+			}
 			if cmd.Flags().Changed(flagSaved) {
 				if err := config.ValidateQueryName(saved); err != nil {
 					e := cli.NewInputError(cli.CodeFlagValueInvalid, err.Error())
@@ -472,6 +487,7 @@ func newIssueList(deps Deps, currentAccount bool) *cobra.Command {
 				if jqlInput.OrderBy == "" {
 					if strings.TrimSpace(jql) == "" && !board.given() && saved == "" {
 						jqlInput.OrderBy = "updated"
+						presetOrder = true
 					} else if listFlags.Reverse {
 						e := cli.NewInputError(cli.CodeFlagNotApplicable, "--reverse needs --order-by when raw JQL or board scope supplies the ordering")
 						e.Field = "reverse"
@@ -528,6 +544,28 @@ func newIssueList(deps Deps, currentAccount bool) *cobra.Command {
 			return renderList(v, env, site, estimate, selected)
 		},
 		Run: func(ctx context.Context, inv command.Invocation) (envelope.IssueListOutput, error) {
+			preferences, err := issuePreferences(ctx, deps)
+			if err != nil {
+				return envelope.IssueListOutput{}, err
+			}
+			defaultBoard := !cmd.Flags().Changed(flagBoard) && !cmd.Flags().Changed(flagBoardID) && strings.TrimSpace(preferences.DefaultBoard) != ""
+			if !defaultBoard && !board.given() && strings.TrimSpace(jqlInput.JQL) == "" && saved == "" && len(jqlInput.Project) == 0 && !cmd.Flags().Changed("project") && strings.TrimSpace(preferences.DefaultProject) != "" {
+				jqlInput.Project = []string{strings.TrimSpace(preferences.DefaultProject)}
+			}
+			if defaultBoard && presetOrder {
+				if listFlags.Reverse {
+					input := cli.NewInputError(cli.CodeFlagNotApplicable, "--reverse needs --order-by when configured board scope supplies the ordering")
+					input.Field = "reverse"
+					return envelope.IssueListOutput{}, input
+				}
+				jqlInput.OrderBy = ""
+				jqlInput.Descending = nil
+				jqlInput.CustomOrder = false
+			}
+			composedJQL, err = command.ComposeJQL(jqlInput)
+			if err != nil {
+				return envelope.IssueListOutput{}, err
+			}
 			if saved != "" {
 				view, err := readSavedQuery(ctx, saved)
 				if err != nil {
@@ -553,6 +591,13 @@ func newIssueList(deps Deps, currentAccount bool) *cobra.Command {
 				composedJQL = resolved.jql
 				boardView = resolved.view
 			}
+			if defaultBoard {
+				resolved, err := defaultListBoard(ctx, deps, preferences, &jqlInput)
+				if err != nil {
+					return envelope.IssueListOutput{}, err
+				}
+				composedJQL, boardView = resolved.jql, resolved.view
+			}
 			if asJQL {
 				// FIRST, ahead of --web and --count both, because this is
 				// the only branch that reaches nothing at all: command.ComposeJQL
@@ -562,6 +607,14 @@ func newIssueList(deps Deps, currentAccount bool) *cobra.Command {
 				// a branch that promises to contact nothing.
 				return envelope.IssueListOutput{Issues: []envelope.IssueView{}, JQL: composedJQL, Board: boardView, SavedQuery: savedView}, nil
 			}
+			runDeps := deps
+			if defaultBoard {
+				runDeps, err = bindDefaultBoardClient(ctx, deps, preferences)
+				if err != nil {
+					return envelope.IssueListOutput{}, err
+				}
+			}
+
 			if isWeb(cmd) {
 				// --web's own short-circuit, checked BEFORE --count: both
 				// are single-purpose "don't run the ordinary search"
@@ -572,7 +625,8 @@ func newIssueList(deps Deps, currentAccount bool) *cobra.Command {
 				// doc comment for why this skips SearchIssues entirely.
 				// execOpener is the production browserOpener; a test
 				// calls runListWeb directly with a fake one instead.
-				out, err := runListWeb(ctx, deps, composedJQL, execOpener)
+				out, err := runListWeb(ctx, runDeps, composedJQL, execOpener)
+				out.Board = boardView
 				out.SavedQuery = savedView
 				return out, err
 			}
@@ -586,7 +640,8 @@ func newIssueList(deps Deps, currentAccount bool) *cobra.Command {
 				// total, and site only ever reaches issueListColumns on
 				// the table path below. Resolving it would imply --count's
 				// output carries hyperlinked keys, which it has none of.
-				out, err := runCount(ctx, deps, composedJQL)
+				out, err := runCount(ctx, runDeps, composedJQL)
+				out.Board = boardView
 				out.SavedQuery = savedView
 				return out, err
 			}
@@ -597,7 +652,7 @@ func newIssueList(deps Deps, currentAccount bool) *cobra.Command {
 					requestExpand = strings.Split(command.IssueListExpansions, ",")
 				}
 			}
-			out, est, err := runList(ctx, deps, composedJQL, requestFields, nextPageToken,
+			out, est, err := runList(ctx, runDeps, composedJQL, requestFields, nextPageToken,
 				listWalk{limit: limit, all: all, unbounded: unbounded}, requestExpand...)
 			estimate = est
 			out.Board = boardView
@@ -608,7 +663,7 @@ func newIssueList(deps Deps, currentAccount bool) *cobra.Command {
 				// (view.go): root/deps.go's sync.OnceValues means every
 				// call after the first, including runList's own just
 				// above, returns the SAME cached client.
-				if client, cerr := deps.JiraClient(ctx); cerr == nil {
+				if client, cerr := runDeps.JiraClient(ctx); cerr == nil {
 					site = client.BaseURL()
 				}
 			}
@@ -639,6 +694,11 @@ func newIssueList(deps Deps, currentAccount bool) *cobra.Command {
 			"# Preview locally\n" +
 			"$ jira issue mine --project ABC --as-jql --output=json"
 	}
+	spec.Long += "\n\ndefault_project supplies an omitted structured project when no raw/saved query or board is active. " +
+		"default_board uses only a retained named-board saved-filter snapshot for the configured public site and account; it never warms remotely. " +
+		"Explicit board selectors override it; --board= suppresses it. Missing or malformed snapshots refuse the query. " +
+		"Configured board scope narrows raw/saved queries and keeps mine account scope. Machine results retain default_board provenance and cached_at. " +
+		"Human --as-jql remains bare pipeable JQL. Live search/count/browser refuses when the resolved site/account differs from the snapshot's public context."
 	spec.Long += "\n\n--saved NAME reads NAME.jql from queries_path, with optional YAML or TOML frontmatter. " +
 		"Metadata name, description and project are retained at .saved_query; project never adds a hidden constraint. " +
 		"--saved, --jql and board selectors are alternatives. Ordinary list keeps raw-query filter exclusivity; mine narrows the saved query beneath its account scope. " +
@@ -1044,6 +1104,10 @@ func renderList(v *output.View, env envelope.Envelope, site string, estimate cou
 
 	if out.Count != nil {
 		return renderCount(v, *out.Count)
+	}
+
+	if out.Board != nil && out.Board.Precedence == "default_board" && out.Board.CachedAt != nil {
+		v.Line(cli.Text(fmt.Sprintf("Configured cached board: %s (%d), saved %s", out.Board.Name, out.Board.ID, out.Board.CachedAt.UTC().Format(time.RFC3339))))
 	}
 
 	if len(out.Issues) == 0 {

@@ -298,5 +298,48 @@ func (f *File) PrepareProfileRemove(name string) (*ProfileUpdate, error) {
 
 func captureFileProfile() (string, error) {
 	variables := slices.Clone(os.Environ())
+	normalizeTokenEnvironmentNames(variables)
 	return selectedProfile(Options{}, currentFlagLayer(), variables)
+}
+
+// CaptureOptions freezes local file selection, authored bytes and environment
+// before lazy providers run. It opens no credentials and publishes no files.
+func CaptureOptions(ctx context.Context, opts Options) (Options, error) {
+	if !opts.captured {
+		path, err := resolvePath(opts.Path)
+		if err != nil {
+			return Options{}, err
+		}
+		opts.authoredPath = path
+		opts.explicitPath = opts.Path != "" || currentFlagLayer().Path != ""
+		opts.captured = true
+	}
+	environ := opts.Environ
+	if environ == nil {
+		environ = os.Environ
+	}
+	variables := slices.Clone(environ())
+	normalizeTokenEnvironmentNames(variables)
+	opts.Environ = func() []string { return slices.Clone(variables) }
+	selection, err := selectedProfile(opts, currentFlagLayer(), variables)
+	if err != nil {
+		return Options{}, err
+	}
+	file := opts.Snapshot
+	if file == nil {
+		file, err = OpenFile(ctx, opts.Path)
+		if err != nil {
+			return Options{}, err
+		}
+	}
+	copy := *file
+	copy.profileSelection, copy.profileSelectionErr = selection, nil
+	opts.Path, opts.Snapshot = file.Path(), &copy
+	resolved, err := Load(opts)
+	if err != nil {
+		return Options{}, err
+	}
+	opts.Profile = resolved.Profile
+	opts.Snapshot.profileSelection = resolved.Profile
+	return opts, nil
 }

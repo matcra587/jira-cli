@@ -46,14 +46,7 @@ func newList(deps Deps) *cobra.Command {
 			// names would report base_url unset while every other
 			// command uses the stored one. The token stays hidden —
 			// redaction is applied per key, not per layer.
-			store, err := deps.Credentials()
-			if err != nil {
-				if errors.Is(err, cfg.ErrFileInvalid) {
-					return envelope.ConfigListOutput{}, localIO("read config", err)
-				}
-				return envelope.ConfigListOutput{}, err
-			}
-			resolved, err := cfg.Resolve(ctx, cfg.Options{}, store)
+			resolved, err := resolveList(ctx, deps)
 			if err != nil {
 				if errors.Is(err, cfg.ErrFileInvalid) {
 					return envelope.ConfigListOutput{}, localIO("read config", err)
@@ -69,6 +62,17 @@ func newList(deps Deps) *cobra.Command {
 			return buildOutput(resolved), nil
 		},
 	})
+}
+
+func resolveList(ctx context.Context, deps Deps) (*cfg.Resolved, error) {
+	if deps.Resolve != nil {
+		return deps.Resolve(ctx)
+	}
+	store, err := deps.Credentials()
+	if err != nil {
+		return nil, err
+	}
+	return cfg.Resolve(ctx, cfg.Options{}, store)
 }
 
 // buildOutput turns a resolved configuration into the payload.

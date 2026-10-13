@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -19,7 +18,7 @@ import (
 // testNativeKeyringPrefilledLogin runs inside the private native session. Each
 // case starts with the same synthetic record and observes actual form input,
 // verification requests, machine output and the resulting native record.
-func testNativeKeyringPrefilledLogin(t *testing.T, invoke func(*testing.T, []string, []terminalAuthStep, int, ...string) (frame, string), site, email, token string, originalCalls *atomic.Int32) {
+func testNativeKeyringPrefilledLogin(t *testing.T, invoke func(*testing.T, []string, []terminalAuthStep, int, string, ...string) (frame, string), site, email, token string, originalCalls *atomic.Int32) {
 	t.Helper()
 	const editedEmail = "edited-fixture@example.invalid"
 	editedToken := token + "-edited"
@@ -74,18 +73,31 @@ func testNativeKeyringPrefilledLogin(t *testing.T, invoke func(*testing.T, []str
 				}
 				siteInput, emailInput = clear+want.Site+"\r", clear+want.Email+"\r"
 			}
-			tokenInput, exit := want.Token+"\r", cli.ExitOK
+			tokenInput, exit, code := want.Token+"\r", cli.ExitOK, ""
+			if tc.edit {
+				exit, code = cli.ExitValidation, cli.CodeConfigInvalid
+			}
 			if tc.abort {
-				tokenInput, exit = "\x03", cli.ExitCanceled
+				tokenInput, exit, code = "\x03", cli.ExitCanceled, "canceled"
 			}
 			result, _ := invoke(t, []string{"TERM=" + tc.term}, []terminalAuthStep{
 				{wait: "Jira site", beforeInput: []string{site}, focused: tc.term != "dumb", focusedValue: site, input: siteInput},
 				{wait: "Email", beforeInput: []string{email}, focused: tc.term != "dumb", focusedValue: email, input: emailInput},
 				{wait: "API token", passwordReady: true, focused: tc.term != "dumb", input: tokenInput},
-			}, exit, "auth", "login")
+			}, exit, code, "auth", "login")
 			if tc.abort {
 				if stored() != before || originalCalls.Load() != oldCount || editedCalls.Load() != editedCount {
 					t.Fatal("canceled identity edits changed native credentials or contacted Jira")
+				}
+				return
+			}
+			if tc.edit {
+				var output envelope.AuthLoginOutput
+				if json.Unmarshal(result.Data, &output) != nil || !output.Verified || output.BaseURL != want.Site || output.Email != want.Email || output.AccountID != accountID || output.Credential.Saved || output.Credential.Attempted || output.Settings.Saved || output.Replaced != "" {
+					t.Fatal("conflicting interactive scope lost verification or invented publication")
+				}
+				if stored() != before || originalCalls.Load() != oldCount || editedCalls.Load() != editedCount+1 {
+					t.Fatal("conflicting interactive identity changed credentials or verified the wrong scope")
 				}
 				return
 			}
@@ -97,11 +109,7 @@ func testNativeKeyringPrefilledLogin(t *testing.T, invoke func(*testing.T, []str
 			if json.Unmarshal(result.Data, &output) != nil || output.BaseURL != want.Site || output.Email != want.Email || output.AccountID != accountID {
 				t.Fatal("machine result disagrees with the verified and stored identity")
 			}
-			if tc.edit {
-				if originalCalls.Load() != oldCount || editedCalls.Load() != editedCount+1 || !strings.Contains(output.Replaced, site) || !strings.Contains(output.Replaced, email) {
-					t.Fatal("edited login verified the wrong site or lost the displaced identity")
-				}
-			} else if originalCalls.Load() != oldCount+1 || editedCalls.Load() != editedCount || output.Replaced != "" {
+			if originalCalls.Load() != oldCount+1 || editedCalls.Load() != editedCount || output.Replaced != "" {
 				t.Fatal("default login changed identity or did not verify exactly once")
 			}
 		})

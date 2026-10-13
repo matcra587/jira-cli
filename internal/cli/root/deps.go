@@ -2,6 +2,7 @@ package root
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"sync"
@@ -32,6 +33,9 @@ import (
 // globals, no init() — and each credential-backed constructor is memoized by
 // command.OnceContextValues, so an invocation shares one lazily built instance.
 type Deps struct {
+	// BindContext connects lazy legacy constructors to Cobra's execution context.
+	BindContext func(func() context.Context)
+
 	// NotifyTool performs anonymous background release reads. A nil tool disables
 	// passive checks; NotifyOptions supplies Clive's cache and transport seams.
 	NotifyTool    updater.Tool
@@ -59,13 +63,28 @@ type Deps struct {
 	// constructor so nothing opens credentials until a command that
 	// needs it runs — and so tests substitute one instead of writing to
 	// the developer's real store.
-	Credentials func() (core.CredentialStore, error)
+	Credentials     func() (core.CredentialStore, error)
+	MigrationStores config.MigrationStores
 
 	// JiraClientFor builds a client for an explicit account and token
 	// rather than the resolved configuration. `auth login` needs it:
 	// verifying against resolved config would test the OLD token and
 	// report success for a credential nobody checked.
-	JiraClientFor func(site, email, token string) (core.JiraClient, error)
+	JiraClientFor func(site, email, token, cloudID string) (core.JiraClient, error)
+	// IdentitySaveSite and IdentitySaveClientFor use the ordinary resolution and
+	// transport owners while admitting an absent explicitly selected save target.
+	IdentitySaveSite      func(context.Context) (authcmd.SiteInfo, error)
+	IdentitySaveClientFor func(site, email, token, cloudID string) (core.JiraClient, error)
+	LoginSite             func(context.Context, authcmd.LoginDefaults) (authcmd.SiteInfo, error)
+	LoginCredentials      func(context.Context, core.CredentialLocation) (core.CredentialStore, error)
+	Site                  func(context.Context) (authcmd.SiteInfo, error)
+	SiteWithoutStore      func(context.Context) (authcmd.SiteInfo, error)
+	PrepareLoginLocation  func(context.Context, core.CredentialLocation) (core.CredentialLocation, core.AccountIdentityPublication, error)
+	LoginTarget           func(context.Context, core.LoginIdentityBinding) (core.AccountIdentityTarget, error)
+	IdentityTarget        func(context.Context, core.AccountIdentityScope) (core.AccountIdentityTarget, error)
+	ResolveConfig         func(context.Context) (*config.Resolved, error)
+	WorkdaySeconds        func() (int, error)
+	ValidateLoginScope    func(context.Context, string) error
 
 	// Detect resolves the output environment (TTY, agent markers) for
 	// --output=auto. It is a seam, not a cache: called at most once per
@@ -78,49 +97,144 @@ type Deps struct {
 
 // defaultDeps wires the production constructors.
 func defaultDeps() *Deps {
-	store := sync.OnceValues(credentialStore)
+	settings := newInvocationSettings()
+	store := sync.OnceValues(func() (core.CredentialStore, error) {
+		ctx, err := settings.currentContext()
+		if err != nil {
+			return nil, err
+		}
+		resolved, err := settings.public(ctx, false)
+		if err != nil {
+			return nil, err
+		}
+		return credentialStoreFromResolved(resolved), nil
+	})
+	resolved := command.OnceContextValues(func(ctx context.Context) (*config.Resolved, error) {
+		opts, err := settings.options(ctx, false)
+		if err != nil {
+			return nil, err
+		}
+		selected, err := store()
+		if err != nil {
+			return nil, err
+		}
+		return config.Resolve(ctx, opts, selected)
+	})
 	deps := &Deps{
-		NotifyTool: selfupdate.ReleaseTool{},
-		Update:     updatecmd.DefaultDeps(),
+		BindContext: func(contextFor func() context.Context) { settings.contextFor = contextFor },
+		NotifyTool:  selfupdate.ReleaseTool{},
+		Update:      updatecmd.DefaultDeps(),
 		JiraClient: command.OnceContextValues(func(ctx context.Context) (core.JiraClient, error) {
-			credentials, err := store()
+			configuration, err := resolved(ctx)
 			if err != nil {
 				return nil, err
 			}
-			return newJiraClient(ctx, credentials)
+			return jiraClientFromResolved(configuration)
 		}),
 		// OnceContextValues for JiraClient's reason: resolving the cache
 		// directory is filesystem work, and several commands in one run
 		// must not each repeat it.
 		Cache: command.OnceContextValues(func(ctx context.Context) (core.Cache, error) {
-			credentials, err := store()
+			configuration, err := resolved(ctx)
 			if err != nil {
 				return nil, err
 			}
-			return newCache(ctx, credentials)
+			return newScopedDiskCache(configuration.Config.BaseURL, configuration.Config.Email)
 		}),
-		BuildPreferences: buildPreferences,
-		CacheFor:         newScopedDiskCache,
-		Credentials:      store,
-		JiraClientFor: func(site, email, token string) (core.JiraClient, error) {
-			resolved, err := config.Load(config.Options{})
+		BuildPreferences:      settings.buildPreferences,
+		CacheFor:              newScopedDiskCache,
+		Credentials:           store,
+		MigrationStores:       migrationStore,
+		JiraClientFor:         settings.clientFor(false),
+		IdentitySaveSite:      settings.identitySaveSite,
+		IdentitySaveClientFor: settings.clientFor(true),
+		LoginSite:             settings.loginSite,
+		LoginCredentials:      settings.loginCredentials,
+		Site: func(ctx context.Context) (authcmd.SiteInfo, error) {
+			configuration, err := resolved(ctx)
 			if err != nil {
-				return nil, err
+				return authcmd.SiteInfo{}, err
 			}
-			return adapterjira.New(adapterjira.Config{
-				BaseURL:  site,
-				Email:    email,
-				APIToken: token,
-				ReadOnly: resolved.Config.ReadOnly,
-				Timeout:  resolved.Config.Timeout,
-				Retry:    core.DefaultRetryPolicy(),
-			})
+			if err := credentialReadFailure(configuration); err != nil {
+				return authcmd.SiteInfo{}, err
+			}
+			return siteFromResolved(configuration), nil
 		},
+		SiteWithoutStore:     settings.siteWithoutStore,
+		PrepareLoginLocation: settings.prepareLoginLocation,
+		LoginTarget:          settings.loginTarget,
+		IdentityTarget:       settings.identityTarget,
+		ResolveConfig:        resolved,
+		WorkdaySeconds:       settings.workdaySeconds,
+		ValidateLoginScope:   settings.validateLoginScope,
 		Detect: func() cli.Detection {
 			return cli.Detect(os.Stdout)
 		},
 	}
 	return deps
+}
+
+func resolveIdentitySaveSite(ctx context.Context, opts config.Options, newStore func(config.Config) core.CredentialStore) (authcmd.SiteInfo, error) {
+	// Windows may report a regular-file ancestor as not-found. Missing-target
+	// loading alone cannot prove creation is valid; check the shared owner
+	// before entering any credential provider.
+	if _, err := config.OpenFile(ctx, opts.Path); err != nil {
+		return authcmd.SiteInfo{}, err
+	}
+	resolved, err := config.Resolve(ctx, opts, nil)
+	if err != nil {
+		return authcmd.SiteInfo{}, err
+	}
+	if err := ctx.Err(); err != nil {
+		return authcmd.SiteInfo{}, err
+	}
+	return siteFrom(ctx, opts, newStore(resolved.Config))
+}
+
+func resolveLoginSite(ctx context.Context, opts config.Options, defaults authcmd.LoginDefaults, newStore func(config.Config) core.CredentialStore) (authcmd.SiteInfo, error) {
+	if _, err := config.OpenFile(ctx, opts.Path); err != nil {
+		return authcmd.SiteInfo{}, err
+	}
+	resolved, err := config.Resolve(ctx, opts, nil)
+	if err != nil {
+		return authcmd.SiteInfo{}, err
+	}
+	if resolved.Config.SecretBackend != core.CredentialBackendEnvironment &&
+		(defaults.Site && strings.TrimSpace(resolved.Config.BaseURL) == "" || defaults.Email && strings.TrimSpace(resolved.Config.Email) == "") {
+		if err := ctx.Err(); err != nil {
+			return authcmd.SiteInfo{}, err
+		}
+		stored, err := siteFrom(ctx, opts, newStore(resolved.Config))
+		if err != nil {
+			return authcmd.SiteInfo{}, err
+		}
+		public := siteFromResolved(resolved)
+		if defaults.Site && strings.TrimSpace(public.BaseURL) == "" {
+			public.BaseURL = stored.BaseURL
+		}
+		if defaults.Email && strings.TrimSpace(public.Email) == "" {
+			public.Email = stored.Email
+		}
+		return public, nil
+	}
+	return siteFromResolved(resolved), nil
+}
+
+func resolveLoginCredentials(ctx context.Context, opts config.Options, selected core.CredentialLocation, newStore func(config.Config) core.CredentialStore) (core.CredentialStore, error) {
+	if _, err := config.OpenFile(ctx, opts.Path); err != nil {
+		return nil, err
+	}
+	resolved, err := config.Resolve(ctx, opts, nil)
+	if err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if config.CredentialSelection(*resolved) != selected {
+		return nil, cli.NewCodedError(cli.CodeConfigChanged, "selected credential provider changed during login; inspect the configuration before retrying")
+	}
+	return newStore(resolved.Config), nil
 }
 
 // workdaySeconds resolves only preferences; it never opens the keyring or
@@ -138,7 +252,7 @@ func buildPreferences() (jqlcmd.BuildPreferences, error) {
 	if err != nil {
 		return jqlcmd.BuildPreferences{}, err
 	}
-	return jqlcmd.BuildPreferences{BaseURL: resolved.Config.BaseURL, Account: resolved.Config.Email}, nil
+	return jqlcmd.BuildPreferences{BaseURL: resolved.Config.BaseURL, Account: resolved.Config.Email, CachedAccountID: resolved.Config.CachedAccountID(), DefaultProject: resolved.Config.DefaultProject, DefaultIssueType: resolved.Config.DefaultIssueType, DefaultBoard: resolved.Config.DefaultBoard}, nil
 }
 
 func newScopedDiskCache(site, account string) (core.Cache, error) {
@@ -190,15 +304,15 @@ func configuredCache(ctx context.Context, deps *Deps) (core.Cache, error) {
 // Config carries ReadOnly into the transport, which is what makes the
 // write gate reachable: an operator sets JIRA_READ_ONLY and every
 // command is covered, including ones that never think to check.
-func newJiraClient(ctx context.Context, store core.CredentialStore) (core.JiraClient, error) {
-	return jiraClientFrom(ctx, config.Options{}, store)
-}
-
 func jiraClientFrom(ctx context.Context, opts config.Options, store core.CredentialStore) (core.JiraClient, error) {
 	resolved, err := config.Resolve(ctx, opts, store)
 	if err != nil {
 		return nil, err
 	}
+	return jiraClientFromResolved(resolved)
+}
+
+func jiraClientFromResolved(resolved *config.Resolved) (core.JiraClient, error) {
 	if err := credentialReadFailure(resolved); err != nil {
 		return nil, err
 	}
@@ -207,6 +321,7 @@ func jiraClientFrom(ctx context.Context, opts config.Options, store core.Credent
 	}
 	return adapterjira.New(adapterjira.Config{
 		BaseURL:  resolved.Config.BaseURL,
+		CloudID:  resolved.Config.CloudID,
 		Email:    resolved.Config.Email,
 		APIToken: resolved.Config.APIToken,
 		ReadOnly: resolved.Config.ReadOnly,
@@ -232,10 +347,14 @@ func credentialStore() (core.CredentialStore, error) {
 	if err != nil {
 		return nil, err
 	}
+	return credentialStoreFromResolved(resolved), nil
+}
+
+func credentialStoreFromResolved(resolved *config.Resolved) core.CredentialStore {
 	if resolved.NamedProfiles && resolved.Config.SecretBackend == core.CredentialBackendKeyring && resolved.Config.CredentialID == "" {
-		return credentials.UnselectedStore{}, nil
+		return core.NoCredentialStore{}
 	}
-	return credentialStoreFor(resolved.Config), nil
+	return credentialStoreFor(resolved.Config)
 }
 
 // siteInfoWithoutStore resolves as siteInfo does but with the credential
@@ -271,12 +390,18 @@ func siteFrom(ctx context.Context, opts config.Options, store core.CredentialSto
 	if err := credentialReadFailure(resolved); err != nil {
 		return authcmd.SiteInfo{}, err
 	}
+	return siteFromResolved(resolved), nil
+}
+
+func siteFromResolved(resolved *config.Resolved) authcmd.SiteInfo {
 	return authcmd.SiteInfo{
 		BaseURL:     resolved.Config.BaseURL,
+		CloudID:     resolved.Config.CloudID,
 		Email:       resolved.Config.Email,
 		Token:       resolved.Config.APIToken,
 		TokenSource: string(resolved.Source("api_token")),
-	}, nil
+		Location:    config.CredentialSelection(*resolved),
+	}
 }
 
 func credentialReadFailure(resolved *config.Resolved) error {
@@ -288,6 +413,26 @@ func credentialReadFailure(resolved *config.Resolved) error {
 		Message: "the selected credential store could not be read; stored credentials were not verified",
 		Cause:   resolved.CredentialError,
 	}
+}
+
+// validateLoginScope prevents a successful login from saving a token that the
+// same authored configuration would immediately discard on the next command.
+func validateLoginScope(ctx context.Context, cloudID string) error {
+	return validateLoginScopeFrom(ctx, config.Options{PermitMissingTarget: true}, cloudID)
+}
+
+func validateLoginScopeFrom(ctx context.Context, opts config.Options, cloudID string) error {
+	resolved, err := config.Resolve(ctx, opts, nil)
+	if err != nil {
+		return err
+	}
+	if resolved.Source("cloud_id") == config.LayerDefault || resolved.Source("cloud_id") == config.LayerUnknown || resolved.Config.CloudID == cloudID {
+		return nil
+	}
+	input := cli.NewInputError(cli.CodeConfigInvalid, fmt.Sprintf(
+		"verified cloud_id is %q but configured cloud_id differs; set cloud_id to the verified scope (or clear it for a classic token), then repeat login; nothing was stored", cloudID))
+	input.Field = "cloud_id"
+	return input
 }
 
 // metadataCacheScope keeps live keyring resolution in the established cache
@@ -341,7 +486,29 @@ func credentialStoreFor(settings config.Config) core.CredentialStore {
 	}
 }
 
+// Migration uses recorded public scope, independently of current settings and
+// selected-store overlays. Construction is lazy and opens no native credentials.
+func migrationStore(ctx context.Context, location core.CredentialLocation) (core.CredentialRecoveryStore, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	switch location.Backend {
+	case core.CredentialBackendKeyring:
+		return keyring.NewForService(location.Service), nil
+	case core.CredentialBackendOnePassword:
+		return adapteronepassword.New(adapteronepassword.Config{
+			Account: location.SDKAccount, Vault: location.Vault, Item: location.Item,
+			IntegrationVersion: clive.Current(),
+		}), nil
+	default:
+		return nil, core.ErrCredentialRecoveryUnsupported
+	}
+}
+
 func siteFromDeps(ctx context.Context, deps *Deps) (authcmd.SiteInfo, error) {
+	if deps.Site != nil {
+		return deps.Site(ctx)
+	}
 	if deps.Credentials == nil {
 		return siteInfo(ctx)
 	}

@@ -266,7 +266,7 @@ func typeArgErrors(cmd *cobra.Command) {
 			// those as an unknown command would tell the caller to fix a
 			// verb that was never wrong.
 			noArgs := isNoArgs(orig)
-			if metadata, ok := command.SelectedReadMeta(c); ok && metadata.Args != nil {
+			if metadata, ok := command.SelectedVariantMeta(c); ok && metadata.Args != nil {
 				noArgs = metadata.Args.Min == 0 && metadata.Args.Max == 0
 			}
 			if noArgs && c.HasSubCommands() && len(args) > 0 {

@@ -9,6 +9,21 @@ paths:
 
 # Tests
 
+Successful resolver previews publish to the process-wide warning queue. Tests
+that produce those warnings must run serially, inspect them and drain the queue
+before leaving; mutex protection alone does not isolate concurrent invocations.
+Keep unrelated read/envelope tests free of leaked cached-identity provenance.
+
+Verified identity saving needs actual registered dispatch and binary evidence,
+including a missing selected target, previews that create no directories,
+conflicting authored scope before lookup, native absent/null/unknown fields,
+unchanged-candidate snapshot conflicts and retained publication after output
+failure. A compiling named guard must reject a wrongly typed preview flag; a
+flag merely named dry-run does not establish preview safety. Discovery must
+expose the local-write alternative without changing the default native read shape.
+Exercise the actual native Windows regular-ancestor refusal before providers,
+and require unchanged human previews to say they would keep the identity.
+
 *   **Framework**: standard library `testing`, table-driven, lowercase named
     subtests. testify is used only in `tests/live`; no other assertion
     library anywhere.
@@ -78,8 +93,8 @@ completion predictor is handled, error code/hint tables stay in lockstep,
 the embedded guides satisfy the Agent Guide Standard
 (`docenttest.Validate` in internal/cli/root), command packages never use
 process streams or non-returning `Run` handlers, output-helper results are not
-discarded, and the contract suite never `go run`/`go build`s the CLI per test
-(`contract_compiles_once_test.go`). When a rule in `.claude/rules/` becomes
+discarded, and contract binaries compile once per test process through the shared
+`tests/contract/version_test.go` owner. When a rule in `.claude/rules/` becomes
 mechanically checkable, add a guardrail for it. Give AST analysers a small
 invalid source fixture as well as scanning the repository, so the guard itself
 cannot silently stop matching.
@@ -145,3 +160,99 @@ Clear both `NO_PROXY` and `no_proxy` in offline guards: Go uses the lowercase
 value when uppercase is empty. Start with an inherited lowercase wildcard,
 apply the offline recipe, then test actual proxy selection in a fresh process.
 No HTTP request is needed.
+
+Migration output-audit binaries use the `outputaudit` build tag to initialize the
+upstream native keyring mock before command execution. Production and native
+acceptance binaries exclude that seam. Exercise actual config migration and
+rollback publication in every output mode; checked setup must succeed before
+interpreting scenario data. Mask only valid dedicated random backup identifiers
+when comparing independent runs. Never use the current host keyring for audit
+fixtures, even when migration deliberately ignores ordinary keyring opt-out.
+
+Real Linux keyring acceptance runs production binaries inside an owned private
+D-Bus session with synthetic entries and independent `secret-tool` inspection.
+Verify exact preimages, historical namespace retention, binding, provider backup
+retention and rollback scope across JSON, compact and human output. Native mocks
+and cross-compilation do not prove actual SDK or Windows/macOS keychain behavior.
+
+Published migration guide recipes use the separately cached output-audit binary
+and owned source/destination/recovery fixtures. The ordinary contract binary stays
+production-built for native acceptance. Never execute credential migration examples
+against the host keyring merely because ordinary credential resolution is disabled.
+
+Default-only live creation must pin the verified dedicated project/type after
+inherited environment values and independently check its effective preview
+payload before any write. Hashing an owned configuration file alone does not
+establish effective defaults: environment values can override that file. Bind
+public account/board defaults too; changed or foreign input refuses creation.
+Record attempts before writes and register acknowledged identities for cleanup.
+
+Automatic theme guards exercise passive light/dark/missing/malformed hints,
+exact environment provenance after framework construction and panic restoration,
+custom palette fallback, actual config publication/migration/rollback and generated
+Bash/Fish/Zsh/PowerShell candidates. Retain a delivered policy-4 CLI fixture
+independently of the policy-5 mapper; never count a compiler failure as a guard.
+
+Use a coordinated concurrent-constructor guard for framework theme passes,
+including exact restoration. Mutex waits are not durable synctest blocking;
+never wait for one inside a synctest bubble. A compiling overlapping-pass probe exposed the
+process-environment interleaving; elapsed wall time does not prove serialization.
+
+Client-preference guards prove positive seconds and typed arrays through file,
+environment, stored get, effective list and publication. Cover malformed arrays,
+null/nonstrings, commas/whitespace/duplicates, absent versus empty, source-profile
+selection and old nonpositive refresh fallback. Invalid values must refuse before
+providers. Retain an independently generated policy-5 CLI fixture for reopen and
+exact rollback; test that current mapping never reinterprets older records.
+
+Account-resolution guards exercise native absent/null markers even when their Go
+values are populated, plus nil, empty and whitespace-only identities. Assert the
+shared protocol error, unchanged fields and one lookup; canceled resolution must
+enter no constructor/lookup. Drive create, edit, clone and both watcher commands
+through their actual registered handlers with independent write counters. Do not
+credit malformed invocation, compiler failure or an unrelated output error as an
+identity guard. Valid identities resolve all pending fields once; literal IDs
+stay untouched and do not trigger lookup.
+
+Cached-identity guards compare independent site/account/cloud bindings, including
+path case, equivalent URL/account spelling, absent/empty ID and scope changes
+from environment or credential layers. Invalid declarations refuse before
+providers even when later values could mask them. Prove safe inspection and
+repair of malformed binding URLs through shared redaction/publication owners.
+Drive all five account consumers and the production CLI offline; matching cached
+IDs carry an unverified warning, mismatches retain @me. Live and validated previews
+still use one actual current-user read and never consult cached preferences.
+Retain an independently delivered policy-6 recovery fixture for reopen/rollback;
+current mappings must not reinterpret older immutable candidates.
+
+Cached-ID live Jira acceptance first inspects all stored binding declarations against an
+independent native identity and verified public site/account/cloud. Clear inherited
+cached metadata and every accepted environment spelling before offline previews,
+including named token references and both proxy exemption variables. A compiling
+adversarial inherited-ID guard must fail by name without that clearing. Clone
+previews expose only known nonempty account overrides, so assert both prepared IDs
+through typed output instead of unchanged Cobra variables copied into options.
+
+Login acceptance must observe real prepared settings and actual provider effects.
+Use owned public files and synthetic/injected credentials, including native
+isolated providers; never replace user credentials for acceptance. Prove provider
+admission before/after cancellation, acknowledged credential plus failed settings,
+unknown entered writes, blocked previews, environment-only metadata publication,
+actual selected token-reference provenance, and output failure after publication.
+Refactoring a concrete pointer helper behind an interface must keep error returns
+as a nil interface; existing target-refusal guards catch typed-nil regressions.
+
+Exercise the actual interactive SDK form and exact account/vault/item selection.
+Mixed flag/public defaults must not enter a provider for an already supplied
+field. Test public selector publication for a fresh process and refusal of
+authored reference replacement, including generic-token precedence.
+
+When one public default needs storage, use a conflicting complete stored tuple
+to prove the other public field remains unchanged. A canceled preview after
+receipt preparation must fail even when no later provider stage would run.
+
+Literal theme migration must preserve ~, $NAME and ${NAME} bytes and prove the
+actual palette selected after migration. Use owned literal files plus environment
+and home decoys; inspect rendered colors and exact rollback bytes. Exercise all
+recorded policy versions, missing relative origins, cancellation and native
+Windows. Decode-only preparation never reads palette files or process expansion.

@@ -79,7 +79,13 @@ func TestCredentialOperationsPreserveCallerContext(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			if store.calls != 3 || store.mismatch {
+			wantCalls := 3
+			if canceled {
+				// Saving now refuses cancellation before entering the store;
+				// the read/clear wrappers still propagate it to their callbacks.
+				wantCalls = 2
+			}
+			if store.calls != wantCalls || store.mismatch {
 				t.Fatalf("credential contexts differed: calls=%d mismatch=%t", store.calls, store.mismatch)
 			}
 		})

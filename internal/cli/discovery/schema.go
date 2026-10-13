@@ -94,12 +94,16 @@ func materializeHelp(cmd *cobra.Command) {
 func enrich(cmd *cobra.Command, tree *docent.Command) error {
 	tree.Extensions = map[string]any{"usage": cmd.UseLine(), "long": cmd.Long, "examples": cmd.Example}
 	if metas, ok := command.MetaFor(cmd); ok {
+		tree.ReadOnly = true
 		// Variants share a command path but remain explicit operation facts.
 		// The default operation owns this node's output schema.
 		operations := make([]Operation, 0, len(metas))
 		variantSchemas := make(map[string]any)
 		variantArgs := make(map[string]any)
 		for i, meta := range metas {
+			if meta.Class() != command.ClassRead {
+				tree.ReadOnly = false
+			}
 			operation := Operation{Op: meta.Op, Variant: meta.Variant, Class: string(meta.Class()), NoSuccessEnvelope: meta.NoSuccessEnvelope}
 			if i > 0 {
 				if meta.NoSuccessEnvelope == "" {
@@ -119,7 +123,6 @@ func enrich(cmd *cobra.Command, tree *docent.Command) error {
 				if meta.Args != nil {
 					tree.Extensions["arguments"] = meta.Args
 				}
-				tree.ReadOnly = meta.Class() == command.ClassRead
 				if meta.NoSuccessEnvelope == "" {
 					reg, exists := envelope.Registered(meta.Op)
 					if !exists {

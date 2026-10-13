@@ -36,7 +36,7 @@ func globalFlagLayer(args []string) config.FlagLayer {
 	probe.SetOutput(io.Discard)
 
 	path := probe.String(cli.FlagConfig, "", "")
-	profile := probe.StringP(cli.FlagProfile, "P", "", "") //nolint:gocritic // parse-only probe; public flags carry metadata
+	profile := probe.StringP(cli.FlagProfile, "P", "", "") //nolint:gocritic // parse-only probe; public flags use command metadata
 	timeout := probe.Duration(cli.FlagTimeout, 0, "")
 	// Ignored for seed's reason: pflag records what it scanned before
 	// failing, and whatever broke the parse is reported by the real one.

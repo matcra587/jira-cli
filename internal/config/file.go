@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 
-	xfilepath "github.com/gechr/x/filepath"
 	xos "github.com/gechr/x/os"
 	"github.com/knadh/koanf/providers/confmap"
 	"github.com/knadh/koanf/v2"
@@ -55,7 +54,7 @@ func OpenFile(ctx context.Context, path string) (*File, error) {
 	if err != nil {
 		return nil, fmt.Errorf("resolve config path: %w", err)
 	}
-	resolved, err := xfilepath.ResolveLenient(requested)
+	resolved, err := resolveCreationPath(requested)
 	if err != nil {
 		return nil, fmt.Errorf("resolve config link: %w", err)
 	}
@@ -77,7 +76,7 @@ func OpenFile(ctx context.Context, path string) (*File, error) {
 		return nil, err
 	}
 	profile, profileErr := captureFileProfile()
-	return &File{requested: requested, path: resolved, original: data, exists: exists, profileSelection: profile, profileSelectionErr: profileErr, missingCause: err}, nil
+	return &File{requested: requested, path: resolved, original: data, exists: exists, missingCause: err, profileSelection: profile, profileSelectionErr: profileErr}, nil
 }
 
 // ReadFile permits an absent default file but refuses an absent explicitly
@@ -108,37 +107,22 @@ func (f *File) Contents() []byte { return bytes.Clone(f.original) }
 // An unchanged candidate leaves bytes and metadata untouched. On a write error,
 // inspect the file before retrying: directory sync can fail after replacement.
 func (f *File) Save(ctx context.Context, data []byte) (bool, error) {
+	return f.saveValidated(ctx, data, ValidateFile)
+}
+
+// Ordinary saves always use ValidateFile. Recovery supplies its verified
+// preimage validator through this private boundary, retaining one writer.
+func (f *File) saveValidated(ctx context.Context, data []byte, validate func([]byte) error) (bool, error) {
 	if err := ctx.Err(); err != nil {
 		return false, err
 	}
-	if err := ValidateFile(data); err != nil {
+	if err := validate(data); err != nil {
 		return false, err
 	}
 	if bytes.Equal(data, f.original) {
 		return false, nil
 	}
-	resolved, err := xfilepath.ResolveLenient(f.requested)
-	if err != nil {
-		return false, fmt.Errorf("re-resolve config link: %w", err)
-	}
-	if resolved != f.path {
-		return false, ErrFileChanged
-	}
-	current, err := readFileInput(f.path)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return false, fmt.Errorf("re-read config: %w", err)
-	}
-	if errors.Is(err, os.ErrNotExist) {
-		if _, linkErr := os.Lstat(f.path); linkErr == nil {
-			return false, ErrFileChanged
-		} else if !errors.Is(linkErr, os.ErrNotExist) {
-			return false, fmt.Errorf("inspect missing config: %w", linkErr)
-		}
-	}
-	if (err == nil) != f.exists || !bytes.Equal(current, f.original) {
-		return false, ErrFileChanged
-	}
-	if err := ctx.Err(); err != nil {
+	if err := f.checkSnapshot(ctx); err != nil {
 		return false, err
 	}
 	dir := filepath.Dir(f.path)
@@ -153,10 +137,41 @@ func (f *File) Save(ctx context.Context, data []byte) (bool, error) {
 			return false, fmt.Errorf("create config directory: %w", err)
 		}
 	}
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
 	if err := xos.AtomicWrite(f.path, data, 0o600); err != nil {
 		return false, fmt.Errorf("save config: %w", err)
 	}
 	return true, nil
+}
+
+func (f *File) checkSnapshot(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	resolved, err := resolveCreationPath(f.requested)
+	if err != nil {
+		return fmt.Errorf("re-resolve config link: %w", err)
+	}
+	if resolved != f.path {
+		return ErrFileChanged
+	}
+	current, err := readFileInput(f.path)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("re-read config: %w", err)
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		if _, linkErr := os.Lstat(f.path); linkErr == nil {
+			return ErrFileChanged
+		} else if !errors.Is(linkErr, os.ErrNotExist) {
+			return fmt.Errorf("inspect missing config: %w", linkErr)
+		}
+	}
+	if (err == nil) != f.exists || !bytes.Equal(current, f.original) {
+		return ErrFileChanged
+	}
+	return ctx.Err()
 }
 
 // ValidateFile checks exactly the supplied TOML bytes, without effective

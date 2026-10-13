@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/zalando/go-keyring"
 
@@ -31,13 +32,35 @@ const service = "jira-cli"
 // adapter rejects canceled contexts before entering the native call, but does
 // not claim that an in-flight OS-keyring call can be canceled. A native mutation's
 // actual return remains authoritative even if cancellation arrives during it.
-type Store struct{}
+type Store struct {
+	service string
+	native  nativeOperations
+}
+
+// The upstream mock is process-global. These private native boundaries support
+// precise failure/cancellation tests without changing other stores or contexts.
+type nativeOperations struct {
+	get    func(string, string) (string, error)
+	set    func(string, string, string) error
+	delete func(string, string) error
+}
 
 // compile-time assertion that the adapter satisfies the seam it exists for.
 var _ core.CredentialStore = (*Store)(nil)
 
 // New returns the operating system credential store.
 func New() *Store { return &Store{} }
+
+// NewForService selects an explicit provider namespace for historical migration
+// or isolated native acceptance. Construction never opens the keyring or reads env.
+func NewForService(name string) *Store { return &Store{service: strings.TrimSpace(name)} }
+
+func (s *Store) serviceName() string {
+	if s.service != "" {
+		return s.service
+	}
+	return service
+}
 
 // Get distinguishes an absent entry from a store that cannot be read.
 // Configuration owns fallback to explicit environment credentials; the
@@ -47,7 +70,11 @@ func (s *Store) Get(ctx context.Context, account string) (string, error) {
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
-	secret, err := keyring.Get(service, account)
+	get := keyring.Get
+	if s.native.get != nil {
+		get = s.native.get
+	}
+	secret, err := get(s.serviceName(), account)
 	if errors.Is(err, keyring.ErrNotFound) {
 		return "", core.ErrNoCredential
 	}
@@ -59,25 +86,49 @@ func (s *Store) Get(ctx context.Context, account string) (string, error) {
 
 // Set stores the credential for account, replacing any existing entry.
 func (s *Store) Set(ctx context.Context, account, secret string) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	if err := keyring.Set(service, account, secret); err != nil {
-		return fmt.Errorf("save credential to the system keyring: %w", err)
+	err, attempted := s.set(ctx, account, secret)
+	if err != nil {
+		return &core.CredentialStoreError{Backend: core.CredentialBackendKeyring, Operation: "save", Cause: err, Attempted: attempted}
 	}
 	return nil
+}
+
+func (s *Store) set(ctx context.Context, account, secret string) (error, bool) {
+	if err := ctx.Err(); err != nil {
+		return err, false
+	}
+	set := keyring.Set
+	if s.native.set != nil {
+		set = s.native.set
+	}
+	return set(s.serviceName(), account, secret), true
 }
 
 // Delete removes the credential. Removing one that is not there is not
 // an error: logout's job is to leave you logged out, and a caller that
 // runs it twice has not done anything wrong.
 func (s *Store) Delete(ctx context.Context, account string) error {
-	if err := ctx.Err(); err != nil {
+	err, attempted := s.delete(ctx, account)
+	if !attempted {
 		return err
 	}
-	err := keyring.Delete(service, account)
-	if err == nil || errors.Is(err, keyring.ErrNotFound) {
-		return nil
+	if err != nil {
+		return fmt.Errorf("remove credential from the system keyring: %w", err)
 	}
-	return fmt.Errorf("remove credential from the system keyring: %w", err)
+	return nil
+}
+
+func (s *Store) delete(ctx context.Context, account string) (error, bool) {
+	if err := ctx.Err(); err != nil {
+		return err, false
+	}
+	remove := keyring.Delete
+	if s.native.delete != nil {
+		remove = s.native.delete
+	}
+	err := remove(s.serviceName(), account)
+	if err == nil || errors.Is(err, keyring.ErrNotFound) {
+		return nil, true
+	}
+	return err, true
 }

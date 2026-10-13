@@ -122,6 +122,10 @@ real-shell guards without regressing contextual completion or versioned installa
     Check cancellation before native reads or mutations; do not claim in-flight
     cancellation or start a detached worker to simulate it. A native mutation
     already entered retains its actual return; cancellation does not prove no write.
+    Credential recovery distinguishes admission from acknowledgment: the shared
+    recovery interface's mutation bool records actual native entry, including
+    failed writes. Opaque snapshots must conceal secrets in JSON and fmt output;
+    provider-specific metadata/preimages stay inside the selected secret provider.
 *   Every Jira call takes the command's context, preserving caller cancellation
     and deadlines. `--timeout` configures the HTTP client; it does not create
     a command-wide deadline. No `context.Background()` on command paths.

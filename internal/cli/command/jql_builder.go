@@ -38,7 +38,10 @@ type JQLInput struct {
 	// board's filter. It is a SCOPE rather than a filter: it composes as
 	// a parenthesised leading clause that the convenience filters narrow,
 	// and cannot be combined with an explicit query. See ComposeJQL.
-	BoardJQL                   string
+	BoardJQL string
+	// BoardFromDefault permits configured context to narrow raw conditions.
+	// Explicit board selectors remain exclusive with raw JQL.
+	BoardFromDefault           bool
 	Project, Assignee, Status  []string
 	Key, Epic                  []string
 	Created, Updated, Resolved string
@@ -176,13 +179,14 @@ func ComposeJQL(in JQLInput) (string, error) {
 
 	jql := strings.TrimSpace(in.JQL)
 	board := strings.TrimSpace(in.BoardJQL)
-	if jql != "" && in.AssignedToCurrentUser {
+	if jql != "" && (in.AssignedToCurrentUser || in.BoardFromDefault) {
 		if err := validateJQLScope(jql); err != nil {
 			e := cli.NewInputError(cli.CodeFlagValueInvalid, err.Error())
 			e.Field = "jql"
 			return "", e
 		}
 	}
+	authoredFilter := firstFilterFlag
 	if board != "" {
 		if err := validateJQLScope(board); err != nil {
 			e := cli.NewInputError(cli.CodeFlagValueInvalid, err.Error())
@@ -217,12 +221,16 @@ func ComposeJQL(in JQLInput) (string, error) {
 	}
 
 	switch {
-	case jql != "" && firstFilterFlag != "" && (!in.AssignedToCurrentUser || board != ""):
+	case jql != "" && in.BoardFromDefault && board != "" && !in.AssignedToCurrentUser && authoredFilter != "":
+		e := cli.NewInputError(cli.CodeFlagNotApplicable, fmt.Sprintf("--%s cannot be combined with --jql; explicit structured filters and raw queries are alternatives", authoredFilter))
+		e.Field = authoredFilter
+		return "", e
+	case jql != "" && firstFilterFlag != "" && (!in.AssignedToCurrentUser || board != "") && (!in.BoardFromDefault || board == ""):
 		e := cli.NewInputError(cli.CodeFlagNotApplicable,
 			fmt.Sprintf("--%s cannot be combined with --jql: composing an explicit query with an implied filter is ambiguous, so the filter is refused rather than silently appended to or overridden by your query — drop --%s, or fold the filter into --jql yourself", firstFilterFlag, firstFilterFlag))
 		e.Field = firstFilterFlag
 		return "", e
-	case jql != "" && in.AssignedToCurrentUser:
+	case jql != "" && (in.AssignedToCurrentUser || in.BoardFromDefault && board != ""):
 		conditions, rawOrder := SplitJQLOrderBy(jql)
 		if conditions != "" {
 			clauses = append(clauses, "("+conditions+")")

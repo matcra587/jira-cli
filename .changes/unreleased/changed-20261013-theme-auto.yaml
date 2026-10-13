@@ -1,3 +1,3 @@
 kind: changed
-body: "Resolve automatic themes from passive `COLORFGBG` background hints with a fixed dark fallback instead of active terminal queries."
+body: "Resolve automatic themes from passive `COLORFGBG` background hints with a fixed dark fallback instead of active terminal queries. Resolve help and syntax palettes together, preserve exact `JIRA_THEME=auto` provenance and environment precedence, and serialize temporary framework selection. Keep custom paths literal: migration anchors relative paths to the explicit source directory without expanding `~` or `$`, while old recovery policies retain their original derivation."
 time: 2026-10-13T08:00:00-04:00

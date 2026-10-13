@@ -99,7 +99,7 @@ func newProfileDefault() *cobra.Command {
 	return command.MustNew(command.Spec[envelope.ConfigProfileChangeOutput]{
 		Op: "config.profile.default", Use: "default NAME", Short: "Set the default for later invocations", MutatesLocalState: true,
 		Long: "Store the named profile as the default for later invocations. --profile and JIRA_PROFILE still override it. " +
-			"--dry-run previews without writing.",
+			"Running commands retain their selected profile. --dry-run previews without writing.",
 		Example: "$ jira config profile default work --dry-run",
 		Args:    command.ArgSpec{Min: 1, Max: 1, Positions: []command.Arg{{Name: "NAME", Predictor: "profile"}}},
 		Flags:   command.AddDryRunFlag, Human: renderProfileChange, RetainOnError: retainProfileChange,

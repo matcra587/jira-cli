@@ -50,13 +50,13 @@ func TestProfileCommandsStayLocalAndPreserveOtherProfiles(t *testing.T) {
 	if err := json.Unmarshal(run("config", "get", "read_only", "-P", "work"), &read); err != nil {
 		t.Fatal(err)
 	}
-	if !read.Data.Present || read.Data.Value != "true" {
+	if read.Data.Profile != "work" || !read.Data.Present || read.Data.Value != "true" {
 		t.Fatalf("wrong work setting: %+v", read.Data)
 	}
 	if err := json.Unmarshal(run("config", "get", "read_only", "--profile=personal"), &read); err != nil {
 		t.Fatal(err)
 	}
-	if read.Data.Present {
+	if read.Data.Profile != "personal" || read.Data.Present {
 		t.Fatalf("work preference escaped: %+v", read.Data)
 	}
 	before, err := os.ReadFile(path)

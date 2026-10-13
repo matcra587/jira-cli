@@ -51,6 +51,14 @@ func TestAgentCommandsNeverConstructJiraAdapters(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, args := range [][]string{
+		{"issue", "create", "--help"},
+		{"issue", "list", "--help"},
+		{"issue", "mine", "--help"},
+		{"jql", "build", "--help"},
+		{"config", "set", "--help"},
+		{"agent", "schema", "--path=issue create", "--output=json"},
+		{"agent", "schema", "--path=issue list", "--output=json"},
+		{"agent", "schema", "--path=issue mine", "--output=json"},
 		{"user", "--help"},
 		{"user", "search", "--help"},
 		{"agent", "schema", "--path=user search", "--output=json"},
@@ -86,11 +94,19 @@ func TestAgentCommandsNeverConstructJiraAdapters(t *testing.T) {
 	} {
 		t.Run(args[len(args)-1], func(t *testing.T) {
 			deps := testDeps(t)
+			deps.BuildPreferences = func() (core.IssuePreferences, error) {
+				t.Fatal("discovery opened working preferences")
+				return core.IssuePreferences{}, nil
+			}
+			deps.CacheFor = func(string, string) (core.Cache, error) {
+				t.Fatal("discovery opened public working cache")
+				return nil, nil
+			}
 			deps.JiraClient = func(ctx context.Context) (core.JiraClient, error) {
 				t.Fatal("discovery constructed a Jira client")
 				return nil, nil
 			}
-			deps.JiraClientFor = func(string, string, string) (core.JiraClient, error) {
+			deps.JiraClientFor = func(string, string, string, string) (core.JiraClient, error) {
 				t.Fatal("discovery constructed an explicit-account Jira client")
 				return nil, nil
 			}

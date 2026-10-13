@@ -237,12 +237,20 @@ func (s *Store) initialize(ctx context.Context, operation string) error {
 }
 
 func (s *Store) selectedItem(ctx context.Context, operation string) (string, sdk.Item, bool, error) {
-	if err := s.initialize(ctx, operation); err != nil {
+	vault, err := s.selectedVault(ctx, operation)
+	if err != nil {
 		return "", sdk.Item{}, false, err
+	}
+	return s.itemInVault(ctx, operation, vault, s.config.Item)
+}
+
+func (s *Store) selectedVault(ctx context.Context, operation string) (string, error) {
+	if err := s.initialize(ctx, operation); err != nil {
+		return "", err
 	}
 	vaults, err := s.client.ListVaults(ctx)
 	if err = readFailure(ctx, operation, err); err != nil {
-		return "", sdk.Item{}, false, err
+		return "", err
 	}
 	entries := xslices.Map(vaults, func(vault sdk.VaultOverview) coordinate { return coordinate{id: vault.ID, name: vault.Title} })
 	vault, found, err := selectCoordinate(s.config.Vault, entries)
@@ -250,8 +258,12 @@ func (s *Store) selectedItem(ctx context.Context, operation string) (string, sdk
 		if err == nil {
 			err = errors.New("selected vault was not found")
 		}
-		return "", sdk.Item{}, false, failure(ctx, operation, err, false)
+		return "", failure(ctx, operation, err, false)
 	}
+	return vault, nil
+}
+
+func (s *Store) itemInVault(ctx context.Context, operation, vault, selector string) (string, sdk.Item, bool, error) {
 	if err := readFailure(ctx, operation, nil); err != nil {
 		return "", sdk.Item{}, false, err
 	}
@@ -259,8 +271,8 @@ func (s *Store) selectedItem(ctx context.Context, operation string) (string, sdk
 	if err = readFailure(ctx, operation, err); err != nil {
 		return "", sdk.Item{}, false, err
 	}
-	entries = xslices.Map(items, func(item sdk.ItemOverview) coordinate { return coordinate{id: item.ID, name: item.Title} })
-	itemID, found, err := selectCoordinate(s.config.Item, entries)
+	entries := xslices.Map(items, func(item sdk.ItemOverview) coordinate { return coordinate{id: item.ID, name: item.Title} })
+	itemID, found, err := selectCoordinate(selector, entries)
 	if err != nil {
 		return "", sdk.Item{}, false, failure(ctx, operation, err, false)
 	}
@@ -281,14 +293,19 @@ func (s *Store) selectedItem(ctx context.Context, operation string) (string, sdk
 }
 
 func (s *Store) put(ctx context.Context, operation string, item sdk.Item) error {
+	_, err := s.putWithOutcome(ctx, operation, item)
+	return err
+}
+
+func (s *Store) putWithOutcome(ctx context.Context, operation string, item sdk.Item) (bool, error) {
 	if err := ctx.Err(); err != nil {
-		return failure(ctx, operation, err, false)
+		return false, failure(ctx, operation, err, false)
 	}
 	_, err := s.client.PutItem(ctx, item)
 	if err != nil {
-		return failure(ctx, operation, err, true)
+		return true, failure(ctx, operation, err, true)
 	}
-	return nil
+	return true, nil
 }
 
 // Exact IDs take precedence over titles; ambiguous exact titles never choose an

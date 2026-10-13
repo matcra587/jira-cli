@@ -119,7 +119,7 @@ func TestLiveMine(t *testing.T) {
 		t.Fatal("raw current-account search silently ignored reverse without an explicit sort")
 	}
 	firstArgs := append([]string{"issue", "mine"}, args...)
-	first := r.success(t, append(firstArgs, "--limit=1")...)
+	first := waitMineBoundedPage(t, r, account.AccountID.Value, assigned, append(firstArgs, "--limit=1"))
 	if len(first.Data.Issues) != 1 || first.Data.Pagination.Returned != 1 || first.Data.Pagination.IsLast || first.Data.Pagination.NextPageToken == "" || first.Data.Truncated {
 		t.Fatal("bounded current-account search lost its honest resume cursor")
 	}
@@ -203,4 +203,66 @@ func mineMissingOnly(issues []liveIssue, keys []string, accountID string) bool {
 		observed[index] = issue.Key
 	}
 	return mineMatches(issues, observed, accountID)
+}
+
+// A later bounded request can observe an older search index than an earlier
+// complete read. Retry only honest terminal pages missing known assigned rows.
+// Native metadata must agree with the projected cursor before any wait is allowed.
+func mineBoundedPageObservation(frame liveFrame, keys []string, accountID string) (ready, missingOnly bool) {
+	if !frame.OK || len(frame.Errors) != 0 || frame.Data.Truncated || frame.Data.Issues == nil ||
+		len(frame.Data.Issues) > 1 || frame.Data.Pagination.Returned != len(frame.Data.Issues) || len(frame.Data.SearchPages) == 0 ||
+		len(keys) < 2 || !mineMissingOnly(frame.Data.Issues, keys, accountID) {
+		return false, false
+	}
+	seen := map[string]bool{}
+	for index, encoded := range frame.Data.SearchPages {
+		var page struct {
+			IsLast        jira.Nullable[bool]   `json:"isLast"`
+			NextPageToken jira.Nullable[string] `json:"nextPageToken"`
+		}
+		if json.Unmarshal(encoded, &page) != nil || !page.IsLast.Set || page.IsLast.Null {
+			return false, false
+		}
+		if page.IsLast.Value && page.NextPageToken.Value != "" {
+			return false, false
+		}
+		if !page.IsLast.Value {
+			if !page.NextPageToken.Set || page.NextPageToken.Null || strings.TrimSpace(page.NextPageToken.Value) == "" || seen[page.NextPageToken.Value] {
+				return false, false
+			}
+			seen[page.NextPageToken.Value] = true
+		}
+		if index != len(frame.Data.SearchPages)-1 {
+			if page.IsLast.Value {
+				return false, false
+			}
+			continue
+		}
+		if frame.Data.Pagination.IsLast != page.IsLast.Value || frame.Data.Pagination.NextPageToken != page.NextPageToken.Value {
+			return false, false
+		}
+		return !page.IsLast.Value && len(frame.Data.Issues) == 1, page.IsLast.Value
+	}
+	return false, false
+}
+
+func waitMineBoundedPage(t *testing.T, r *liveRun, accountID string, keys, args []string) liveFrame {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
+	defer cancel()
+	for {
+		frame, _, exit := r.invoke(t, ctx, []string{"JIRA_READ_ONLY=true"}, args...)
+		ready, missingOnly := mineBoundedPageObservation(frame, keys, accountID)
+		if exit != 0 || (!ready && !missingOnly) {
+			t.Fatal("bounded current-account search lost native cursor evidence or returned invalid owned rows")
+		}
+		if ready {
+			return frame
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatal("bounded current-account cursor did not become visible within the index wait")
+		case <-time.After(time.Second):
+		}
+	}
 }

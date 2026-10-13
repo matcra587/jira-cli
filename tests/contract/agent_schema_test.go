@@ -124,7 +124,7 @@ func TestAgentSchemaDiscoversActualTreeWithoutCredentials(t *testing.T) {
 		walk = func(node docent.Command) {
 			paths = append(paths, node.Path)
 			for _, flag := range node.Flags {
-				if slices.Contains([]string{"json", "compact", "human", "plain", "@complete", "@shell"}, flag.Name) || (flag.Name == "yes" && node.Path != "jira auth logout") {
+				if slices.Contains([]string{"json", "compact", "human", "plain", "@complete", "@shell"}, flag.Name) || (flag.Name == "yes" && !slices.Contains([]string{"jira auth logout", "jira config migrate", "jira config rollback"}, node.Path)) {
 					t.Fatalf("hidden flag %q was advertised at %s", flag.Name, node.Path)
 				}
 			}

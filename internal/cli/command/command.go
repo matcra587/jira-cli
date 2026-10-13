@@ -138,6 +138,9 @@ type Spec[T any] struct {
 	// Read is one boolean-selected read with a separately typed result. New
 	// owns its selection, validation, metadata and emission on this path.
 	Read *ReadVariant
+	// LocalWrite is one boolean-selected local mutation with a separately typed
+	// result. Read and LocalWrite are mutually exclusive on one command path.
+	LocalWrite *LocalWriteVariant
 
 	// Use, Short, Long and Example are the help surface. Short is
 	// mandatory — an empty one drops the command out of grouped help,
@@ -233,7 +236,7 @@ func New[T any](spec Spec[T]) (*cobra.Command, error) {
 	if err := spec.validate(); err != nil {
 		return nil, err
 	}
-	read, err := spec.Read.bind(spec.Op, spec.Args, spec.Variants)
+	read, err := spec.bindVariant()
 	if err != nil {
 		return nil, err
 	}
@@ -324,8 +327,14 @@ func New[T any](spec Spec[T]) (*cobra.Command, error) {
 	// A read is untouched: it has nothing to preview, and assuming
 	// dry-run for one would be nonsense rather than safety.
 	meta := spec.meta()
-	if meta.Class() != ClassRead && cmd.Flags().Lookup(cli.FlagDryRun) == nil {
-		return nil, fmt.Errorf("command: %q mutates but registers no --dry-run flag; a mutation with no preview cannot be checked before it runs", meta.Op)
+	if meta.Class() != ClassRead || read != nil && read.meta.Class() != ClassRead {
+		flag := cmd.Flags().Lookup(cli.FlagDryRun)
+		if flag == nil {
+			return nil, fmt.Errorf("command: %q mutates but registers no --dry-run flag; a mutation with no preview cannot be checked before it runs", meta.Op)
+		}
+		if flag.Value.Type() != "bool" || flag.DefValue != "false" {
+			return nil, fmt.Errorf("command: %q requires --dry-run as a boolean flag defaulting to false", meta.Op)
+		}
 	}
 	// Keyed is declared in the Spec (it gates the keyed-results contract
 	// and the audit's M3 axis) while the keyed surface is registered in
@@ -346,13 +355,32 @@ func New[T any](spec Spec[T]) (*cobra.Command, error) {
 	variants := slices.Clone(spec.Variants)
 	if read != nil {
 		variants = append(variants, read.meta)
-		setReadVariant(cmd, read)
+		setBoolVariant(cmd, read)
 	}
 	SetMeta(cmd, meta, variants...)
 	if spec.Human != nil || spec.HumanHelp != nil || read != nil && read.human {
 		recordHuman(cmd)
 	}
 	return cmd, nil
+}
+
+func (s Spec[T]) bindVariant() (*boolVariant, error) {
+	if s.Read != nil && s.LocalWrite != nil {
+		return nil, fmt.Errorf("command: %q declares both read and local-write alternatives", s.Op)
+	}
+	var variant *boolVariant
+	switch {
+	case s.Read != nil:
+		variant = s.Read.variant
+	case s.LocalWrite != nil:
+		variant = s.LocalWrite.variant
+	default:
+		return nil, nil
+	}
+	if variant == nil {
+		return nil, fmt.Errorf("command: alternative must use its typed constructor")
+	}
+	return variant.bind(s.Op, s.Args, s.Variants)
 }
 
 // MustNew is New for a call site that cannot handle failure: building

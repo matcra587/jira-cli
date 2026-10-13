@@ -145,6 +145,13 @@ func TestZshNativeCompletionPreservesParentRolesAndSelectedConfig(t *testing.T) 
 		{name: "runnable parent child", line: prefix + "issue transition li", want: []string{"list"}},
 		{name: "child issue slot", line: prefix + "issue transition list DEM", want: []string{"DEMO-1"}},
 		{name: "status slot is not an issue key", line: prefix + "issue transition DEMO-1 DEM"},
+		{name: "default project", line: prefix + "config set default_project DEM", want: []string{"DEMO"}},
+		{name: "default issue type", line: prefix + "config set default_issue_type Ta", want: []string{"Task"}},
+		{name: "default board", line: prefix + "config set default_board Exam", want: []string{"Example board"}},
+		{name: "automatic theme setting", line: prefix + "config set theme au", want: []string{"auto"}},
+		{name: "client refresh key", line: prefix + "config set refresh_i", want: []string{"refresh_interval"}},
+		{name: "team metadata key", line: prefix + "config set team_ac", want: []string{"team_account_ids"}},
+		{name: "automatic theme flag", line: prefix + "config theme --name au", want: []string{"auto"}},
 		{name: "described flag identity", line: prefix + "epic list --project DEM", want: []string{"DEMO"}},
 	} {
 		t.Run(scenario.name, func(t *testing.T) {

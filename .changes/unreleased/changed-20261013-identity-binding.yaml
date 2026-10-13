@@ -1,0 +1,3 @@
+kind: changed
+body: "Bind cached account IDs and stored credentials independently to public site, account and cloud scope. Retain verified public saving with `auth whoami --save` under the new independent scope binding; login publishes routing, provider selectors/reference and the native bound account for fresh-process use, with separate credential/settings receipts. Bare local previews may use only a matching cached ID with unverified provenance; live and `--validate-remote` resolution reads Jira’s current-user account. Refuse missing account identities before account-dependent writes; privacy-hidden native email stays native."
+time: 2026-10-13T05:22:12.087553337-04:00

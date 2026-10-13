@@ -26,7 +26,7 @@ func TestConfigInitNeverConstructsCredentialsClientsOrCache(t *testing.T) {
 			calls.Add(1)
 			return nil, errors.New("unexpected client construction")
 		}
-		deps.JiraClientFor = func(string, string, string) (core.JiraClient, error) {
+		deps.JiraClientFor = func(string, string, string, string) (core.JiraClient, error) {
 			calls.Add(1)
 			return nil, errors.New("unexpected explicit-account construction")
 		}

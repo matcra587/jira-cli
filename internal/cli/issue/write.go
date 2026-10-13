@@ -155,7 +155,7 @@ func (f *issueWriteFlags) resolveAccounts(
 	deps Deps,
 	dryRun, validateRemote bool,
 ) (core.JiraClient, error) {
-	return command.ResolveAccounts(ctx, deps.JiraClient, dryRun, validateRemote, f.fields.AccountFields())
+	return command.ResolveAccounts(ctx, deps.JiraClient, deps.Preferences, dryRun, validateRemote, f.fields.AccountFields())
 }
 
 // composedWrite is what compose produces: the request to send and the two
@@ -185,6 +185,11 @@ type composedWrite struct {
 // order is arbitrary and the code reads better with the body nearest the
 // payload it might have conflicted with.
 func (f *issueWriteFlags) compose(ctx context.Context, stdin io.Reader, stdinIsTerminal bool) (composedWrite, error) {
+	return f.composeWithDefaults(ctx, stdin, stdinIsTerminal, core.IssuePreferences{})
+}
+
+// composeWithDefaults shares the ordinary preservation/conflict/encoding owner.
+func (f *issueWriteFlags) composeWithDefaults(ctx context.Context, stdin io.Reader, stdinIsTerminal bool, preferences core.IssuePreferences) (composedWrite, error) {
 	var zero composedWrite
 
 	req, err := f.readPayload(ctx, stdin, stdinIsTerminal)
@@ -212,6 +217,15 @@ func (f *issueWriteFlags) compose(ctx context.Context, stdin io.Reader, stdinIsT
 		}
 	}
 	if err := f.fields.Apply(&req); err != nil {
+		return zero, err
+	}
+
+	projectSuppressed, typeSuppressed := false, false
+	if f.cmd != nil {
+		projectSuppressed = f.cmd.Flags().Changed(command.FlagProject) && f.fields.Project == ""
+		typeSuppressed = f.cmd.Flags().Changed(command.FlagIssueType) && f.fields.IssueType == ""
+	}
+	if err := command.ApplyCreateDefaults(&req, preferences, projectSuppressed, typeSuppressed); err != nil {
 		return zero, err
 	}
 

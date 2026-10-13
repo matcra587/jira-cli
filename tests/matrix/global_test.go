@@ -16,10 +16,12 @@ package matrix
 import (
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -628,4 +630,52 @@ func TestConfigEditDryRun(t *testing.T) {
 	}
 	Prove(t, configEditPath, "dry-run",
 		"the terminal-less preview exited 0 with dry_run=true, the resolved editor named, and no config file created; ignored, the same argv is a terminal_required failure")
+}
+
+// Explicit empty is a real choice: it prevents public tenant discovery after
+// a classic authentication refusal, while omission retains that fallback.
+func TestAuthLoginCloudID(t *testing.T) {
+	var recorded []string
+	var mutex sync.Mutex
+	snapshot := func() []string { mutex.Lock(); defer mutex.Unlock(); return append([]string(nil), recorded...) }
+	clear := func() { mutex.Lock(); defer mutex.Unlock(); recorded = nil }
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mutex.Lock()
+		recorded = append(recorded, r.URL.Path)
+		mutex.Unlock()
+		if r.URL.Path == "/rest/api/3/myself" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		if r.URL.Path == "/_edge/tenant_info" {
+			if r.Header.Get("Authorization") != "" {
+				t.Error("public discovery carried authorization")
+			}
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		t.Errorf("unexpected path %s", r.URL.Path)
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+	options := mx4Opts{Stdin: "piped-token\n", Env: map[string]string{"JIRA_BASE_URL": server.URL, "JIRA_EMAIL": mx4Email}}
+	args := []string{"auth", "login", "--with-token", "--dry-run", "--output=json"}
+	mx4ErrCode(t, mx4Run(t, options, append(args, "--cloud-id=")...), "jira_unauthorized")
+	paths := snapshot()
+	if len(paths) != 1 || paths[0] != "/rest/api/3/myself" {
+		t.Fatal("explicit empty scope did not force classic routing")
+	}
+	clear()
+	mx4ErrCode(t, mx4Run(t, options, args...), "jira_unauthorized")
+	paths = snapshot()
+	if len(paths) != 2 || paths[1] != "/_edge/tenant_info" {
+		t.Fatal("omitted scope did not discover after a real refusal")
+	}
+	clear()
+	mx4ErrCode(t, mx4Run(t, options, append(args, "--cloud-id=..")...), "flag_value_invalid")
+	paths = snapshot()
+	if len(paths) != 0 {
+		t.Fatal("invalid scope contacted Jira")
+	}
+	Prove(t, loginPath, "cloud-id", "the real binary's explicit empty scope stopped tenant discovery after 401; the omitted control discovered, and a path-unsafe ID failed before network I/O")
 }

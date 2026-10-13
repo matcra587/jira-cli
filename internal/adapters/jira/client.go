@@ -27,6 +27,9 @@ import (
 type Config struct {
 	// BaseURL is the site root, e.g. https://example.atlassian.net.
 	BaseURL string
+	// CloudID selects the fixed Atlassian gateway while BaseURL remains the
+	// browser/site identity. Empty preserves ordinary site/proxy routing.
+	CloudID string
 	// Email and APIToken form the Basic-auth pair.
 	Email    string
 	APIToken string
@@ -56,6 +59,7 @@ type Config struct {
 // composition root hands it to commands as a core.JiraClient.
 type Client struct {
 	base  *url.URL
+	site  *url.URL
 	email string
 	token string
 	http  *http.Client
@@ -104,6 +108,17 @@ func New(cfg Config) (*Client, error) {
 	if err := requireEncrypted(base); err != nil {
 		return nil, err
 	}
+	site := base
+	apiBase, err := core.JiraAPIBaseURL(cfg.BaseURL, cfg.CloudID)
+	if err != nil {
+		return nil, err
+	}
+	if cfg.CloudID != "" {
+		base, err = url.Parse(apiBase)
+		if err != nil {
+			return nil, errors.New("jira client: invalid scoped API route")
+		}
+	}
 	httpClient := cfg.HTTPClient
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: cfg.Timeout}
@@ -126,6 +141,7 @@ func New(cfg Config) (*Client, error) {
 	}
 	c := &Client{
 		base:     base,
+		site:     site,
 		email:    cfg.Email,
 		token:    cfg.APIToken,
 		http:     httpClient,
@@ -194,12 +210,16 @@ func New(cfg Config) (*Client, error) {
 }
 
 // BaseURL implements core.JiraClient: the site root c was constructed
-// with. c.base is already validated by New (scheme+host, no embedded
+// with. c.site is already validated by New (scheme+host, no embedded
 // credentials), so this needs no re-check of its own — it hands back
 // exactly the URL New accepted, stringified.
 func (c *Client) BaseURL() string {
-	return c.base.String()
+	return c.site.String()
 }
+
+// Account returns the public Basic-auth account bound at construction. It never
+// reads credentials again or contacts Jira; token bytes remain private.
+func (c *Client) Account() string { return c.email }
 
 // GetIssue implements core.JiraClient: one issue by key, fields narrowed
 // to the requested IDs when given.
@@ -254,7 +274,7 @@ func (c *Client) GetIssue(ctx context.Context, key string, fields []string, expa
 
 // ErrCurrentUserResponseInvalid marks an upstream identity protocol failure.
 // It must not be mistaken for rejected credentials or a usable empty account.
-var ErrCurrentUserResponseInvalid = errors.New("current user response invalid")
+var ErrCurrentUserResponseInvalid = core.ErrCurrentUserResponseInvalid
 
 // CurrentUser reads the account the credentials belong to. Authentication and
 // @me writes share this boundary: success requires one complete native account
@@ -269,6 +289,15 @@ func (c *Client) CurrentUser(ctx context.Context) (core.UserRead, error) {
 		return core.UserRead{}, fmt.Errorf("get current user: %w", err)
 	}
 	defer resp.Body.Close() //nolint:errcheck // read-only body; a close failure loses nothing
+	// Media reads may follow a redirect without credentials, but such a reply
+	// cannot verify the account/token tuple used for authentication publication.
+	if resp.Request == nil || resp.Request.URL == nil || !withinBase(c.base, resp.Request.URL) {
+		return core.UserRead{}, fmt.Errorf("%w: identity reply left the authenticated API scope", ErrCurrentUserResponseInvalid)
+	}
+	email, token, authenticated := resp.Request.BasicAuth()
+	if !authenticated || email != c.email || token != c.token {
+		return core.UserRead{}, fmt.Errorf("%w: identity request lost its credential binding", ErrCurrentUserResponseInvalid)
+	}
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusMultipleChoices {
 			return core.UserRead{}, fmt.Errorf("%w: unexpected HTTP status %d", ErrCurrentUserResponseInvalid, resp.StatusCode)
@@ -291,7 +320,7 @@ func (c *Client) CurrentUser(ctx context.Context) (core.UserRead, error) {
 		// their precedence in the shared CLI taxonomy.
 		return core.UserRead{}, fmt.Errorf("%w: finish account response: %w", ErrCurrentUserResponseInvalid, err)
 	}
-	if user == nil || !user.AccountID.Set || user.AccountID.Null || xstrings.IsBlank(user.AccountID.Value) {
+	if core.RequireCurrentUserIdentity(user) != nil {
 		return core.UserRead{}, fmt.Errorf("%w: account lacks an identity", ErrCurrentUserResponseInvalid)
 	}
 	return core.UserRead{User: user, Retry: info}, nil
@@ -1087,6 +1116,10 @@ func (e *APIError) Error() string {
 	}
 	return msg
 }
+
+// HTTPStatusCode exposes response classification without coupling consumers to
+// the concrete REST adapter or converting malformed replies into auth refusals.
+func (e *APIError) HTTPStatusCode() int { return e.StatusCode }
 
 // apiError builds the typed error for a non-2xx response. A body that is
 // not Jira's error envelope — an HTML error page, an empty body — is

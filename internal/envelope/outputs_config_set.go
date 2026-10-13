@@ -1,6 +1,6 @@
 package envelope
 
-// ConfigSetOutput describes a validated scalar setting change. PreviousPresent
+// ConfigSetOutput describes a validated setting change. PreviousPresent
 // distinguishes an absent declaration from an explicitly stored empty value.
 // Changed and Created describe publication; both are false during a preview.
 type ConfigSetOutput struct {
@@ -19,7 +19,7 @@ type ConfigSetOutput struct {
 
 func init() {
 	Register("config.set", ConfigSetOutput{}, map[string]any{
-		"description": "Validated file-only scalar assignment; credentials cannot be written through this command.",
+		"description": "Validated file-only setting assignment; credentials cannot be written through this command.",
 		"properties": map[string]any{
 			"previous_present": map[string]any{"description": "Whether the original file declares this key, independently of its value."},
 			"previous_secret":  map[string]any{"description": "Whether the original value was withheld by redaction."},

@@ -3759,6 +3759,97 @@
       "status": "pass"
     },
     {
+      "op": "auth.login",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "auth.login",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "auth.login",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "auth.login",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "auth.login",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "auth.login",
+      "category": "success",
+      "mode": "human_color",
+      "axis": "H5",
+      "status": "pass"
+    },
+    {
+      "op": "auth.login",
+      "category": "success",
+      "mode": "human",
+      "axis": "H3",
+      "status": "pass"
+    },
+    {
+      "op": "auth.login",
+      "category": "success",
+      "mode": "human",
+      "axis": "H4",
+      "status": "pass"
+    },
+    {
+      "op": "auth.login",
+      "category": "success",
+      "mode": "json",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "auth.login",
+      "category": "success",
+      "mode": "json",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "auth.login",
+      "category": "success",
+      "mode": "json",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "auth.login",
+      "category": "success",
+      "mode": "json",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "auth.login",
+      "category": "success",
+      "mode": "json",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
       "op": "auth.logout",
       "category": "dry_run",
       "mode": "compact",
@@ -3994,6 +4085,206 @@
       "category": "success",
       "mode": "json",
       "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "auth.whoami.save",
+      "variant": "--save",
+      "category": "dry_run",
+      "mode": "compact",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "auth.whoami.save",
+      "variant": "--save",
+      "category": "dry_run",
+      "mode": "compact",
+      "axis": "M7",
+      "status": "pass"
+    },
+    {
+      "op": "auth.whoami.save",
+      "variant": "--save",
+      "category": "dry_run",
+      "mode": "human_color",
+      "axis": "H5",
+      "status": "pass"
+    },
+    {
+      "op": "auth.whoami.save",
+      "variant": "--save",
+      "category": "dry_run",
+      "mode": "human",
+      "axis": "H2",
+      "status": "pass"
+    },
+    {
+      "op": "auth.whoami.save",
+      "variant": "--save",
+      "category": "dry_run",
+      "mode": "human",
+      "axis": "H3",
+      "status": "pass"
+    },
+    {
+      "op": "auth.whoami.save",
+      "variant": "--save",
+      "category": "dry_run",
+      "mode": "human",
+      "axis": "H4",
+      "status": "pass"
+    },
+    {
+      "op": "auth.whoami.save",
+      "variant": "--save",
+      "category": "dry_run",
+      "mode": "json",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "auth.whoami.save",
+      "variant": "--save",
+      "category": "dry_run",
+      "mode": "json",
+      "axis": "M7",
+      "status": "pass"
+    },
+    {
+      "op": "auth.whoami.save",
+      "variant": "--save",
+      "category": "failure",
+      "mode": "compact",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "auth.whoami.save",
+      "variant": "--save",
+      "category": "failure",
+      "mode": "json",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "auth.whoami.save",
+      "variant": "--save",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M10",
+      "status": "pass"
+    },
+    {
+      "op": "auth.whoami.save",
+      "variant": "--save",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "auth.whoami.save",
+      "variant": "--save",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "auth.whoami.save",
+      "variant": "--save",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "auth.whoami.save",
+      "variant": "--save",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "auth.whoami.save",
+      "variant": "--save",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "auth.whoami.save",
+      "variant": "--save",
+      "category": "success",
+      "mode": "human_color",
+      "axis": "H5",
+      "status": "pass"
+    },
+    {
+      "op": "auth.whoami.save",
+      "variant": "--save",
+      "category": "success",
+      "mode": "human",
+      "axis": "H3",
+      "status": "pass"
+    },
+    {
+      "op": "auth.whoami.save",
+      "variant": "--save",
+      "category": "success",
+      "mode": "human",
+      "axis": "H4",
+      "status": "pass"
+    },
+    {
+      "op": "auth.whoami.save",
+      "variant": "--save",
+      "category": "success",
+      "mode": "json",
+      "axis": "M10",
+      "status": "pass"
+    },
+    {
+      "op": "auth.whoami.save",
+      "variant": "--save",
+      "category": "success",
+      "mode": "json",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "auth.whoami.save",
+      "variant": "--save",
+      "category": "success",
+      "mode": "json",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "auth.whoami.save",
+      "variant": "--save",
+      "category": "success",
+      "mode": "json",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "auth.whoami.save",
+      "variant": "--save",
+      "category": "success",
+      "mode": "json",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "auth.whoami.save",
+      "variant": "--save",
+      "category": "success",
+      "mode": "json",
+      "axis": "M8",
       "status": "pass"
     },
     {
@@ -7246,6 +7537,169 @@
       "status": "pass"
     },
     {
+      "op": "config.migrate",
+      "category": "dry_run",
+      "mode": "compact",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "config.migrate",
+      "category": "dry_run",
+      "mode": "compact",
+      "axis": "M7",
+      "status": "pass",
+      "detail": "preview must retain selected metadata without publishing or inspecting credentials"
+    },
+    {
+      "op": "config.migrate",
+      "category": "dry_run",
+      "mode": "human_color",
+      "axis": "H5",
+      "status": "pass"
+    },
+    {
+      "op": "config.migrate",
+      "category": "dry_run",
+      "mode": "human",
+      "axis": "H2",
+      "status": "pass"
+    },
+    {
+      "op": "config.migrate",
+      "category": "dry_run",
+      "mode": "human",
+      "axis": "H3",
+      "status": "pass"
+    },
+    {
+      "op": "config.migrate",
+      "category": "dry_run",
+      "mode": "human",
+      "axis": "H4",
+      "status": "pass"
+    },
+    {
+      "op": "config.migrate",
+      "category": "dry_run",
+      "mode": "json",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "config.migrate",
+      "category": "dry_run",
+      "mode": "json",
+      "axis": "M7",
+      "status": "pass",
+      "detail": "preview must retain selected metadata without publishing or inspecting credentials"
+    },
+    {
+      "op": "config.migrate",
+      "category": "failure",
+      "mode": "compact",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "config.migrate",
+      "category": "failure",
+      "mode": "json",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "config.migrate",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "config.migrate",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "config.migrate",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "config.migrate",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "config.migrate",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "config.migrate",
+      "category": "success",
+      "mode": "human_color",
+      "axis": "H5",
+      "status": "pass"
+    },
+    {
+      "op": "config.migrate",
+      "category": "success",
+      "mode": "human",
+      "axis": "H3",
+      "status": "pass"
+    },
+    {
+      "op": "config.migrate",
+      "category": "success",
+      "mode": "human",
+      "axis": "H4",
+      "status": "pass"
+    },
+    {
+      "op": "config.migrate",
+      "category": "success",
+      "mode": "json",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "config.migrate",
+      "category": "success",
+      "mode": "json",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "config.migrate",
+      "category": "success",
+      "mode": "json",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "config.migrate",
+      "category": "success",
+      "mode": "json",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "config.migrate",
+      "category": "success",
+      "mode": "json",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
       "op": "config.profile.add",
       "category": "dry_run",
       "mode": "compact",
@@ -8024,6 +8478,169 @@
     },
     {
       "op": "config.profile.rename",
+      "category": "success",
+      "mode": "json",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "config.rollback",
+      "category": "dry_run",
+      "mode": "compact",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "config.rollback",
+      "category": "dry_run",
+      "mode": "compact",
+      "axis": "M7",
+      "status": "pass",
+      "detail": "rollback preview must retain recovery metadata without restoration"
+    },
+    {
+      "op": "config.rollback",
+      "category": "dry_run",
+      "mode": "human_color",
+      "axis": "H5",
+      "status": "pass"
+    },
+    {
+      "op": "config.rollback",
+      "category": "dry_run",
+      "mode": "human",
+      "axis": "H2",
+      "status": "pass"
+    },
+    {
+      "op": "config.rollback",
+      "category": "dry_run",
+      "mode": "human",
+      "axis": "H3",
+      "status": "pass"
+    },
+    {
+      "op": "config.rollback",
+      "category": "dry_run",
+      "mode": "human",
+      "axis": "H4",
+      "status": "pass"
+    },
+    {
+      "op": "config.rollback",
+      "category": "dry_run",
+      "mode": "json",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "config.rollback",
+      "category": "dry_run",
+      "mode": "json",
+      "axis": "M7",
+      "status": "pass",
+      "detail": "rollback preview must retain recovery metadata without restoration"
+    },
+    {
+      "op": "config.rollback",
+      "category": "failure",
+      "mode": "compact",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "config.rollback",
+      "category": "failure",
+      "mode": "json",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "config.rollback",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "config.rollback",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "config.rollback",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "config.rollback",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "config.rollback",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "config.rollback",
+      "category": "success",
+      "mode": "human_color",
+      "axis": "H5",
+      "status": "pass"
+    },
+    {
+      "op": "config.rollback",
+      "category": "success",
+      "mode": "human",
+      "axis": "H3",
+      "status": "pass"
+    },
+    {
+      "op": "config.rollback",
+      "category": "success",
+      "mode": "human",
+      "axis": "H4",
+      "status": "pass"
+    },
+    {
+      "op": "config.rollback",
+      "category": "success",
+      "mode": "json",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "config.rollback",
+      "category": "success",
+      "mode": "json",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "config.rollback",
+      "category": "success",
+      "mode": "json",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "config.rollback",
+      "category": "success",
+      "mode": "json",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "config.rollback",
       "category": "success",
       "mode": "json",
       "axis": "M8",

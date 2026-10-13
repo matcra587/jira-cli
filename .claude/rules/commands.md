@@ -9,6 +9,15 @@ paths:
 
 # Commands
 
+Typed boolean alternatives stay inside `command.Spec`: `Read` uses
+`WhenBoolRead`, and `LocalWrite` uses `WhenBoolLocalWrite`. Each selects its own
+registered output, validation, renderer, argument bounds and operation class.
+Only one typed alternative is allowed on a path. Local writes require a boolean
+`--dry-run` defaulting to false even when the default operation is a read.
+Use `SelectedVariantMeta` for root failure attribution, including errors before
+handlers. Discovery marks a command read-only only when every declared operation
+is a read. Keep ordinary read shapes free of mutation fields.
+
 The pattern for every cobra command. For the output contract see
 [output.md](output.md); for config resolution see [config.md](config.md);
 for the architecture map see [project.md](project.md); for interactive
@@ -140,8 +149,8 @@ func newView(deps Deps) *cobra.Command {
 takes its domain's `Deps` struct and the handler closes over it, exactly
 as `newList(deps)` and `newStatus(deps)` already do. That is what makes
 `config list` structurally unable to open a Jira client: `config.Deps`
-has one field, `Credentials`, so there is no client to reach for — the
-property exists today, without generics, and a type parameter on `Spec`
+contains credential resolution, a scoped migration-store factory and confirmation
+injection, but no Jira client. This property exists without generics; a type parameter on `Spec`
 would only restate it at the cost of a second type argument on every
 literal. A shared context object carrying every capability is the container §8.1
 forbids; do not add one.
@@ -270,8 +279,8 @@ Under the construction path the two attachment points differ:
 Use the shared command, configuration and transport owners; never resolve
 policy by reading env/config ad hoc:
 
-*   **Dry-run** — `--dry-run` is per-command (via `AddDryRunFlag`), local-only,
-    and never contacts Jira. A handler reads it from `Invocation.DryRun`,
+*   **Dry-run** — `--dry-run` is per-command (via `AddDryRunFlag`). Ordinary
+    mutation previews remain local-only and credential-free. A handler reads it from `Invocation.DryRun`,
     resolved by the path from the flag it registered; it never parses the
     flag by name, and never binds a local of its own — `config edit` did
     exactly that during its conversion, so `--dry-run` read false and the
@@ -287,10 +296,14 @@ policy by reading env/config ad hoc:
     has nothing to preview. `--dry-run` belongs on **every**
     mutation, not just Jira writes: the local-state ones (`config set`/`init`/
     `theme`, `alias set`/`delete`/`import`, `cache clear`/`refresh`) preview and
-    write nothing under it, with `data.dry_run: true`. "Local-only" is literal —
-    a dry run must not build a Jira client or require a credential, so resolve
+    write nothing under it, with `data.dry_run: true`. For ordinary previews,
+    "local-only" is literal: do not build a Jira client or require a credential. Resolve
     anything auth-dependent (e.g. a profile cache key) from config directly on
-    the dry-run path (see `cache refresh`). Every human surface narrates a
+    the dry-run path (see `cache refresh`). Authentication previews
+    (`auth login --dry-run`, `auth whoami --save --dry-run`) perform real Jira
+    verification reads but publish no credentials or settings and create no
+    files or directories. Explicit `--validate-remote` retains its documented
+    read-validation behavior. No preview authorizes a Jira write. Every human surface narrates a
     dry-run in preview tense — conditional completion lines, preview
     spinner/fanout/`--debug` lifecycles — see [output.md](output.md).
 *   **Read-only** — `config.Resolve` supplies `Config.ReadOnly` to the Jira
@@ -310,14 +323,15 @@ policy by reading env/config ad hoc:
     check does not establish Jira field permissions or future write success.
     Existing native documents use anchored `adf edit prepare/apply/merge` and
     the preservation owner, not a render-to-Markdown conversion round trip.
-*   **Headless** — mutations require `--no-input` in agent/non-TTY context;
-    destructive commands additionally require `--force`. Do not weaken either.
-    This covers **local-state removals**, not just Jira writes: `cache clear`
-    and `alias delete` gate the live run behind `--force` off a TTY (the
-    `DetectorFromContext` + `NoInputRequested` headless check, refusing with
-    `cli.InputForceRequired`), while upserts (`config set`/`init`/`theme`,
-    `alias set`/`import`, `cache refresh`, `auth switch`) stay open. `--dry-run`
-    is always allowed.
+*   **Headless** — `Invocation.Interactive` is false for agents, unavailable
+    input/error terminals, or explicit `--no-input`. That flag suppresses
+    prompts; it is not a prerequisite or authorization for every mutation.
+    A command requiring confirmation must refuse before mutation when no
+    answer can be obtained, naming its own bypass: `--force` for issue/comment/
+    attachment deletion and local `cache clear`/`alias delete`, or `--yes`
+    for `auth logout`, `config migrate` and `config rollback`. Preserve each
+    command's declared policy; do not invent a universal force requirement for
+    commands that have no confirmation gate. Previews never ask.
 *   **Retry budget** — the composition root supplies `core.DefaultRetryPolicy`:
     at most three attempts, a 500 ms base exponential-backoff window, an 8 s
     cap on that window and a 30 s retry budget. A positive `Retry-After` plus
@@ -420,3 +434,70 @@ Resolve transition-hint cache scope before read/write fan-out and retain that
 public cache for finalization. A later cancellation must not cause another
 credential lookup just to invalidate a completed failed read or attempted write.
 Canceled/unstarted reads and previews do not publish changed workflow hints.
+
+Migration outputs use shared public core DTOs inside registered typed envelopes.
+Keep local migration specs free of Jira dependencies, retain partial recovery
+receipts on errors, and declare explicit-source profile completion through flag
+metadata rather than reading command flags inside a shell-specific predictor.
+
+Use `command.OptionalString` for declared string flags whose omission differs
+from an explicit empty value. The shared owner captures actual parser presence;
+handlers receive immutable values, not Cobra commands. `auth login --cloud-id=`
+forces classic routing, while omission permits verified scoped discovery.
+
+Resolve public working defaults in `Run`, after pure flag refusals and before
+remote factories. Omitted create metadata context may use defaults; explicitly
+blank context remains a pure validation refusal. Preserve actual parser presence
+for empty board names, invalid zero IDs and selector conflicts. Default scope
+provenance belongs in shared `command.JQLInput`, not a bypass around composition.
+Use the shared public cached-board owner for both issue lists and local JQL.
+
+After local default-board resolution, live search/count/browser must bind that
+snapshot's public site/account to the constructed client's BaseURL and public
+`core.JiraAccountClient` account before entry. Refuse mismatched or unavailable
+identity, preserve context, and reuse the checked client without another provider
+resolution or remote identity request. Local as-jql and missing-cache refusal
+remain credential-free; file preferences alone cannot prove live binding.
+
+`config theme --name` and `config set theme` use shared `config.ThemeChoices`.
+Advertise the application `auto` selector through the same flag/schema/completion
+metadata as concrete presets. The custom palette `base` remains a concrete
+clib name; do not reuse application selectors for that separate file grammar.
+
+`config set team_account_ids` takes one JSON-array argument, not CSV or multiple
+positional IDs. Advertise it and refresh_interval through shared config-key
+metadata. Explicitly describe them as client-preference metadata; they do not
+activate polling or issue filters. Keep alias command-tree validation separate.
+
+Pending @me resolution uses core.RequireCurrentUserIdentity before changing any
+account field. A populated Go value cannot override native absent/null markers;
+blank identities retain current_user_response_invalid. Preserve all fields on
+invalid identity or cancellation. Check cancellation before constructing a
+client or entering lookup, while literal/no-lookup paths stay lazy. One validated
+current-user reply resolves all pending fields. Transport validation alone does
+not establish the contract of every injected core.JiraClient implementation.
+
+Cached identity uses flat account_id with independent account_id_site,
+account_id_email and account_id_cloud_id binding. Config.CachedAccountID compares
+that binding with effective public scope using shared site normalization; missing
+site/account or mismatched bindings stay inactive. Empty cloud scope is classic. Scope changes never rewrite bindings.
+Validate file and environment metadata before providers. Stored inspection and
+replacement can repair invalid values; binding URLs use shared redaction.
+
+Only bare local previews may use core.IssuePreferences.CachedAccountID through
+command.ResolveAccounts. Publish account_id_cached as unverified provenance.
+Live and --validate-remote paths ignore cached IDs and validate one actual Jira
+current-user reply. Literal/no-lookup paths do not read cached preferences.
+Preference errors/cancellation preserve fields. Clone previews still do not read
+or claim copied source fields. Mapping policy 7 retains selected authored ID and
+its public scope; policies 1–6 retain exact original candidate derivation and
+unsupported-field refusals. Retained metadata does not authenticate a client.
+
+Verified login uses the typed local mutation and shared settings/publication
+owners. Prepare complete public routing, provider selectors and independently
+bound account ID before credential mutation. Retain verified identity and actual
+credential/settings effects on failure or output filtering; never replay unknown
+writes. Environment login verifies configured tokens and publishes public
+metadata only. Authentication previews may verify proposed scope and report
+blocked publication without changing settings or credentials. See config.md for
+provider binding and per-field public-default admission.

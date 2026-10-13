@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -40,10 +41,12 @@ const delim = "."
 // answer "why is this the value?" — the question a user actually has
 // when the answer surprises them.
 type Resolved struct {
-	// NamedProfiles retains document ownership even when no profiles exist.
-	NamedProfiles  bool
+	// Profile and DefaultProfile distinguish invocation selection from the saved default.
 	Profile        string
 	DefaultProfile string
+	// NamedProfiles retains document ownership even when its profile table is
+	// empty. An empty named document never selects the legacy flat credential.
+	NamedProfiles bool
 	// Config is the effective configuration, all layers applied.
 	Config Config
 	// Path is the config file consulted, whether or not it existed.
@@ -51,6 +54,10 @@ type Resolved struct {
 	// FileExists reports whether Path was present. A missing file is
 	// normal, not an error.
 	FileExists bool
+
+	// TokenEnvironment is the actual selected environment reference, not its
+	// value. It shares the captured environment and generic/named precedence.
+	TokenEnvironment string
 
 	// Warnings are non-fatal problems found while resolving — today, a
 	// stored credential record that cannot be read. Carried rather than
@@ -140,9 +147,19 @@ func currentFlagLayer() FlagLayer {
 // Options control a load. The zero value loads the real environment and
 // the default path.
 type Options struct {
+	explicitPath bool
+	authoredPath string
+	captured     bool
+	// Profile explicitly selects one named profile before environment/default selection.
 	Profile string
+	// Snapshot freezes authored bytes and existence for one invocation.
+	Snapshot *File
 	// Path overrides the config file location.
 	Path string
+	// PermitMissingTarget is for an explicitly selected local publication target.
+	// Ordinary reads refuse a missing --config; saving commands may prepare its
+	// creation without replacing the flag layer or creating the file early.
+	PermitMissingTarget bool
 	// Environ injects the environment; nil reads the process. A seam,
 	// not a convenience: tests that mutate the real environment cannot
 	// run in parallel and leak into each other.
@@ -186,12 +203,15 @@ func Resolve(ctx context.Context, opts Options, store core.CredentialStore) (*Re
 }
 
 func load(opts Options, readCredentials func(string) (credentials.Record, error), credentialLayer Layer) (*Resolved, error) {
+	// Capture once before native callbacks. Rebuilds retain the same snapshot,
+	// and an injected callback cannot change token selection while a store reads.
 	environ := opts.Environ
 	if environ == nil {
 		environ = os.Environ
 	}
 	variables := slices.Clone(environ())
-	opts.Environ = func() []string { return slices.Clone(variables) }
+	normalizeTokenEnvironmentNames(variables)
+	opts.Environ = func() []string { return variables }
 	flags := currentFlagLayer()
 	selection, err := selectedProfile(opts, flags, variables)
 	if err != nil {
@@ -206,7 +226,7 @@ func load(opts Options, readCredentials func(string) (credentials.Record, error)
 	var credentialError error
 	// Retain the record's binding so key-by-key merging cannot pair its
 	// token with another site or account.
-	var storedSite, storedEmail string
+	var storedSite, storedEmail, storedCloudID string
 	layers := map[Layer]*koanf.Koanf{}
 	merged := koanf.New(delim)
 
@@ -225,14 +245,23 @@ func load(opts Options, readCredentials func(string) (credentials.Record, error)
 	exists := true
 	// The previous file provider cleaned paths before opening them. Retain
 	// that selection rule while reporting the caller's authored spelling.
-	data, err := readFileInput(filepath.Clean(path))
+	var data []byte
+	if opts.Snapshot != nil {
+		data, exists, path = opts.Snapshot.Contents(), opts.Snapshot.Exists(), opts.Snapshot.Path()
+	} else {
+		data, err = readFileInput(filepath.Clean(path))
+	}
 	if err != nil {
 		if !errors.Is(err, fs.ErrNotExist) {
 			return nil, fmt.Errorf("load config file %s: %w", path, err)
 		}
 		exists = false
 	}
-	if !exists && path == flags.Path && flags.Path != "" {
+	explicitPath := path == flags.Path && flags.Path != ""
+	if opts.captured {
+		explicitPath = opts.explicitPath
+	}
+	if !exists && explicitPath && !opts.PermitMissingTarget {
 		// A file the CALLER named must be there. A missing DEFAULT config
 		// file is the ordinary state and stays silent, but --config is an
 		// explicit instruction to read one particular file, and silently
@@ -245,6 +274,8 @@ func load(opts Options, readCredentials func(string) (credentials.Record, error)
 	if err != nil {
 		return nil, fmt.Errorf("config file %s: %w", path, err)
 	}
+	// Named documents validate every profile, not only the selected one, before
+	// any environment value or provider can mask a malformed declaration.
 	if doc.named {
 		doc, err = decodeProfileDocument(data, true)
 		if err != nil {
@@ -255,16 +286,10 @@ func load(opts Options, readCredentials func(string) (credentials.Record, error)
 	if err != nil {
 		return nil, err
 	}
-	if err := fileLayer.Load(confmap.Provider(fields, ""), nil); err != nil {
-		return nil, err
-	}
 	if exists {
-		// Decode the file ALONE before merging. Strictness has to be
-		// applied here or it is bypassable: koanf replaces a whole
-		// subtree when a later layer supplies a scalar at the same path,
-		// so `[base_url] typo = "x"` in the file plus JIRA_BASE_URL in
-		// the environment erases the bad key before ErrorUnused ever sees
-		// it, and the typo the user needs told about vanishes silently.
+		if err := fileLayer.Load(confmap.Provider(fields, ""), nil); err != nil {
+			return nil, err
+		}
 		var fileOnly Config
 		if err := unmarshalFile(fileLayer, &fileOnly); err != nil {
 			return nil, fmt.Errorf("config file %s: %w", path, err)
@@ -272,19 +297,55 @@ func load(opts Options, readCredentials func(string) (credentials.Record, error)
 		if err := validateCredentialID(fileOnly.CredentialID); err != nil {
 			return nil, err
 		}
+		if err := validateTokenEnvironmentKey(fileOnly.APITokenEnv); err != nil {
+			return nil, err
+		}
+		if err := core.ValidateCloudID(fileOnly.CloudID); err != nil {
+			return nil, err
+		}
+		if err := validateAccountIdentity(fileOnly); err != nil {
+			return nil, err
+		}
 		layers[LayerFile] = fileLayer
 		if err := merged.Merge(fileLayer); err != nil {
 			return nil, fmt.Errorf("merge config file: %w", err)
 		}
+	}
+	// Rebuilds retain the same file bytes as well as the captured environment.
+	if opts.Snapshot == nil {
+		opts.Snapshot = &File{path: path, original: slices.Clone(data), exists: exists}
+	}
+	if doc.named && credentialLayer == LayerKeyring && merged.String("credential_id") == "" {
+		readCredentials = nil
 	}
 
 	envLayer := koanf.New(delim)
 	if err := envLayer.Load(envProvider(opts.Environ), nil); err != nil {
 		return nil, fmt.Errorf("load environment: %w", err)
 	}
-	if doc.named && merged.String("credential_id") == "" && credentialLayer == LayerKeyring {
+	if err := prepareClientPreferenceEnvironment(envLayer); err != nil {
+		return nil, err
+	}
+	if err := prepareAccountIdentityEnvironment(envLayer); err != nil {
+		return nil, err
+	}
+	namedToken, tokenEnvironment, err := resolveTokenEnvironment(merged, envLayer, variables)
+	if err != nil {
+		return nil, err
+	}
+	if namedToken {
 		readCredentials = nil
 	}
+	// Scope declarations are user intent, including an authored empty clear.
+	// Capture them before the stored layer can overwrite public file metadata.
+	wantedCloudID, cloudDeclared := merged.String("cloud_id"), fileLayer.Exists("cloud_id")
+	if envLayer.Exists("cloud_id") {
+		wantedCloudID, cloudDeclared = envLayer.String("cloud_id"), true
+	}
+	if err := core.ValidateCloudID(wantedCloudID); err != nil {
+		return nil, err
+	}
+	wantedCloudID = strings.TrimSpace(wantedCloudID)
 
 	// Credential store, if one is wired and holds a record.
 	//
@@ -307,13 +368,28 @@ func load(opts Options, readCredentials func(string) (credentials.Record, error)
 			// as somebody else.
 			warnings = append(warnings, "the stored credentials are incomplete; run `jira auth login` again")
 		case credErr == nil:
+			storedSite = rec.Site
+			storedEmail = rec.Email
+			storedCloudID = rec.CloudID
+			stored := map[string]any{
+				"base_url":  rec.Site,
+				"cloud_id":  rec.CloudID,
+				"email":     rec.Email,
+				"api_token": rec.Token,
+			}
 			if doc.named {
+				// Authored named-profile identity is intent, not a default that a
+				// stored tuple may replace before binding validation.
 				mismatch := false
-				for _, layer := range []*koanf.Koanf{fileLayer, envLayer} {
-					if layer.Exists("base_url") && credentials.NormalizeSite(layer.String("base_url")) != credentials.NormalizeSite(rec.Site) {
-						mismatch = true
-					}
-					if layer.Exists("email") && !strings.EqualFold(strings.TrimSpace(layer.String("email")), strings.TrimSpace(rec.Email)) {
+				for _, binding := range []struct {
+					key   string
+					match bool
+				}{
+					{"base_url", credentials.NormalizeSite(merged.String("base_url")) == credentials.NormalizeSite(rec.Site)},
+					{"email", strings.EqualFold(strings.TrimSpace(merged.String("email")), strings.TrimSpace(rec.Email))},
+					{"cloud_id", strings.TrimSpace(merged.String("cloud_id")) == rec.CloudID},
+				} {
+					if fileLayer.Exists(binding.key) && !binding.match {
 						mismatch = true
 					}
 				}
@@ -321,13 +397,17 @@ func load(opts Options, readCredentials func(string) (credentials.Record, error)
 					warnings = append(warnings, "stored credentials belong to a different profile identity; they were not used")
 					break
 				}
+				for _, key := range []string{"base_url", "email", "cloud_id"} {
+					if fileLayer.Exists(key) {
+						delete(stored, key)
+					}
+				}
 			}
-			storedSite = rec.Site
-			storedEmail = rec.Email
-			stored := map[string]any{
-				"base_url":  rec.Site,
-				"email":     rec.Email,
-				"api_token": rec.Token,
+
+			if cloudDeclared && envLayer.Exists("api_token") {
+				// A new explicit token may use the declared routing metadata;
+				// the unrelated stored scope must not shadow the file value.
+				delete(stored, "cloud_id")
 			}
 			{
 				keyringLayer := koanf.New(delim)
@@ -378,8 +458,12 @@ func load(opts Options, readCredentials func(string) (credentials.Record, error)
 	if err := unmarshalMerged(merged, &cfg); err != nil {
 		return nil, err
 	}
+	cfg.CloudID = strings.TrimSpace(cfg.CloudID)
 	if cfg.WorkdaySeconds <= 0 {
 		return nil, errors.New("workday_seconds must be positive")
+	}
+	if cfg.RefreshInterval <= 0 {
+		return nil, errors.New("refresh_interval must be positive")
 	}
 
 	// The stored credential is a TUPLE, and it must not be taken apart
@@ -415,6 +499,14 @@ func load(opts Options, readCredentials func(string) (credentials.Record, error)
 	}
 	// An explicit environment token may use its own email. When the stored
 	// token wins, however, the email must still match the verified record.
+	if provenance(layers)["api_token"] == credentialLayer && cloudDeclared && wantedCloudID != storedCloudID {
+		rebuilt, rebuildErr := reresolveWithout(opts, path, credentialLayer)
+		if rebuildErr != nil {
+			return nil, rebuildErr
+		}
+		rebuilt.Warnings = append(rebuilt.Warnings, "stored credentials belong to a different cloud scope; they were not used")
+		return rebuilt, nil
+	}
 	if provenance(layers)["api_token"] == credentialLayer &&
 		!strings.EqualFold(strings.TrimSpace(cfg.Email), strings.TrimSpace(storedEmail)) {
 		rebuilt, rebuildErr := reresolveWithout(opts, path, credentialLayer)
@@ -425,16 +517,20 @@ func load(opts Options, readCredentials func(string) (credentials.Record, error)
 		return rebuilt, nil
 	}
 
+	if opts.authoredPath != "" {
+		path = opts.authoredPath
+	}
 	return &Resolved{
-		NamedProfiles:   doc.named,
-		Profile:         profile,
-		DefaultProfile:  doc.defaultProfile,
-		Warnings:        warnings,
-		CredentialError: credentialError,
-		Config:          cfg,
-		Path:            path,
-		FileExists:      exists,
-		sources:         provenance(layers),
+		Profile:          profile,
+		DefaultProfile:   doc.defaultProfile,
+		NamedProfiles:    doc.named,
+		Warnings:         warnings,
+		CredentialError:  credentialError,
+		Config:           cfg,
+		Path:             path,
+		FileExists:       exists,
+		TokenEnvironment: tokenEnvironment,
+		sources:          provenance(layers),
 	}, nil
 }
 
@@ -504,6 +600,15 @@ func unmarshalFile(k *koanf.Koanf, cfg *Config) error {
 		}
 		if cfg.WorkdaySeconds <= 0 {
 			return errors.New("workday_seconds must be positive")
+		}
+	}
+	if k.Exists("refresh_interval") {
+		value, ok := k.Get("refresh_interval").(int64)
+		if !ok {
+			return errors.New("refresh_interval must be an integer")
+		}
+		if _, err := parseRefreshInterval(strconv.FormatInt(value, 10)); err != nil {
+			return err
 		}
 	}
 	return nil

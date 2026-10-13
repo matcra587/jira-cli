@@ -436,3 +436,21 @@ func TestCachedBoardCompletionDescribesObservedAndPartialProjects(t *testing.T) 
 		}
 	}
 }
+
+func TestDefaultSettingValuesUseExistingOfflineMetadataPredictors(t *testing.T) {
+	for _, caseData := range []struct {
+		key, resource, items string
+		want                 []string
+	}{
+		{key: "default_project", resource: "projects", items: `[{"id":"1","key":"DEMO","name":"Example project"}]`, want: []string{"DEMO\tExample project"}},
+		{key: "default_issue_type", resource: "issuetypes", items: `[{"id":"1","name":"Task"}]`, want: []string{"Task"}},
+		{key: "default_board", resource: "boards", want: []string{"Example board\t42"}},
+	} {
+		t.Run(caseData.key, func(t *testing.T) {
+			prepareMetadataCompletion(t, metadataCompletionCase{resource: caseData.resource, items: caseData.items})
+			if got := configValueCandidates([]string{caseData.key}); !slices.Equal(got, caseData.want) {
+				t.Fatalf("default setting lost offline metadata: got=%v want=%v", got, caseData.want)
+			}
+		})
+	}
+}

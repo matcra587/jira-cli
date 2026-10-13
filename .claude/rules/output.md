@@ -291,3 +291,12 @@ discarded output-helper results and `Run` handlers that cannot return errors.
 The last three are path-aware AST guardrails rather than ruleguard rules;
 `errcheck` separately enforces returned-error handling. Full lint tables are
 in [style.md](style.md).
+
+Configured cached board context uses typed precedence and cached-at fields in
+machine output, and names its retained snapshot in ordinary human listings.
+Human `issue list/mine --as-jql` remains a bare pipeable query; its machine frame
+carries provenance. Human --web also retains its existing single browser URL line and
+"Open in browser:" prefix; provenance belongs to its machine frame. Never add
+metadata to either single-purpose stdout surface. Human --count likewise retains
+its existing single result line; snapshot provenance remains in its machine
+frame. Only ordinary human listings add the configured-board line.

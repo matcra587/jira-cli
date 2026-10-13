@@ -30,6 +30,9 @@ func newStatus(deps Deps) *cobra.Command {
 			"A successful HTTP reply must contain one complete account object " +
 			"with an account ID. A malformed reply fails with exit 5 and " +
 			"current_user_response_invalid; it does not confirm authentication.\n\n" +
+			"Scoped tokens use their bound cloud ID through the fixed Atlassian " +
+			"gateway. The reported site remains the browser identity; cloud_id " +
+			"is present only for a verified scoped account.\n\n" +
 			"Not being authenticated is a failure here — exit 1 — in every " +
 			"output mode. Some CLIs return success in machine mode regardless, " +
 			"which leaves the caller least able to parse prose relying on the " +
@@ -64,6 +67,7 @@ func status(ctx context.Context, deps Deps, showToken bool) (envelope.AuthStatus
 		Token:       shown,
 		TokenTail:   site.Token,
 		BaseURL:     site.BaseURL,
+		CloudID:     site.CloudID,
 		Email:       site.Email,
 		AccountID:   user.User.AccountID.Value,
 		DisplayName: user.User.DisplayName.Value,
@@ -83,6 +87,7 @@ func renderStatusHuman(v *output.View, env envelope.Envelope) error {
 		return fmt.Errorf("auth.status: unexpected payload %T", env.Data)
 	}
 	fields := writeIdentity(v, "Logged in to", out.DisplayName, out.Email, out.AccountID, out.BaseURL)
+	fields = append(fields, output.Field{Label: "Cloud ID", Value: out.CloudID})
 	if out.TokenSource == "" {
 		// No layer claimed the token, so there is nothing truthful to say
 		// about where it came from — and the row exists to say that.

@@ -34,9 +34,12 @@ import (
 const hostileVersion = "0.0.0-fidelity<&>\u2028end"
 
 var (
-	binOnce sync.Once
-	binPath string
-	binErr  error
+	binOnce      sync.Once
+	binPath      string
+	binErr       error
+	auditBinOnce sync.Once
+	auditBinPath string
+	auditBinErr  error
 )
 
 // jiraBinary compiles the real binary once per test process, with the
@@ -44,30 +47,41 @@ var (
 // uses — which also proves the injection path works at all (a mistyped
 // -X target falls back silently to build info).
 func jiraBinary(t *testing.T) string {
+	return contractBinary(t, &binOnce, &binPath, &binErr, "")
+}
+
+// jiraOutputAuditBinary uses only a native keyring mock for migration recipes.
+// It is compiled once independently; native acceptance keeps the production binary.
+func jiraOutputAuditBinary(t *testing.T) string {
+	return contractBinary(t, &auditBinOnce, &auditBinPath, &auditBinErr, "outputaudit")
+}
+
+func contractBinary(t *testing.T, once *sync.Once, path *string, buildErr *error, tags string) string {
 	t.Helper()
-	binOnce.Do(func() {
+	once.Do(func() {
 		dir, err := os.MkdirTemp("", "jira-contract-bin-")
 		if err != nil {
-			binErr = err
+			*buildErr = err
 			return
 		}
-		binPath = filepath.Join(dir, "jira")
+		*path = filepath.Join(dir, "jira")
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
 		cmd := exec.CommandContext(ctx, "go", "build",
+			"-tags="+tags,
 			"-buildvcs=false",
 			"-ldflags", "-X github.com/gechr/clive.version="+hostileVersion,
-			"-o", binPath, "./cmd/jira")
+			"-o", *path, "./cmd/jira")
 		cmd.Dir = repoRoot()
 		cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 		if out, err := cmd.CombinedOutput(); err != nil {
-			binErr = fmt.Errorf("build jira binary: %w\n%s", err, out)
+			*buildErr = fmt.Errorf("build jira binary: %w\n%s", err, out)
 		}
 	})
-	if binErr != nil {
-		t.Fatal(binErr)
+	if *buildErr != nil {
+		t.Fatal(*buildErr)
 	}
-	return binPath
+	return *path
 }
 
 func repoRoot() string {

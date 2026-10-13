@@ -60,10 +60,14 @@ type fileCreationOps struct {
 }
 
 func (f *File) create(ctx context.Context, data []byte, ops fileCreationOps) (bool, error) {
+	return f.createValidated(ctx, data, ValidateFile, ops)
+}
+
+func (f *File) createValidated(ctx context.Context, data []byte, validate func([]byte) error, ops fileCreationOps) (bool, error) {
 	if err := ctx.Err(); err != nil {
 		return false, err
 	}
-	if err := ValidateFile(data); err != nil {
+	if err := validate(data); err != nil {
 		return false, err
 	}
 	if f.exists {
@@ -143,18 +147,25 @@ func (f *File) checkCreationTarget(resolve func(string) (string, error)) error {
 // snapshot is taken, so creating children cannot change that snapshot's path.
 func resolveCreationPath(path string) (string, error) {
 	resolved, err := xfilepath.ResolveLenient(path)
-	if err != nil || resolved != path {
+	if err != nil {
 		return resolved, err
 	}
-	parent := filepath.Dir(path)
-	if parent == path {
+	parent := filepath.Dir(resolved)
+	if parent == resolved {
 		return resolved, nil
 	}
 	resolvedParent, err := resolveCreationPath(parent)
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(resolvedParent, filepath.Base(path)), nil
+	info, err := os.Stat(resolvedParent)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return "", err
+	}
+	if err == nil && !info.IsDir() {
+		return "", errors.New("configuration ancestor is not a directory")
+	}
+	return filepath.Join(resolvedParent, filepath.Base(resolved)), nil
 }
 
 func syncCreationDirectory(dir string) error {

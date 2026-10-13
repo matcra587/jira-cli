@@ -16,7 +16,7 @@ func TestWhoamiHelpDoesNotResolveCredentials(t *testing.T) {
 			t.Fatal("help resolved credentials")
 			return SiteInfo{}, nil
 		},
-		ClientFor: func(string, string, string) (core.JiraClient, error) {
+		ClientFor: func(string, string, string, string) (core.JiraClient, error) {
 			t.Fatal("help constructed a client")
 			return nil, nil
 		},
@@ -46,7 +46,7 @@ func TestCurrentIdentityHonorsCancellation(t *testing.T) {
 		Site: func(ctx context.Context) (SiteInfo, error) {
 			return SiteInfo{BaseURL: "https://example.invalid", Email: "person@example.invalid", Token: "fixture-token"}, nil
 		},
-		ClientFor: func(string, string, string) (core.JiraClient, error) { return identityContextClient{}, nil },
+		ClientFor: func(string, string, string, string) (core.JiraClient, error) { return identityContextClient{}, nil },
 	}
 	_, _, err := currentIdentity(ctx, deps)
 	if !errors.Is(err, context.Canceled) {

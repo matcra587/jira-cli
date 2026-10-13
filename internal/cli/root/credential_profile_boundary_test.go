@@ -33,7 +33,7 @@ func TestEmptyNamedProfilesLogoutPreservesFlatCredential(t *testing.T) {
 		return
 	}
 	keyring.MockInit()
-	const legacy = `{"version":1,"site":"https://legacy.example.invalid","email":"legacy@example.invalid","token":"synthetic-legacy-token"}`
+	const legacy = `{"version":2,"site":"https://legacy.example.invalid","email":"legacy@example.invalid","token":"synthetic-legacy-token"}`
 	if err := keyring.Set("jira-cli", "default", legacy); err != nil {
 		t.Fatal(err)
 	}

@@ -68,6 +68,9 @@ type IssueCloneOutput struct {
 	// SelectorState records a --jql/--filter/--from-file run's own query,
 	// absent when the caller named the keys.
 	SelectorState
+	// AccountOverrides retains known nonempty authored account-ID overrides in
+	// previews. It makes no claim about unread fields copied from source issues.
+	AccountOverrides map[string]string `json:"account_overrides,omitempty"`
 	// Results is one entry per source key, in argv order.
 	KeyedResults[IssueCloneData]
 }
@@ -156,6 +159,7 @@ func init() {
 	Register("issue.clone", IssueCloneOutput{}, map[string]any{
 		"description": "The new issue created from each named one. Jira has no copy endpoint, so a clone is a read of the source followed by a create.",
 		"properties": map[string]any{
+			"account_overrides": map[string]any{"description": "Known nonempty assignee/reporter account-ID overrides after preview resolution. Present only in previews with those overrides; source issue fields remain unread."},
 			"dry_run": map[string]any{
 				"description": "True when this was a preview. It never creates anything or reads source fields. --validate-remote permits selector/account reads, but cannot report copied fields.",
 			},

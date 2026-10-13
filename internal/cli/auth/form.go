@@ -67,10 +67,9 @@ func askForLogin(ctx context.Context, prefill, pinned identity) (identity, strin
 		return identity{}, "", err
 	}
 
-	return identity{
-		site:  strings.TrimSpace(got.site),
-		email: strings.TrimSpace(got.email),
-	}, strings.TrimSpace(token), nil
+	got.site, got.email = strings.TrimSpace(got.site), strings.TrimSpace(got.email)
+	got.cloudID, got.cloudSet = pinned.cloudID, pinned.cloudSet
+	return got, strings.TrimSpace(token), nil
 }
 
 func loginFormError(err error) error {
