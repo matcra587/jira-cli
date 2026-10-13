@@ -91,7 +91,7 @@ func (f *fakeSelectorClient) DeleteIssue(_ context.Context, key string, _ bool) 
 // confirmation lands on the SAME timeline as the requests.
 func selectorDeps(fake *fakeSelectorClient, answer bool, seen *prompt.Confirm) Deps {
 	return Deps{
-		JiraClient: func() (core.JiraClient, error) { return fake, nil },
+		JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil },
 		Confirm: func(_ context.Context, c prompt.Confirm) (bool, error) {
 			fake.record("confirm")
 			if seen != nil {
@@ -198,7 +198,7 @@ func TestForceSkipsThePromptButNeverTheEnumeration(t *testing.T) {
 // network whatever it does next.
 func TestBareDryRunDoesNotResolveAQuery(t *testing.T) {
 	built := false
-	deps := Deps{JiraClient: func() (core.JiraClient, error) {
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 		built = true
 		return nil, errors.New("a preview must not build a client")
 	}}
@@ -271,7 +271,7 @@ func TestFromFileResolvesInABareDryRun(t *testing.T) {
 	}
 
 	built := false
-	deps := Deps{JiraClient: func() (core.JiraClient, error) {
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 		built = true
 		return nil, errors.New("a preview must not build a client")
 	}}

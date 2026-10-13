@@ -58,7 +58,7 @@ func TestCacheInspectSuppressesPassiveUpdateIO(t *testing.T) {
 					t.Fatal("inspection opened credentials")
 					return nil, nil
 				}
-				deps.JiraClient = func() (core.JiraClient, error) {
+				deps.JiraClient = func(ctx context.Context) (core.JiraClient, error) {
 					t.Fatal("inspection constructed Jira client")
 					return nil, nil
 				}
@@ -100,9 +100,15 @@ func TestCacheInspectUsesExplicitScopeWithoutAuthentication(t *testing.T) {
 				t.Fatal(err)
 			}
 			deps := testDeps(t)
-			deps.Cache = func() (core.Cache, error) { t.Fatal("inspection opened credential-backed cache"); return nil, nil }
+			deps.Cache = func(ctx context.Context) (core.Cache, error) {
+				t.Fatal("inspection opened credential-backed cache")
+				return nil, nil
+			}
 			deps.Credentials = func() (core.CredentialStore, error) { t.Fatal("inspection opened credential store"); return nil, nil }
-			deps.JiraClient = func() (core.JiraClient, error) { t.Fatal("inspection constructed Jira client"); return nil, nil }
+			deps.JiraClient = func(ctx context.Context) (core.JiraClient, error) {
+				t.Fatal("inspection constructed Jira client")
+				return nil, nil
+			}
 			deps.BuildPreferences = func() (jqlcmd.BuildPreferences, error) {
 				prefs := jqlcmd.BuildPreferences{BaseURL: "https://example.com", Account: "person@example.com"}
 				if mode == "missing email" {
@@ -170,7 +176,7 @@ func TestCacheInspectPartialFailureRetainsObservationsInSharedOutput(t *testing.
 				t.Fatal("partial inspection opened credentials")
 				return nil, nil
 			}
-			deps.JiraClient = func() (core.JiraClient, error) {
+			deps.JiraClient = func(ctx context.Context) (core.JiraClient, error) {
 				t.Fatal("partial inspection constructed Jira client")
 				return nil, nil
 			}

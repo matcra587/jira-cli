@@ -92,11 +92,11 @@ func validateCreateInput(in *issueWriteFlags) error {
 	return nil
 }
 
-func newInputDiscoveryClient(deps Deps) (InputDiscoveryClient, error) {
+func newInputDiscoveryClient(ctx context.Context, deps Deps) (InputDiscoveryClient, error) {
 	if deps.IssueMetadata == nil {
 		return nil, core.ErrIssueMetadataUnavailable
 	}
-	client, err := deps.IssueMetadata()
+	client, err := deps.IssueMetadata(ctx)
 	if err == nil && client == nil {
 		err = core.ErrIssueMetadataUnavailable
 	}
@@ -108,7 +108,7 @@ func runCreateInput(ctx context.Context, deps Deps, project, issueType string) (
 	if err := ctx.Err(); err != nil {
 		return out, err
 	}
-	client, err := newInputDiscoveryClient(deps)
+	client, err := newInputDiscoveryClient(ctx, deps)
 	if err != nil {
 		return out, err
 	}
@@ -154,11 +154,11 @@ func runEditInput(ctx context.Context, deps Deps, inv command.Invocation, select
 	targets := command.Targets{Keys: inv.Args}
 	if ctx.Err() == nil {
 		var err error
-		newClient := oneClient(func() (core.JiraClient, error) {
+		newClient := oneClient(func(ctx context.Context) (core.JiraClient, error) {
 			if deps.JiraClient == nil {
 				return nil, core.ErrIssueMetadataUnavailable
 			}
-			client, err := deps.JiraClient()
+			client, err := deps.JiraClient(ctx)
 			if err == nil && client == nil {
 				err = core.ErrIssueMetadataUnavailable
 			}
@@ -179,7 +179,7 @@ func runEditInput(ctx context.Context, deps Deps, inv command.Invocation, select
 				setupErr = core.ErrIssueMetadataUnavailable
 			}
 		} else {
-			client, setupErr = newInputDiscoveryClient(deps)
+			client, setupErr = newInputDiscoveryClient(ctx, deps)
 		}
 	}
 	outcomes := make([]editInputOutcome, len(targets.Keys))

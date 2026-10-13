@@ -27,9 +27,9 @@ func TestLiveBoardPages(t *testing.T) {
 	if err != nil || boardID <= 0 {
 		t.Fatal("live board fixture must have a positive identity")
 	}
-	resolved, err := config.Load(config.Options{Credentials: keyring.New(), Environ: func() []string {
+	resolved, err := config.Resolve(t.Context(), config.Options{Environ: func() []string {
 		return append(os.Environ(), "JIRA_API_TOKEN=", "JIRA_KEYRING=true", "JIRA_READ_ONLY=true")
-	}})
+	}}, keyring.New())
 	// Check the configured host before constructing the adapter or sending any
 	// credentials. The harness independently preflights this existing keyring.
 	if err != nil || resolved.Config.BaseURL != r.manifest.BaseURL || resolved.Source("api_token") != config.LayerKeyring {

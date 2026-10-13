@@ -1,6 +1,7 @@
 package credentials_test
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -18,7 +19,7 @@ type memStore struct {
 
 func newStore() *memStore { return &memStore{secrets: map[string]string{}} }
 
-func (m *memStore) Get(account string) (string, error) {
+func (m *memStore) Get(ctx context.Context, account string) (string, error) {
 	if m.getErr != nil {
 		return "", m.getErr
 	}
@@ -28,12 +29,12 @@ func (m *memStore) Get(account string) (string, error) {
 	return "", core.ErrNoCredential
 }
 
-func (m *memStore) Set(account, secret string) error {
+func (m *memStore) Set(ctx context.Context, account, secret string) error {
 	m.secrets[account] = secret
 	return nil
 }
 
-func (m *memStore) Delete(account string) error {
+func (m *memStore) Delete(ctx context.Context, account string) error {
 	delete(m.secrets, account)
 	return nil
 }
@@ -57,11 +58,11 @@ func TestUnusableRecordsAreDistinctFromMissingOnes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			store := newStore()
-			if err := store.Set("default", tt.stored); err != nil {
+			if err := store.Set(t.Context(), "default", tt.stored); err != nil {
 				t.Fatal(err)
 			}
 
-			_, err := credentials.Load(store)
+			_, err := credentials.Load(t.Context(), store)
 			if err == nil {
 				t.Fatal("an unusable record loaded successfully")
 			}
@@ -85,7 +86,7 @@ func TestUnusableRecordsAreDistinctFromMissingOnes(t *testing.T) {
 // TestMissingRecordReportsNotStored pins the ordinary pre-login state.
 func TestMissingRecordReportsNotStored(t *testing.T) {
 	t.Parallel()
-	if _, err := credentials.Load(newStore()); !errors.Is(err, credentials.ErrNotStored) {
+	if _, err := credentials.Load(t.Context(), newStore()); !errors.Is(err, credentials.ErrNotStored) {
 		t.Errorf("error is %v, want ErrNotStored", err)
 	}
 }
@@ -98,12 +99,12 @@ func TestSaveRefusesAnEmptyToken(t *testing.T) {
 	t.Parallel()
 	store := newStore()
 
-	if err := credentials.Save(store, credentials.Record{
+	if err := credentials.Save(t.Context(), store, credentials.Record{
 		Site: "https://example.atlassian.net", Email: "person@example.com",
 	}); err == nil {
 		t.Fatal("a record with no token was stored")
 	}
-	if _, err := credentials.Load(store); !errors.Is(err, credentials.ErrNotStored) {
+	if _, err := credentials.Load(t.Context(), store); !errors.Is(err, credentials.ErrNotStored) {
 		t.Error("a refused save left something behind")
 	}
 }
@@ -115,12 +116,12 @@ func TestSaveStampsTheVersion(t *testing.T) {
 	t.Parallel()
 	store := newStore()
 
-	if err := credentials.Save(store, credentials.Record{
+	if err := credentials.Save(t.Context(), store, credentials.Record{
 		Version: 0, Site: "https://example.atlassian.net", Email: "a@b.c", Token: "t",
 	}); err != nil {
 		t.Fatal(err)
 	}
-	rec, err := credentials.Load(store)
+	rec, err := credentials.Load(t.Context(), store)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -136,12 +137,12 @@ func TestSiteIsNormalizedBothWays(t *testing.T) {
 	t.Parallel()
 	store := newStore()
 
-	if err := credentials.Save(store, credentials.Record{
+	if err := credentials.Save(t.Context(), store, credentials.Record{
 		Site: "https://example.atlassian.net/", Email: "a@b.c", Token: "t",
 	}); err != nil {
 		t.Fatal(err)
 	}
-	rec, err := credentials.Load(store)
+	rec, err := credentials.Load(t.Context(), store)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,10 +151,10 @@ func TestSiteIsNormalizedBothWays(t *testing.T) {
 	}
 
 	// And a record already stored with the slash, as one was.
-	if err := store.Set("default", `{"version":1,"site":"https://example.atlassian.net/","email":"a@b.c","token":"t"}`); err != nil {
+	if err := store.Set(t.Context(), "default", `{"version":1,"site":"https://example.atlassian.net/","email":"a@b.c","token":"t"}`); err != nil {
 		t.Fatal(err)
 	}
-	rec, err = credentials.Load(store)
+	rec, err = credentials.Load(t.Context(), store)
 	if err != nil {
 		t.Fatal(err)
 	}

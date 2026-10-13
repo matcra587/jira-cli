@@ -1,15 +1,20 @@
 package credentials
 
 import (
+	"context"
 	"errors"
 
 	"github.com/matcra587/jira-cli/internal/core"
 )
 
-// Select binds record operations to one durable keyring account without
-// opening native storage. Empty IDs retain the existing flat location.
+// Select binds record operations to one keyring account without opening it.
+// Empty IDs retain the existing flat location; SDK and environment providers
+// keep their own selected item or reference and never receive a profile ID.
 func Select(store core.CredentialStore, id string) core.CredentialStore {
 	if store == nil || id == "" {
+		return store
+	}
+	if provider, ok := store.(core.CredentialBackendProvider); ok && provider.CredentialBackend() != core.CredentialBackendKeyring {
 		return store
 	}
 	if selected, ok := store.(*selectedStore); ok {
@@ -23,14 +28,29 @@ type selectedStore struct {
 	account string
 }
 
-func (s *selectedStore) Get(_ string) (string, error) { return s.store.Get(s.account) }
-func (s *selectedStore) Set(_, value string) error    { return s.store.Set(s.account, value) }
-func (s *selectedStore) Delete(_ string) error        { return s.store.Delete(s.account) }
+func (*selectedStore) CredentialBackend() core.CredentialBackend {
+	return core.CredentialBackendKeyring
+}
+
+func (s *selectedStore) Get(ctx context.Context, _ string) (string, error) {
+	return s.store.Get(ctx, s.account)
+}
+
+func (s *selectedStore) Set(ctx context.Context, _, value string) error {
+	return s.store.Set(ctx, s.account, value)
+}
+
+func (s *selectedStore) Delete(ctx context.Context, _ string) error {
+	return s.store.Delete(ctx, s.account)
+}
 
 // UnselectedStore cannot read or delete the legacy flat slot. A handwritten
 // named profile must select a durable public locator before storing a token.
 type UnselectedStore struct{ core.NoCredentialStore }
 
-func (UnselectedStore) Set(_, _ string) error {
+func (UnselectedStore) Set(ctx context.Context, _, _ string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return errors.New("the named profile has no credential_id; set a unique UUID with jira config set credential_id before login")
 }

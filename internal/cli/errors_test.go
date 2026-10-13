@@ -2,10 +2,12 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -279,5 +281,80 @@ func TestTransportSentinelsKeepTheirOwnCodes(t *testing.T) {
 				t.Errorf("hint = %q, want the row's own hint", got.Hint)
 			}
 		})
+	}
+}
+
+func TestCredentialProviderFailuresKeepSanitizedAuthenticationContract(t *testing.T) {
+	t.Parallel()
+	for _, attempted := range []bool{false, true} {
+		for _, wrapped := range []bool{false, true} {
+			name := fmt.Sprintf("attempted=%t wrapped=%t", attempted, wrapped)
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				const privateCause = "synthetic-private-sdk-token"
+				const privateWrapper = "synthetic-private-item-coordinate"
+				var err error = &core.CredentialStoreError{Backend: core.CredentialBackendOnePassword, Operation: "save", Cause: errors.New(privateCause), Attempted: attempted}
+				if wrapped {
+					err = fmt.Errorf(privateWrapper+": %w", err)
+				}
+				got := MapError(err)
+				if got.Code != CodeAuthStoreUnavailable || got.Exit != ExitAuth || ExitCode(err) != ExitAuth || got.Message != "1password credential save failed" {
+					t.Fatalf("provider failure lost authentication contract: %+v", got)
+				}
+				if attempted {
+					if !strings.Contains(got.Hint, "attempted") || !strings.Contains(got.Hint, "may have completed") || !strings.Contains(got.Hint, "before retrying") {
+						t.Errorf("attempted write lost uncertainty/retry guidance: %q", got.Hint)
+					}
+				} else if !strings.Contains(got.Hint, "selected credential backend") || !strings.Contains(got.Hint, "environment credentials") {
+					t.Errorf("unstarted backend failure lost actionable fallback guidance: %q", got.Hint)
+				}
+				encoded, marshalErr := json.Marshal(got)
+				if marshalErr != nil {
+					t.Fatal(marshalErr)
+				}
+				if strings.Contains(string(encoded), privateCause) || strings.Contains(string(encoded), privateWrapper) {
+					t.Fatal("mapped credential failure disclosed provider or wrapper details")
+				}
+			})
+		}
+	}
+}
+
+func TestCredentialProviderContextPriorityDoesNotDisclosePrivateWrappers(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		err  error
+		code string
+		exit int
+	}{
+		{name: "canceled", err: context.Canceled, code: "canceled", exit: ExitCanceled},
+		{name: "deadline", err: context.DeadlineExceeded, code: "timeout", exit: ExitTimeout},
+	} {
+		for _, wrapped := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s wrapped=%t", tc.name, wrapped), func(t *testing.T) {
+				t.Parallel()
+				const privateCause = "synthetic-private-sdk-token"
+				const privateWrapper = "synthetic-private-item-coordinate"
+				var err error = &core.CredentialStoreError{Backend: core.CredentialBackendOnePassword, Operation: "save", Attempted: true, Cause: errors.Join(errors.New(privateCause), tc.err)}
+				if wrapped {
+					err = fmt.Errorf(privateWrapper+": %w", err)
+				}
+				got := MapError(err)
+				if got.Code != tc.code || got.Exit != tc.exit || ExitCode(err) != tc.exit {
+					t.Errorf("provider failure masked context outcome: code=%s exit=%d", got.Code, got.Exit)
+				}
+				if !strings.Contains(got.Hint, "attempted mutations") {
+					t.Errorf("interrupted write lost attempt inspection guidance: %q", got.Hint)
+				}
+				encoded, marshalErr := json.Marshal(got)
+				if marshalErr != nil {
+					t.Fatal(marshalErr)
+				}
+				if strings.Contains(string(encoded), privateCause) || strings.Contains(string(encoded), privateWrapper) {
+					t.Fatal("context-priority mapping disclosed provider or wrapper details")
+				}
+			})
+		}
 	}
 }

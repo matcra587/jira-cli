@@ -30,8 +30,8 @@ const (
 )
 
 type Deps struct {
-	JiraClient func() (core.JiraClient, error)
-	Cache      func() (core.Cache, error)
+	JiraClient func(ctx context.Context) (core.JiraClient, error)
+	Cache      func(ctx context.Context) (core.Cache, error)
 }
 
 type options struct {
@@ -98,7 +98,7 @@ type snapshot struct {
 }
 
 func runList(ctx context.Context, deps Deps, opts options) (envelope.BoardsListOutput, error) {
-	store := metacache.Open(deps.Cache)
+	store := metacache.Open(ctx, deps.Cache)
 	read, err := metacache.ReadValue(ctx, store, cacheKey, opts.cache, func(value snapshot) bool {
 		if !validSnapshot(value) {
 			return false
@@ -108,7 +108,7 @@ func runList(ctx context.Context, deps Deps, opts options) (envelope.BoardsListO
 		}
 		return value.Reason != "max_pages" && value.Reason != "max_results"
 	}, func(ctx context.Context) (snapshot, error) {
-		client, err := deps.JiraClient()
+		client, err := deps.JiraClient(ctx)
 		if err != nil {
 			return snapshot{}, err
 		}

@@ -64,7 +64,7 @@ func TestIssueDeleteAcknowledgementAlongsideCauseRetainsBoth(t *testing.T) {
 		t.Run(cause.Error(), func(t *testing.T) {
 			t.Parallel()
 			client := &receiptIssueDeleteClient{ack: true, cause: cause}
-			out, err := runDelete(t.Context(), Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }}, invocation(false, "KEY-1"), deleteOptions{force: true, parallelism: 1})
+			out, err := runDelete(t.Context(), Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }}, invocation(false, "KEY-1"), deleteOptions{force: true, parallelism: 1})
 			if !errors.Is(err, cause) || client.calls != 1 || len(out.Results) != 1 || out.Results[0].OK || out.Results[0].Data == nil || out.Results[0].Issue.Key != "KEY-1" || out.Results[0].Err == nil || out.Results[0].Err.Code != cli.MapError(cause).Code {
 				t.Fatal("issue deletion lost its joined acknowledgement or original cause")
 			}
@@ -80,7 +80,7 @@ func TestIssueDeleteFailureRetainsSelectorAndOriginalCause(t *testing.T) {
 	}
 	cause := &adapterjira.APIError{StatusCode: 429, RetryAfterSeconds: 7, Retry: core.RetryInfo{Attempts: 1}}
 	client := &receiptIssueDeleteClient{cause: cause}
-	out, err := runDelete(t.Context(), Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }}, invocation(false), deleteOptions{selector: command.SelectorFlags{FromFile: path}, force: true, deleteSubtasks: true, parallelism: 1})
+	out, err := runDelete(t.Context(), Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }}, invocation(false), deleteOptions{selector: command.SelectorFlags{FromFile: path}, force: true, deleteSubtasks: true, parallelism: 1})
 	if !errors.Is(err, cause) || client.calls != 2 || out.Selector == nil || !out.Selector.Resolved || out.Selector.Kind != "from-file" || !out.DeleteSubtasks || out.DryRun || len(out.Results) != 2 {
 		t.Fatal("issue deletion discarded its selector, original cause or ordered outcomes")
 	}
@@ -99,7 +99,7 @@ func TestIssueDeleteFailureRetainsSelectorAndOriginalCause(t *testing.T) {
 func TestIssueDeleteDeadlinePublishesJoinedAcknowledgement(t *testing.T) {
 	t.Parallel()
 	client := &receiptIssueDeleteClient{late: true}
-	cmd := newDelete(Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }})
+	cmd := newDelete(Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }})
 	if err := cmd.ParseFlags([]string{"KEY-1"}); err != nil {
 		t.Fatal(err)
 	}
@@ -135,7 +135,7 @@ func TestIssueDeleteRequiresExplicitSeamAcknowledgement(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			client := &receiptIssueDeleteClient{cause: tc.cause}
-			out, err := runDelete(t.Context(), Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }}, invocation(false, "KEY-1"), deleteOptions{force: true, parallelism: 1})
+			out, err := runDelete(t.Context(), Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }}, invocation(false, "KEY-1"), deleteOptions{force: true, parallelism: 1})
 			if err == nil || client.calls != 1 || len(out.Results) != 1 || out.Results[0].OK || out.Results[0].Data != nil || out.Results[0].Err == nil || out.Results[0].Err.Code != tc.code {
 				t.Fatal("issue deletion claimed deletion without an explicit acknowledgement or discarded its failure")
 			}

@@ -355,7 +355,7 @@ func (f *fakeIssueClient) GetComments(_ context.Context, _ string, startAt, maxR
 // alone, no fields.
 func TestRunViewWebBuildsURLWithoutFetching(t *testing.T) {
 	fake := &fakeIssueClient{baseURL: "https://example.atlassian.net"}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	var calls []recordedOpen
 	out, err := runViewWeb(t.Context(), deps, "ABC-123", fakeOpener(&calls, nil))
@@ -385,7 +385,7 @@ func TestRunViewWebBuildsURLWithoutFetching(t *testing.T) {
 // would.
 func TestRunViewWebRejectsMalformedKey(t *testing.T) {
 	fake := &fakeIssueClient{baseURL: "https://example.atlassian.net"}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	var calls []recordedOpen
 	_, err := runViewWeb(t.Context(), deps, "not a valid key", fakeOpener(&calls, nil))
@@ -406,7 +406,7 @@ func TestRunViewWebRejectsMalformedKey(t *testing.T) {
 // calls the opener.
 func TestRunViewWebOpensOnlyForHumanOutput(t *testing.T) {
 	fake := &fakeIssueClient{baseURL: "https://example.atlassian.net"}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	var calls []recordedOpen
 	out, err := runViewWeb(cli.WithFormat(t.Context(), output.FormatJSON), deps, "ABC-123", fakeOpener(&calls, nil))
@@ -429,7 +429,7 @@ func TestRunViewWebOpensOnlyForHumanOutput(t *testing.T) {
 // real (if empty) issue rather than the failure it actually is.
 func TestRunViewFailsLoudlyOnNilIssue(t *testing.T) {
 	deps := Deps{
-		JiraClient: func() (core.JiraClient, error) {
+		JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 			return &fakeIssueClient{read: core.IssueRead{Issue: nil}}, nil
 		},
 	}
@@ -769,7 +769,7 @@ func TestRunViewCommentsMapsToGetCommentsWithZeroStart(t *testing.T) {
 			},
 		}},
 	}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	_, preview, err := runView(humanContext(t), deps, "ABC-1", nil, viewOpts{n: 2})
 	if err != nil {
@@ -808,7 +808,7 @@ func TestRunViewSkipsCommentsFetchWhenOutputIsNotHuman(t *testing.T) {
 			Comments: []jira.Comment{{ID: jira.NullableOf("1")}},
 		}},
 	}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	ctx := cli.WithFormat(t.Context(), output.FormatJSON)
 	_, preview, err := runView(ctx, deps, "ABC-1", nil, viewOpts{n: 2})
@@ -839,7 +839,7 @@ func TestRunViewExplicitZeroCommentsReadsTotalFromEmbeddedFieldWithoutFetching(t
 	fake := &fakeIssueClient{
 		read: core.IssueRead{Issue: &jira.IssueBean{Key: jira.NullableOf("ABC-1"), Fields: jira.NullableOf(fields)}},
 	}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	_, preview, err := runView(t.Context(), deps, "ABC-1", nil, viewOpts{n: 0, explicit: true})
 	if err != nil {
@@ -866,7 +866,7 @@ func TestRunViewExplicitZeroCommentsOmitsTotalWhenFieldNarrowedAway(t *testing.T
 	fake := &fakeIssueClient{
 		read: core.IssueRead{Issue: &jira.IssueBean{Key: jira.NullableOf("ABC-1"), Fields: jira.NullableOf(jira.IssueFields{Summary: jira.NullableOf("no comment field here")})}},
 	}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	_, preview, err := runView(t.Context(), deps, "ABC-1", []string{"summary"}, viewOpts{n: 0, explicit: true})
 	if err != nil {
@@ -904,7 +904,7 @@ func TestRunViewDefaultReadsLatestFromEmbeddedPageWithoutFetching(t *testing.T) 
 		commentAt(t, "2", "Grace", "2024-01-02T00:00:00.000+0000"),
 	})
 	fake := &fakeIssueClient{read: core.IssueRead{Issue: &jira.IssueBean{Key: jira.NullableOf("ABC-1"), Fields: jira.NullableOf(fields)}}}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	_, preview, err := runView(humanContext(t), deps, "ABC-1", nil, viewOpts{n: 1})
 	if err != nil {
@@ -933,7 +933,7 @@ func TestRunViewDefaultLatestIsNewestNotFirst(t *testing.T) {
 		commentAt(t, "2", "Grace", "2024-01-02T00:00:00.000+0000"), // newest
 	})
 	fake := &fakeIssueClient{read: core.IssueRead{Issue: &jira.IssueBean{Key: jira.NullableOf("ABC-1"), Fields: jira.NullableOf(fields)}}}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	_, preview, err := runView(humanContext(t), deps, "ABC-1", nil, viewOpts{n: 1})
 	if err != nil {
@@ -964,7 +964,7 @@ func TestRunViewFallsBackToFetchWhenEmbeddedPageTruncated(t *testing.T) {
 			Comments: []jira.Comment{commentAt(t, "9", "Grace", "2024-06-01T00:00:00.000+0000")},
 		}},
 	}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	_, preview, err := runView(humanContext(t), deps, "ABC-1", nil, viewOpts{n: 1})
 	if err != nil {
@@ -1073,7 +1073,7 @@ func TestRunViewFieldsCommentRendersAllEmbeddedCommentsUncapped(t *testing.T) {
 		commentAt(t, "3", "Linus", "2024-01-03T00:00:00.000+0000"),
 	})
 	fake := &fakeIssueClient{read: core.IssueRead{Issue: &jira.IssueBean{Key: jira.NullableOf("ABC-1"), Fields: jira.NullableOf(fields)}}}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	_, preview, err := runView(humanContext(t), deps, "ABC-1", []string{"comment"}, viewOpts{n: 1})
 	if err != nil {
@@ -1101,7 +1101,7 @@ func TestRunViewFieldsCommentCaseAndWhitespaceInsensitive(t *testing.T) {
 		{ID: jira.NullableOf("1"), Author: jira.NullableOf(jira.UserDetails{DisplayName: jira.NullableOf("Ada")}), Body: jira.NullableOf(commentBody(t, "first"))},
 	})
 	fake := &fakeIssueClient{read: core.IssueRead{Issue: &jira.IssueBean{Key: jira.NullableOf("ABC-1"), Fields: jira.NullableOf(fields)}}}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	_, preview, err := runView(humanContext(t), deps, "ABC-1", []string{"summary", "  COMMENT  "}, viewOpts{})
 	if err != nil {
@@ -1117,7 +1117,7 @@ func TestRunViewFieldsCommentCaseAndWhitespaceInsensitive(t *testing.T) {
 // ordinary hint path.
 func TestRunViewFieldsSummaryAloneDoesNotTriggerUncapped(t *testing.T) {
 	fake := &fakeIssueClient{read: core.IssueRead{Issue: &jira.IssueBean{Key: jira.NullableOf("ABC-1"), Fields: jira.NullableOf(jira.IssueFields{Summary: jira.NullableOf("no comment field here")})}}}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	_, preview, err := runView(t.Context(), deps, "ABC-1", []string{"summary"}, viewOpts{})
 	if err != nil {
@@ -1204,7 +1204,7 @@ func TestRunViewNormalizesPluralCommentsInWireRequest(t *testing.T) {
 		{ID: jira.NullableOf("1"), Author: jira.NullableOf(jira.UserDetails{DisplayName: jira.NullableOf("Ada")}), Body: jira.NullableOf(commentBody(t, "first"))},
 	})
 	fake := &fakeIssueClient{read: core.IssueRead{Issue: &jira.IssueBean{Key: jira.NullableOf("ABC-1"), Fields: jira.NullableOf(fields)}}}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	_, preview, err := runView(humanContext(t), deps, "ABC-1", []string{"summary", "comments"}, viewOpts{})
 	if err != nil {
@@ -1230,7 +1230,7 @@ func TestRunViewExplicitCommentsWinsOverFieldsComment(t *testing.T) {
 			Comments: []jira.Comment{{ID: jira.NullableOf("1"), Author: jira.NullableOf(jira.UserDetails{DisplayName: jira.NullableOf("Ada")})}},
 		}},
 	}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	_, preview, err := runView(humanContext(t), deps, "ABC-1", []string{"comment"}, viewOpts{n: 1, explicit: true})
 	if err != nil {
@@ -1255,7 +1255,7 @@ func TestRunViewExplicitCommentsWinsOverFieldsComment(t *testing.T) {
 func TestRunViewExplicitZeroCommentsWithFieldsCommentStaysHintOnly(t *testing.T) {
 	fields := embeddedCommentFields(t, 3, nil)
 	fake := &fakeIssueClient{read: core.IssueRead{Issue: &jira.IssueBean{Key: jira.NullableOf("ABC-1"), Fields: jira.NullableOf(fields)}}}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	_, preview, err := runView(t.Context(), deps, "ABC-1", []string{"comment"}, viewOpts{n: 0, explicit: true})
 	if err != nil {
@@ -1420,7 +1420,7 @@ func TestRunViewNegativeCommentsIsRejectedNotPanicked(t *testing.T) {
 		commentAt(t, "2", "Grace", "2024-01-02T00:00:00.000+0000"),
 	})
 	fake := &fakeIssueClient{read: core.IssueRead{Issue: &jira.IssueBean{Key: jira.NullableOf("ABC-1"), Fields: jira.NullableOf(fields)}}}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	_, _, err := runView(humanContext(t), deps, "ABC-1", nil, viewOpts{n: -1, explicit: true})
 	if err == nil {
@@ -1448,7 +1448,7 @@ func TestRunViewNegativeCommentsIsRejectedNotPanicked(t *testing.T) {
 // takes the exact same opts.n as its maxResults argument.
 func TestRunViewNegativeCommentsNeverReachesGetComments(t *testing.T) {
 	fake := &fakeIssueClient{read: core.IssueRead{Issue: &jira.IssueBean{Key: jira.NullableOf("ABC-1")}}}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	if _, _, err := runView(humanContext(t), deps, "ABC-1", nil, viewOpts{n: -1, explicit: true}); err == nil {
 		t.Fatal("runView(--comments=-1) returned nil error")
@@ -1476,7 +1476,7 @@ func TestRunViewCommentFetchFailureDefaultDegradesInsteadOfFailing(t *testing.T)
 		read:        core.IssueRead{Issue: &jira.IssueBean{Key: jira.NullableOf("ABC-1"), Fields: jira.NullableOf(fields)}},
 		commentsErr: errors.New("jira: comment endpoint unavailable"),
 	}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	out, preview, err := runView(humanContext(t), deps, "ABC-1", nil, viewOpts{n: 1})
 	if err != nil {
@@ -1505,7 +1505,7 @@ func TestRunViewCommentFetchFailureExplicitStillFails(t *testing.T) {
 		read:        core.IssueRead{Issue: &jira.IssueBean{Key: jira.NullableOf("ABC-1"), Fields: jira.NullableOf(fields)}},
 		commentsErr: errors.New("jira: comment endpoint unavailable"),
 	}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	_, _, err := runView(humanContext(t), deps, "ABC-1", nil, viewOpts{n: 1, explicit: true})
 	if err == nil {
@@ -1525,7 +1525,7 @@ func TestRunViewCommentFetchNilPageDefaultDegradesInsteadOfFailing(t *testing.T)
 		read: core.IssueRead{Issue: &jira.IssueBean{Key: jira.NullableOf("ABC-1"), Fields: jira.NullableOf(fields)}},
 		// commentsRead left at its zero value: Page is nil.
 	}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	out, preview, err := runView(humanContext(t), deps, "ABC-1", nil, viewOpts{n: 1})
 	if err != nil {
@@ -1548,7 +1548,7 @@ func TestRunViewCommentFetchNilPageExplicitStillFails(t *testing.T) {
 	fake := &fakeIssueClient{
 		read: core.IssueRead{Issue: &jira.IssueBean{Key: jira.NullableOf("ABC-1"), Fields: jira.NullableOf(fields)}},
 	}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	_, _, err := runView(humanContext(t), deps, "ABC-1", nil, viewOpts{n: 1, explicit: true})
 	if err == nil {
@@ -1574,7 +1574,7 @@ func TestRunViewFieldsCommentSkipsDecodeWhenOutputIsNotHuman(t *testing.T) {
 		commentAt(t, "3", "Linus", "2024-01-03T00:00:00.000+0000"),
 	})
 	fake := &fakeIssueClient{read: core.IssueRead{Issue: &jira.IssueBean{Key: jira.NullableOf("ABC-1"), Fields: jira.NullableOf(fields)}}}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	ctx := cli.WithFormat(t.Context(), output.FormatJSON)
 	_, preview, err := runView(ctx, deps, "ABC-1", []string{"comment"}, viewOpts{n: 1})

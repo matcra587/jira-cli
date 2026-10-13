@@ -16,6 +16,7 @@ func TestSettingUpdateValidatesAllWritableScalarsAndPreservesOtherDeclarations(t
 		"credential_id": "9a245a80-ab07-4530-9b32-c51587fe9680",
 		"base_url":      "https://example.invalid", "email": "saved@example.invalid",
 		"keyring": "false", "read_only": "false", "timeout": "2m", "theme": "dark",
+		"secret_backend": "1password", "onepassword_account": "Fixture Account", "onepassword_vault": "Fixture Vault", "onepassword_item": "Fixture Item",
 		"glyphs": "nerd", "workday_seconds": "36000", "queries_path": "local queries", "theme_path": "custom palette.toml", "editor": "future-editor --wait",
 	}
 	if len(values) != len(WritableSettingKeys()) {

@@ -37,7 +37,7 @@ func TestAttachmentListJoinedObservationPreservesOriginalCause(t *testing.T) {
 	t.Parallel()
 	cause := &adapterjira.APIError{StatusCode: http.StatusForbidden, RetryAfterSeconds: 7, Retry: core.RetryInfo{Attempts: 1}}
 	client := &observedAttachmentReadClient{issue: attachmentBean("NEW-2", wireAttachment("10042", "report.txt", "text/plain", 3)), cause: cause}
-	out, err := runAttachmentList(t.Context(), Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }}, []string{"OLD-1"}, 1)
+	out, err := runAttachmentList(t.Context(), Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }}, []string{"OLD-1"}, 1)
 	actual, ok := errors.AsType[*adapterjira.APIError](err)
 	if !ok || actual != cause || len(out.Results) != 1 {
 		t.Fatal("attachment list rebuilt its original joined read cause")
@@ -51,7 +51,7 @@ func TestAttachmentListJoinedObservationPreservesOriginalCause(t *testing.T) {
 func TestAttachmentListAlternateSeamRefusesUnusableObservation(t *testing.T) {
 	t.Parallel()
 	client := &observedAttachmentReadClient{issue: &jira.IssueBean{}}
-	out, err := runAttachmentList(t.Context(), Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }}, []string{"KEY-1"}, 1)
+	out, err := runAttachmentList(t.Context(), Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }}, []string{"KEY-1"}, 1)
 	if !errors.Is(err, core.ErrAttachmentResponseInvalid) || len(out.Results) != 1 || out.Results[0].OK || out.Results[0].Data != nil || out.Results[0].Err == nil || out.Results[0].Err.Code != cli.CodeAttachmentResponseInvalid {
 		t.Fatal("alternate client bypassed attachment observation validation")
 	}
@@ -98,7 +98,7 @@ func TestAttachmentListDeadlinePublishesJoinedObservation(t *testing.T) {
 		t.Run(map[bool]string{false: "attachment", true: "empty array"}[empty], func(t *testing.T) {
 			t.Parallel()
 			client := &lateAttachmentReadClient{empty: empty}
-			cmd := newAttachmentList(Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }})
+			cmd := newAttachmentList(Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }})
 			ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
 			defer cancel()
 			cmd.SetContext(ctx)

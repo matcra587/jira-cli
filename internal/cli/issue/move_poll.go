@@ -126,7 +126,7 @@ func newMoveStatus(deps Deps) *cobra.Command {
 			if err := ctx.Err(); err != nil {
 				return out, err
 			}
-			client, err := deps.JiraClient()
+			client, err := deps.JiraClient(ctx)
 			if err != nil {
 				return out, err
 			}

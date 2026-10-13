@@ -37,6 +37,7 @@ func readCached[T any](ctx context.Context, store core.Cache, key string, opts c
 	read, err := metacache.ReadValue(ctx, store, key, metacache.Options{Refresh: opts.refresh, TTLMinutes: opts.ttlMinutes}, valid, fetch)
 	return cachedRead[T]{value: read.Value, cached: read.Cached, age: read.Age}, err
 }
-func issueCache(deps Deps) core.Cache { return metacache.Open(deps.Cache) }
+
+func issueCache(ctx context.Context, deps Deps) core.Cache { return metacache.Open(ctx, deps.Cache) }
 
 type noCache = metacache.Disabled

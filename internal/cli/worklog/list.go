@@ -80,7 +80,7 @@ func runList(ctx context.Context, deps Deps, inputs []string, o listOptions) (en
 	if err != nil {
 		return out, err
 	}
-	client, err := deps.JiraClient()
+	client, err := deps.JiraClient(ctx)
 	if err != nil {
 		return out, err
 	}

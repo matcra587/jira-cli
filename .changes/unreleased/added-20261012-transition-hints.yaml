@@ -1,3 +1,3 @@
 kind: added
-body: "Complete fresh transition IDs offline from explicit transition-list reads. Bind hints to issue, site and account, expire them after five minutes, and expose inspection/clearing through the cache surface. Hints never authorize a write."
+body: "Complete fresh transition IDs offline from explicit transition-list reads. Bind hints to issue, site and account, expire them after five minutes, and expose inspection/clearing through the cache surface. Invalidate completed failed observations and attempted writes without treating cancellation or unstarted reads as completed discovery. Hints never authorize a write."
 time: 2026-10-12T20:20:08.491480056-04:00

@@ -18,15 +18,15 @@ func TestNoCredentialStoreRefusesWrites(t *testing.T) {
 	t.Parallel()
 	var store core.CredentialStore = core.NoCredentialStore{}
 
-	if _, err := store.Get("default"); !errors.Is(err, core.ErrNoCredential) {
+	if _, err := store.Get(t.Context(), "default"); !errors.Is(err, core.ErrNoCredential) {
 		t.Errorf("Get returned %v, want ErrNoCredential so resolution falls through to the environment", err)
 	}
-	if err := store.Set("default", "a-token"); err == nil {
+	if err := store.Set(t.Context(), "default", "a-token"); err == nil {
 		t.Error("Set reported success with nowhere to store the token")
 	}
 	// Delete succeeds: logout's contract is the end state, and with no
 	// store there is nothing stored.
-	if err := store.Delete("default"); err != nil {
+	if err := store.Delete(t.Context(), "default"); err != nil {
 		t.Errorf("Delete returned %v, want nil", err)
 	}
 }

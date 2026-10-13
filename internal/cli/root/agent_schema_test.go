@@ -2,6 +2,7 @@ package root
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"flag"
 	"io"
@@ -85,7 +86,7 @@ func TestAgentCommandsNeverConstructJiraAdapters(t *testing.T) {
 	} {
 		t.Run(args[len(args)-1], func(t *testing.T) {
 			deps := testDeps(t)
-			deps.JiraClient = func() (core.JiraClient, error) {
+			deps.JiraClient = func(ctx context.Context) (core.JiraClient, error) {
 				t.Fatal("discovery constructed a Jira client")
 				return nil, nil
 			}
@@ -97,7 +98,7 @@ func TestAgentCommandsNeverConstructJiraAdapters(t *testing.T) {
 				t.Fatal("discovery opened the credential store")
 				return nil, nil
 			}
-			deps.Cache = func() (core.Cache, error) {
+			deps.Cache = func(ctx context.Context) (core.Cache, error) {
 				t.Fatal("discovery constructed a disk cache")
 				return nil, nil
 			}

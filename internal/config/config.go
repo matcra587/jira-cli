@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/matcra587/jira-cli/internal/core"
 	"github.com/matcra587/jira-cli/internal/jira"
 )
 
@@ -115,6 +116,8 @@ const (
 	// belongs in a keyring rather than a config file, and below the
 	// environment so CI can override without logging in.
 	LayerKeyring Layer = "keyring"
+	// LayerOnePassword is the selected direct SDK store, at credential priority.
+	LayerOnePassword Layer = "1password"
 	// LayerEnv is the JIRA_* environment.
 	LayerEnv Layer = "env"
 	// LayerFlag is a command-line flag. Reserved: no flag binds to config
@@ -135,7 +138,9 @@ const (
 )
 
 // Layers returns the precedence order, lowest priority first.
-func Layers() []Layer { return []Layer{LayerDefault, LayerFile, LayerKeyring, LayerEnv, LayerFlag} }
+func Layers() []Layer {
+	return []Layer{LayerDefault, LayerFile, LayerKeyring, LayerOnePassword, LayerEnv, LayerFlag}
+}
 
 // Config is the resolved settings for one invocation.
 //
@@ -154,11 +159,19 @@ type Config struct {
 	// see Redacted.
 	APIToken string `koanf:"api_token"`
 	// Keyring enables the operating system credential store. Turning it
-	// off makes `jira` use only the file and environment layers, which
-	// is what a CI runner, a shared machine, or a test harness wants —
+	// off skips native credentials when secret_backend is keyring. The env
+	// backend also skips storage; explicit 1password selection remains independent.
+	// A CI runner, a shared machine, or a test harness can avoid native storage —
 	// a session credential store is not scoped by HOME, so it is the one
 	// piece of state a sandbox cannot isolate any other way.
 	Keyring bool `koanf:"keyring"`
+	// SecretBackend selects one credential provider. Keyring remains the default.
+	SecretBackend core.CredentialBackend `koanf:"secret_backend"`
+	// OnePasswordAccount selects desktop authorization when no service token is set.
+	OnePasswordAccount string `koanf:"onepassword_account"`
+	// OnePasswordVault and OnePasswordItem name explicit SDK coordinates or IDs.
+	OnePasswordVault string `koanf:"onepassword_vault"`
+	OnePasswordItem  string `koanf:"onepassword_item"`
 	// ReadOnly refuses every write at the transport. Honored by the
 	// adapter's client, so it holds for commands that never check it.
 	ReadOnly bool `koanf:"read_only"`
@@ -215,7 +228,7 @@ func IsSecret(key string) bool { return secretKeys[key] }
 
 // Keys lists every config key, in a stable order.
 func Keys() []string {
-	return []string{"base_url", "email", "credential_id", "api_token", "keyring", "read_only", "timeout", "theme", "theme_path", "glyphs", "workday_seconds", "queries_path", "editor", "aliases"}
+	return []string{"base_url", "email", "credential_id", "api_token", "keyring", "secret_backend", "onepassword_account", "onepassword_vault", "onepassword_item", "read_only", "timeout", "theme", "theme_path", "glyphs", "workday_seconds", "queries_path", "editor", "aliases"}
 }
 
 // Defaults are the built-in values, the layer every load starts from.
@@ -232,12 +245,16 @@ func Keys() []string {
 // already-typed Go value.
 func Defaults() map[string]any {
 	return map[string]any{
-		"base_url":      "",
-		"email":         "",
-		"credential_id": "",
-		"api_token":     "",
-		"keyring":       true,
-		"read_only":     false,
+		"base_url":            "",
+		"email":               "",
+		"credential_id":       "",
+		"api_token":           "",
+		"keyring":             true,
+		"secret_backend":      string(core.CredentialBackendKeyring),
+		"onepassword_account": "",
+		"onepassword_vault":   "",
+		"onepassword_item":    "",
+		"read_only":           false,
 		// The string form, for the reason glyphs' default is a string: this
 		// map feeds confmap.Provider and the decode hook that parses a
 		// duration is the path a real file value takes, so the defaults
@@ -292,6 +309,10 @@ func (c Config) Validate() error {
 // failure on the next command that needs the site.
 func (c Config) ValidateValues() error {
 	if err := validateCredentialID(c.CredentialID); err != nil {
+		return err
+	}
+	var backend core.CredentialBackend
+	if err := backend.UnmarshalText([]byte(c.SecretBackend)); err != nil {
 		return err
 	}
 	switch {
@@ -428,20 +449,24 @@ func (c Config) Values() map[string]string {
 	// and escapes ASCII controls; human rendering sanitizes remaining controls.
 	aliasJSON, _ := json.Marshal(aliases) //nolint:errcheck // string maps have no unsupported values or cycles
 	return map[string]string{
-		"base_url":        c.BaseURL,
-		"email":           c.Email,
-		"credential_id":   c.CredentialID,
-		"api_token":       c.APIToken,
-		"keyring":         formatBool(c.Keyring),
-		"read_only":       formatBool(c.ReadOnly),
-		"timeout":         c.Timeout.String(),
-		"theme":           c.Theme,
-		"theme_path":      c.ThemePath,
-		"glyphs":          c.Glyphs.String(),
-		"workday_seconds": strconv.Itoa(c.WorkdaySeconds),
-		"queries_path":    c.QueriesPath,
-		"editor":          c.Editor,
-		"aliases":         string(aliasJSON),
+		"base_url":            c.BaseURL,
+		"email":               c.Email,
+		"credential_id":       c.CredentialID,
+		"api_token":           c.APIToken,
+		"keyring":             formatBool(c.Keyring),
+		"secret_backend":      string(c.SecretBackend),
+		"onepassword_account": c.OnePasswordAccount,
+		"onepassword_vault":   c.OnePasswordVault,
+		"onepassword_item":    c.OnePasswordItem,
+		"read_only":           formatBool(c.ReadOnly),
+		"timeout":             c.Timeout.String(),
+		"theme":               c.Theme,
+		"theme_path":          c.ThemePath,
+		"glyphs":              c.Glyphs.String(),
+		"workday_seconds":     strconv.Itoa(c.WorkdaySeconds),
+		"queries_path":        c.QueriesPath,
+		"editor":              c.Editor,
+		"aliases":             string(aliasJSON),
 	}
 }
 

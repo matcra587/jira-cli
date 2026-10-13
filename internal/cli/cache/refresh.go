@@ -3,7 +3,6 @@ package cache
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	xsync "github.com/gechr/x/sync"
 	"github.com/spf13/cobra"
@@ -82,18 +81,18 @@ func runRefresh(ctx context.Context, deps PrimeDeps, inv command.Invocation, opt
 	// A fully fresh group never constructs a Jira client. Live scope resolution
 	// retains credential-store access for an account held only in keyring.
 	original := deps
-	scope := sync.OnceValues(func() (MetadataScope, error) {
+	scope := command.OnceContextValues(func(ctx context.Context) (MetadataScope, error) {
 		if original.Scope == nil {
 			return MetadataScope{}, core.ErrCacheManagementUnsupported
 		}
-		return original.Scope(inv.DryRun)
+		return original.Scope(ctx, inv.DryRun)
 	})
-	deps.Scope = func(bool) (MetadataScope, error) { return scope() }
-	deps.JiraClient = sync.OnceValues(func() (core.JiraClient, error) {
+	deps.Scope = func(ctx context.Context, _ bool) (MetadataScope, error) { return scope(ctx) }
+	deps.JiraClient = command.OnceContextValues(func(ctx context.Context) (core.JiraClient, error) {
 		if original.JiraClient == nil {
 			return nil, metadataInvalid("metadata client constructor is unavailable")
 		}
-		return original.JiraClient()
+		return original.JiraClient(ctx)
 	})
 	opts.withoutSpinner = true
 	out.Results = make([]envelope.ResourceResult[envelope.CachePrimeOutput], len(selected))

@@ -317,7 +317,7 @@ func runCommentAdd(ctx context.Context, deps Deps, inv command.Invocation, opts 
 		return zero, err
 	}
 
-	client, err := newClient()
+	client, err := newClient(ctx)
 	if err != nil {
 		return zero, err
 	}

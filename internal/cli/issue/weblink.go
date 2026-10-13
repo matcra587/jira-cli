@@ -117,7 +117,7 @@ func newWeblinkList(deps Deps) *cobra.Command {
 // is its own URL, and the issue keys are the section headers.
 func runWeblinkList(ctx context.Context, deps Deps, keys []string, parallelism int) (envelope.IssueWeblinkListOutput, error) {
 	var zero envelope.IssueWeblinkListOutput
-	client, err := deps.JiraClient()
+	client, err := deps.JiraClient(ctx)
 	if err != nil {
 		return zero, err
 	}

@@ -27,8 +27,8 @@ type MetadataScope struct {
 // PrimeDeps separates offline scope inspection from authenticated collection.
 // Board decoding stays with its owning package, avoiding a dependency cycle.
 type PrimeDeps struct {
-	Scope        func(local bool) (MetadataScope, error)
-	JiraClient   func() (core.JiraClient, error)
+	Scope        func(ctx context.Context, local bool) (MetadataScope, error)
+	JiraClient   func(ctx context.Context) (core.JiraClient, error)
 	FetchBoards  func(context.Context, core.JiraClient, bool) (MetadataValue, error)
 	DecodeBoards func([]byte) (MetadataValue, error)
 }
@@ -109,7 +109,7 @@ func runPrime(ctx context.Context, deps PrimeDeps, inv command.Invocation, resou
 	if deps.Scope == nil {
 		return out, cacheIO(core.ErrCacheManagementUnsupported)
 	}
-	scope, err := deps.Scope(inv.DryRun)
+	scope, err := deps.Scope(ctx, inv.DryRun)
 	if err != nil {
 		return out, cacheIO(err)
 	}
@@ -134,7 +134,7 @@ func runPrime(ctx context.Context, deps PrimeDeps, inv command.Invocation, resou
 	if deps.JiraClient == nil {
 		return out, metadataInvalid("metadata client constructor is unavailable")
 	}
-	client, err := deps.JiraClient()
+	client, err := deps.JiraClient(ctx)
 	if err != nil {
 		return out, err
 	}

@@ -121,7 +121,7 @@ func TestReadTokenStopsAtItsByteLimit(t *testing.T) {
 }
 
 func tokenContextDeps() Deps {
-	return Deps{Site: func() (SiteInfo, error) {
+	return Deps{Site: func(ctx context.Context) (SiteInfo, error) {
 		return SiteInfo{BaseURL: "https://example.invalid", Email: "input-fixture@example.invalid"}, nil
 	}}
 }

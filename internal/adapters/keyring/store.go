@@ -1,6 +1,7 @@
 package keyring
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -26,6 +27,10 @@ const service = "jira-cli"
 // once the session is unlocked, any process running as the same user can
 // read it. Convenience storage with real at-rest protection, not an
 // isolation boundary.
+// The upstream keyring API is synchronous and has no context parameter. This
+// adapter rejects canceled contexts before entering the native call, but does
+// not claim that an in-flight OS-keyring call can be canceled. A native mutation's
+// actual return remains authoritative even if cancellation arrives during it.
 type Store struct{}
 
 // compile-time assertion that the adapter satisfies the seam it exists for.
@@ -38,7 +43,10 @@ func New() *Store { return &Store{} }
 // Configuration owns fallback to explicit environment credentials; the
 // adapter must retain the cause so authentication does not mistake a locked
 // or unavailable store for an account that has never logged in.
-func (s *Store) Get(account string) (string, error) {
+func (s *Store) Get(ctx context.Context, account string) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
 	secret, err := keyring.Get(service, account)
 	if errors.Is(err, keyring.ErrNotFound) {
 		return "", core.ErrNoCredential
@@ -50,7 +58,10 @@ func (s *Store) Get(account string) (string, error) {
 }
 
 // Set stores the credential for account, replacing any existing entry.
-func (s *Store) Set(account, secret string) error {
+func (s *Store) Set(ctx context.Context, account, secret string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if err := keyring.Set(service, account, secret); err != nil {
 		return fmt.Errorf("save credential to the system keyring: %w", err)
 	}
@@ -60,7 +71,10 @@ func (s *Store) Set(account, secret string) error {
 // Delete removes the credential. Removing one that is not there is not
 // an error: logout's job is to leave you logged out, and a caller that
 // runs it twice has not done anything wrong.
-func (s *Store) Delete(account string) error {
+func (s *Store) Delete(ctx context.Context, account string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	err := keyring.Delete(service, account)
 	if err == nil || errors.Is(err, keyring.ErrNotFound) {
 		return nil

@@ -40,7 +40,7 @@ func TestWeblinkNativeInputFailuresPrecedeClientConstruction(t *testing.T) {
 				inv.Stdin = errReader{err: errors.New("fixture input failed")}
 			}
 			constructed := false
-			deps := Deps{JiraClient: func() (core.JiraClient, error) {
+			deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 				constructed = true
 				return nil, errors.New("unexpected client construction")
 			}}

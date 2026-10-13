@@ -3,7 +3,6 @@ package issue
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"github.com/matcra587/jira-cli/internal/cli/command"
 	"github.com/matcra587/jira-cli/internal/core"
@@ -41,7 +40,7 @@ type selectorInputs struct {
 // credential resolution, and only the constructor form can express that.
 func resolveTargets(
 	ctx context.Context,
-	newClient func() (core.JiraClient, error),
+	newClient func(ctx context.Context) (core.JiraClient, error),
 	inv command.Invocation,
 	in selectorInputs,
 ) (core.JiraClient, command.Targets, error) {
@@ -82,8 +81,8 @@ func renderUnresolvedSelector(v *output.View, sel *envelope.SelectorSummary, ver
 // neither.
 //
 // In production this is belt and braces: root/deps.go already wires
-// JiraClient as sync.OnceValues, and view.go documents callers relying on
-// that. It earns its place for the fakes, which hand in a bare
+// JiraClient as command.OnceContextValues, and view.go documents callers
+// relying on that. It earns its place for the fakes, which hand in a bare
 // constructor with no such guarantee — so a test asserting "one client
 // per run" would otherwise be asserting something only the production
 // wiring provides. Wrapping an already-once function costs one extra
@@ -92,6 +91,6 @@ func renderUnresolvedSelector(v *output.View, sel *envelope.SelectorSummary, ver
 // Errors are memoized too, which is sync.OnceValues' own contract: a
 // second attempt after a failed credential resolution would fail
 // identically and only produce a second error to discard.
-func oneClient(newClient func() (core.JiraClient, error)) func() (core.JiraClient, error) {
-	return sync.OnceValues(newClient)
+func oneClient(newClient func(ctx context.Context) (core.JiraClient, error)) func(ctx context.Context) (core.JiraClient, error) {
+	return command.OnceContextValues(newClient)
 }

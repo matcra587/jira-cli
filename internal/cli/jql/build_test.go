@@ -24,7 +24,7 @@ func TestBuildDefaultsAndSharedFiltersNeedNoClient(t *testing.T) {
 		{command.JQLInput{Project: []string{"KEY"}, Assignee: []string{"me"}, OrderBy: "key", Descending: &desc}, `project in ("KEY") AND assignee = currentUser() ORDER BY key DESC`},
 		{command.JQLInput{Key: []string{"KEY-1..KEY-2"}, Created: "2026-01-01..2026-02-01", OrderBy: "updated", Descending: &desc}, `key in ("KEY-1", "KEY-2") AND created >= "2026-01-01" AND created <= "2026-02-01" ORDER BY updated DESC`},
 	} {
-		deps := Deps{JiraClient: func() (core.JiraClient, error) {
+		deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 			t.Error("local build constructed Jira client")
 			return nil, errors.New("unexpected")
 		}, CacheFor: func(string, string) (core.Cache, error) {

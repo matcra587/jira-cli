@@ -11,6 +11,8 @@ import (
 
 	"github.com/gechr/clib/theme"
 	koanftoml "github.com/knadh/koanf/parsers/toml"
+
+	"github.com/matcra587/jira-cli/internal/core"
 )
 
 // WritableSettingKeys lists scalar preferences and account metadata. Tokens
@@ -23,6 +25,8 @@ func WritableSettingKeys() []string {
 // access. An empty slice means a key has no enumerated completion candidates.
 func SettingValueChoices(key string) []string {
 	switch key {
+	case "secret_backend":
+		return []string{string(core.CredentialBackendKeyring), string(core.CredentialBackendEnvironment), string(core.CredentialBackendOnePassword)}
 	case "keyring", "read_only":
 		return []string{"true", "false"}
 	case "glyphs":
@@ -59,7 +63,7 @@ func parseSettingValue(key, value string) (any, error) {
 			return nil, err
 		}
 		return value, nil
-	case "email", "queries_path", "theme_path", "editor":
+	case "email", "queries_path", "theme_path", "editor", "onepassword_account", "onepassword_vault", "onepassword_item":
 		return value, nil
 	case "keyring", "read_only":
 		parsed, err := strconv.ParseBool(value)
@@ -79,6 +83,12 @@ func parseSettingValue(key, value string) (any, error) {
 			return nil, fmt.Errorf("workday_seconds must be a positive integer")
 		}
 		return parsed, nil
+	case "secret_backend":
+		var parsed core.CredentialBackend
+		if err := parsed.UnmarshalText([]byte(value)); err != nil {
+			return nil, err
+		}
+		return string(parsed), nil
 	case "glyphs":
 		var parsed GlyphSet
 		if err := parsed.UnmarshalText([]byte(value)); err != nil {

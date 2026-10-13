@@ -12,7 +12,10 @@ import (
 func TestWhoamiHelpDoesNotResolveCredentials(t *testing.T) {
 	t.Parallel()
 	deps := Deps{
-		Site: func() (SiteInfo, error) { t.Fatal("help resolved credentials"); return SiteInfo{}, nil },
+		Site: func(ctx context.Context) (SiteInfo, error) {
+			t.Fatal("help resolved credentials")
+			return SiteInfo{}, nil
+		},
 		ClientFor: func(string, string, string) (core.JiraClient, error) {
 			t.Fatal("help constructed a client")
 			return nil, nil
@@ -40,7 +43,7 @@ func TestCurrentIdentityHonorsCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 	deps := Deps{
-		Site: func() (SiteInfo, error) {
+		Site: func(ctx context.Context) (SiteInfo, error) {
 			return SiteInfo{BaseURL: "https://example.invalid", Email: "person@example.invalid", Token: "fixture-token"}, nil
 		},
 		ClientFor: func(string, string, string) (core.JiraClient, error) { return identityContextClient{}, nil },

@@ -18,9 +18,10 @@ func New(deps Deps) *cobra.Command {
 		Use:   "auth",
 		Short: "Authenticate with Jira",
 		Long: "Manage the credentials `jira` uses.\n\n" +
-			"The API token is stored in your operating system's credential " +
-			"store — Keychain on macOS, Credential Manager on Windows, Secret " +
-			"Service on Linux — never in the config file. The site and account " +
+			"The API token is stored in the selected credential store: the OS " +
+			"keyring by default, or the direct 1Password SDK when secret_backend " +
+			"is 1password. The env backend uses JIRA_API_TOKEN and cannot save tokens. " +
+			"Tokens never enter the config file. The site and account " +
 			"are stored WITH it, as one record: they are useless apart from " +
 			"the token and it is useless apart from them, which is what makes " +
 			"a first run a single command. `jira config` holds preferences.\n\n" +

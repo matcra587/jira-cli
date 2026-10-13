@@ -2,6 +2,7 @@ package root
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -23,8 +24,8 @@ func TestProfileCommandsStayLocalAndPreserveOtherProfiles(t *testing.T) {
 	calls := 0
 	deps := testDeps(t)
 	deps.Credentials = func() (core.CredentialStore, error) { calls++; return nil, errors.New("unexpected credentials") }
-	deps.JiraClient = func() (core.JiraClient, error) { calls++; return nil, errors.New("unexpected Jira") }
-	deps.Cache = func() (core.Cache, error) { calls++; return nil, errors.New("unexpected cache") }
+	deps.JiraClient = func(context.Context) (core.JiraClient, error) { calls++; return nil, errors.New("unexpected Jira") }
+	deps.Cache = func(context.Context) (core.Cache, error) { calls++; return nil, errors.New("unexpected cache") }
 	run := func(args ...string) []byte {
 		t.Helper()
 		args = append(args, "--config", path, "--output=json", "--no-input")

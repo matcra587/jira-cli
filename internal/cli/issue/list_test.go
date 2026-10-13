@@ -95,7 +95,7 @@ func onePage(results *jira.SearchResults) []core.IssueSearchRead {
 // CountIssues (f.countCalls) are both never called.
 func TestRunListWebBuildsURLWithoutSearching(t *testing.T) {
 	fake := &fakeListClient{baseURL: "https://example.atlassian.net"}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	var calls []recordedOpen
 	out, err := runListWeb(t.Context(), deps, `project = ABC`, fakeOpener(&calls, nil))
@@ -124,7 +124,7 @@ func TestRunListWebBuildsURLWithoutSearching(t *testing.T) {
 // scheme+host URL.
 func TestRunListWebRejectsUnparsableSite(t *testing.T) {
 	fake := &fakeListClient{baseURL: "not-a-url"}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	var calls []recordedOpen
 	_, err := runListWeb(t.Context(), deps, "project = ABC", fakeOpener(&calls, nil))
@@ -141,7 +141,7 @@ func TestRunListWebRejectsUnparsableSite(t *testing.T) {
 // resolved format still gets the URL back, but never calls the opener.
 func TestRunListWebOpensOnlyForHumanOutput(t *testing.T) {
 	fake := &fakeListClient{baseURL: "https://example.atlassian.net"}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	var calls []recordedOpen
 	out, err := runListWeb(cli.WithFormat(t.Context(), output.FormatCompact), deps, "project = ABC", fakeOpener(&calls, nil))
@@ -158,7 +158,7 @@ func TestRunListWebOpensOnlyForHumanOutput(t *testing.T) {
 
 func TestRunListPassesComposedJQLThrough(t *testing.T) {
 	fake := &fakeListClient{pages: onePage(&jira.SearchResults{IsLast: jira.NullableOf(true), Issues: jira.NullableOf([]jira.IssueBean{})})}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	if _, _, err := runList(t.Context(), deps, `project in ("ABC")`, nil, "", listWalk{limit: 25}); err != nil {
 		t.Fatalf("runList: %v", err)
@@ -174,7 +174,7 @@ func TestRunListPassesComposedJQLThrough(t *testing.T) {
 // --next-page-token rides straight through as the starting cursor.
 func TestRunListMapsLimitAndNextPageToken(t *testing.T) {
 	fake := &fakeListClient{pages: onePage(&jira.SearchResults{IsLast: jira.NullableOf(true), Issues: jira.NullableOf([]jira.IssueBean{})})}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	if _, _, err := runList(t.Context(), deps, "", nil, "cursor-abc", listWalk{limit: 10}); err != nil {
 		t.Fatalf("runList: %v", err)
@@ -195,7 +195,7 @@ func TestRunListMapsLimitAndNextPageToken(t *testing.T) {
 // own default is "id" only, which would render an empty table.
 func TestRunListUsesDefaultFieldsWhenNoneGiven(t *testing.T) {
 	fake := &fakeListClient{pages: onePage(&jira.SearchResults{IsLast: jira.NullableOf(true), Issues: jira.NullableOf([]jira.IssueBean{})})}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	if _, _, err := runList(t.Context(), deps, "", nil, "", listWalk{limit: 50}); err != nil {
 		t.Fatalf("runList: %v", err)
@@ -220,7 +220,7 @@ func TestRunListUsesDefaultFieldsWhenNoneGiven(t *testing.T) {
 // overrides the table-shaped default rather than being merged with it.
 func TestRunListRespectsExplicitFields(t *testing.T) {
 	fake := &fakeListClient{pages: onePage(&jira.SearchResults{IsLast: jira.NullableOf(true), Issues: jira.NullableOf([]jira.IssueBean{})})}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	if _, _, err := runList(t.Context(), deps, "", []string{"priority"}, "", listWalk{limit: 50}); err != nil {
 		t.Fatalf("runList: %v", err)
@@ -231,7 +231,7 @@ func TestRunListRespectsExplicitFields(t *testing.T) {
 }
 
 func TestRunListRejectsNegativeLimit(t *testing.T) {
-	deps := Deps{JiraClient: func() (core.JiraClient, error) {
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 		t.Fatal("JiraClient constructed for a request that should have been rejected before any I/O")
 		return nil, nil
 	}}
@@ -248,7 +248,7 @@ func TestRunListRejectsNegativeLimit(t *testing.T) {
 // a violation of it rather than silently produce an empty-but-successful
 // page.
 func TestRunListFailsLoudlyOnNilResults(t *testing.T) {
-	deps := Deps{JiraClient: func() (core.JiraClient, error) {
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 		return &fakeListClient{pages: []core.IssueSearchRead{{Results: nil}}}, nil
 	}}
 
@@ -264,7 +264,7 @@ func TestRunListFailsLoudlyOnNilResults(t *testing.T) {
 // many" without paying for "which ones".
 func TestRunCountReturnsEstimateWithoutFetchingIssues(t *testing.T) {
 	fake := &fakeListClient{countRead: core.IssueCountRead{Count: 4321}}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	out, err := runCount(t.Context(), deps, `project in ("ABC")`)
 	if err != nil {
@@ -294,7 +294,7 @@ func TestRunCountReturnsEstimateWithoutFetchingIssues(t *testing.T) {
 // back to.
 func TestRunCountPropagatesClientError(t *testing.T) {
 	fake := &fakeListClient{countErr: errors.New("boom")}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	_, err := runCount(t.Context(), deps, "project = ABC")
 	if err == nil {
@@ -324,7 +324,7 @@ func TestRunListSkipsCountCallWhenIsLast(t *testing.T) {
 		IsLast: jira.NullableOf(true),
 		Issues: jira.NullableOf([]jira.IssueBean{issueBean("ABC-1")}),
 	})}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	_, estimate, err := runList(humanContext(t), deps, "", nil, "", listWalk{limit: 50})
 	if err != nil {
@@ -344,7 +344,7 @@ func TestRunListSkipsCountCallWhenIsLast(t *testing.T) {
 // the estimate runList hands back.
 func TestRunListFetchesCountWhenMoreExistsAndHuman(t *testing.T) {
 	fake := &fakeListClient{pages: morePage(), countRead: core.IssueCountRead{Count: 1234}}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	_, estimate, err := runList(humanContext(t), deps, `project in ("ABC")`, nil, "", listWalk{limit: 1})
 	if err != nil {
@@ -365,7 +365,7 @@ func TestRunListFetchesCountWhenMoreExistsAndHuman(t *testing.T) {
 // the fake, the only way to prove a call did NOT happen.
 func TestRunListSkipsCountCallForMachineOutput(t *testing.T) {
 	fake := &fakeListClient{pages: morePage()}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	ctx := cli.WithFormat(t.Context(), output.FormatJSON)
 	_, estimate, err := runList(ctx, deps, "", nil, "", listWalk{limit: 1})
@@ -388,7 +388,7 @@ func TestRunListSkipsCountCallForMachineOutput(t *testing.T) {
 // separately by the render-level tests above).
 func TestRunListDegradesWhenCountCallFails(t *testing.T) {
 	fake := &fakeListClient{pages: morePage(), countErr: errors.New("boom")}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	out, estimate, err := runList(humanContext(t), deps, "", nil, "", listWalk{limit: 1})
 	if err != nil {

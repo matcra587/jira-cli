@@ -35,20 +35,27 @@ Keyring `credential_id` is a stable public UUID; `default` retains the old fixed
 slot when adding a profile to flat settings. A missing named locator never reads
 that slot. Profile creation assigns its locator before login. An authored profile
 without a locator must receive a unique UUID before a keyring login can save.
-
-1Password and legacy migration/rollback remain separate delivery requirements.
+1Password keeps its provider-local slot and exact vault/item owned-field boundary.
+Distinct profile names do not isolate a shared physical credential location.
 
 ## Resolution and provenance
 
-`default < file < keyring < env < flag` is the order defined by `config.Layers`.
+`default < file < selected credential store < env < flag` is the precedence
+order. `config.Layers` names keyring and 1password provenance; an invocation
+selects one store, never both.
 
-*   `Load` reads without writing. A missing default file is normal; an absent
-    file selected through `--config` is an error for settings reads.
+*   `Load(options)` reads local settings without writing or consulting a
+    credential store. `Resolve(ctx, options, store)` explicitly adds credential
+    resolution through the same layer owner and forwards the operation context.
+    Cancellation and deadline errors stop resolution even with an explicit token;
+    ordinary backend failures retain environment fallback. Neither API stores a
+    context in options. A missing default file is normal;
+    an absent file selected through `--config` is an error for settings reads.
 *   `Options.Path` overrides the global `--config` selection, which overrides
     `DefaultPath`. The path selects the file; it is not a setting value.
 *   A supplied credential store contributes its complete site, account and
     token tuple. If the effective site differs from that stored site after
-    normalization, resolution removes the entire keyring layer and warns.
+    normalization, resolution removes the entire credential layer and warns.
     Never send a stored token to a site selected from another layer.
 *   `JIRA_*` overlays supported keys only. Empty values are unset; unknown
     variables and `JIRA_ALIASES` are ignored. File aliases remain literal keys.
@@ -62,7 +69,8 @@ without a locator must receive a unique UUID before a keyring login can save.
     without credentials. This does not waive decode or save-time validation.
 
 `config list` reports effective values, their winning sources, the selected
-profile and path. Its credential constructor respects `keyring=false`. `config get KEY`
+profile and path. Its credential constructor selects `secret_backend`; `keyring=false`
+disables only the default keyring backend. `config get KEY`
 reads only the authored file, preserving absent versus explicit empty, false
 and zero. Both use the configuration owner's redaction, including credential
 userinfo in URLs; neither prints a token.
@@ -128,8 +136,39 @@ gate or credential dependency for file-only work.
 
 Credentials belong to `auth login`, the credential-store adapter and the shared
 client construction path. Never add a setting command that persists a token.
-The current backend is the OS keyring; environment credentials may override it.
-Do not advertise 1Password or provider-to-provider `auth migrate` as implemented.
+`secret_backend` selects `keyring` (default), `env` or `1password`. The environment
+backend reads no persistent store; `auth login` cannot save a token there. The
+1Password adapter requires explicit `onepassword_vault` and `onepassword_item`
+coordinates. Service-account authorization comes only from
+`OP_SERVICE_ACCOUNT_TOKEN`; otherwise `onepassword_account` selects desktop
+integration. Neither service-account nor Jira tokens belong in config or argv.
+Environment Jira credentials retain higher precedence. Cancellation/deadline
+causes are terminal even when a higher-priority token exists.
+Stored tokens remain bound to the verified site and account. Changing only the
+effective email discards the entire stored layer; compare trimmed emails without
+case sensitivity. Explicit environment email/token pairs retain precedence.
+
+SDK reads and writes manage only stable field ID `jira-cli-credential`. Never
+infer ownership from title/tags or delete a whole item. Names require a unique
+exact match; existing IDs select identities directly. New selected items are
+created only during explicit login; metadata/unmanaged fields stay intact.
+SDK failures retain inspectable causes but public errors suppress their text.
+
+Selection constructs no SDK client. Stores share a lazy client per invocation.
+stored `config get` and local `config set` never open the selected store.
+Effective `config list` deliberately resolves it to report identity/provenance;
+do not claim all configuration inspection is credential-free.
+Queued store operations and SDK initializer admission honor cancellation. The
+upstream cold WASM initialization and desktop IPC remain synchronous in parts.
+Normalize caller cancellation causes lost by the SDK, preserve acknowledged
+started writes, and never start a detached worker to simulate cancellation.
+The upstream desktop core pins its first account; refuse another account in the
+same process, including after failed initialization. Service accounts work in
+no-CGO builds; Linux/macOS desktop authorization requires CGO. Actual platform
+acceptance is separate from cross-compilation.
+
+Do not advertise legacy migration/rollback as delivered until its separate
+owners and acceptance evidence exist.
 
 ## Saved queries
 

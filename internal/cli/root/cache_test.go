@@ -2,6 +2,7 @@ package root
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"testing"
@@ -30,11 +31,11 @@ func TestCacheClearUsesExplicitScopeWithoutAuthentication(t *testing.T) {
 				t.Fatal(err)
 			}
 			deps := testDeps(t)
-			deps.Cache = func() (core.Cache, error) {
+			deps.Cache = func(ctx context.Context) (core.Cache, error) {
 				t.Error("local management opened credential-backed cache")
 				return nil, errors.New("unexpected")
 			}
-			deps.JiraClient = func() (core.JiraClient, error) {
+			deps.JiraClient = func(ctx context.Context) (core.JiraClient, error) {
 				t.Error("local management constructed Jira client")
 				return nil, errors.New("unexpected")
 			}

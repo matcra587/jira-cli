@@ -31,7 +31,8 @@ func newList(deps Deps) *cobra.Command {
 			"*why* a setting is what it is.\n\n" +
 			"Secrets are never printed. The config file path is shown so there " +
 			"is no separate command for finding it. If the credential store cannot " +
-			"be read, other layers remain visible and a warning identifies the unavailable layer.",
+			"be read, other layers remain visible and a warning identifies the unavailable layer. " +
+			"Cancellation and timeout stop the read instead of falling back to another credential layer.",
 		Example: "# every setting, with its source\n" +
 			"$ jira config list\n\n" +
 			"# just the effective values, for a script\n" +
@@ -39,7 +40,7 @@ func newList(deps Deps) *cobra.Command {
 			"# which settings the environment is overriding\n" +
 			"$ jira config list --output=json --jq '.data.settings[] | select(.source == \"env\") | .key'",
 		Human: renderHuman,
-		Run: func(_ context.Context, _ command.Invocation) (envelope.ConfigListOutput, error) {
+		Run: func(ctx context.Context, _ command.Invocation) (envelope.ConfigListOutput, error) {
 			// Credentials wired in deliberately: this command publishes a
 			// "keyring" layer, and a settings view blind to a layer it
 			// names would report base_url unset while every other
@@ -52,7 +53,7 @@ func newList(deps Deps) *cobra.Command {
 				}
 				return envelope.ConfigListOutput{}, err
 			}
-			resolved, err := cfg.Load(cfg.Options{Credentials: store})
+			resolved, err := cfg.Resolve(ctx, cfg.Options{}, store)
 			if err != nil {
 				if errors.Is(err, cfg.ErrFileInvalid) {
 					return envelope.ConfigListOutput{}, localIO("read config", err)

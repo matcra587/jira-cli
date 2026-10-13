@@ -108,7 +108,7 @@ func TestGuideRetrievalModesAndDoors(t *testing.T) {
 								t.Fatal("index omitted required routing metadata")
 							}
 						}
-						if !slices.Equal(slugs, []string{"discover-cli", "machine-output", "raw-api", "jql-discovery", "safe-mutation", "cache-metadata", "export-guides", "configure-theme", "update-cli"}) {
+						if !slices.Equal(slugs, []string{"discover-cli", "machine-output", "raw-api", "jql-discovery", "safe-mutation", "cache-metadata", "export-guides", "configure-credentials", "configure-theme", "update-cli"}) {
 							t.Fatal("index lost canonical guide order or membership")
 						}
 					}
@@ -228,7 +228,7 @@ func TestGuideHelpExamplesExecute(t *testing.T) {
 					}
 				case 2:
 					out := readGuideOutput(t, stdout, "compact", cmd.operation)
-					if out.Kind != "all" || strings.Count(out.Document, "\f\n") != 8 {
+					if out.Kind != "all" || strings.Count(out.Document, "\f\n") != 9 {
 						t.Fatal("complete guide example lost unambiguous canonical boundaries")
 					}
 				}
@@ -244,7 +244,7 @@ func TestGuideHelpExamplesExecute(t *testing.T) {
 func TestGuideCompletionIsLocalAndCanonical(t *testing.T) {
 	t.Parallel()
 	stdout, stderr, exit := runBinaryEnv(t, []string{"JIRA_KEYRING=false", "JIRA_API_TOKEN=", "JIRA_EMAIL="}, "--@complete=guide", "--@shell=fish")
-	want := "discover-cli\tDiscover commands before acting\nmachine-output\tSelect and inspect machine output\nraw-api\tSend an explicit scoped Jira API request\njql-discovery\tDiscover JQL metadata and validate explicit queries\nsafe-mutation\tPreview and verify a Jira change\ncache-metadata\tPrime and inspect scoped metadata\nexport-guides\tInstall the CLI's guides as agent skills\nconfigure-theme\tSelect built-in and custom terminal themes\nupdate-cli\tInspect and update the installed CLI\n"
+	want := "discover-cli\tDiscover commands before acting\nmachine-output\tSelect and inspect machine output\nraw-api\tSend an explicit scoped Jira API request\njql-discovery\tDiscover JQL metadata and validate explicit queries\nsafe-mutation\tPreview and verify a Jira change\ncache-metadata\tPrime and inspect scoped metadata\nexport-guides\tInstall the CLI's guides as agent skills\nconfigure-credentials\tSelect and verify credential storage\nconfigure-theme\tSelect built-in and custom terminal themes\nupdate-cli\tInspect and update the installed CLI\n"
 	if exit != 0 || stderr != "" || stdout != want {
 		t.Fatalf("guide completion failed or lost routing metadata: exit=%d stderr=%q stdout=%q", exit, stderr, stdout)
 	}
@@ -451,7 +451,7 @@ func TestEmbeddedGuideRunRecipesExecute(t *testing.T) {
 	if _, err := os.Stat(filepath.Dir(newSettings)); !os.IsNotExist(err) {
 		t.Fatal("published initialization preview created settings or its parent")
 	}
-	if count != 82 || inputMetadataReads.Load() != 4 || reads.Load() != 2 || searches.Load() != 1 || userSearches.Load() != 3 || boardReads.Load() != 3 || projectReads.Load() != 3 || worklogReads.Load() != 1 || taskReads.Load() != 1 || jqlParses.Load() != 3 || jqlReferences.Load() != 1 || transitionReads.Load() != 1 {
+	if count != 87 || inputMetadataReads.Load() != 4 || reads.Load() != 2 || searches.Load() != 1 || userSearches.Load() != 3 || boardReads.Load() != 3 || projectReads.Load() != 3 || worklogReads.Load() != 1 || taskReads.Load() != 1 || jqlParses.Load() != 3 || jqlReferences.Load() != 1 || transitionReads.Load() != 1 {
 		t.Fatalf("guide recipe coverage changed: recipes=%d GET=%d search=%d user-search=%d boards=%d projects=%d worklogs=%d", count, reads.Load(), searches.Load(), userSearches.Load(), boardReads.Load(), projectReads.Load(), worklogReads.Load())
 	}
 }

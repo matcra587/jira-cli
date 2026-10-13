@@ -2,6 +2,7 @@ package root
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"testing"
 
@@ -19,7 +20,7 @@ func TestLocalJQLBuildAndDiscoveryNeverConstructCredentialsOrClient(t *testing.T
 	} {
 		t.Run(args[0]+"/"+args[len(args)-1], func(t *testing.T) {
 			deps := testDeps(t)
-			deps.JiraClient = func() (core.JiraClient, error) {
+			deps.JiraClient = func(ctx context.Context) (core.JiraClient, error) {
 				t.Error("local build constructed Jira client")
 				return nil, errors.New("unexpected")
 			}
@@ -27,7 +28,7 @@ func TestLocalJQLBuildAndDiscoveryNeverConstructCredentialsOrClient(t *testing.T
 				t.Error("local build opened credentials")
 				return nil, errors.New("unexpected")
 			}
-			deps.Cache = func() (core.Cache, error) {
+			deps.Cache = func(ctx context.Context) (core.Cache, error) {
 				t.Error("local build opened credential-backed cache")
 				return nil, errors.New("unexpected")
 			}

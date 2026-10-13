@@ -11,11 +11,7 @@ import (
 	"github.com/matcra587/jira-cli/internal/envelope"
 )
 
-func recordTransitionHints(ctx context.Context, deps Deps, outcomes []transitionReadOutcome) {
-	if deps.Cache == nil {
-		return
-	}
-	var store core.Cache
+func recordTransitionHints(ctx context.Context, store core.Cache, outcomes []transitionReadOutcome) {
 	for _, outcome := range outcomes {
 		if outcome.result.OK {
 			if ctx.Err() != nil {
@@ -27,9 +23,6 @@ func recordTransitionHints(ctx context.Context, deps Deps, outcomes []transition
 		// A completed non-cancellation failure invalidates its old observation
 		// even when another issue later cancels the command. Canceled or unstarted
 		// reads do not establish that the previous workflow changed.
-		if store == nil {
-			store = issueCache(deps)
-		}
 		var err error
 		if outcome.result.OK {
 			err = cachecmd.RecordTransitionHints(ctx, store, outcome.result.Issue.Key, outcome.result.Data, outcome.observed)
@@ -42,20 +35,23 @@ func recordTransitionHints(ctx context.Context, deps Deps, outcomes []transition
 	}
 }
 
-func invalidateTransitionHints(deps Deps, results []envelope.KeyedResult[envelope.IssueTransitionData]) {
-	if deps.Cache == nil {
-		return
-	}
-	var store core.Cache
+func invalidateTransitionHints(store core.Cache, results []envelope.KeyedResult[envelope.IssueTransitionData]) {
 	for _, row := range results {
 		if row.Data == nil || !row.Data.Attempted {
 			continue
-		}
-		if store == nil {
-			store = issueCache(deps)
 		}
 		if err := cachecmd.ForgetTransitionHints(store, row.Issue.Key); err != nil {
 			clog.Debug().Err(err).Msg("transition hints could not be invalidated")
 		}
 	}
+}
+
+// transitionHintCache resolves authenticated public scope before remote work.
+// Completed failed reads and attempted writes can then invalidate known stale
+// hints without reopening credentials after a later command cancellation.
+func transitionHintCache(ctx context.Context, deps Deps) core.Cache {
+	if ctx.Err() != nil {
+		return noCache{}
+	}
+	return issueCache(ctx, deps)
 }

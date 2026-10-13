@@ -48,7 +48,7 @@ func TestWeblinkDeadlinePublishesJoinedOutcomes(t *testing.T) {
 		t.Run(verb, func(t *testing.T) {
 			t.Parallel()
 			client := &weblinkReceiptSeamClient{late: true, link: &jira.RemoteIssueLink{ID: jira.NullableOf(int64(10042))}}
-			deps := Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }}
+			deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }}
 			cmd := newWeblinkList(deps)
 			if verb == "add" {
 				cmd = newWeblinkAdd(deps)
@@ -90,7 +90,7 @@ func TestWeblinkTotalFailurePreservesOriginalTransportCause(t *testing.T) {
 			client := &weblinkReceiptSeamClient{cause: cause}
 			var err error
 			if verb == "list" {
-				out, failed := runWeblinkList(t.Context(), Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }}, []string{"KEY-1", "KEY-2"}, 1)
+				out, failed := runWeblinkList(t.Context(), Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }}, []string{"KEY-1", "KEY-2"}, 1)
 				err = failed
 				if len(out.Results) != 2 || out.Results[0].OK || out.Results[1].OK {
 					t.Fatal("remote-link read discarded total-failure outcomes")

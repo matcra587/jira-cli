@@ -136,7 +136,7 @@ func newWatchersList(deps Deps) *cobra.Command {
 // page — and the section headers are the keys the caller typed.
 func runWatchersList(ctx context.Context, deps Deps, keys []string, parallelism int) (envelope.IssueWatchersListOutput, error) {
 	var zero envelope.IssueWatchersListOutput
-	client, err := deps.JiraClient()
+	client, err := deps.JiraClient(ctx)
 	if err != nil {
 		return zero, err
 	}

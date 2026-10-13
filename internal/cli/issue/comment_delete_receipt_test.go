@@ -32,7 +32,7 @@ func TestCommentDeleteRequiresExplicitSeamAcknowledgement(t *testing.T) {
 		t.Run(map[bool]string{false: "zero without error", true: "unacknowledged cancellation"}[cause != nil], func(t *testing.T) {
 			t.Parallel()
 			client := &unacknowledgedCommentDeleteClient{cause: cause}
-			out, err := runCommentDelete(t.Context(), Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }}, invocation(false, "KEY-1", "10042"), true)
+			out, err := runCommentDelete(t.Context(), Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }}, invocation(false, "KEY-1", "10042"), true)
 			if out.CommentID != "" || out.Issue.Key != "" || err == nil {
 				t.Fatal("comment deletion published an identity without an acknowledgement")
 			}
@@ -56,7 +56,7 @@ func (f *lateCommentDeleteClient) DeleteComment(ctx context.Context, _, _ string
 func TestCommentDeleteDeadlinePublishesJoinedAcknowledgement(t *testing.T) {
 	t.Parallel()
 	client := &lateCommentDeleteClient{}
-	cmd := newCommentDelete(Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }})
+	cmd := newCommentDelete(Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }})
 	if err := cmd.Flags().Set("force", "true"); err != nil {
 		t.Fatal(err)
 	}

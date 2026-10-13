@@ -9,6 +9,8 @@ import (
 
 	"github.com/google/uuid"
 	koanftoml "github.com/knadh/koanf/parsers/toml"
+
+	"github.com/matcra587/jira-cli/internal/core"
 )
 
 // ProfileFormatVersion identifies the named-profile document format.
@@ -161,11 +163,18 @@ func validateProfileFields(fields map[string]any, values bool) error {
 }
 
 func profileCredentialLocation(fields map[string]any, decoded *Config) string {
-	if disabled, ok := fields["keyring"].(bool); ok && !disabled {
-		return ""
-	}
-	if decoded.CredentialID != "" {
-		return "keyring:" + decoded.CredentialID
+	switch decoded.SecretBackend {
+	case "", core.CredentialBackendKeyring:
+		if disabled, ok := fields["keyring"].(bool); ok && !disabled {
+			return ""
+		}
+		if decoded.CredentialID != "" {
+			return "keyring:" + decoded.CredentialID
+		}
+	case core.CredentialBackendOnePassword:
+		if decoded.OnePasswordVault != "" && decoded.OnePasswordItem != "" {
+			return "1password:" + decoded.OnePasswordAccount + "\x00" + decoded.OnePasswordVault + "\x00" + decoded.OnePasswordItem
+		}
 	}
 	return ""
 }

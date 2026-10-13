@@ -55,7 +55,7 @@ func projectPage(start int, final bool, keys ...string) core.BoardProjectRead {
 }
 
 func depsFor(client core.JiraClient, store core.Cache) Deps {
-	return Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }, Cache: func() (core.Cache, error) { return store, nil }}
+	return Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }, Cache: func(ctx context.Context) (core.Cache, error) { return store, nil }}
 }
 
 func TestBoardListDrainsBeforeWindowAndEnrichesProjects(t *testing.T) {
@@ -98,7 +98,7 @@ func TestBoardListDrainsBeforeWindowAndEnrichesProjects(t *testing.T) {
 	if err != nil || out.Count != 1 || out.Pagination.Total != 2 || out.Pagination.IsLast || !out.Pagination.Complete || out.Truncated || out.FromCache || !out.CacheSaved || out.Boards[0].ID != 42 || !reflect.DeepEqual(out.Boards[0].ProjectKeys, []string{"KEY2", "KEY10"}) || !out.Boards[0].ProjectsComplete || !reflect.DeepEqual(offsets, []int{0, 1}) || !reflect.DeepEqual(projectOffsets, []int{0, 1}) {
 		t.Fatalf("board drain/enrichment/window changed: %+v %v offsets=%v projects=%v", out, err, offsets, projectOffsets)
 	}
-	cached, err := runList(t.Context(), Deps{Cache: func() (core.Cache, error) { return &store, nil }, JiraClient: func() (core.JiraClient, error) {
+	cached, err := runList(t.Context(), Deps{Cache: func(ctx context.Context) (core.Cache, error) { return &store, nil }, JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 		t.Error("fresh cache constructed a client")
 		return nil, errors.New("unexpected client")
 	}}, options{all: true})
@@ -124,7 +124,7 @@ func TestBoardListEmptyIsCachedAndCacheFailureDegrades(t *testing.T) {
 	if calls != 1 {
 		t.Fatalf("empty cache was not reusable: %d", calls)
 	}
-	out, err := runList(t.Context(), Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }, Cache: func() (core.Cache, error) { return nil, errors.New("full disk") }}, options{})
+	out, err := runList(t.Context(), Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }, Cache: func(ctx context.Context) (core.Cache, error) { return nil, errors.New("full disk") }}, options{})
 	if err != nil || out.CacheSaved || out.CacheSourceState != "disabled" || out.Boards == nil {
 		t.Fatalf("cache failure disabled a read or claimed storage: %+v %v", out, err)
 	}

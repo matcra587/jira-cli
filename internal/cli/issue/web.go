@@ -177,7 +177,7 @@ func issueBrowseTarget(ctx context.Context, deps Deps, key string) (string, erro
 			return "", err
 		}
 	} else if deps.JiraClient != nil {
-		client, err := deps.JiraClient()
+		client, err := deps.JiraClient(ctx)
 		if err != nil {
 			return "", err
 		}

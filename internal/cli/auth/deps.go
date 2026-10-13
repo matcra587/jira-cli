@@ -30,11 +30,11 @@ type Deps struct {
 	ClientFor func(site, email, token string) (core.JiraClient, error)
 	// Site returns the configured base URL and account email, and
 	// whether a token is already resolvable.
-	Site func() (SiteInfo, error)
+	Site func(ctx context.Context) (SiteInfo, error)
 	// SiteWithoutStore resolves the same thing with the credential store
 	// withheld, so logout can report what would still authenticate once
 	// the stored record is gone.
-	SiteWithoutStore func() (SiteInfo, error)
+	SiteWithoutStore func(ctx context.Context) (SiteInfo, error)
 	// Confirm asks a yes/no question and reports the answer.
 	//
 	// Injected for the same reason the rest of this struct is, and for
@@ -73,7 +73,7 @@ func verify(ctx context.Context, client core.JiraClient) (core.UserRead, error) 
 // currentIdentity resolves credentials and reads the account Jira authenticates.
 // Status and identity inspection share the same validation and transport owner.
 func currentIdentity(ctx context.Context, deps Deps) (SiteInfo, core.UserRead, error) {
-	site, err := deps.Site()
+	site, err := deps.Site(ctx)
 	if err != nil {
 		return SiteInfo{}, core.UserRead{}, err
 	}

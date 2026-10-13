@@ -44,7 +44,7 @@ func page(t *testing.T, raw string) core.IssueSearchRead {
 }
 
 func clientDeps(c *searchClient) Deps {
-	return Deps{JiraClient: func() (core.JiraClient, error) { return c, nil }}
+	return Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return c, nil }}
 }
 
 func TestEpicListPreservesSparsePagesFieldsAndFailurePrefix(t *testing.T) {
@@ -215,7 +215,10 @@ func TestEpicQueriesQuoteProjectsAndRejectControlsBeforeClient(t *testing.T) {
 				{args: []string{"--all", "--limit=1"}, code: cli.CodeFlagConflict},
 			} {
 				clients := 0
-				deps := Deps{JiraClient: func() (core.JiraClient, error) { clients++; return nil, errors.New("unexpected client") }}
+				deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) {
+					clients++
+					return nil, errors.New("unexpected client")
+				}}
 				cmd := New(deps)
 				cmd.SetArgs(append([]string{verb}, tc.args...))
 				cmd.SilenceUsage, cmd.SilenceErrors = true, true

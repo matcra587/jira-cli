@@ -1,6 +1,7 @@
 package contract
 
 import (
+	"context"
 	"errors"
 	"io"
 	"slices"
@@ -68,7 +69,7 @@ func TestCompletionHelpWalkUsesEveryRealCommand(t *testing.T) {
 	t.Cleanup(func() { clog.SetDefault(originalLogger) })
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	deps := &root.Deps{
-		JiraClient: func() (core.JiraClient, error) {
+		JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 			return nil, errors.New("help inventory must not construct a Jira client")
 		},
 		Detect: func() cli.Detection { return cli.Detection{Format: output.FormatJSON} },

@@ -238,7 +238,7 @@ func runDelete(ctx context.Context, deps Deps, inv command.Invocation, opts dele
 		return zero, err
 	}
 
-	client, err := newClient()
+	client, err := newClient(ctx)
 	if err != nil {
 		return zero, err
 	}

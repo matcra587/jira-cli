@@ -55,12 +55,12 @@ func (s *inspectionStore) Forget(string) error {
 
 func inspectionDeps(t *testing.T, store core.Cache) PrimeDeps {
 	t.Helper()
-	return PrimeDeps{Scope: func(local bool) (MetadataScope, error) {
+	return PrimeDeps{Scope: func(ctx context.Context, local bool) (MetadataScope, error) {
 		if !local {
 			t.Fatal("inspection requested credential-backed scope")
 		}
 		return MetadataScope{Store: store, Site: "https://example.com", Email: "person@example.com"}, nil
-	}, JiraClient: func() (core.JiraClient, error) {
+	}, JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 		t.Fatal("inspection constructed Jira client")
 		return nil, nil
 	}}
@@ -83,7 +83,7 @@ func TestCacheInspectPreflightNeverOpensStorage(t *testing.T) {
 			if tc.cancel {
 				cancel()
 			}
-			deps := PrimeDeps{Scope: func(bool) (MetadataScope, error) {
+			deps := PrimeDeps{Scope: func(ctx context.Context, _ bool) (MetadataScope, error) {
 				t.Fatal("refused input opened storage")
 				return MetadataScope{}, nil
 			}}
@@ -212,11 +212,11 @@ func TestCacheInspectRetainsPartialInventoryAndLateCanceledReads(t *testing.T) {
 			}
 			deps := inspectionDeps(t, store)
 			original := deps.Scope
-			deps.Scope = func(local bool) (MetadataScope, error) {
+			deps.Scope = func(ctx context.Context, local bool) (MetadataScope, error) {
 				if tc.constructorCancel {
 					cancel()
 				}
-				return original(local)
+				return original(ctx, local)
 			}
 			inv := command.Invocation{}
 			if tc.selectedResource {

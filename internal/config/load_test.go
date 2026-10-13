@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -499,9 +500,9 @@ func TestEnvironmentStillConvertsStrings(t *testing.T) {
 // brokenStore holds a record that cannot be parsed.
 type brokenStore struct{}
 
-func (brokenStore) Get(string) (string, error) { return "not-a-record", nil }
-func (brokenStore) Set(string, string) error   { return nil }
-func (brokenStore) Delete(string) error        { return nil }
+func (brokenStore) Get(ctx context.Context, _ string) (string, error) { return "not-a-record", nil }
+func (brokenStore) Set(ctx context.Context, _, _ string) error        { return nil }
+func (brokenStore) Delete(ctx context.Context, _ string) error        { return nil }
 
 // TestUnreadableCredentialsDoNotFailTheLoad is the guard on the brick.
 //
@@ -512,11 +513,9 @@ func (brokenStore) Delete(string) error        { return nil }
 // carry on without the layer and say so.
 func TestUnreadableCredentialsDoNotFailTheLoad(t *testing.T) {
 	t.Parallel()
-	resolved, err := config.Load(config.Options{
-		Path:        filepath.Join(t.TempDir(), "absent.toml"),
-		Environ:     func() []string { return []string{"JIRA_BASE_URL=https://env.example"} },
-		Credentials: brokenStore{},
-	})
+	resolved, err := config.Resolve(t.Context(), config.Options{Path: filepath.Join(t.TempDir(), "absent.toml"), Environ: func() []string {
+		return []string{"JIRA_BASE_URL=https://env.example"}
+	}}, brokenStore{})
 	if err != nil {
 		t.Fatalf("an unreadable credential record failed the whole load: %v", err)
 	}
@@ -534,9 +533,9 @@ func TestUnreadableCredentialsDoNotFailTheLoad(t *testing.T) {
 // tupleStore holds a complete record for one specific site.
 type tupleStore struct{ record string }
 
-func (t tupleStore) Get(string) (string, error) { return t.record, nil }
-func (tupleStore) Set(string, string) error     { return nil }
-func (tupleStore) Delete(string) error          { return nil }
+func (t tupleStore) Get(ctx context.Context, _ string) (string, error) { return t.record, nil }
+func (tupleStore) Set(ctx context.Context, _, _ string) error          { return nil }
+func (tupleStore) Delete(ctx context.Context, _ string) error          { return nil }
 
 const storedForCompany = `{"version":1,"site":"https://company.atlassian.net","email":"person@company.example","token":"STORED-SECRET"}`
 
@@ -549,11 +548,9 @@ const storedForCompany = `{"version":1,"site":"https://company.atlassian.net","e
 // which is exactly why the check has to be on the tuple.
 func TestStoredCredentialsNeverFollowTheSiteElsewhere(t *testing.T) {
 	t.Parallel()
-	resolved, err := config.Load(config.Options{
-		Path:        filepath.Join(t.TempDir(), "absent.toml"),
-		Environ:     func() []string { return []string{"JIRA_BASE_URL=https://attacker.example"} },
-		Credentials: tupleStore{record: storedForCompany},
-	})
+	resolved, err := config.Resolve(t.Context(), config.Options{Path: filepath.Join(t.TempDir(), "absent.toml"), Environ: func() []string {
+		return []string{"JIRA_BASE_URL=https://attacker.example"}
+	}}, tupleStore{record: storedForCompany})
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
@@ -577,11 +574,9 @@ func TestStoredCredentialsNeverFollowTheSiteElsewhere(t *testing.T) {
 // must not throw away a credential that does still apply.
 func TestStoredCredentialsApplyToTheirOwnSite(t *testing.T) {
 	t.Parallel()
-	resolved, err := config.Load(config.Options{
-		Path:        filepath.Join(t.TempDir(), "absent.toml"),
-		Environ:     func() []string { return nil },
-		Credentials: tupleStore{record: storedForCompany},
-	})
+	resolved, err := config.Resolve(t.Context(), config.Options{Path: filepath.Join(t.TempDir(), "absent.toml"), Environ: func() []string {
+		return nil
+	}}, tupleStore{record: storedForCompany})
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
@@ -598,13 +593,9 @@ func TestStoredCredentialsApplyToTheirOwnSite(t *testing.T) {
 // values were verified together and only mean anything together.
 func TestIncompleteStoredCredentialsAreNotUsed(t *testing.T) {
 	t.Parallel()
-	resolved, err := config.Load(config.Options{
-		Path: filepath.Join(t.TempDir(), "absent.toml"),
-		Environ: func() []string {
-			return []string{"JIRA_BASE_URL=https://other.example", "JIRA_EMAIL=someone@other.example"}
-		},
-		Credentials: tupleStore{record: `{"version":1,"site":"","email":"","token":"ORPHAN-SECRET"}`},
-	})
+	resolved, err := config.Resolve(t.Context(), config.Options{Path: filepath.Join(t.TempDir(), "absent.toml"), Environ: func() []string {
+		return []string{"JIRA_BASE_URL=https://other.example", "JIRA_EMAIL=someone@other.example"}
+	}}, tupleStore{record: `{"version":1,"site":"","email":"","token":"ORPHAN-SECRET"}`})
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
@@ -633,11 +624,9 @@ func TestStoredCredentialsSurviveASpellingDifference(t *testing.T) {
 	} {
 		t.Run(spelling, func(t *testing.T) {
 			t.Parallel()
-			resolved, err := config.Load(config.Options{
-				Path:        filepath.Join(t.TempDir(), "absent.toml"),
-				Environ:     func() []string { return []string{"JIRA_BASE_URL=" + spelling} },
-				Credentials: tupleStore{record: storedForCompany},
-			})
+			resolved, err := config.Resolve(t.Context(), config.Options{Path: filepath.Join(t.TempDir(), "absent.toml"), Environ: func() []string {
+				return []string{"JIRA_BASE_URL=" + spelling}
+			}}, tupleStore{record: storedForCompany})
 			if err != nil {
 				t.Fatalf("load: %v", err)
 			}

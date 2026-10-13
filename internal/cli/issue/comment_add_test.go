@@ -84,7 +84,7 @@ func (f *fakeCommentAddClient) postedKeys() []string {
 }
 
 func commentAddDeps(fake *fakeCommentAddClient) Deps {
-	return Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	return Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 }
 
 // adfBody is the fixture document every test here sends. The ADF route
@@ -129,7 +129,7 @@ func invocation(dryRun bool, keys ...string) command.Invocation {
 // what it does next.
 func TestCommentAddDryRunNeverBuildsAClient(t *testing.T) {
 	asked := false
-	deps := Deps{JiraClient: func() (core.JiraClient, error) {
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 		asked = true
 		return nil, errors.New("a dry run must not build a client")
 	}}

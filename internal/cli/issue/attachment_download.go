@@ -233,7 +233,7 @@ func runAttachmentDownload(ctx context.Context, deps Deps, inv command.Invocatio
 		}
 	}
 
-	client, err := deps.JiraClient()
+	client, err := deps.JiraClient(ctx)
 	if err != nil {
 		return zero, err
 	}

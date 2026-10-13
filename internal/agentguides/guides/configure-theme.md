@@ -11,9 +11,13 @@ order: 70
 
 Use `config theme` to inspect the stored preset and custom palette path. This
 reads file declarations only. Environment values and defaults never become
-stored values. `config list` shows effective values and their sources.
-These commands change no Jira resource. Theme inspection and selection require
-no credentials; explicit selections work in agent sessions and with `--no-input`.
+stored values. Inspection and selection through `config theme` require no
+credentials. Explicit selections work in agent sessions and with `--no-input`.
+`config list` shows effective values and their sources. It can open the selected
+credential store, as described in `configure-credentials`.
+These commands change no Jira resource.
+
+### Choose a preset or custom palette
 
 `--name` selects a bundled clib preset. Selecting a name clears an existing
 custom palette unless `--path` is also supplied. An empty name restores fallback

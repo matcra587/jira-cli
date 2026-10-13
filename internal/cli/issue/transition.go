@@ -515,7 +515,7 @@ func runTransition(ctx context.Context, deps Deps, inv command.Invocation, opts 
 		return out, nil
 	}
 
-	client, err := newClient()
+	client, err := newClient(ctx)
 	if err != nil {
 		return zero, err
 	}
@@ -535,9 +535,10 @@ func runTransition(ctx context.Context, deps Deps, inv command.Invocation, opts 
 		return zero, err
 	}
 
+	store := transitionHintCache(ctx, deps)
 	results, err := transitionFanOut(ctx, client, keys, plan, opts.parallelism)
 	out.Results = results
-	invalidateTransitionHints(deps, results)
+	invalidateTransitionHints(store, results)
 	return out, err
 }
 

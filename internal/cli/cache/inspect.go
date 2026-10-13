@@ -60,7 +60,7 @@ func runInspect(ctx context.Context, deps PrimeDeps, inv command.Invocation) (en
 	if deps.Scope == nil {
 		return out, cacheIO(core.ErrCacheManagementUnsupported)
 	}
-	scope, err := deps.Scope(true)
+	scope, err := deps.Scope(ctx, true)
 	if err != nil {
 		return out, cacheIO(err)
 	}

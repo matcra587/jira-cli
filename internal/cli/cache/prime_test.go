@@ -49,9 +49,9 @@ func fieldMetadata() MetadataValue {
 }
 
 func primerDeps(store core.Cache, reader core.JiraClient) PrimeDeps {
-	return PrimeDeps{Scope: func(bool) (MetadataScope, error) {
+	return PrimeDeps{Scope: func(ctx context.Context, _ bool) (MetadataScope, error) {
 		return MetadataScope{Store: store, Site: "https://example.com"}, nil
-	}, JiraClient: func() (core.JiraClient, error) { return reader, nil }}
+	}, JiraClient: func(ctx context.Context) (core.JiraClient, error) { return reader, nil }}
 }
 
 func TestCachePrimerPreviewAndFreshHitsNeverConstructClientsOrWrite(t *testing.T) {
@@ -85,9 +85,12 @@ func TestCachePrimerPreviewAndFreshHitsNeverConstructClientsOrWrite(t *testing.T
 				store.written = time.Now().Add(-2 * resource.DefaultTTL)
 			}
 			deps := primerDeps(store, nil)
-			deps.JiraClient = func() (core.JiraClient, error) { t.Fatal("preview/fresh hit constructed client"); return nil, nil }
+			deps.JiraClient = func(ctx context.Context) (core.JiraClient, error) {
+				t.Fatal("preview/fresh hit constructed client")
+				return nil, nil
+			}
 			scopeCalls := 0
-			deps.Scope = func(local bool) (MetadataScope, error) {
+			deps.Scope = func(ctx context.Context, local bool) (MetadataScope, error) {
 				scopeCalls++
 				if local != tc.preview {
 					t.Fatal("wrong authentication boundary")
@@ -259,7 +262,7 @@ func TestCachePrimerPreflightStopsBeforeScopeAndClientConstruction(t *testing.T)
 			if tc.canceled {
 				cancel()
 			}
-			deps := PrimeDeps{Scope: func(bool) (MetadataScope, error) {
+			deps := PrimeDeps{Scope: func(ctx context.Context, _ bool) (MetadataScope, error) {
 				t.Fatal("invalid input opened storage")
 				return MetadataScope{}, nil
 			}}

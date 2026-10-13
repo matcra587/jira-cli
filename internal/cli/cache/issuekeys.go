@@ -109,7 +109,7 @@ func newIssueKeys(deps Deps) *cobra.Command {
 			if deps.Cache == nil {
 				return out, cacheIO(core.ErrCacheManagementUnsupported)
 			}
-			store, err := deps.Cache()
+			store, err := deps.Cache(ctx)
 			if err != nil {
 				return out, cacheIO(err)
 			}

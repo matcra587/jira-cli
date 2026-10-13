@@ -41,8 +41,8 @@ func TestBoardMetadataRequiresExplicitCompletionFacts(t *testing.T) {
 			}
 			calls := 0
 			out, err := runList(t.Context(), Deps{
-				Cache: func() (core.Cache, error) { return &store, nil },
-				JiraClient: func() (core.JiraClient, error) {
+				Cache: func(ctx context.Context) (core.Cache, error) { return &store, nil },
+				JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 					calls++
 					return boardFake{boards: func(context.Context, int, int) (core.BoardRead, error) {
 						return boardPage(0, true), nil
@@ -85,8 +85,8 @@ func TestBoardMetadataPayloadIsReadableByExistingListConsumer(t *testing.T) {
 		t.Fatal(err)
 	}
 	out, err := runList(t.Context(), Deps{
-		Cache: func() (core.Cache, error) { return &store, nil },
-		JiraClient: func() (core.JiraClient, error) {
+		Cache: func(ctx context.Context) (core.Cache, error) { return &store, nil },
+		JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 			t.Fatal("primed board payload caused an unnecessary Jira read")
 			return nil, errors.New("unexpected Jira read")
 		},

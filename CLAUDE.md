@@ -97,3 +97,22 @@ issue subsequently cancels the command; canceled or unstarted reads do not.
 
 Native cache acceptance uses descriptor-relative readers matching Windows delete
 sharing, with independent wrapper decoding; see `.claude/rules/tests.md`.
+
+Credential resolution carries command context through the store and lazy
+client/cache factories. Keep `config.Load` local and use `config.Resolve` for
+credentials; do not store contexts in options or adapters. Follow `.claude/rules/go.md`
+for `command.OnceContextValues` and the synchronous OS-keyring limitation.
+
+Cancellation must not become an unavailable credential layer that an environment
+token can override. Refuse canceled native keyring calls before entering them;
+already-started synchronous writes retain their actual outcome. Resolve public
+transition-hint cache scope before remote work so completed failed observations
+and attempted writes invalidate stale hints after later cancellation without
+reopening credentials or detaching context.
+
+Direct 1Password uses the official SDK and current flat `secret_backend` settings.
+Keep initialization lazy, service tokens environment-only, selected-store
+provenance and site/account binding intact. Manage only stable owned credential
+field ID; never delete items or infer ownership from titles/tags. Follow
+`.claude/rules/config.md` for SDK initialization, cancellation and platform limits.
+Legacy migration/rollback remains a separate delivery requirement.

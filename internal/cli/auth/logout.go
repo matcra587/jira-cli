@@ -24,8 +24,10 @@ func newLogout(deps Deps) *cobra.Command {
 		MutatesLocalState: true,
 		Use:               "logout",
 		Short:             "Remove the stored API token",
-		Long: "Remove the API token from your operating system's credential store.\n\n" +
-			"This does NOT revoke the token. It stops THIS machine using it; " +
+		Long: "Remove the API token from the selected credential store.\n\n" +
+			"For 1Password, remove only the CLI-owned credential field; retain the " +
+			"item and all unmanaged fields. Other clients using that field also lose it.\n\n" +
+			"This does NOT revoke the token. " +
 			"the token keeps working everywhere else until you revoke it at " +
 			"id.atlassian.com under Security → API tokens. If the token may " +
 			"have leaked, removing it here is not the fix.\n\n" +
@@ -53,11 +55,14 @@ func runLogout(ctx context.Context, deps Deps, inv command.Invocation, assumeYes
 	// doing it twice asked twice.
 	var zero envelope.AuthLogoutOutput
 
-	site, err := deps.Site()
+	site, err := deps.Site(ctx)
 	if err != nil {
 		return zero, err
 	}
-	account := accountToRemove(deps, site.Email)
+	account, err := accountToRemove(ctx, deps, site.Email)
+	if err != nil {
+		return zero, err
+	}
 
 	if err := confirmRemoval(ctx, deps, inv, site, account, assumeYes); err != nil {
 		if errors.Is(err, errAborted) {
@@ -66,7 +71,7 @@ func runLogout(ctx context.Context, deps Deps, inv command.Invocation, assumeYes
 		return zero, err
 	}
 
-	return logout(deps, site, account, inv.DryRun)
+	return logout(ctx, deps, site, account, inv.DryRun)
 }
 
 // confirmRemoval gates the destructive path.
@@ -120,14 +125,27 @@ func confirmRemoval(ctx context.Context, deps Deps, inv command.Invocation, site
 //
 // A store that will not open, or a record that will not read, is not
 // fatal: logout still has a configured email to name, and its job is to
-// leave you logged out either way.
-func accountToRemove(deps Deps, configured string) string {
-	if store, err := deps.Credentials(); err == nil {
-		if rec, err := credentials.Load(store); err == nil && rec.Email != "" {
-			return rec.Email
-		}
+// leave you logged out either way. Cancellation and deadline errors stop before
+// confirmation or deletion rather than falling back to a configured account.
+func accountToRemove(ctx context.Context, deps Deps, configured string) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
 	}
-	return configured
+	store, err := deps.Credentials()
+	var rec credentials.Record
+	if err == nil {
+		rec, err = credentials.Load(ctx, store)
+	}
+	if contextErr := ctx.Err(); contextErr != nil {
+		return "", contextErr
+	}
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return "", err
+	}
+	if err == nil && rec.Email != "" {
+		return rec.Email, nil
+	}
+	return configured, nil
 }
 
 // remainingSource names a credential that will STILL authenticate after
@@ -137,8 +155,8 @@ func accountToRemove(deps Deps, configured string) string {
 // environment or the config file — those simply become effective. A
 // logout that reports success while the next command still works is the
 // most misleading outcome this command has, so it is reported.
-func remainingSource(deps Deps, site SiteInfo) string {
-	if site.TokenSource != string(envelope.TokenSourceKeyring) {
+func remainingSource(ctx context.Context, deps Deps, site SiteInfo) string {
+	if site.TokenSource != string(envelope.TokenSourceKeyring) && site.TokenSource != string(envelope.TokenSourceOnePassword) {
 		// The effective token already comes from somewhere logout does
 		// not touch — the environment, or the config file — so removing
 		// the stored record changes nothing about being authenticated.
@@ -152,7 +170,7 @@ func remainingSource(deps Deps, site SiteInfo) string {
 	}
 	// Resolve again with the credential store withheld: whatever answers
 	// then is what takes over.
-	without, err := deps.SiteWithoutStore()
+	without, err := deps.SiteWithoutStore(ctx)
 	if err != nil || without.Token == "" {
 		return ""
 	}
@@ -160,7 +178,7 @@ func remainingSource(deps Deps, site SiteInfo) string {
 }
 
 // logout removes the stored credential.
-func logout(deps Deps, site SiteInfo, account string, dryRun bool) (envelope.AuthLogoutOutput, error) {
+func logout(ctx context.Context, deps Deps, site SiteInfo, account string, dryRun bool) (envelope.AuthLogoutOutput, error) {
 	var zero envelope.AuthLogoutOutput
 
 	if strings.TrimSpace(account) == "" {
@@ -175,7 +193,7 @@ func logout(deps Deps, site SiteInfo, account string, dryRun bool) (envelope.Aut
 		if err != nil {
 			return zero, err
 		}
-		if err := credentials.Clear(store); err != nil {
+		if err := credentials.Clear(ctx, store); err != nil {
 			return zero, err
 		}
 	}
@@ -186,7 +204,7 @@ func logout(deps Deps, site SiteInfo, account string, dryRun bool) (envelope.Aut
 		MutationState:    envelope.MutationState{DryRun: dryRun},
 		Email:            account,
 		EnvTokenRemains:  site.TokenSource == string(envelope.TokenSourceEnv),
-		RemainingSource:  remainingSource(deps, site),
+		RemainingSource:  remainingSource(ctx, deps, site),
 		RevocationNeeded: true,
 	}, nil
 }

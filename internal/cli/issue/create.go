@@ -270,7 +270,7 @@ func runCreate(ctx context.Context, deps Deps, inv command.Invocation, in *issue
 	if client == nil {
 		// No account lookup was needed. Construct only after the payload
 		// has passed validation and the local preview has returned.
-		if client, err = deps.JiraClient(); err != nil {
+		if client, err = deps.JiraClient(ctx); err != nil {
 			return zero, err
 		}
 	}

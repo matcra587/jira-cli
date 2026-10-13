@@ -40,7 +40,7 @@ func TestCommentDeadlineRetainsJoinedReceipts(t *testing.T) {
 			t.Parallel()
 			body := bodyFromADF(t, adfBody)
 			client := &lateCommentReceiptClient{}
-			deps := Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }}
+			deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }}
 			ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
 			defer cancel()
 			if verb == "add" {
@@ -62,7 +62,7 @@ func TestCommentEditDeadlinePublishesJoinedReceipt(t *testing.T) {
 	t.Parallel()
 	body := bodyFromADF(t, adfBody)
 	client := &lateCommentReceiptClient{}
-	cmd := newCommentEdit(Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }})
+	cmd := newCommentEdit(Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }})
 	if err := cmd.Flags().Set("json-input", body.JSONInput); err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +106,7 @@ func TestCommentWritesValidateSeamIdentity(t *testing.T) {
 			if added.err == nil || added.result.OK || added.result.Data != nil || cli.MapError(added.err).Code != "comment_response_invalid" {
 				t.Fatal("created-comment seam published a missing identity")
 			}
-			out, err := runCommentEdit(t.Context(), Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }}, invocation(false, "KEY-1", "10042"), commentEditOptions{body: bodyFromADF(t, adfBody), notify: true})
+			out, err := runCommentEdit(t.Context(), Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }}, invocation(false, "KEY-1", "10042"), commentEditOptions{body: bodyFromADF(t, adfBody), notify: true})
 			if err == nil || out.Comment != nil || cli.MapError(err).Code != "comment_response_invalid" {
 				t.Fatal("edited-comment seam published a missing identity")
 			}
@@ -115,7 +115,7 @@ func TestCommentWritesValidateSeamIdentity(t *testing.T) {
 	t.Run("wrong edited identity", func(t *testing.T) {
 		t.Parallel()
 		client := &invalidCommentReceiptClient{id: jira.NullableOf("10043")}
-		out, err := runCommentEdit(t.Context(), Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }}, invocation(false, "KEY-1", "10042"), commentEditOptions{body: bodyFromADF(t, adfBody), notify: true})
+		out, err := runCommentEdit(t.Context(), Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }}, invocation(false, "KEY-1", "10042"), commentEditOptions{body: bodyFromADF(t, adfBody), notify: true})
 		if err == nil || out.Comment != nil || cli.MapError(err).Code != "comment_response_invalid" {
 			t.Fatal("edited-comment seam published another comment's receipt")
 		}

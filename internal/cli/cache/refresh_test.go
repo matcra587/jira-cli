@@ -31,14 +31,17 @@ func TestCacheRefreshPreviewSelectionAndDefaultTTLs(t *testing.T) {
 			var memory adapters.MemoryCache
 			var scopes, clients atomic.Int32
 			deps := primerDeps(&memory, nil)
-			deps.Scope = func(local bool) (MetadataScope, error) {
+			deps.Scope = func(ctx context.Context, local bool) (MetadataScope, error) {
 				scopes.Add(1)
 				if !local {
 					return MetadataScope{}, errors.New("preview requested authenticated scope")
 				}
 				return MetadataScope{Store: &memory, Site: "https://example.com"}, nil
 			}
-			deps.JiraClient = func() (core.JiraClient, error) { clients.Add(1); return nil, errors.New("preview constructed client") }
+			deps.JiraClient = func(ctx context.Context) (core.JiraClient, error) {
+				clients.Add(1)
+				return nil, errors.New("preview constructed client")
+			}
 			out, err := runRefresh(t.Context(), deps, command.Invocation{DryRun: true, Args: tc.args}, primeOptions{}, command.KeyedFlags{Parallelism: 3})
 			if err != nil || len(out.Results) != len(tc.want) || scopes.Load() != 1 || clients.Load() != 0 {
 				t.Fatalf("runRefresh(%v)=%+v, %v scopes=%d clients=%d", tc.args, out, err, scopes.Load(), clients.Load())
@@ -83,7 +86,13 @@ func TestCacheRefreshPreflightNeverOpensFactories(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			deps := PrimeDeps{Scope: func(bool) (MetadataScope, error) { t.Error("preflight opened scope"); return MetadataScope{}, nil }, JiraClient: func() (core.JiraClient, error) { t.Error("preflight opened client"); return nil, nil }}
+			deps := PrimeDeps{Scope: func(ctx context.Context, _ bool) (MetadataScope, error) {
+				t.Error("preflight opened scope")
+				return MetadataScope{}, nil
+			}, JiraClient: func(ctx context.Context) (core.JiraClient, error) {
+				t.Error("preflight opened client")
+				return nil, nil
+			}}
 			out, err := runRefresh(t.Context(), deps, command.Invocation{Args: tc.args}, primeOptions{ttlMinutes: tc.ttl}, command.KeyedFlags{Parallelism: tc.workers})
 			if err == nil || cli.MapError(err).Code != tc.code || len(out.Results) != 0 {
 				t.Fatalf("runRefresh(%s)=%+v, %v, want %s before I/O", tc.name, out, err, tc.code)
@@ -106,7 +115,7 @@ func TestCacheRefreshFreshGroupNeverConstructsClient(t *testing.T) {
 		}
 	}
 	deps := primerDeps(&memory, nil)
-	deps.JiraClient = func() (core.JiraClient, error) {
+	deps.JiraClient = func(ctx context.Context) (core.JiraClient, error) {
 		t.Error("fresh group opened client")
 		return nil, errors.New("unexpected client")
 	}
@@ -150,11 +159,11 @@ func TestCacheRefreshBoundsWorkersAndPreservesOrder(t *testing.T) {
 			return metadataResponse("[" + string(fieldMetadata().Items[0]) + "]"), nil
 		}}
 		deps := primerDeps(&memory, reader)
-		deps.Scope = func(local bool) (MetadataScope, error) {
+		deps.Scope = func(ctx context.Context, local bool) (MetadataScope, error) {
 			scopes.Add(1)
 			return MetadataScope{Store: &memory, Site: "https://example.com"}, nil
 		}
-		deps.JiraClient = func() (core.JiraClient, error) { clients.Add(1); return reader, nil }
+		deps.JiraClient = func(ctx context.Context) (core.JiraClient, error) { clients.Add(1); return reader, nil }
 		type outcome struct {
 			out envelope.CacheRefreshOutput
 			err error
@@ -314,7 +323,7 @@ func TestCacheRefreshClientFailureIsSharedAndRetainsEveryPlan(t *testing.T) {
 	cause := cli.NewCodedError(cli.CodeAuthMissing, "credentials unavailable")
 	var calls atomic.Int32
 	deps := primerDeps(&memory, nil)
-	deps.JiraClient = func() (core.JiraClient, error) { calls.Add(1); return nil, cause }
+	deps.JiraClient = func(ctx context.Context) (core.JiraClient, error) { calls.Add(1); return nil, cause }
 	out, err := runRefresh(t.Context(), deps, command.Invocation{}, primeOptions{}, command.KeyedFlags{Parallelism: 4})
 	if !errors.Is(err, cause) || calls.Load() != 1 || len(out.Results) != 10 {
 		t.Fatalf("runRefresh missing client=%+v, %v calls=%d", out, err, calls.Load())
@@ -375,7 +384,7 @@ func TestCacheRefreshCanceledAndScopeFailureRetainAllPlans(t *testing.T) {
 				cause = context.Canceled
 			}
 			var scopes, clients atomic.Int32
-			deps := PrimeDeps{Scope: func(bool) (MetadataScope, error) { scopes.Add(1); return MetadataScope{}, cause }, JiraClient: func() (core.JiraClient, error) { clients.Add(1); return nil, nil }}
+			deps := PrimeDeps{Scope: func(ctx context.Context, _ bool) (MetadataScope, error) { scopes.Add(1); return MetadataScope{}, cause }, JiraClient: func(ctx context.Context) (core.JiraClient, error) { clients.Add(1); return nil, nil }}
 			out, err := runRefresh(ctx, deps, command.Invocation{Args: []string{"fields", "labels"}}, primeOptions{}, command.KeyedFlags{Parallelism: 2})
 			wantScopes := int32(1)
 			if canceled {

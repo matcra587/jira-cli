@@ -73,7 +73,7 @@ func (f *fakeCommentEditClient) UpdateComment(_ context.Context, key, commentID 
 }
 
 func commentEditDeps(fake *fakeCommentEditClient) Deps {
-	return Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	return Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 }
 
 // TestCommentEditDryRunNeverBuildsAClient is the load-bearing guard on
@@ -83,7 +83,7 @@ func commentEditDeps(fake *fakeCommentEditClient) Deps {
 // cannot reach the network no matter what it does next.
 func TestCommentEditDryRunNeverBuildsAClient(t *testing.T) {
 	asked := false
-	deps := Deps{JiraClient: func() (core.JiraClient, error) {
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 		asked = true
 		return nil, errors.New("a dry run must not build a client")
 	}}

@@ -43,9 +43,9 @@ func TestIssueHistoryNeverTreatsAttachmentPathsAsIssueIdentities(t *testing.T) {
 		t.Fatal(err)
 	}
 	deps := testDeps(t)
-	deps.JiraClient = func() (core.JiraClient, error) { return recentIssueClient{}, nil }
+	deps.JiraClient = func(ctx context.Context) (core.JiraClient, error) { return recentIssueClient{}, nil }
 	var memory adapters.MemoryCache
-	deps.Cache = func() (core.Cache, error) { return &memory, nil }
+	deps.Cache = func(ctx context.Context) (core.Cache, error) { return &memory, nil }
 	var stdout, stderr bytes.Buffer
 	program, sink := newProgram(deps, &stdout, &stderr)
 	exit := execute(t.Context(), program, sink, []string{"issue", "attachment", "add", "DEMO-1", "DEMO-99", "--output=json"})
@@ -60,11 +60,11 @@ func TestIssueHistoryNeverTreatsAttachmentPathsAsIssueIdentities(t *testing.T) {
 
 func TestIssueHistoryClientRefusalWithoutReceiptNeverOpensCache(t *testing.T) {
 	deps := testDeps(t)
-	deps.JiraClient = func() (core.JiraClient, error) {
+	deps.JiraClient = func(ctx context.Context) (core.JiraClient, error) {
 		return nil, cli.NewCodedError("jira_unauthorized", "client unavailable")
 	}
 	calls := 0
-	deps.Cache = func() (core.Cache, error) { calls++; return nil, nil }
+	deps.Cache = func(ctx context.Context) (core.Cache, error) { calls++; return nil, nil }
 	var stdout, stderr bytes.Buffer
 	program, sink := newProgram(deps, &stdout, &stderr)
 	exit := execute(t.Context(), program, sink, []string{"issue", "view", "DEMO-1", "--output=json"})
@@ -123,7 +123,7 @@ func TestIssueHistoryReusesOrdinaryCacheAndNeverChangesOperationFailures(t *test
 	for _, failure := range []string{"none", "constructor", "nil store", "set"} {
 		t.Run(failure, func(t *testing.T) {
 			deps := testDeps(t)
-			deps.JiraClient = func() (core.JiraClient, error) { return recentIssueClient{}, nil }
+			deps.JiraClient = func(ctx context.Context) (core.JiraClient, error) { return recentIssueClient{}, nil }
 			deps.BuildPreferences = func() (jqlcmd.BuildPreferences, error) {
 				t.Fatal("live recording resolved a different public account instead of ordinary cache scope")
 				return jqlcmd.BuildPreferences{}, nil
@@ -138,7 +138,7 @@ func TestIssueHistoryReusesOrdinaryCacheAndNeverChangesOperationFailures(t *test
 			}
 			var memory adapters.MemoryCache
 			calls := 0
-			deps.Cache = func() (core.Cache, error) {
+			deps.Cache = func(ctx context.Context) (core.Cache, error) {
 				calls++
 				switch failure {
 				case "constructor":
@@ -168,11 +168,11 @@ func TestIssueHistoryReusesOrdinaryCacheAndNeverChangesOperationFailures(t *test
 func TestIssueHistoryRefusedMovePlansNeverOpenCache(t *testing.T) {
 	deps := testDeps(t)
 	cacheCalls, clientCalls := 0, 0
-	deps.Cache = func() (core.Cache, error) {
+	deps.Cache = func(ctx context.Context) (core.Cache, error) {
 		cacheCalls++
 		return nil, nil
 	}
-	deps.JiraClient = func() (core.JiraClient, error) {
+	deps.JiraClient = func(ctx context.Context) (core.JiraClient, error) {
 		clientCalls++
 		return nil, errors.New("unexpected Jira client")
 	}
@@ -231,7 +231,7 @@ func TestIssueHistoryMoveRequiresStartedIdentityRead(t *testing.T) {
 				return core.IssueRead{}, cli.NewCodedError(tc.readCode, "native identity read refused")
 			}}
 			deps := testDeps(t)
-			deps.JiraClient = func() (core.JiraClient, error) {
+			deps.JiraClient = func(ctx context.Context) (core.JiraClient, error) {
 				clientCalls++
 				if tc.factoryCode != "" {
 					return nil, cli.NewCodedError(tc.factoryCode, "client unavailable")
@@ -242,7 +242,7 @@ func TestIssueHistoryMoveRequiresStartedIdentityRead(t *testing.T) {
 				return client, nil
 			}
 			var memory adapters.MemoryCache
-			deps.Cache = func() (core.Cache, error) {
+			deps.Cache = func(ctx context.Context) (core.Cache, error) {
 				cacheCalls++
 				return &memory, nil
 			}
@@ -316,7 +316,7 @@ func TestIssueHistoryOrdinaryNativeValidationRetainsDispatchedFailures(t *testin
 				return core.CommentWrite{}, fmt.Errorf("comment dispatch: %w", &adapterjira.APIError{StatusCode: tc.status})
 			}}
 			deps := testDeps(t)
-			deps.JiraClient = func() (core.JiraClient, error) {
+			deps.JiraClient = func(ctx context.Context) (core.JiraClient, error) {
 				clientCalls++
 				if tc.factoryCode != "" {
 					return nil, cli.NewCodedError(tc.factoryCode, "client unavailable")
@@ -327,7 +327,7 @@ func TestIssueHistoryOrdinaryNativeValidationRetainsDispatchedFailures(t *testin
 				return client, nil
 			}
 			var memory adapters.MemoryCache
-			deps.Cache = func() (core.Cache, error) {
+			deps.Cache = func(ctx context.Context) (core.Cache, error) {
 				cacheCalls++
 				return &memory, nil
 			}
@@ -429,7 +429,7 @@ func TestIssueHistoryRecordsEstablishedInputDiscovery(t *testing.T) {
 				},
 			}
 			deps := testDeps(t)
-			deps.JiraClient = func() (core.JiraClient, error) {
+			deps.JiraClient = func(ctx context.Context) (core.JiraClient, error) {
 				clientCalls++
 				if tc.factoryRefused {
 					return nil, cli.NewCodedError("jira_unauthorized", "client unavailable")
@@ -440,7 +440,7 @@ func TestIssueHistoryRecordsEstablishedInputDiscovery(t *testing.T) {
 				return client, nil
 			}
 			var memory adapters.MemoryCache
-			deps.Cache = func() (core.Cache, error) {
+			deps.Cache = func(ctx context.Context) (core.Cache, error) {
 				cacheCalls++
 				if tc.storeRefused {
 					return recentFailStore{Cache: &memory}, nil

@@ -2,6 +2,7 @@ package root
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"path/filepath"
@@ -21,7 +22,7 @@ func TestConfigThemeNeverConstructsCredentialsClientsOrCache(t *testing.T) {
 			calls.Add(1)
 			return nil, errors.New("unexpected credential construction")
 		}
-		deps.JiraClient = func() (core.JiraClient, error) {
+		deps.JiraClient = func(ctx context.Context) (core.JiraClient, error) {
 			calls.Add(1)
 			return nil, errors.New("unexpected client construction")
 		}
@@ -29,7 +30,7 @@ func TestConfigThemeNeverConstructsCredentialsClientsOrCache(t *testing.T) {
 			calls.Add(1)
 			return nil, errors.New("unexpected explicit-account construction")
 		}
-		deps.Cache = func() (core.Cache, error) {
+		deps.Cache = func(ctx context.Context) (core.Cache, error) {
 			calls.Add(1)
 			return nil, errors.New("unexpected cache construction")
 		}

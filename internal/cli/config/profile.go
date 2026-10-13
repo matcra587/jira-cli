@@ -60,7 +60,7 @@ func newProfileAdd() *cobra.Command {
 		Long: "Create a named profile with --base-url and --email. Existing names are refused. " +
 			"The first profile becomes the default. Adding to an existing flat file retains its settings as the default profile. " +
 			"A stable public credential reference is stored before any later login. No credentials or environment values are copied. " +
-			"Use config set --profile NAME to configure preferences, then auth login --profile NAME. " +
+			"Use config set --profile NAME to configure preferences or another credential backend, then auth login --profile NAME. " +
 			"--dry-run prepares the same local change without writing.",
 		Example: "$ jira config profile add work --base-url=https://example.atlassian.net --email=person@example.com --dry-run",
 		Args:    command.ArgSpec{Min: 1, Max: 1, Positions: []command.Arg{{Name: "NAME"}}},

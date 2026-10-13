@@ -220,11 +220,16 @@ func TestConfigSetSchemaJQAndCompletionExposeValidatedScalarContract(t *testing.
 		}
 	}
 	stdout, stderr, exit = runBinary(t, "--@complete=configsetkey", "--")
-	if exit != 0 || stderr != "" || len(strings.Fields(stdout)) != 12 || strings.Contains(stdout, "api_token") || strings.Contains(stdout, "aliases") || !strings.Contains(stdout, "queries_path\n") {
+	if exit != 0 || stderr != "" || len(strings.Fields(stdout)) != 16 || strings.Contains(stdout, "api_token") || strings.Contains(stdout, "aliases") || !strings.Contains(stdout, "queries_path\n") || !strings.Contains(stdout, "onepassword_item\n") {
 		t.Fatalf("write completion offered credentials, aliases or an incomplete inventory: exit=%d out=%q stderr=%q", exit, stdout, stderr)
 	}
 	for _, tc := range []struct{ key, values string }{
-		{"read_only", "true\nfalse\n"}, {"glyphs", "default\nnerd\n"}, {"timeout", ""}, {"api_token", ""}, {"unknown", ""},
+		{"read_only", "true\nfalse\n"},
+		{"glyphs", "default\nnerd\n"},
+		{"timeout", ""},
+		{"api_token", ""},
+		{"unknown", ""},
+		{"secret_backend", "keyring\nenv\n1password\n"},
 	} {
 		stdout, stderr, exit = runBinary(t, "--@complete=configvalue", "--", tc.key)
 		if exit != 0 || stdout != tc.values || stderr != "" {

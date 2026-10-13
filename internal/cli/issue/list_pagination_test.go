@@ -168,7 +168,7 @@ func TestAutoPaginateRejectsRepeatedIssuePagesAtomically(t *testing.T) {
 func TestRunListRetainsPrefixWhenLaterRequestIsCanceled(t *testing.T) {
 	t.Parallel()
 	fake := &fakeListClient{pages: []core.IssueSearchRead{searchPage(false, "next", "KEY-1")}, pagesErr: context.Canceled}
-	out, _, err := runList(t.Context(), Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}, "project = KEY", nil, "", listWalk{limit: 3})
+	out, _, err := runList(t.Context(), Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}, "project = KEY", nil, "", listWalk{limit: 3})
 	if !errors.Is(err, context.Canceled) || len(out.Issues) != 1 || out.Issues[0].Key != "KEY-1" || len(fake.calls) != 2 || out.Pagination.IsLast {
 		t.Fatalf("canceled read lost prefix or cause: %+v %v", out, err)
 	}

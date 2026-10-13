@@ -147,7 +147,7 @@ func newAttachmentList(deps Deps) *cobra.Command {
 // section headers are the keys the caller typed.
 func runAttachmentList(ctx context.Context, deps Deps, keys []string, parallelism int) (envelope.IssueAttachmentListOutput, error) {
 	var zero envelope.IssueAttachmentListOutput
-	client, err := deps.JiraClient()
+	client, err := deps.JiraClient(ctx)
 	if err != nil {
 		return zero, err
 	}

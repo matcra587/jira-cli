@@ -90,8 +90,12 @@ cannot silently stop matching.
     `goleak.VerifyTestMain(m)` in a package `TestMain` (precedent:
     `internal/cli/command`). Keep the guard when adding tickers or
     background work to such a package.
-*   Configuration tests inject credential fakes through `config.Options` and
-    explicit environment maps. Ordinary tests must not read native credentials.
+*   Configuration tests inject credential fakes through
+    `config.Resolve(ctx, options, store)` and explicit environment maps.
+    `config.Load(options)` is local and never consults a credential store.
+    Ordinary tests must not read native credentials. Secret-like redaction fixtures
+    must be visibly synthetic; annotate only exact scanner-matched fixture lines
+    with a reason rather than disabling a rule or excluding a whole test file.
     Native keyring integration uses synthetic records and isolated storage;
     local discovery and cache readers prove that they never construct a store.
 *   Distinguish a missing token from an unavailable credential store. The latter

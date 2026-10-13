@@ -8,6 +8,8 @@ type TokenSource string
 const (
 	// TokenSourceKeyring is the operating system credential store.
 	TokenSourceKeyring TokenSource = "keyring"
+	// TokenSourceOnePassword is the direct SDK credential store.
+	TokenSourceOnePassword TokenSource = "1password"
 	// TokenSourceEnv is JIRA_API_TOKEN.
 	TokenSourceEnv TokenSource = "env"
 	// TokenSourceFile is the config file — possible, and worth naming so
@@ -87,7 +89,7 @@ type AuthLogoutOutput struct {
 	// the next command still works is this command's most misleading
 	// outcome.
 	RemainingSource string `json:"remaining_source,omitempty"`
-	// RevocationNeeded restates that removing a local copy is not
+	// RevocationNeeded restates that removing the stored credential is not
 	// revocation. Always true today, and a field rather than prose so a
 	// script cannot miss it.
 	RevocationNeeded bool `json:"revocation_needed"`
@@ -102,7 +104,7 @@ func init() {
 			"account_id":   map[string]any{"description": "Jira account ID the credentials resolved to."},
 			"display_name": map[string]any{"description": "Display name of that account."},
 			"token":        map[string]any{"description": "The API token itself; present only when --show-token was passed."},
-			"token_source": map[string]any{"description": "Layer that supplied the token: keyring, env, or file."},
+			"token_source": map[string]any{"description": "Layer that supplied the token: keyring, 1password, env, or file."},
 		},
 	})
 	Register("auth.login", AuthLoginOutput{}, map[string]any{
@@ -117,13 +119,13 @@ func init() {
 		},
 	})
 	Register("auth.logout", AuthLogoutOutput{}, map[string]any{
-		"description": "Result of removing the locally stored API token.",
+		"description": "Result of removing the selected stored credential. For 1Password, only the owned field is removed; other clients using it also lose access.",
 		"properties": map[string]any{
 			"dry_run":           map[string]any{"description": "Whether this was a preview; nothing is removed when true."},
 			"email":             map[string]any{"description": "Account whose stored token was removed."},
 			"env_token_remains": map[string]any{"description": "Whether JIRA_API_TOKEN is still set, keeping commands working."},
 			"remaining_source":  map[string]any{"description": "Layer still supplying a token after removal, if any."},
-			"revocation_needed": map[string]any{"description": "Removing the local copy does not revoke the token."},
+			"revocation_needed": map[string]any{"description": "Removing the stored credential does not revoke the token."},
 		},
 	})
 }

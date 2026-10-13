@@ -359,8 +359,7 @@ an environment variable that supplies a token.
     1.  Installed somewhere other than `/usr/local/bin`? Remove it from there
         instead, e.g. `rm -f "$HOME/.local/bin/jira"`.
 
-??? note "Settings from an earlier release"
-    Earlier releases may also leave profile metadata or a 1Password item.
-    Removing the executable does not migrate or remove those records. Review
-    their contents and ownership before removing them; a shared 1Password item
-    may be used by other tools or machines.
+??? note "Shared 1Password items"
+    Logout removes only the CLI-owned credential field. It retains the item
+    and unmanaged fields. Other tools or machines using that credential field
+    also lose access to it. Uninstalling the executable leaves the item intact.

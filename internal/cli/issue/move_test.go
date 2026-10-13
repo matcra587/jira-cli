@@ -125,7 +125,7 @@ func TestMovePreviewPreservesDestinationAssociations(t *testing.T) {
 			}
 			fake := moveFixture()
 			fake.identities["KEY-3"] = "103"
-			deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+			deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 			inv := moveInvocation(input, "KEY-3", "KEY-1", "KEY-2")
 			inv.DryRun = true
 			flags := moveOptions(false)
@@ -149,7 +149,7 @@ func TestMovePreviewPreservesDestinationAssociations(t *testing.T) {
 }
 
 func moveClientDeps(f *fakeMoveClient) Deps {
-	return Deps{JiraClient: func() (core.JiraClient, error) { return f, nil }}
+	return Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return f, nil }}
 }
 
 func TestMoveLocalPreviewRetainsNativeRequestWithoutClient(t *testing.T) {
@@ -157,7 +157,10 @@ func TestMoveLocalPreviewRetainsNativeRequestWithoutClient(t *testing.T) {
 	for _, source := range []string{"KEY-1", "101"} {
 		body := `{"targetToSourcesMapping":{"DEST,10001":{"issueIdsOrKeys":["` + source + `"],"inferFieldDefaults":false,"future":{"n":9007199254740993,"markup":"<>&","null":null,"empty":[]}}},"sendBulkNotification":false}`
 		calls := 0
-		deps := Deps{JiraClient: func() (core.JiraClient, error) { calls++; return nil, errors.New("unexpected client") }}
+		deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) {
+			calls++
+			return nil, errors.New("unexpected client")
+		}}
 		inv := moveInvocation(body, "KEY-1")
 		inv.DryRun = true
 		out, err := runMove(t.Context(), deps, inv, moveOptions(true))
@@ -286,7 +289,7 @@ func TestMoveHeadlessRefusalDoesNotConstructClient(t *testing.T) {
 	t.Parallel()
 	fake := moveFixture()
 	calls := 0
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { calls++; return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { calls++; return fake, nil }}
 	options := moveOptions(false)
 	options.mutation.Force = false
 	body := `{"targetToSourcesMapping":{"DEST,10001":{"issueIdsOrKeys":["KEY-1"]}}}`

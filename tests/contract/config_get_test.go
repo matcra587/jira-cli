@@ -192,7 +192,7 @@ func TestConfigGetDiscoveryCompletionAndJQExposeStoredContract(t *testing.T) {
 	if exit != 0 {
 		t.Fatalf("setting completion failed: exit=%d stderr=%q", exit, stderr)
 	}
-	want := []string{"base_url", "email", "credential_id", "api_token", "keyring", "read_only", "timeout", "theme", "theme_path", "glyphs", "workday_seconds", "queries_path", "editor", "aliases"}
+	want := []string{"base_url", "email", "credential_id", "api_token", "keyring", "secret_backend", "onepassword_account", "onepassword_vault", "onepassword_item", "read_only", "timeout", "theme", "theme_path", "glyphs", "workday_seconds", "queries_path", "editor", "aliases"}
 	if got := strings.Fields(stdout); len(got) != len(want) {
 		t.Fatalf("setting completion changed its supported vocabulary: %q", stdout)
 	}

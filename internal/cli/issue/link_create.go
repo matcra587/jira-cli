@@ -449,11 +449,11 @@ func runLinkCreate(ctx context.Context, deps Deps, inv command.Invocation, opts 
 		return out, nil
 	}
 
-	client, err := deps.JiraClient()
+	client, err := deps.JiraClient(ctx)
 	if err != nil {
 		return zero, err
 	}
-	resolved, err := resolveLinkType(ctx, client, issueCache(deps), client.BaseURL(), opts.typeInput, opts.linkTypes)
+	resolved, err := resolveLinkType(ctx, client, issueCache(ctx, deps), client.BaseURL(), opts.typeInput, opts.linkTypes)
 	if err != nil {
 		return zero, err
 	}

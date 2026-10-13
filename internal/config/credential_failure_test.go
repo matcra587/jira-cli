@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -11,9 +12,17 @@ import (
 
 type failedCredentialStore struct{ err error }
 
-func (s failedCredentialStore) Get(string) (string, error) { return "unusable-partial-record", s.err }
-func (failedCredentialStore) Set(string, string) error     { panic("unexpected credential write") }
-func (failedCredentialStore) Delete(string) error          { panic("unexpected credential deletion") }
+func (s failedCredentialStore) Get(ctx context.Context, _ string) (string, error) {
+	return "unusable-partial-record", s.err
+}
+
+func (failedCredentialStore) Set(ctx context.Context, _, _ string) error {
+	panic("unexpected credential write")
+}
+
+func (failedCredentialStore) Delete(ctx context.Context, _ string) error {
+	panic("unexpected credential deletion")
+}
 
 func TestCredentialReadFailureRetainsEnvironmentFallback(t *testing.T) {
 	for _, tc := range []struct {
@@ -25,12 +34,7 @@ func TestCredentialReadFailureRetainsEnvironmentFallback(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cause := errors.New("fixture private backend detail")
-			resolved, err := config.Load(config.Options{
-				Path: writeConfig(t, "read_only=true\n"),
-				Environ: env("JIRA_BASE_URL=https://fixture.example.invalid",
-					"JIRA_EMAIL=fixture@example.invalid", "JIRA_API_TOKEN="+tc.token),
-				Credentials: failedCredentialStore{err: cause},
-			})
+			resolved, err := config.Resolve(t.Context(), config.Options{Path: writeConfig(t, "read_only=true\n"), Environ: env("JIRA_BASE_URL=https://fixture.example.invalid", "JIRA_EMAIL=fixture@example.invalid", "JIRA_API_TOKEN="+tc.token)}, failedCredentialStore{err: cause})
 			if err != nil {
 				t.Fatalf("unavailable store prevented fallback resolution: %v", err)
 			}
@@ -51,9 +55,7 @@ func TestCredentialReadFailureRetainsEnvironmentFallback(t *testing.T) {
 }
 
 func TestAbsentCredentialStoreRemainsSilent(t *testing.T) {
-	resolved, err := config.Load(config.Options{
-		Path: writeConfig(t, "read_only=true\n"), Environ: env(), Credentials: core.NoCredentialStore{},
-	})
+	resolved, err := config.Resolve(t.Context(), config.Options{Path: writeConfig(t, "read_only=true\n"), Environ: env()}, core.NoCredentialStore{})
 	if err != nil || len(resolved.Warnings) != 0 {
 		t.Fatalf("ordinary credential absence became a backend warning: %v", err)
 	}
