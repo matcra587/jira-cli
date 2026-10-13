@@ -75,9 +75,9 @@ func newEdit(deps Deps) *cobra.Command {
 			"field and every verb.\n\n" +
 			"`--assignee` and `--reporter` take an Atlassian account id, or " +
 			"`@me` for whoever your credentials authenticate as. Resolving " +
-			"`@me` reads the current user from the site, so `--dry-run` leaves " +
-			"it unresolved in the payload and says so in a warning; add " +
-			"`--validate-remote` to resolve it in a preview too.\n\n" +
+			"`@me` reads the current user from Jira on live runs. Local previews " +
+			"use a matching cached account_id with an unverified warning, or " +
+			"leave the sentinel unresolved. `--validate-remote` reads Jira instead.\n\n" +
 			"`--unassign` clears the assignee. It is a separate flag rather " +
 			"than a magic `--assignee` value, because a sentinel string cannot " +
 			"be discovered from help, schema or completion.\n\n" +
@@ -300,7 +300,7 @@ func runEdit(ctx context.Context, deps Deps, inv command.Invocation, in *issueWr
 		return zero, err
 	}
 
-	if _, err := command.ResolveAccounts(ctx, newClient, inv.DryRun, opts.validateRemote, in.fields.AccountFields()); err != nil {
+	if _, err := command.ResolveAccounts(ctx, newClient, deps.Preferences, inv.DryRun, opts.validateRemote, in.fields.AccountFields()); err != nil {
 		return zero, err
 	}
 

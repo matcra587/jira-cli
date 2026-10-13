@@ -1,0 +1,3 @@
+kind: added
+body: "Convert legacy or flat configuration to named profiles with `config migrate --source FILE` and restore exact preimages with `config rollback --journal FILE`. Preserve all legacy profiles by default, protected configuration preimages, per-credential effect journals and provider-owned backups."
+time: 2026-10-13T03:04:23.624191256-04:00

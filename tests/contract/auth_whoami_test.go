@@ -111,7 +111,7 @@ func TestAuthWhoamiRejectsInvalidIdentity(t *testing.T) {
 
 func TestAuthWhoamiRejectsArgumentsBeforeIO(t *testing.T) {
 	t.Parallel()
-	for _, args := range [][]string{{"extra"}, {"--save"}, {"--show-token"}} {
+	for _, args := range [][]string{{"extra"}, {"--save=invalid"}, {"--show-token"}} {
 		t.Run(strings.Join(args, "_"), func(t *testing.T) {
 			t.Parallel()
 			var calls atomic.Int32
@@ -153,8 +153,8 @@ func TestAuthWhoamiDiscoveryAndExamples(t *testing.T) {
 		t.Fatalf("identity schema: %d %q", exit, stderr)
 	}
 	tree, _ := readSchema(t, stdout, "json")
-	if tree.Path != "jira auth whoami" || !tree.ReadOnly || tree.OutputSchema == nil {
-		t.Fatalf("identity missing from read discovery: %+v", tree)
+	if tree.Path != "jira auth whoami" || tree.ReadOnly || tree.OutputSchema == nil {
+		t.Fatalf("mixed identity command has incorrect discovery: %+v", tree)
 	}
 	properties := tree.OutputSchema["properties"].(map[string]any)
 	user := properties["user"].(map[string]any)

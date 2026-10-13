@@ -376,6 +376,11 @@ func MapError(err error) Classification {
 	case errors.Is(err, output.ErrFilterTooLarge):
 		return newError(CodeJQOutputTooLarge, err)
 	}
+	// An explicit diagnosis (such as migration recovery) owns its remedy.
+	// Provider failures without that diagnosis retain the credential fallback.
+	if coded, ok := errors.AsType[*CodedError](err); ok {
+		return newError(coded.Code, coded)
+	}
 	if backend, ok := errors.AsType[*core.CredentialStoreError](err); ok {
 		e := newError(CodeAuthStoreUnavailable, backend)
 		e.Hint = "Check the selected credential backend, its account and item coordinates, and authorization; or supply explicit environment credentials."
@@ -383,9 +388,6 @@ func MapError(err error) Classification {
 			e.Hint = "The credential write was attempted and may have completed. Inspect the selected backend before retrying."
 		}
 		return e
-	}
-	if coded, ok := errors.AsType[*CodedError](err); ok {
-		return newError(coded.Code, err)
 	}
 	if inputErr, ok := errors.AsType[*InputError](err); ok {
 		e := newError(inputErr.Code, err)

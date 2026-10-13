@@ -253,8 +253,9 @@ func newHarness(t *testing.T, site SiteInfo) *harness {
 		client: &fakeClient{accountID: "5b10a2844c20165700ede21g", displayName: "Test Account"},
 	}
 	h.deps = Deps{
-		Credentials: func() (core.CredentialStore, error) { return h.store, nil },
-		ClientFor: func(_, _, token string) (core.JiraClient, error) {
+		IdentityTarget: loginTestTarget(t),
+		Credentials:    func() (core.CredentialStore, error) { return h.store, nil },
+		ClientFor: func(_, _, token, _ string) (core.JiraClient, error) {
 			h.client.sawToken = token
 			return h.client, nil
 		},

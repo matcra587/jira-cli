@@ -18,9 +18,10 @@ paths:
 *   Credentials live in the OS keyring, 1Password, or environment fallbacks
     — never in the config file, logs, envelopes, or test fixtures. Profiles
     are metadata-only by design (see [config.md](config.md)).
-*   The `auth token` redaction boundary is deliberate (it prints redacted
-    last-four diagnostics only): never add a code path, flag, or debug
-    output that reveals a stored token. When an operation genuinely needs
+*   Ordinary settings, receipts and diagnostics never reveal tokens. `auth token`
+    deliberately emits only the raw token and newline; `auth status --show-token`
+    is the other explicit reveal. Preserve these declared contracts and never
+    expose tokens through another code path, flag or debug output. When an operation genuinely needs
     the credential (a raw API call, a new backend), it goes through the
     existing client/store layers — the token value never transits an
     envelope, a log line, or `argv`.
@@ -40,6 +41,14 @@ client construction. Environment overrides file values in both directions:
 this ordinary configuration precedence and keep enforcement shared; never
 route a write around it. This is not a read-only filesystem mode and does not
 block local configuration or cache publication.
+
+Scoped authentication uses only the fixed Atlassian gateway and one validated
+cloud path segment. Keep site identity separate from API routing. Stored scope
+changes cannot reuse a verified token tuple implicitly. An account reply outside
+the authenticated API scope, or without the exact supplied Basic pair, does not
+verify a credential even when HTTP and its JSON account object look successful.
+Public cloud discovery uses no tokens/cookies and no redirects; retain context
+and protocol failures through authentication fallback.
 
 ## Jira content is untrusted input
 

@@ -19,10 +19,13 @@ These commands change no Jira resource.
 
 ### Choose a preset or custom palette
 
-`--name` selects a bundled clib preset. Selecting a name clears an existing
-custom palette unless `--path` is also supplied. An empty name restores fallback
-selection. `--path` validates a custom TOML file and stores an absolute path;
-an empty path disables the custom palette. `JIRA_THEME` overrides the custom
+`--name` selects a bundled clib preset or `auto`. Automatic selection reads
+`COLORFGBG` and falls back to dark without querying the terminal. The explicit
+`auto` setting and `JIRA_THEME=auto` retain their authored values and provenance.
+Selecting a name clears an existing custom palette unless `--path` is also supplied.
+An empty name restores fallback selection.
+`--path` validates a custom TOML file and stores an absolute path.
+An empty path disables the custom palette. `JIRA_THEME` overrides the custom
 file. Without an explicit theme, `COLORFGBG` supplies a background hint when
 available. Otherwise the fixed dark preset is used. No terminal query runs.
 
@@ -35,6 +38,7 @@ TOML file before running its example. Preconditions explains how paths resolve.
 jira config theme --help
 jira agent schema --path 'config theme' --output=json
 jira config theme --name dracula --dry-run --output=json
+jira config theme --name auto --dry-run --output=json
 jira config theme --path ./palette.toml --dry-run --output=json
 jira config theme --path '' --dry-run --output=json
 ```
@@ -59,7 +63,8 @@ key = "#2459B3"
 string = "#256D1B"
 ```
 
-`base` inherits a bundled preset; omission selects dark. `[colors]` overrides
+`base` inherits a concrete bundled preset. `auto` is not a palette base.
+Omission selects dark. `[colors]` overrides
 named clib semantic, help and Markdown styles while retaining their other
 attributes. `[syntax]` independently overrides clog syntax colors. All colors
 must be six-digit `#RRGGBB` strings. An omitted entity palette inherits the base.
@@ -101,8 +106,11 @@ Selection validates the same custom palette during preview and publication.
 `config theme --path` resolves relative paths from the current working directory
 and stores an absolute path. Relative
 paths authored directly as `theme_path` resolve beside the selected settings
-file, independently of the working directory. `config set theme_path VALUE`
-stores a scalar path; use `config theme --path VALUE` to validate its palette.
+file, independently of the working directory. The CLI treats `~`, `$NAME`
+and `${NAME}` as literal filename characters. Quote command arguments when
+these characters must remain literal, so the caller's shell does not expand them.
+`config set theme_path VALUE` stores a scalar path.
+Use `config theme --path VALUE` to validate its palette.
 
 ## Recover
 

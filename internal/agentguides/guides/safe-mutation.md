@@ -14,6 +14,20 @@ inspect the prepared request. Local preview changes nothing and sends no Jira
 request. Where supported, `--validate-remote` opts a preview into metadata or
 account reads without submitting the mutation.
 
+An `@me` account flag resolves through the authenticated current-account read on
+a live run or with `--validate-remote`. Local previews use a matching configured
+`account_id` with an `account_id_cached` warning. The ID remains unverified metadata.
+
+`jira auth whoami --save --dry-run` verifies the current account and prepares
+bound cached identity without publishing settings. Inspect its native user,
+public scope and `data.settings` receipt before running without `--dry-run`.
+Ordinary whoami and root me inspection stay read-only. Unknown local publication
+requires file inspection before retrying. Saved cached IDs never authorize Jira writes.
+Without matching site/account/cloud binding, previews retain `@me` and warn.
+`current_user_response_invalid` means that reply cannot identify the current
+account. Retry or inspect it before submitting. Resolution failure or cancellation
+stops before issue/watcher writes and leaves account fields unresolved.
+
 ### Quote comma-separated values
 
 Comma-separated flags accept one CSV record per occurrence. Use CSV quotes
@@ -57,6 +71,16 @@ even with `--force`.
 
 ### Check field readback and remote metadata
 
+### Discover live input for create or edit
+
+Configured `default_project` and `default_issue_type` fill only absent create
+members across both native `fields` and `update`. Flags override defaults.
+Explicit empty project/type flags suppress them and refuse missing context.
+Authored null, empty, zero, operation and future ADF values remain unchanged.
+`--generate-json` uses defaults only for omitted project/type context. Edit and
+clone never inherit create defaults. Help/schema/completion do not read these
+preferences or open credentials.
+
 Discover live input before composing a request when fields depend on the Jira
 context:
 
@@ -65,9 +89,10 @@ jira issue create --generate-json --project KEY --type Task --output=json
 jira issue edit KEY-123 --generate-json --output=json
 ```
 
-Create discovery requires an explicit project key or ID and issue-type name or
-ID, without a summary. It resolves actual native identities and collects every
-create metadata page. Edit discovery retains each issue's edit metadata and
+Create discovery requires a project key or ID and issue-type name or ID, supplied
+by explicit flags or configured defaults when those flags are omitted. Explicit
+empty flags refuse. No summary is needed.
+It resolves actual native identities and collects every create metadata page. Edit discovery retains each issue's edit metadata and
 skeleton separately. Both reads require authentication, work in read-only mode,
 and ask no mutation confirmation. Edit also supports `--jql`, `--filter` or
 `--from-file` through complete selection bounded at 100 issues.
@@ -266,8 +291,11 @@ frame. Without an acknowledgement, no deletion data is published. Inspect the
 resource before retrying an uncertain delete. Writes are never replayed
 automatically. The acknowledgement does not independently prove absence.
 
-Watcher add/remove resolves `--user @me` on live runs. A local preview leaves
-it unresolved; `--validate-remote` permits the account lookup in a preview.
+### Select watchers and inspect readback
+
+Watcher add/remove resolves `--user @me` on live runs. Local previews use matching
+cached identity with an unverified warning, or leave it unresolved.
+`--validate-remote` permits the actual account lookup in a preview.
 `--no-readback` skips the post-write GET. A failed GET keeps the acknowledged
 write successful and publishes `data.results[].data.readback_error`. Inspect
 watcher state to recover that read instead of replaying the write. Watcher
@@ -397,7 +425,12 @@ and rank are excluded. Project, issue type, priority and assignee use minimal
 native references. Custom-field schemas identify rank. Rank-shaped ordinary
 text remains data. Invalid source fields or metadata yield
 `issue_clone_source_invalid` before creating that source. Jira validates copied
-values against the destination; inspect ordered outcomes before retrying.
+values against the destination. Inspect ordered outcomes before retrying.
+
+Clone previews expose known nonempty account-ID overrides at
+`data.account_overrides.assignee` and `.reporter`. These are the prepared flag
+values after cached or remote identity resolution, not copied source fields.
+The source remains unread in a preview, including with `--validate-remote`.
 
 Creation and clone retain HTTP 201 acknowledgements independently of command
 failure or usable identity. `applied=true` can therefore accompany an error
@@ -432,6 +465,14 @@ already absent reports attempted=true and removed=false. Partial failures and
 interruption retain completed and queued outcomes. Inspect those receipts before
 retrying. Concurrent readers and writers are not locked. A later metadata read
 can repopulate the cache. Clearing metadata does not refresh it or change Jira.
+
+### Inspect login writes independently
+
+Verified login prepares public settings before storing credentials. Inspect
+`data.credential` and `data.settings` independently: acknowledged credentials
+can survive a later settings or output failure. An `unknown` write may have
+completed. Inspect its destination before retrying. Environment login stores
+public metadata only. Previews verify but publish nothing.
 
 ## Save
 

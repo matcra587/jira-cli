@@ -90,70 +90,12 @@ type Exemption struct {
 // place, and a divergence between entries would then mean something.
 const editSuccessNeedsPTY = "config edit succeeds only by launching an editor on a real terminal, and the corpus drives the binary through pipes — a PTY is the one thing this harness cannot give it. The path is not unverified: internal/cli/config/edit_test.go exercises the seed, copy, validate, and atomic-replace behavior directly, and the two machine-reachable refusals (no editor configured, no terminal) are recorded here as failure cells. Revisit if the harness ever gains a PTY."
 
-// authWriteNeedsRealKeyring is the reviewed reason behind every
-// auth.login and auth.logout success exemption. Their live paths write
-// to the machine's operating system credential store, and a corpus that
-// runs the real binary has no business reaching into a developer's or a
-// CI runner's keyring — the sandbox is a temp HOME, not a temp Keychain.
-// What IS covered here: both dry-run paths, which verify and resolve for
-// real while writing nothing, and both failure paths. The storage
-// behavior itself is pinned directly in internal/cli/auth against an
-// in-memory store, including the rule that a token is verified before it
-// is ever written. Revisit if the credential store ever gains a
-// substitutable backend the harness can point at.
-const authWriteNeedsRealKeyring = "auth.login and auth.logout succeed only by writing to the operating system credential store, which a harness running the real binary must not touch. The dry-run and failure paths ARE recorded here, and internal/cli/auth pins the storage rules against an in-memory store — including that a token is verified before it is stored."
+// authWriteNeedsRealKeyring explains logout's native-store success exemptions.
+// Environment login publishes only public metadata and now has safe live corpus
+// coverage. Logout still needs a real provider to remove a stored credential.
+const authWriteNeedsRealKeyring = "auth.logout succeeds by removing credentials from a persistent provider, which the real-binary corpus must not open. Its preview and failure paths are recorded here; isolated native keyring and injected SDK tests cover actual removal."
 
 var exemptions = []Exemption{
-	{
-		Cell:   "auth.login||success|json|M4",
-		Reason: authWriteNeedsRealKeyring,
-		Date:   "2026-08-03",
-	},
-	{
-		Cell:   "auth.login||success|json|M5",
-		Reason: authWriteNeedsRealKeyring,
-		Date:   "2026-08-03",
-	},
-	{
-		Cell:   "auth.login||success|json|M6",
-		Reason: authWriteNeedsRealKeyring,
-		Date:   "2026-08-03",
-	},
-	{
-		Cell:   "auth.login||success|json|M8",
-		Reason: authWriteNeedsRealKeyring,
-		Date:   "2026-08-03",
-	},
-	{
-		Cell:   "auth.login||success|json|M12",
-		Reason: authWriteNeedsRealKeyring,
-		Date:   "2026-08-03",
-	},
-	{
-		Cell:   "auth.login||success|compact|M4",
-		Reason: authWriteNeedsRealKeyring,
-		Date:   "2026-08-03",
-	},
-	{
-		Cell:   "auth.login||success|compact|M5",
-		Reason: authWriteNeedsRealKeyring,
-		Date:   "2026-08-03",
-	},
-	{
-		Cell:   "auth.login||success|compact|M6",
-		Reason: authWriteNeedsRealKeyring,
-		Date:   "2026-08-03",
-	},
-	{
-		Cell:   "auth.login||success|compact|M8",
-		Reason: authWriteNeedsRealKeyring,
-		Date:   "2026-08-03",
-	},
-	{
-		Cell:   "auth.login||success|compact|M12",
-		Reason: authWriteNeedsRealKeyring,
-		Date:   "2026-08-03",
-	},
 	{
 		Cell:   "auth.logout||success|json|M4",
 		Reason: authWriteNeedsRealKeyring,
@@ -255,7 +197,7 @@ var exemptions = []Exemption{
 		Date:   "2026-08-03",
 	},
 	// H3/H4 extend the SAME two reviewed reasons above to the human
-	// mode this slice adds: auth.login/logout and config.edit still
+	// mode this slice adds: auth.logout and config.edit still
 	// have no captured human SUCCESS, for the identical reason their
 	// machine-mode success cells are already exempt above (a real
 	// keyring or a PTY the harness cannot give them). Their only
@@ -263,16 +205,6 @@ var exemptions = []Exemption{
 	// evaluated there — see cellAxes's CategoryDryRun+ModeHuman branch
 	// — so this is not new unevaluated surface, just the same known gap
 	// restated for the two axes this slice adds.
-	{
-		Cell:   "auth.login||success|human|H3",
-		Reason: authWriteNeedsRealKeyring,
-		Date:   "2026-08-05",
-	},
-	{
-		Cell:   "auth.login||success|human|H4",
-		Reason: authWriteNeedsRealKeyring,
-		Date:   "2026-08-05",
-	},
 	{
 		Cell:   "auth.logout||success|human|H3",
 		Reason: authWriteNeedsRealKeyring,
@@ -298,11 +230,6 @@ var exemptions = []Exemption{
 	// same two reviewed reasons, same "the dry-run IS the reachable
 	// capture" resolution (cellAxes's CategoryDryRun+ModeHumanColor
 	// branch), nothing new about the surface itself.
-	{
-		Cell:   "auth.login||success|human_color|H5",
-		Reason: authWriteNeedsRealKeyring,
-		Date:   "2026-08-06",
-	},
 	{
 		Cell:   "auth.logout||success|human_color|H5",
 		Reason: authWriteNeedsRealKeyring,

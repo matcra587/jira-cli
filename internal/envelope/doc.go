@@ -6,9 +6,8 @@
 // JSON Schema from the same Go declaration that produces the wire bytes.
 //
 // The package sits near the bottom: beyond the standard library it
-// imports only internal/jira, for the wire field types a passthrough
-// payload carries verbatim (outputs_issue.go) — and internal/jira is
-// itself a leaf, importing no internal package at all. So renderers,
+// imports internal/jira for wire fields and internal/core for public recovery
+// models. Neither owner imports this package. So renderers,
 // command packages and test harnesses can all share the contract types
 // without an import cycle, which is the property this note exists to
 // promise. Adding an edge to anything that imports THIS package would

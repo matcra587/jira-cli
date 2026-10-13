@@ -15,6 +15,11 @@ import (
 // client — which is what makes the "config list cannot open one"
 // property load-bearing rather than theoretical.
 type Deps struct {
+	// Preferences and CacheFor use public site/account context only. Default
+	// board lookup must never use the credential-backed Cache constructor.
+	Preferences func() (core.IssuePreferences, error)
+	CacheFor    func(site, account string) (core.Cache, error)
+
 	// BrowseSite resolves the configured site without credentials or a client.
 	// A nil seam retains the supplied client's site for embedded callers.
 	BrowseSite func() (string, error)

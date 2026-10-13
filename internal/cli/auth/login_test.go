@@ -64,7 +64,7 @@ func TestPipedTokenCancelsBlockedInput(t *testing.T) {
 				defer cancel()
 				deps := tokenContextDeps()
 				clientCalls, storeCalls := 0, 0
-				deps.ClientFor = func(string, string, string) (core.JiraClient, error) {
+				deps.ClientFor = func(string, string, string, string) (core.JiraClient, error) {
 					clientCalls++
 					return nil, io.ErrUnexpectedEOF
 				}

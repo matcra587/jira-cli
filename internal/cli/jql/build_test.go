@@ -61,7 +61,7 @@ func TestBuildURLIsBestEffortWithoutAuthentication(t *testing.T) {
 		err  error
 		want bool
 	}{
-		{"https://example.atlassian.net", nil, true}, {"", nil, false}, {"https://user:password@example.com", nil, false}, {"javascript://example.com", nil, false}, {"https://example.atlassian.net", errors.New("unavailable preferences"), false},
+		{"https://example.atlassian.net", nil, true}, {"", nil, false}, {"https://user:password@example.com", nil, false}, {"javascript://example.com", nil, false},
 	} {
 		deps := Deps{Preferences: func() (BuildPreferences, error) { return BuildPreferences{BaseURL: test.site}, test.err }}
 		out, err := runBuild(t.Context(), deps, buildOptions{})
@@ -128,5 +128,21 @@ func TestBuildCachedFilterWithNoConditionsIsNotAnUnscopedQuery(t *testing.T) {
 	}, CacheFor: func(string, string) (core.Cache, error) { return store, nil }}
 	if out, err := runBuild(t.Context(), deps, buildOptions{boardID: 42}); cli.MapError(err).Code != cli.CodeBoardCacheUnavailable || out.JQL != "" || out.BoardScope.Applied {
 		t.Fatalf("unusable cached filter became a query: %+v %v", out, err)
+	}
+}
+
+func TestBuildPreferenceFailureCannotDropConfiguredScope(t *testing.T) {
+	t.Parallel()
+	for _, failure := range []error{errors.New("public preferences unavailable"), context.Canceled, context.DeadlineExceeded} {
+		t.Run(failure.Error(), func(t *testing.T) {
+			t.Parallel()
+			deps := Deps{Preferences: func() (BuildPreferences, error) { return BuildPreferences{DefaultBoard: "Scoped"}, failure }, CacheFor: func(string, string) (core.Cache, error) { t.Fatal("failed preferences opened cache"); return nil, nil }, JiraClient: func(context.Context) (core.JiraClient, error) {
+				t.Fatal("failed public preferences opened client")
+				return nil, nil
+			}}
+			if _, err := runBuild(t.Context(), deps, buildOptions{}); !errors.Is(err, failure) {
+				t.Fatal("failed preference read broadened query", err)
+			}
+		})
 	}
 }

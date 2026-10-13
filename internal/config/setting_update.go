@@ -6,6 +6,7 @@ import (
 	"maps"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -15,7 +16,7 @@ import (
 	"github.com/matcra587/jira-cli/internal/core"
 )
 
-// WritableSettingKeys lists scalar preferences and account metadata. Tokens
+// WritableSettingKeys lists public preferences and account metadata. Tokens
 // belong to auth, and alias changes use their command-tree validation owner.
 func WritableSettingKeys() []string {
 	return slices.DeleteFunc(Keys(), func(key string) bool { return IsSecret(key) || key == "aliases" })
@@ -32,7 +33,7 @@ func SettingValueChoices(key string) []string {
 	case "glyphs":
 		return []string{GlyphSetDefault.String(), GlyphSetNerd.String()}
 	case "theme":
-		return theme.Names()
+		return ThemeChoices()
 	default:
 		return nil
 	}
@@ -53,6 +54,15 @@ func parseSettingValue(key, value string) (any, error) {
 		return nil, fmt.Errorf("%s must be valid UTF-8", key)
 	}
 	switch key {
+	case "account_id", "account_id_site", "account_id_email", "account_id_cloud_id":
+		candidate, err := unmarshalFields(map[string]any{key: value})
+		if err != nil {
+			return nil, err
+		}
+		if err := validateAccountIdentity(*candidate); err != nil {
+			return nil, err
+		}
+		return value, nil
 	case "credential_id":
 		if err := validateCredentialID(value); err != nil {
 			return nil, err
@@ -63,8 +73,22 @@ func parseSettingValue(key, value string) (any, error) {
 			return nil, err
 		}
 		return value, nil
-	case "email", "queries_path", "theme_path", "editor", "onepassword_account", "onepassword_vault", "onepassword_item":
+	case "default_project", "default_issue_type", "default_board", "email", "queries_path", "theme_path", "editor", "onepassword_account", "onepassword_vault", "onepassword_item":
 		return value, nil
+	case "api_token_env":
+		if err := validateTokenEnvironmentKey(value); err != nil {
+			return nil, err
+		}
+		return value, nil
+	case "refresh_interval":
+		return parseRefreshInterval(value)
+	case "team_account_ids":
+		return parseTeamAccountIDs(value)
+	case "cloud_id":
+		if err := core.ValidateCloudID(value); err != nil {
+			return nil, err
+		}
+		return strings.TrimSpace(value), nil
 	case "keyring", "read_only":
 		parsed, err := strconv.ParseBool(value)
 		if err != nil {
@@ -96,7 +120,7 @@ func parseSettingValue(key, value string) (any, error) {
 		}
 		return parsed.String(), nil
 	case "theme":
-		if value != "" {
+		if value != "" && !IsAutomaticTheme(value) {
 			var parsed theme.Theme
 			if err := parsed.UnmarshalText([]byte(value)); err != nil {
 				return nil, err
@@ -131,10 +155,11 @@ func (u *SettingUpdate) Save(ctx context.Context) (bool, error) {
 	return u.file.Save(ctx, u.candidate)
 }
 
-// PrepareSetting changes one scalar declaration without adding defaults,
+// PrepareSetting changes one declaration without adding defaults,
 // environment values or credentials. Changed files are normalized as TOML;
 // all other declared values, including literal alias names, are retained.
-// Invalid syntax/types are refused; replacing a malformed site URL can repair it.
+// Invalid syntax/types are refused; replacing a malformed site URL or public
+// token-variable reference can repair its declaration.
 func (f *File) PrepareSetting(key, value string) (*SettingUpdate, error) {
 	update, err := f.PrepareSettings(map[string]string{key: value})
 	if err != nil {
@@ -144,13 +169,13 @@ func (f *File) PrepareSetting(key, value string) (*SettingUpdate, error) {
 	return &SettingUpdate{Previous: change.Previous, Next: change.Next, file: f, candidate: update.candidate, changed: update.changed}, nil
 }
 
-// SettingChange carries redacted authored values for one scalar declaration.
+// SettingChange carries redacted authored values for one declaration.
 type SettingChange struct {
 	Previous StoredSetting
 	Next     StoredSetting
 }
 
-// SettingsUpdate owns one combined candidate for related scalar assignments.
+// SettingsUpdate owns one combined candidate for related setting assignments.
 // A failed assignment prepares nothing; publication uses the original file
 // snapshot once, so pairs such as a theme name/path cannot be partially saved.
 type SettingsUpdate struct {

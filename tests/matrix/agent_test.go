@@ -116,8 +116,8 @@ func TestGuideExportFlagEffects(t *testing.T) {
 		t.Fatal("existing artifact was replaced without acknowledgement")
 	}
 	forced := fwParse(t, fwExec(t, "", nil, "", append(forceArgs, "--force")...))
-	if len(forced.Data["written_paths"].([]any)) != 10 {
+	if len(forced.Data["written_paths"].([]any)) != 11 {
 		t.Fatal("--force did not publish the acknowledged replacement")
 	}
-	Prove(t, "jira agent export", "force", "unacknowledged collision fails; --force publishes the complete ten-guide corpus")
+	Prove(t, "jira agent export", "force", "unacknowledged collision fails; --force publishes the complete eleven-guide corpus")
 }

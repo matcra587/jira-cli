@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -21,6 +22,8 @@ import (
 	"time"
 
 	xos "github.com/gechr/x/os"
+
+	"github.com/matcra587/jira-cli/internal/core"
 )
 
 // Capture is one recorded invocation: a scenario run in one output
@@ -67,7 +70,7 @@ func jiraBinary() (string, error) {
 		defer cancelBuild()
 		// -buildvcs=false: the harness needs no version stamp, and VCS probing
 		// fails in stripped checkouts (scratch worktrees, CI shallow clones).
-		cmd := exec.CommandContext(buildCtx, "go", "build", "-buildvcs=false", "-o", binPath, "./cmd/jira")
+		cmd := exec.CommandContext(buildCtx, "go", "build", "-tags=outputaudit", "-buildvcs=false", "-o", binPath, "./cmd/jira")
 		cmd.Dir = rootDir
 		cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 		if out, err := cmd.CombinedOutput(); err != nil {
@@ -232,6 +235,20 @@ func runScenario(bin string, s Scenario, mode Mode, baseURL string) (Capture, er
 	if err := seedFiles(workdir, s.Files); err != nil {
 		return Capture{}, fmt.Errorf("scenario %q mode %s: %w", s.ID, mode, err)
 	}
+	if len(s.SetupArgs) != 0 {
+		setup := exec.CommandContext(ctx, bin, append([]string{"--output=json"}, s.SetupArgs...)...)
+		setup.Dir, setup.Env = workdir, cmd.Env
+		body, err := setup.Output()
+		if err != nil {
+			return Capture{}, fmt.Errorf("scenario %q setup did not run successfully: %w", s.ID, err)
+		}
+		var frame struct {
+			OK bool `json:"ok"`
+		}
+		if err := json.Unmarshal(body, &frame); err != nil || !frame.OK {
+			return Capture{}, fmt.Errorf("scenario %q setup produced no successful envelope", s.ID)
+		}
+	}
 
 	// Fingerprint the state a run is allowed to touch, so a dry-run that
 	// writes cannot pass by talking about not writing. Taken around the
@@ -348,7 +365,16 @@ var canonPatterns = []struct {
 	{regexp.MustCompile(`[^"\s]*jira-audit-(bin|work)-[^"\s]*`), `<CANON>`},
 }
 
+var credentialBackupPattern = regexp.MustCompile(`"credential_backup":"([^"\\]*)"`)
+
 func canonicalize(s string) string {
+	s = credentialBackupPattern.ReplaceAllStringFunc(s, func(member string) string {
+		name := strings.TrimSuffix(strings.TrimPrefix(member, `"credential_backup":"`), `"`)
+		if core.ValidCredentialBackupID(name) {
+			return `"credential_backup":"<CANON>"`
+		}
+		return member
+	})
 	for _, p := range canonPatterns {
 		s = p.re.ReplaceAllString(s, p.repl)
 	}

@@ -50,6 +50,10 @@ type Scenario struct {
 	// fixture is part of the baseline rather than looking like a write
 	// the command made.
 	Files map[string]string
+	// SetupArgs is a checked CLI invocation that creates owned recovery inputs
+	// before fingerprinting. It uses the same isolated binary/environment; a
+	// failed setup refuses the scenario instead of interpreting incidental output.
+	SetupArgs []string
 	// Executable copies the cached CLI to this relative owned fixture path.
 	// Installation detection depends on the running executable, not environment
 	// hints; managed-channel recipes therefore need a real isolated copy.
@@ -1368,12 +1372,21 @@ var scenarios = []Scenario{
 		ExpectExit: 0,
 	},
 	{
+		ID:         "auth-login-environment-success",
+		Op:         "auth.login",
+		Category:   CategorySuccess,
+		Args:       []string{"auth", "login"},
+		Env:        []string{"JIRA_SECRET_BACKEND=env", "JIRA_EMAIL=" + stubEmail, "JIRA_API_TOKEN=" + stubToken},
+		Stub:       "myself",
+		ExpectExit: 0,
+	},
+	{
 		ID:       "auth-login-dry-run",
 		Op:       "auth.login",
 		Category: CategoryDryRun,
 		// A preview verifies the token against the stub and stores
-		// nothing, which is the only login the corpus can safely run:
-		// the live path writes to the machine's real credential store.
+		// nothing. The separate environment-backed live recipe publishes only
+		// owned public settings and never opens the host credential store.
 		Args:       []string{"auth", "login", "--with-token", "--dry-run"},
 		Env:        []string{"JIRA_EMAIL=" + stubEmail, "JIRA_API_TOKEN=" + stubStaleToken},
 		Stub:       "myself",

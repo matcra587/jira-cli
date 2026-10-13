@@ -83,7 +83,7 @@ func validateCreateInput(in *issueWriteFlags) error {
 		{flag: command.FlagProject, value: in.fields.Project},
 		{flag: command.FlagIssueType, value: in.fields.IssueType},
 	} {
-		if xstrings.IsBlank(fact.value) {
+		if in.cmd.Flags().Changed(fact.flag) && xstrings.IsBlank(fact.value) {
 			e := cli.NewInputError(cli.CodeFlagValueInvalid, "--"+fact.flag+" must name an explicit nonblank create-metadata context with --generate-json")
 			e.Field = fact.flag
 			return e

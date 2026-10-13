@@ -72,13 +72,13 @@ title := text.Render("Remove the stored token for ") +
 *   **Style every segment, including the plain ones.** A styled span emits
     its own escape sequence and RESETS at the end, so styling only the
     highlights leaves everything after them at the terminal default. That
-    produced a title reading indigo, white, indigo, white. `command.Question`
+    produced a title reading indigo, white, indigo, white. `prompt.Question`
     takes alternating plain and highlighted parts so this is structural
     rather than something each caller has to remember.
 *   **Theme the whole dialog, not just the title.** huh ships its own
     palette and applies it to the buttons unless given a theme, so a
     themed question sat above two buttons in a different color scheme.
-    `command.Confirm` maps the resolved theme onto huh's styles for
+    `prompt.Run` maps the resolved theme onto huh's styles for
     every dialog; do not assemble a form by hand.
 *   **Two roles, not more**: the sentence, and the values in it. The
     accent is the color an inline `` `code` `` span already gets in every
@@ -112,3 +112,9 @@ crash, and carries no stack or generic "try again" hint.
 *   **A prompt is not a substitute for a flag.** Every prompt must have a
     non-interactive equivalent (`--with-token`, `--site`, `--yes`), or the
     command is unusable by half its audience.
+
+Migration and rollback confirmations use `internal/cli/prompt`, with the selected
+source/profile/destination or retained journal identity. Require `--yes` before
+headless live work; `--no-input` overrides a terminal. Dry runs never confirm,
+create recovery, or open providers. Preserve context cancellation and distinguish
+user abortion from an unrelated prompt failure.

@@ -37,7 +37,7 @@ func TestAuthSiteReceivesOperationContext(t *testing.T) {
 			}
 			return SiteInfo{}, context.Canceled
 		},
-		ClientFor: func(string, string, string) (core.JiraClient, error) {
+		ClientFor: func(string, string, string, string) (core.JiraClient, error) {
 			t.Error("failed site resolution constructed a client")
 			return nil, context.Canceled
 		},

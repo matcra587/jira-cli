@@ -71,7 +71,16 @@ query is valid, has matches or grants permission to change matching issues.
 
 Local build does not require authentication. `--board` or `--board-id` uses
 the exact saved filter cached by `issue list` with the same selector, site and
-account. It deliberately accepts older snapshots and reports `cached_at`.
+account. Omitted selectors inherit `default_board`. `--board=` suppresses it.
+Explicit selectors override it. Names match case-insensitively. Numeric-looking
+names remain names. Previously cached selectors keep their original spelling. Lookup can match
+equivalent selector spellings only within the selected account cache.
+If no snapshot exists for the configured site spelling, lookup can try the
+canonical site with the same exact public account. This finds snapshots stored
+under a normalized site without crossing accounts.
+Local build accepts older snapshots and reports `cached_at`. Missing, malformed
+or ambiguous retained scope refuses rather than broadening or fetching remotely.
+`jql build` does not inherit `default_project` or `default_issue_type`.
 Set non-secret `base_url` and `email` preferences or `JIRA_BASE_URL` and
 `JIRA_EMAIL` for offline lookup. Keyring-only identity is unavailable locally.
 
@@ -116,6 +125,17 @@ envelopes and `raw-api` for native requests beyond these domain commands.
 ### Limit results to your assigned issues
 
 Use `issue mine` when every result must be assigned to the current account.
+`default_project` fills an omitted structured project only without raw/saved
+query or active board. `default_board` uses the retained named-board filter for
+list/mine and narrows raw/saved query conditions. Explicit board/raw selectors
+remain exclusive. Machine `board.precedence=default_board` and `cached_at`
+identify this snapshot. Human `--as-jql` stays a bare pipeable query.
+Human `--web` prints one browser URL line. Human `--count` prints one result line.
+Machine frames identify the snapshot used. Before live search/count/browser,
+the constructed client must match the snapshot's public site/account. A different
+stored credential identity refuses with `config_invalid`. Align public preferences
+with `auth status`. Local previews do not authenticate or claim live binding.
+
 Its structured filters and raw `--jql` conditions narrow a required
 `assignee = currentUser()` scope. Raw `OR` conditions stay parenthesized.
 Their trailing `ORDER BY` wins. Without raw JQL or board scope, ordering

@@ -151,13 +151,37 @@ func Layers() []Layer {
 type Config struct {
 	// BaseURL is the Jira site root.
 	BaseURL string `koanf:"base_url"`
+	// CloudID selects scoped-token API routing; BaseURL remains the site identity.
+	CloudID string `koanf:"cloud_id"`
 	// Email is the account the API token belongs to.
 	Email string `koanf:"email"`
 	// CredentialID selects a stable keyring slot independently of profile names.
+	// Empty retains the historical default slot for flat files.
 	CredentialID string `koanf:"credential_id"`
+	// AccountID is public cached identity, used only for matching local previews.
+	// Its independent binding prevents a later scope change from reusing it.
+	AccountID        string `koanf:"account_id"`
+	AccountIDSite    string `koanf:"account_id_site"`
+	AccountIDEmail   string `koanf:"account_id_email"`
+	AccountIDCloudID string `koanf:"account_id_cloud_id"`
 	// APIToken authenticates against BaseURL. SECRET: never rendered —
 	// see Redacted.
 	APIToken string `koanf:"api_token"`
+	// APITokenEnv names an optional Jira token variable. Empty retains only
+	// JIRA_API_TOKEN; that explicit override always has higher priority.
+	APITokenEnv string `koanf:"api_token_env"`
+	// DefaultProject scopes structured issue lists and fills absent create context.
+	DefaultProject string `koanf:"default_project"`
+	// DefaultIssueType fills absent create context only, never edit/list fields.
+	DefaultIssueType string `koanf:"default_issue_type"`
+	// DefaultBoard names a cached board scope; an empty board flag suppresses it.
+	DefaultBoard string `koanf:"default_board"`
+	// RefreshInterval retains the selected client's polling preference as
+	// metadata. Ordinary CLI commands do not start a polling loop.
+	RefreshInterval int `koanf:"refresh_interval"`
+	// TeamAccountIDs retains literal teammate identities as public metadata.
+	// It does not implicitly broaden or narrow any issue query.
+	TeamAccountIDs []string `koanf:"team_account_ids"`
 	// Keyring enables the operating system credential store. Turning it
 	// off skips native credentials when secret_backend is keyring. The env
 	// backend also skips storage; explicit 1password selection remains independent.
@@ -228,7 +252,7 @@ func IsSecret(key string) bool { return secretKeys[key] }
 
 // Keys lists every config key, in a stable order.
 func Keys() []string {
-	return []string{"base_url", "email", "credential_id", "api_token", "keyring", "secret_backend", "onepassword_account", "onepassword_vault", "onepassword_item", "read_only", "timeout", "theme", "theme_path", "glyphs", "workday_seconds", "queries_path", "editor", "aliases"}
+	return []string{"base_url", "cloud_id", "email", "credential_id", "account_id", "account_id_site", "account_id_email", "account_id_cloud_id", "api_token", "api_token_env", "default_project", "default_issue_type", "default_board", "refresh_interval", "team_account_ids", "keyring", "secret_backend", "onepassword_account", "onepassword_vault", "onepassword_item", "read_only", "timeout", "theme", "theme_path", "glyphs", "workday_seconds", "queries_path", "editor", "aliases"}
 }
 
 // Defaults are the built-in values, the layer every load starts from.
@@ -246,9 +270,20 @@ func Keys() []string {
 func Defaults() map[string]any {
 	return map[string]any{
 		"base_url":            "",
+		"cloud_id":            "",
 		"email":               "",
 		"credential_id":       "",
+		"account_id":          "",
+		"account_id_site":     "",
+		"account_id_email":    "",
+		"account_id_cloud_id": "",
 		"api_token":           "",
+		"api_token_env":       "",
+		"default_project":     "",
+		"default_issue_type":  "",
+		"default_board":       "",
+		"refresh_interval":    defaultRefreshInterval,
+		"team_account_ids":    []string{},
 		"keyring":             true,
 		"secret_backend":      string(core.CredentialBackendKeyring),
 		"onepassword_account": "",
@@ -311,8 +346,17 @@ func (c Config) ValidateValues() error {
 	if err := validateCredentialID(c.CredentialID); err != nil {
 		return err
 	}
+	if err := validateAccountIdentity(c); err != nil {
+		return err
+	}
 	var backend core.CredentialBackend
 	if err := backend.UnmarshalText([]byte(c.SecretBackend)); err != nil {
+		return err
+	}
+	if err := validateTokenEnvironmentKey(c.APITokenEnv); err != nil {
+		return err
+	}
+	if err := core.ValidateCloudID(c.CloudID); err != nil {
 		return err
 	}
 	switch {
@@ -410,12 +454,12 @@ func Redacted(key, value string) string {
 	if IsSecret(key) && value != "" {
 		return "(set)"
 	}
-	// A URL can carry a password in userinfo, so base_url is a secret
+	// A URL can carry a password in userinfo, so a site setting is a secret
 	// whenever it happens to hold one. Validate rejects such a URL, but
 	// redaction cannot rely on that: a half-configured state is
 	// deliberately inspectable BEFORE validation runs, which is exactly
 	// when a bad value is still present to be printed.
-	if key == "base_url" && value != "" {
+	if (key == "base_url" || key == "account_id_site") && value != "" {
 		u, err := url.Parse(value)
 		if err != nil {
 			// Parsing errors may still contain credentials. Withhold the
@@ -448,11 +492,27 @@ func (c Config) Values() map[string]string {
 	// String maps always encode successfully. JSON exposes names and quoting
 	// and escapes ASCII controls; human rendering sanitizes remaining controls.
 	aliasJSON, _ := json.Marshal(aliases) //nolint:errcheck // string maps have no unsupported values or cycles
+	teamIDs := c.TeamAccountIDs
+	if teamIDs == nil {
+		teamIDs = []string{}
+	}
+	teamJSON, _ := json.Marshal(teamIDs) //nolint:errcheck // string slices have no unsupported values or cycles
 	return map[string]string{
 		"base_url":            c.BaseURL,
+		"cloud_id":            c.CloudID,
 		"email":               c.Email,
 		"credential_id":       c.CredentialID,
+		"account_id":          c.AccountID,
+		"account_id_site":     c.AccountIDSite,
+		"account_id_email":    c.AccountIDEmail,
+		"account_id_cloud_id": c.AccountIDCloudID,
 		"api_token":           c.APIToken,
+		"api_token_env":       c.APITokenEnv,
+		"default_project":     c.DefaultProject,
+		"default_issue_type":  c.DefaultIssueType,
+		"default_board":       c.DefaultBoard,
+		"refresh_interval":    strconv.Itoa(c.RefreshInterval),
+		"team_account_ids":    string(teamJSON),
 		"keyring":             formatBool(c.Keyring),
 		"secret_backend":      string(c.SecretBackend),
 		"onepassword_account": c.OnePasswordAccount,

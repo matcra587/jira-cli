@@ -74,12 +74,16 @@ func newCreate(deps Deps) *cobra.Command {
 			"not express an array, an object or a cascading select without " +
 			"inventing a second, untyped way to say what the payload already " +
 			"says exactly.\n\n" +
-			"`--project`, `--type` and `--summary` are required, from a flag or " +
-			"from the payload — Jira rejects a create without them, and " +
+			"Project, issue type and summary are required. Flags or native payload " +
+			"members supply them; default_project and default_issue_type fill only " +
+			"absent project/type members across fields and update. Explicit empty " +
+			"flags suppress defaults, and authored null/empty/native values survive. " +
+			"Defaults do not apply to edit or clone. Jira rejects a create without them, and " +
 			"refusing locally costs a round trip less.\n\n" +
 			"`--generate-json --project KEY_OR_ID --type NAME_OR_ID` reads live " +
 			"project-specific create metadata, resolves the actual project/type " +
-			"IDs and walks every issue-type and field page. It returns native " +
+			"IDs and walks every issue-type and field page. Omitted project/type " +
+			"flags use configured defaults; explicit empty flags refuse before lookup. It returns native " +
 			"requiredness, allowed values, schemas, defaults and actual custom " +
 			"field IDs alongside a native `fields`/`update` skeleton. Remaining " +
 			"null values are placeholders: fill wanted values and remove " +
@@ -109,10 +113,10 @@ func newCreate(deps Deps) *cobra.Command {
 			"and any acknowledged identity in the full failure frame.\n\n" +
 			"`--assignee` and `--reporter` take an Atlassian account id, not a " +
 			"display name — or `@me`, which resolves to whoever your " +
-			"credentials authenticate as. Resolving `@me` reads the current " +
-			"user from the site, so `--dry-run` leaves it unresolved in the " +
-			"payload and says so in a warning; add `--validate-remote` to " +
-			"resolve it in a preview too. A live run always resolves it.\n\n" +
+			"credentials authenticate as. Live runs read the current user from " +
+			"Jira. Local previews use a matching cached account_id with an " +
+			"unverified warning, or leave @me unresolved. `--validate-remote` " +
+			"reads Jira identity in a preview too.\n\n" +
 			"`--web` is refused: there is no page to open for an issue that " +
 			"does not exist yet.",
 		Example: "# the smallest useful create\n" +
@@ -152,7 +156,11 @@ func newCreate(deps Deps) *cobra.Command {
 			Validate:      func() error { return validateCreateInput(&in) },
 			RetainOnError: func(out envelope.IssueCreateInputOutput) bool { return len(out.Project) > 0 },
 			Run: func(ctx context.Context, _ command.Invocation) (envelope.IssueCreateInputOutput, error) {
-				return runCreateInput(ctx, deps, in.fields.Project, in.fields.IssueType)
+				project, issueType, err := createInputContext(ctx, deps, &in)
+				if err != nil {
+					return envelope.IssueCreateInputOutput{}, err
+				}
+				return runCreateInput(ctx, deps, project, issueType)
 			},
 		}),
 		Validate: func() error {
@@ -234,12 +242,16 @@ func refuseWebOnCreate(cmd *cobra.Command) error {
 func runCreate(ctx context.Context, deps Deps, inv command.Invocation, in *issueWriteFlags, opts createOptions) (envelope.IssueCreateOutput, error) {
 	var zero envelope.IssueCreateOutput
 
+	preferences, err := issuePreferences(ctx, deps)
+	if err != nil {
+		return zero, err
+	}
 	client, err := in.resolveAccounts(ctx, deps, inv.DryRun, opts.validateRemote)
 	if err != nil {
 		return zero, err
 	}
 
-	composed, err := in.compose(ctx, inv.Stdin, inv.StdinIsTerminal)
+	composed, err := in.composeWithDefaults(ctx, inv.Stdin, inv.StdinIsTerminal, preferences)
 	if err != nil {
 		return zero, err
 	}

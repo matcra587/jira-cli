@@ -81,7 +81,7 @@ func AddOutputFlags(cmd *cobra.Command) {
 }
 
 // AddGlobalFlags registers the global flags that are not about output:
-// --config, --timeout and --no-input (design §3).
+// --config, --profile, --timeout and --no-input.
 //
 // Unlike the output aliases above these are DOCUMENTED surface — visible
 // in help, the schema and completion — so each carries clib metadata like
@@ -108,10 +108,10 @@ func AddGlobalFlags(cmd *cobra.Command) {
 		Hint:        "file",
 	})
 	markCompletionForward(fs.Lookup(cli.FlagConfig))
-
 	fs.StringP(cli.FlagProfile, "P", "", "Select a named profile instead of JIRA_PROFILE or the configured default")
 	clibcobra.Extend(fs.Lookup(cli.FlagProfile), clibcobra.FlagExtra{
-		Terse: "Profile", Group: help.GlobalSection + "/3", Placeholder: "name", Complete: "predictor=profile",
+		Terse: "Profile", Group: help.GlobalSection + "/3", Placeholder: "name",
+		Complete: "predictor=profile",
 	})
 	markCompletionForward(fs.Lookup(cli.FlagProfile))
 

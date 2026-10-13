@@ -98,6 +98,7 @@ var completionKinds = map[string]func(args []string) []string{
 	"guide":              guideCandidates,
 	"helppath":           helpPathCandidates,
 	"alias":              aliasCandidates,
+	"profile":            profileCandidates,
 	"savedquery":         savedQueryCandidates,
 	"configkey":          func(_ []string) []string { return config.Keys() },
 	"cacheresource":      func(_ []string) []string { return cachecmd.ResourceNames() },
@@ -108,7 +109,7 @@ var completionKinds = map[string]func(args []string) []string{
 	"cachetransition":    transitionCandidates,
 	"configsetkey":       func(_ []string) []string { return config.WritableSettingKeys() },
 	"configvalue":        configValueCandidates,
-	"profile":            profileCandidates,
+	"legacyprofile":      legacyProfileCandidates,
 	"cachelabel":         func(args []string) []string { return metadataCandidates(args, "labels") },
 	"cacheproject":       func(args []string) []string { return metadataCandidates(args, "projects") },
 	"cacheepic":          func(args []string) []string { return metadataCandidates(args, "epics") },
@@ -127,6 +128,7 @@ type completionContext struct {
 	transition, status    string
 	jql, filter, fromFile string
 	jsonInput             string
+	legacySource          string
 }
 
 // completionPositionals separates clib's forwarded valued flags from prior
@@ -147,13 +149,37 @@ func completionPositionals(args []string) (completionContext, []string, error) {
 	filter := probe.String(command.FlagFilter, "", "")
 	fromFile := probe.String(command.FlagFromFile, "", "")
 	jsonInput := probe.String(command.FlagJSONInput, "", "")
+	legacySource := probe.String("source", "", "")
 	if err := probe.Parse(args); err != nil {
 		return ctx, nil, err
 	}
 	ctx.files, ctx.transition, ctx.status = *files, *transition, *status
 	ctx.jql, ctx.filter, ctx.fromFile = *jql, *filter, *fromFile
+	ctx.legacySource = *legacySource
 	ctx.jsonInput = *jsonInput
 	return ctx, probe.Args(), nil
+}
+
+func legacyProfileCandidates(args []string) []string {
+	contextFlags, _, err := completionPositionals(args)
+	if err != nil || strings.TrimSpace(contextFlags.legacySource) == "" {
+		return nil
+	}
+	file, err := config.ReadFile(context.Background(), contextFlags.legacySource)
+	if err != nil {
+		return nil
+	}
+	names, err := config.LegacyProfileNames(context.Background(), file.Contents())
+	if err != nil {
+		return nil
+	}
+	var candidates []string
+	for _, name := range names {
+		if cli.Text(name) == name {
+			candidates = append(candidates, name+"\tLegacy profile")
+		}
+	}
+	return candidates
 }
 
 func profileCandidates(args []string) []string {
@@ -232,7 +258,16 @@ func configValueCandidates(args []string) []string {
 	if err != nil || len(positionals) != 1 {
 		return nil
 	}
-	return config.SettingValueChoices(positionals[0])
+	switch positionals[0] {
+	case "default_project":
+		return metadataCandidates(args, "projects")
+	case "default_issue_type":
+		return metadataCandidates(args, "issuetypes")
+	case "default_board":
+		return metadataCandidates(args, "boards")
+	default:
+		return config.SettingValueChoices(positionals[0])
+	}
 }
 
 func aliasCandidates(args []string) []string {

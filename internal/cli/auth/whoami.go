@@ -17,15 +17,29 @@ const identityDescription = "Read the account Jira authenticates with the resolv
 	"Machine output retains the complete native account in `data.user`, " +
 	"including privacy-hidden email, absent fields and additional Jira fields. " +
 	"Human output shows the returned account identity, type, time zone and activity. " +
-	"This is a read; it does not save account settings or display the API token."
+	"Default identity inspection is a read; it does not save account settings or display the API token."
 
 // newWhoami returns the current account with its complete native Jira fields.
 func newWhoami(deps Deps) *cobra.Command {
 	return command.MustNew(command.Spec[envelope.AuthWhoamiOutput]{
 		Op: "auth.whoami", Passthrough: true, Use: "whoami",
-		Short: "Show the current Jira account", Long: identityDescription,
-		Example: "$ jira auth whoami\n$ jira auth whoami --output=json\n$ jira auth whoami --output=json --jq '.data.user.accountId'",
-		Human:   renderWhoamiHuman,
+		Short: "Show the current Jira account", Long: identityDescription + "\n\n" + identitySaveDescription,
+		Example: "$ jira auth whoami\n$ jira auth whoami --output=json\n$ jira auth whoami --save --dry-run\n$ jira auth whoami --save --output=json",
+		Flags: func(c *cobra.Command) {
+			var save bool
+			command.AddBoolVar(c, &save, "save", false, "Save verified account identity with its public site/account/cloud binding", command.FlagOpts{Terse: "Save verified identity"})
+			command.AddDryRunFlag(c)
+		},
+		LocalWrite: command.WhenBoolLocalWrite("save", command.LocalWriteSpec[envelope.AuthWhoamiSaveOutput]{
+			Op: "auth.whoami.save", Passthrough: true, Human: renderWhoamiSaveHuman,
+			Run: func(ctx context.Context, inv command.Invocation) (envelope.AuthWhoamiSaveOutput, error) {
+				return saveIdentity(ctx, deps, inv.DryRun)
+			},
+			RetainOnError: func(out envelope.AuthWhoamiSaveOutput) bool {
+				return out.User.AccountID.Set && !out.User.AccountID.Null
+			},
+		}),
+		Human: renderWhoamiHuman,
 		Run: func(ctx context.Context, _ command.Invocation) (envelope.AuthWhoamiOutput, error) {
 			return readIdentity(ctx, deps)
 		},
@@ -58,6 +72,10 @@ func renderWhoamiHuman(v *output.View, env envelope.Envelope) error {
 	if !ok {
 		return fmt.Errorf("auth.whoami: unexpected payload %T", env.Data)
 	}
+	return renderIdentityHuman(v, out)
+}
+
+func renderIdentityHuman(v *output.View, out envelope.AuthWhoamiOutput) error {
 	u := out.User
 	fields := []output.Field{
 		{Label: "Site", Value: cli.Text(out.BaseURL)},

@@ -25,7 +25,9 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/matcra587/jira-cli/internal/cli"
+	"github.com/matcra587/jira-cli/internal/config"
 	"github.com/matcra587/jira-cli/internal/credentials"
+	"github.com/matcra587/jira-cli/internal/envelope"
 )
 
 // TestNativeKeyringAuthLifecycle uses a private bus and synthetic credentials.
@@ -249,6 +251,13 @@ func testNativeKeyringAuthLifecycle(t *testing.T) {
 	var revoked atomic.Bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
+		if r.Method == http.MethodGet && r.URL.Path == "/_edge/tenant_info" {
+			if r.Header.Get("Authorization") != "" || r.Header.Get("Cookie") != "" {
+				t.Error("public discovery received private authentication state")
+			}
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
 		if r.Method != http.MethodGet || r.URL.Path != "/rest/api/3/myself" {
 			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
 		}
@@ -315,17 +324,41 @@ func testNativeKeyringAuthLifecycle(t *testing.T) {
 	}
 	absent(t)
 	t.Run("login preview stores nothing", func(t *testing.T) {
-		invoke(t, token, 0, "auth", "login", "--with-token", "--dry-run")
+		before, err := os.ReadFile(configPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out envelope.AuthLoginOutput
+		if err := json.Unmarshal(invoke(t, token, 0, "auth", "login", "--with-token", "--dry-run"), &out); err != nil {
+			t.Fatal(err)
+		}
+		if !out.Verified || out.Credential.Saved || out.Credential.Attempted || out.Credential.Status != "prepared" || out.Settings.Saved || !out.Settings.WouldChange {
+			t.Fatal("native preview invented publication or omitted preparation")
+		}
+		after, err := os.ReadFile(configPath)
+		if err != nil || !bytes.Equal(before, after) {
+			t.Fatal("native login preview changed public settings")
+		}
 		absent(t)
 	})
 	t.Run("verified login stores complete native record", func(t *testing.T) {
-		invoke(t, token, 0, "auth", "login", "--with-token")
+		var out envelope.AuthLoginOutput
+		if err := json.Unmarshal(invoke(t, token, 0, "auth", "login", "--with-token"), &out); err != nil {
+			t.Fatal(err)
+		}
+		if !out.Verified || !out.Credential.Saved || !out.Credential.Attempted || !out.Settings.Saved || !out.Settings.Changed {
+			t.Fatal("native login lost actual credential/settings acknowledgment")
+		}
 		var record credentials.Record
 		if err := json.Unmarshal([]byte(stored(t)), &record); err != nil {
 			t.Fatal(err)
 		}
 		if record.Version != credentials.Version || record.Site != server.URL || record.Email != email || record.Token != token {
 			t.Fatal("native record differs from the verified credential tuple")
+		}
+		fresh, err := config.Resolve(t.Context(), config.Options{Path: configPath, Environ: func() []string { return nil }}, nil)
+		if err != nil || fresh.Config.CachedAccountID() != "native:fixture" || fresh.Config.APIToken != "" {
+			t.Fatal("native login has no usable secret-free bound identity", err)
 		}
 	})
 	t.Run("new process authenticates from native record", func(t *testing.T) {
@@ -374,9 +407,10 @@ func testNativeKeyringAuthLifecycle(t *testing.T) {
 		invoke(t, "", 0, "auth", "logout", "--yes")
 		absent(t)
 	})
-	if calls.Load() != 5 {
-		t.Fatalf("native lifecycle sent %d requests, want 5", calls.Load())
+	if calls.Load() != 6 {
+		t.Fatalf("native lifecycle sent %d requests, want 6", calls.Load())
 	}
+	t.Run("migration and rollback", testNativeKeyringMigrationCommands)
 	t.Run("interactive terminal", testNativeKeyringAuthTerminal)
 	t.Run("active accessible password context", testNativeAccessiblePasswordContext)
 	t.Run("active accessible input context", testNativeAccessibleInputContext)

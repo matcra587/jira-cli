@@ -74,6 +74,10 @@ func TestPowerShellNativeCompletionUsesSelectedConfigAndEligibleTransitions(t *t
 		t.Fatal(err)
 	}
 	quote := func(value string) string { return "'" + strings.ReplaceAll(value, "'", "''") + "'" }
+	legacySource := filepath.Join(dir, "legacy source.toml")
+	if err := os.WriteFile(legacySource, []byte("default_profile='work'\n[[profiles]]\nname='work'\nbase_url='https://example.invalid'\nemail='work@example.invalid'\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	for _, tc := range []struct {
 		name, command string
 		want          []string
@@ -82,8 +86,18 @@ func TestPowerShellNativeCompletionUsesSelectedConfigAndEligibleTransitions(t *t
 		{name: "equals selected config", command: "jira --config=" + quote(selected) + " issue transition DEMO-1 3", want: []string{"31"}},
 		{name: "quoted issue key", command: "jira --config " + quote(selected) + " issue transition 'DEMO-1' 3", want: []string{"31"}},
 		{name: "native input suppresses hints", command: "jira --config " + quote(selected) + " issue transition DEMO-1 --json-input=unread.json 3"},
+		{name: "default project", command: "jira --config " + quote(selected) + " config set default_project DEM", want: []string{"DEMO"}},
+		{name: "default issue type", command: "jira --config " + quote(selected) + " config set default_issue_type Ta", want: []string{"Task"}},
+		{name: "default board", command: "jira --config " + quote(selected) + " config set default_board Exam", want: []string{"Example board"}},
+		{name: "automatic theme setting", command: "jira --config " + quote(selected) + " config set theme au", want: []string{"auto"}},
+		{name: "client refresh key", command: "jira --config " + quote(selected) + " config set refresh_i", want: []string{"refresh_interval"}},
+		{name: "team metadata key", command: "jira --config " + quote(selected) + " config set team_ac", want: []string{"team_account_ids"}},
+		{name: "automatic theme flag", command: "jira --config " + quote(selected) + " config theme --name au", want: []string{"auto"}},
 		{name: "project CSV identity", command: "jira --config " + quote(selected) + " issue list --project DEM", want: []string{"DEMO"}},
 		{name: "inline field identity", command: "jira --config " + quote(selected) + " issue list --fields=custom", want: []string{"--fields=customfield_10001"}},
+		{name: "explicit legacy source", command: "jira config migrate --source " + quote(legacySource) + " --source-profile wo", want: []string{"work"}},
+		{name: "inline legacy source and profile", command: "jira config migrate --source=" + quote(legacySource) + " --source-profile=wo", want: []string{"--source-profile=work"}},
+		{name: "missing legacy source", command: "jira config migrate --source-profile wo"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			driver := `$ErrorActionPreference='Stop'

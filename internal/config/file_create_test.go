@@ -345,3 +345,27 @@ func TestNewFileCannotRecreateRemovedExistingSnapshot(t *testing.T) {
 		t.Fatalf("old snapshot recreated its removed file: %v", err)
 	}
 }
+
+func TestNewFileRejectsRegularAncestorsWithoutEffects(t *testing.T) {
+	t.Parallel()
+	for _, relative := range []string{"blocker/config.toml", "blocker/missing/config.toml"} {
+		t.Run(relative, func(t *testing.T) {
+			dir := t.TempDir()
+			blocker := filepath.Join(dir, "blocker")
+			if err := os.WriteFile(blocker, []byte("retain ancestor bytes"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if file, err := config.OpenNewFile(t.Context(), filepath.Join(dir, relative)); err == nil || file != nil {
+				t.Fatal("regular ancestor was accepted as an absent directory")
+			}
+			data, err := os.ReadFile(blocker)
+			if err != nil || string(data) != "retain ancestor bytes" {
+				t.Fatal("path validation changed a regular ancestor")
+			}
+			entries, err := os.ReadDir(dir)
+			if err != nil || len(entries) != 1 || entries[0].Name() != "blocker" {
+				t.Fatal("path validation created unrelated state")
+			}
+		})
+	}
+}

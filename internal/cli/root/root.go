@@ -47,6 +47,7 @@ import (
 	usercmd "github.com/matcra587/jira-cli/internal/cli/user"
 	"github.com/matcra587/jira-cli/internal/cli/version"
 	worklogcmd "github.com/matcra587/jira-cli/internal/cli/worklog"
+	"github.com/matcra587/jira-cli/internal/config"
 	"github.com/matcra587/jira-cli/internal/core"
 	"github.com/matcra587/jira-cli/internal/envelope"
 	"github.com/matcra587/jira-cli/internal/output"
@@ -157,28 +158,31 @@ func newProgramWithTheme(deps *Deps, stdout, stderr io.Writer, resolveTheme func
 	if deps.NotifyTool != nil {
 		notifier = notificationDisplay{Tool: deps.NotifyTool}
 	}
-	runtime := conductor.New(conductor.App{
-		Name:        name,
-		Module:      "github.com/matcra587/jira-cli",
-		Description: description,
-		Updater:     notifier,
-		// Keep local discovery and configuration free of release I/O. The
-		// framework already skips update, version, help and completion.
-		NotifySkip:    []string{"", "up", "agent", "guide", "config", "alias", "auth", "me", "adf", "jql", "open", "release-notes", "rn"},
-		NotifyOptions: notificationOptions(deps, sink),
-		// Supplying a theme is what avoids conductor calling
-		// theme.Auto(), which asks the terminal for its background color
-		// over OSC 11 and waits for an answer. A terminal that never
-		// answers costs termenv's whole timeout: `version` measured at
-		// 5108ms this way, and 21ms once a theme is known — on EVERY
-		// command, not just the ones that draw something.
-		//
-		// So HelpTheme never returns nil, even when no theme is named:
-		// it reads COLORFGBG, then falls back to the dark variant.
-		// Guessing wrong costs colors tuned for the wrong background,
-		// which is visible and fixed with JIRA_THEME. Asking costs five
-		// seconds of nothing, with no clue why.
-		Theme: resolveTheme(),
+	var runtime *conductor.Runtime
+	cli.WithLibraryThemeEnvironment(func() {
+		runtime = conductor.New(conductor.App{
+			Name:        name,
+			Module:      "github.com/matcra587/jira-cli",
+			Description: description,
+			Updater:     notifier,
+			// Keep local discovery and configuration free of release I/O. The
+			// framework already skips update, version, help and completion.
+			NotifySkip:    []string{"", "up", "agent", "guide", "config", "alias", "auth", "me", "adf", "jql", "open", "release-notes", "rn"},
+			NotifyOptions: notificationOptions(deps, sink),
+			// Supplying a theme is what avoids conductor calling
+			// theme.Auto(), which asks the terminal for its background color
+			// over OSC 11 and waits for an answer. A terminal that never
+			// answers costs termenv's whole timeout: `version` measured at
+			// 5108ms this way, and 21ms once a theme is known — on EVERY
+			// command, not just the ones that draw something.
+			//
+			// So HelpTheme never returns nil, even when no theme is named:
+			// it reads COLORFGBG, then falls back to the dark variant.
+			// Guessing wrong costs colors tuned for the wrong background,
+			// which is visible and fixed with JIRA_THEME. Asking costs five
+			// seconds of nothing, with no clue why.
+			Theme: resolveTheme(),
+		})
 	})
 
 	// Without this, cobra runs only the NEAREST PersistentPreRunE — a
@@ -190,6 +194,9 @@ func newProgramWithTheme(deps *Deps, stdout, stderr io.Writer, resolveTheme func
 	quietLevelLabels()
 
 	root := newRoot(deps, sink, runtime.Renderer)
+	if deps.BindContext != nil {
+		deps.BindContext(root.Context)
+	}
 	root.SetOut(stdout)
 	root.SetErr(stderr)
 
@@ -225,7 +232,7 @@ func newProgramWithTheme(deps *Deps, stdout, stderr io.Writer, resolveTheme func
 	// Settings inspection. Local-state only: it reads the config file and
 	// the environment, and constructs no client — a command that reports
 	// what is configured must work when nothing is.
-	program.Root.AddCommand(configcmd.New(configcmd.Deps{Credentials: deps.Credentials}))
+	program.Root.AddCommand(configcmd.New(configcmd.Deps{Credentials: deps.Credentials, Resolve: deps.ResolveConfig, MigrationStores: deps.MigrationStores}))
 	program.Root.AddCommand(aliascmd.New(aliascmd.Deps{
 		ValidateName: func(name string) error { return validateAliasName(program.Root, name) },
 		Validate: func(table map[string]string, name string) error {
@@ -237,7 +244,11 @@ func newProgramWithTheme(deps *Deps, stdout, stderr io.Writer, resolveTheme func
 	program.Root.AddCommand(usercmd.New(usercmd.Deps{JiraClient: deps.JiraClient}))
 	program.Root.AddCommand(jqlcmd.New(jqlcmd.Deps{JiraClient: deps.JiraClient, Preferences: deps.BuildPreferences, CacheFor: deps.CacheFor}))
 	program.Root.AddCommand(epiccmd.New(epiccmd.Deps{JiraClient: deps.JiraClient}))
-	program.Root.AddCommand(worklogcmd.New(worklogcmd.Deps{JiraClient: deps.JiraClient, WorkdaySeconds: workdaySeconds}))
+	workday := deps.WorkdaySeconds
+	if workday == nil {
+		workday = workdaySeconds
+	}
+	program.Root.AddCommand(worklogcmd.New(worklogcmd.Deps{JiraClient: deps.JiraClient, WorkdaySeconds: workday}))
 	program.Root.AddCommand(cachecmd.New(cachecmd.Deps{
 		Cache: func(ctx context.Context) (core.Cache, error) { return configuredCache(ctx, deps) },
 		Primers: cachecmd.PrimeDeps{
@@ -254,7 +265,9 @@ func newProgramWithTheme(deps *Deps, stdout, stderr io.Writer, resolveTheme func
 	// "config list cannot open one" a property the type system holds,
 	// not a convention.
 	issueDeps := issuecmd.Deps{
-		JiraClient: deps.JiraClient,
+		Preferences: deps.BuildPreferences,
+		CacheFor:    deps.CacheFor,
+		JiraClient:  deps.JiraClient,
 		IssueMetadata: func(ctx context.Context) (issuecmd.InputDiscoveryClient, error) {
 			if deps.JiraClient == nil {
 				return nil, core.ErrIssueMetadataUnavailable
@@ -285,12 +298,36 @@ func newProgramWithTheme(deps *Deps, stdout, stderr io.Writer, resolveTheme func
 	// Credentials. Constructors, not instances: nothing opens the
 	// keyring or a network client until a RunE that needs one runs.
 	authDeps := authcmd.Deps{
-		Credentials:      deps.Credentials,
-		ClientFor:        deps.JiraClientFor,
-		Site:             func(ctx context.Context) (authcmd.SiteInfo, error) { return siteFromDeps(ctx, deps) },
-		SiteWithoutStore: siteInfoWithoutStore,
+		Credentials:          deps.Credentials,
+		ClientFor:            deps.JiraClientFor,
+		SiteForSave:          deps.IdentitySaveSite,
+		SiteForLogin:         deps.LoginSite,
+		CredentialsForLogin:  deps.LoginCredentials,
+		PrepareLoginLocation: deps.PrepareLoginLocation,
+		ClientForSave:        deps.IdentitySaveClientFor,
+		Site:                 func(ctx context.Context) (authcmd.SiteInfo, error) { return siteFromDeps(ctx, deps) },
+		SiteWithoutStore:     siteInfoWithoutStore,
+		ValidateLoginScope:   validateLoginScope,
+		IdentityTarget: func(ctx context.Context, scope core.AccountIdentityScope) (core.AccountIdentityTarget, error) {
+			return config.OpenAccountIdentityTarget(ctx, "", scope)
+		},
+		LoginTarget: func(ctx context.Context, binding core.LoginIdentityBinding) (core.AccountIdentityTarget, error) {
+			return config.OpenLoginIdentityTarget(ctx, config.Options{PermitMissingTarget: true}, binding)
+		},
 		// The real dialog. A test hands the command an answer instead.
 		Confirm: prompt.Run,
+	}
+	if deps.SiteWithoutStore != nil {
+		authDeps.SiteWithoutStore = deps.SiteWithoutStore
+	}
+	if deps.LoginTarget != nil {
+		authDeps.LoginTarget = deps.LoginTarget
+	}
+	if deps.IdentityTarget != nil {
+		authDeps.IdentityTarget = deps.IdentityTarget
+	}
+	if deps.ValidateLoginScope != nil {
+		authDeps.ValidateLoginScope = deps.ValidateLoginScope
 	}
 	program.Root.AddCommand(authcmd.New(authDeps), authcmd.NewMe(authDeps))
 
@@ -629,7 +666,7 @@ func (s *failureSink) exitCodeContext(ctx context.Context, err error) int {
 // envelope carries ("jira issue view" → "issue.view"; the bare root is
 // "root").
 func opName(cmd *cobra.Command) string {
-	if selected, ok := command.SelectedReadMeta(cmd); ok {
+	if selected, ok := command.SelectedVariantMeta(cmd); ok {
 		return selected.Op
 	}
 	parts := strings.Fields(cmd.CommandPath())

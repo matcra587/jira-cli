@@ -70,7 +70,9 @@ func TestJQLBuildBinaryReusesLiveResolutionWithoutCredentialsOrHTTP(t *testing.T
 		}
 	}))
 	defer server.Close()
-	env := boardCacheEnv(t, server.URL)
+	// Public and authenticated constructors must retain the same authored
+	// outer namespace even when the client normalizes its inner URL spelling.
+	env := boardCacheEnv(t, server.URL+"/")
 	for _, selector := range []string{"--board-id=42", "--board=sprint"} {
 		stdout, stderr, exit := runBinaryEnv(t, env, "issue", "list", selector, "--refresh", "--as-jql", "--output=json")
 		if exit != 0 || stderr != "" {
@@ -79,7 +81,7 @@ func TestJQLBuildBinaryReusesLiveResolutionWithoutCredentialsOrHTTP(t *testing.T
 	}
 	before := hits.Load()
 	offline := append(env, "JIRA_API_TOKEN=", "JIRA_KEYRING=true", "DBUS_SESSION_BUS_ADDRESS=/dev/null", "AGENT=1")
-	for _, selector := range []string{"--board-id=42", "--board=sprint"} {
+	for _, selector := range []string{"--board-id=42", "--board=sprint", "--board=Sprint"} {
 		for _, mode := range []string{"json", "compact"} {
 			stdout, stderr, exit := runBinaryEnv(t, offline, "jql", "build", selector, "--status=Done", "--desc=false", "--order-by=key", "--output="+mode)
 			var out envelope.JQLBuildOutput
@@ -107,7 +109,7 @@ func TestJQLBuildBinaryReusesLiveResolutionWithoutCredentialsOrHTTP(t *testing.T
 		{append(slices.Clone(offline), "JIRA_BASE_URL=https://other.example"), "--board-id=42", "board_cache_unavailable", 2},
 		{append(slices.Clone(offline), "JIRA_EMAIL="), "--board-id=42", "config_invalid", 3},
 		{offline, "--board-id=43", "board_cache_unavailable", 2},
-		{offline, "--board=Sprint", "board_cache_unavailable", 2},
+		{offline, "--board=Other", "board_cache_unavailable", 2},
 	} {
 		stdout, _, exit := runBinaryEnv(t, test.env, "jql", "build", test.selector, "--output=json")
 		var out apiFrame

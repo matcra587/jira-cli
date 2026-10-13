@@ -249,7 +249,9 @@ func newClone(deps Deps) *cobra.Command {
 			"`--dry-run` reports which issues would be cloned and stops. It " +
 			"contacts nobody, so it cannot show you the fields it would copy — " +
 			"those live on the source, and reading them is what a live run does " +
-			"first.\n\n" +
+			"first. Known nonempty account-ID overrides are inspectable in " +
+			"data.account_overrides, including cached preview identity. They do " +
+			"not describe unread copied source fields.\n\n" +
 			command.SelectorHelp + "\n\n" +
 			"`--web` is refused here. It opens one page and this command writes " +
 			"to a list of keys.",
@@ -431,11 +433,19 @@ func runClone(ctx context.Context, deps Deps, inv command.Invocation, opts clone
 		return zero, err
 	}
 	out.Selector = targets.Summary
+	if _, err := command.ResolveAccounts(ctx, newClient, deps.Preferences, inv.DryRun, opts.validateRemote, accounts); err != nil {
+		return zero, err
+	}
+	if inv.DryRun {
+		out.AccountOverrides = make(map[string]string)
+		for _, field := range accounts {
+			if field.Value != nil && *field.Value != "" {
+				out.AccountOverrides[field.Flag] = *field.Value
+			}
+		}
+	}
 
 	if inv.DryRun && !opts.validateRemote {
-		if warning := command.MeUnresolvedWarning(accounts); warning.Type != "" {
-			cli.AddWarning(warning)
-		}
 		// targets.Keys is empty when a selector went unresolved; the
 		// warning ResolveTargets raised says why.
 		out.Results = clonePreviewResults(targets.Keys)
@@ -444,12 +454,6 @@ func runClone(ctx context.Context, deps Deps, inv command.Invocation, opts clone
 
 	client, err := newClient(ctx)
 	if err != nil {
-		return zero, err
-	}
-	// Resolved ONCE for the whole run, before any source is read: every
-	// clone gets the same account, and a per-key resolution would pay for
-	// the same lookup N times (command.ResolveMe's own reasoning).
-	if err := command.ResolveMe(ctx, client, accounts); err != nil {
 		return zero, err
 	}
 	if inv.DryRun {
@@ -801,6 +805,10 @@ func renderClone(v *output.View, env envelope.Envelope) error {
 		return fmt.Errorf("issue.clone: human renderer received %T, want envelope.IssueCloneOutput", env.Data)
 	}
 	if out.DryRun {
+		v.Fields(
+			output.Field{Label: "Assignee override", Value: cli.Text(out.AccountOverrides[command.FlagAssignee])},
+			output.Field{Label: "Reporter override", Value: cli.Text(out.AccountOverrides[command.FlagReporter])},
+		)
 		if renderUnresolvedSelector(v, out.Selector, "clone") {
 			return nil
 		}

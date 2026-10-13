@@ -587,7 +587,7 @@ func (NoCredentialStore) Get(ctx context.Context, _ string) (string, error) {
 }
 
 func (NoCredentialStore) Set(ctx context.Context, _, _ string) error {
-	return errors.New("the credential store is turned off (keyring = false), so there is nowhere to save the token")
+	return &CredentialStoreError{Backend: CredentialBackendKeyring, Operation: "save", Cause: errors.New("the credential store is turned off (keyring = false), so there is nowhere to save the token")}
 }
 
 func (NoCredentialStore) Delete(ctx context.Context, _ string) error { return nil }

@@ -29,9 +29,20 @@ type ReadSpec[T any] struct {
 	RetainOnError func(T) bool
 }
 
-// ReadVariant retains the typed constructor's execution boundary. Its fields
+// ReadVariant selects a separately typed read through the shared owner.
+type ReadVariant struct{ variant *boolVariant }
+
+// LocalWriteSpec declares a separately typed local mutation. It has the same
+// result and validation surface as ReadSpec; its class is constructor-owned.
+type LocalWriteSpec[T any] ReadSpec[T]
+
+// LocalWriteVariant selects a separately typed local mutation. New requires a
+// preview flag on its command path, even when the default operation is a read.
+type LocalWriteVariant struct{ variant *boolVariant }
+
+// boolVariant retains the typed constructor's execution boundary. Its fields
 // are private so callers cannot substitute an unregistered result or writer.
-type ReadVariant struct {
+type boolVariant struct {
 	flag     string
 	meta     Meta
 	check    func() error
@@ -44,18 +55,28 @@ type ReadVariant struct {
 // verifies that the path registers a boolean flag whose default is false.
 // The handler only returns typed data; this owner emits every result.
 func WhenBoolRead[T any](flag string, spec ReadSpec[T]) *ReadVariant {
+	return &ReadVariant{variant: whenBool(flag, spec, false)}
+}
+
+// WhenBoolLocalWrite selects a separately registered local mutation when flag
+// is true. New checks the flag, output registration and preview requirement.
+func WhenBoolLocalWrite[T any](flag string, spec LocalWriteSpec[T]) *LocalWriteVariant {
+	return &LocalWriteVariant{variant: whenBool(flag, ReadSpec[T](spec), true)}
+}
+
+func whenBool[T any](flag string, spec ReadSpec[T], localWrite bool) *boolVariant {
 	var args *ArgSpec
 	if spec.Args != nil {
 		copied := *spec.Args
 		copied.Positions = slices.Clone(copied.Positions)
 		args = &copied
 	}
-	return &ReadVariant{
+	return &boolVariant{
 		flag: flag,
-		meta: Meta{Op: spec.Op, Variant: "--" + flag, Args: args, Identity: spec.Identity, Keyed: spec.Keyed, Passthrough: spec.Passthrough},
+		meta: Meta{Op: spec.Op, Variant: "--" + flag, Args: args, Identity: spec.Identity, Keyed: spec.Keyed, Passthrough: spec.Passthrough, MutatesLocalState: localWrite},
 		check: func() error {
 			if spec.Run == nil {
-				return fmt.Errorf("command: read %q has no Run", spec.Op)
+				return fmt.Errorf("command: alternative %q has no Run", spec.Op)
 			}
 			return registeredOutput[T](spec.Op)
 		},
@@ -70,7 +91,7 @@ func WhenBoolRead[T any](flag string, spec ReadSpec[T]) *ReadVariant {
 			}
 			if err != nil {
 				if spec.RetainOnError != nil && spec.RetainOnError(data) {
-					return &cli.ResultError{Err: err, Op: spec.Op, Data: data, Human: spec.Human, Warnings: warnings}
+					return &cli.ResultError{Err: err, Op: spec.Op, Data: data, Human: spec.Human, Warnings: warnings, Mutation: localWrite}
 				}
 				return err
 			}
@@ -79,24 +100,24 @@ func WhenBoolRead[T any](flag string, spec ReadSpec[T]) *ReadVariant {
 	}
 }
 
-// bind copies the declaration for one command. Restricting the read's arguments
+// bind copies the declaration for one command. Restricting the alternative's arguments
 // to the path's positional grammar preserves its native completion declaration.
-func (v *ReadVariant) bind(op string, pathArgs ArgSpec, variants []Meta) (*ReadVariant, error) {
+func (v *boolVariant) bind(op string, pathArgs ArgSpec, variants []Meta) (*boolVariant, error) {
 	if v == nil {
 		return nil, nil
 	}
 	if v.check == nil || v.run == nil {
-		return nil, fmt.Errorf("command: read alternative must be constructed with WhenBoolRead")
+		return nil, fmt.Errorf("command: boolean alternative must use its typed constructor")
 	}
 	if err := v.check(); err != nil {
 		return nil, err
 	}
 	if v.meta.Op == op {
-		return nil, fmt.Errorf("command: read alternative must declare its own operation, not %q", op)
+		return nil, fmt.Errorf("command: alternative must declare its own operation, not %q", op)
 	}
 	for _, variant := range variants {
 		if variant.Variant == v.meta.Variant {
-			return nil, fmt.Errorf("command: read flag %q is already declared as a variant", v.meta.Variant)
+			return nil, fmt.Errorf("command: alternative flag %q is already declared as a variant", v.meta.Variant)
 		}
 	}
 	read := *v
@@ -112,38 +133,48 @@ func (v *ReadVariant) bind(op string, pathArgs ArgSpec, variants []Meta) (*ReadV
 	validBounds := args.Min >= pathArgs.Min && args.Max >= AnyArgs && (args.Max == AnyArgs || args.Max >= args.Min)
 	withinPath := pathArgs.Max == AnyArgs || args.Max != AnyArgs && args.Max <= pathArgs.Max
 	if !validBounds || !withinPath || !slices.Equal(args.Positions, pathArgs.Positions) {
-		return nil, fmt.Errorf("command: read %q may only narrow the path's argument bounds and must retain its completion positions", read.meta.Op)
+		return nil, fmt.Errorf("command: alternative %q may only narrow the path's argument bounds and must retain its completion positions", read.meta.Op)
 	}
 	return &read, nil
 }
 
-func (v *ReadVariant) selected(cmd *cobra.Command) bool {
+func (v *boolVariant) selected(cmd *cobra.Command) bool {
 	selected, err := cmd.Flags().GetBool(v.flag)
 	return err == nil && selected
 }
 
-func (v *ReadVariant) checkFlag(cmd *cobra.Command) error {
+func (v *boolVariant) checkFlag(cmd *cobra.Command) error {
 	f := cmd.Flags().Lookup(v.flag)
 	if f == nil || f.Value.Type() != "bool" || f.DefValue != "false" {
-		return fmt.Errorf("command: read %q requires --%s as a boolean flag defaulting to false", v.meta.Op, v.flag)
+		return fmt.Errorf("command: alternative %q requires --%s as a boolean flag defaulting to false", v.meta.Op, v.flag)
 	}
 	return nil
 }
 
-var readVariants = map[*cobra.Command]*ReadVariant{}
+var boolVariants = map[*cobra.Command]*boolVariant{}
 
-func setReadVariant(cmd *cobra.Command, read *ReadVariant) {
+func setBoolVariant(cmd *cobra.Command, read *boolVariant) {
 	opMetasMu.Lock()
 	defer opMetasMu.Unlock()
-	readVariants[cmd] = read
+	boolVariants[cmd] = read
 }
 
 // SelectedReadMeta reports the active read alternative after flag parsing.
-// Root failure attribution uses it even when argument or input validation
-// prevents the handler from running. Ordinary operations remain unchanged.
+// SelectedVariantMeta handles both read and local-write alternatives. This
+// read-only accessor retains the original read-specific lookup contract.
 func SelectedReadMeta(cmd *cobra.Command) (Meta, bool) {
+	meta, ok := SelectedVariantMeta(cmd)
+	if !ok || meta.Class() != ClassRead {
+		return Meta{}, false
+	}
+	return meta, true
+}
+
+// SelectedVariantMeta reports the active typed alternative after flag parsing,
+// including failures before its handler runs. The returned metadata is a copy.
+func SelectedVariantMeta(cmd *cobra.Command) (Meta, bool) {
 	opMetasMu.RLock()
-	read := readVariants[cmd]
+	read := boolVariants[cmd]
 	opMetasMu.RUnlock()
 	if read == nil || !read.selected(cmd) {
 		return Meta{}, false

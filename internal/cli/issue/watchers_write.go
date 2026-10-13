@@ -202,9 +202,9 @@ func newWatchersRemove(deps Deps) *cobra.Command {
 			"is watching before you change it. It also takes `@me`, which " +
 			"resolves to whoever your credentials authenticate as: that is the " +
 			"watch/unwatch case, and it is why this CLI has no separate `watch` " +
-			"verb. Resolving `@me` reads the current user from the site, so " +
-			"`--dry-run` leaves it unresolved and says so in a warning; add " +
-			"`--validate-remote` to resolve it in a preview too.\n\n" +
+			"verb. Live resolution reads the current user from Jira. A local " +
+			"preview uses matching cached account_id metadata with an unverified " +
+			"warning, or leaves @me unresolved. `--validate-remote` reads Jira instead.\n\n" +
 			"Removing an account that was not watching SUCCEEDS rather than " +
 			"erroring. The verb names an end state, so re-running it leaves you " +
 			"in the state you asked for.\n\n" +
@@ -349,7 +349,7 @@ func resolveWatcherUser(
 	dryRun, validateRemote bool,
 	user *string,
 ) (core.JiraClient, error) {
-	return command.ResolveAccounts(ctx, deps.JiraClient, dryRun, validateRemote,
+	return command.ResolveAccounts(ctx, deps.JiraClient, deps.Preferences, dryRun, validateRemote,
 		[]command.AccountField{{Flag: flagUser, Value: user}})
 }
 

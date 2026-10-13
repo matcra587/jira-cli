@@ -3,6 +3,7 @@ package command
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	xslices "github.com/gechr/x/slices"
 
@@ -78,20 +79,23 @@ func ResolveMe(ctx context.Context, client core.JiraClient, fields []AccountFiel
 	if len(pending) == 0 {
 		return nil
 	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	read, err := Spin(ctx, "Resolving "+MeSentinel, func(ctx context.Context) (core.UserRead, error) {
 		return client.CurrentUser(ctx)
 	})
 	if err != nil {
 		return fmt.Errorf("resolving %s: %w", MeSentinel, err)
 	}
-	if read.User == nil || read.User.AccountID.Value == "" {
+	if err := core.RequireCurrentUserIdentity(read.User); err != nil {
 		// CurrentUser's contract is a non-nil User alongside a nil error,
 		// and an account with no id is not a thing Jira has. Failing loudly
 		// rather than trusting it silently matters more here than in most
 		// guards: an empty id would compose `{"accountId": ""}`, which Jira
 		// accepts on some fields as "unassigned" — so a silent miss would
 		// not error, it would quietly assign the issue to nobody.
-		return fmt.Errorf("resolving %s: the site returned no account id for the current user", MeSentinel)
+		return fmt.Errorf("resolving %s: the site returned no account id for the current user: %w", MeSentinel, err)
 	}
 	for _, field := range pending {
 		*field.Value = read.User.AccountID.Value
@@ -110,10 +114,9 @@ func ResolveMe(ctx context.Context, client core.JiraClient, fields []AccountFiel
 //
 //   - No sentinel anywhere: nothing happens and no client is built, so a
 //     command that never mentions @me pays nothing.
-//   - Local preview (--dry-run without --validate-remote): the literal
-//     `@me` stays and a warning says so. The preview is honestly
-//     network-free, and the caller can see that what they are looking at
-//     is not what a live run would send.
+//   - Local preview (--dry-run without --validate-remote): public preferences
+//     may supply a matching cached ID with an unverified warning. Otherwise
+//     @me stays and an unresolved warning says so. No client is constructed.
 //   - Live run, or a preview with --validate-remote: resolved for real.
 //
 // **It takes the client CONSTRUCTOR, not a client**, which is what keeps
@@ -131,6 +134,7 @@ func ResolveMe(ctx context.Context, client core.JiraClient, fields []AccountFiel
 func ResolveAccounts(
 	ctx context.Context,
 	newClient func(ctx context.Context) (core.JiraClient, error),
+	preferences func() (core.IssuePreferences, error),
 	dryRun, validateRemote bool,
 	fields []AccountField,
 ) (core.JiraClient, error) {
@@ -140,8 +144,33 @@ func ResolveAccounts(
 		// only after payload validation and any confirmation have passed.
 		return nil, nil
 	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 
 	if dryRun && !validateRemote {
+		if preferences != nil {
+			local, err := preferences()
+			if contextErr := ctx.Err(); contextErr != nil {
+				return nil, contextErr
+			}
+			if err != nil {
+				return nil, err
+			}
+			if local.CachedAccountID != "" {
+				if strings.TrimSpace(local.CachedAccountID) == "" {
+					return nil, cli.NewCodedError(cli.CodeConfigInvalid, "cached account_id must be empty or nonblank")
+				}
+				for _, field := range pending {
+					*field.Value = local.CachedAccountID
+				}
+				cli.AddWarning(envelope.Warning{
+					Type:    "account_id_cached",
+					Message: "This preview uses a configured cached account_id for @me; it is unverified. A live run or --validate-remote reads the current account from Jira.",
+				})
+				return nil, nil
+			}
+		}
 		// Warned even though nothing failed: a preview holding an
 		// unresolved sentinel is showing a payload that differs from the
 		// live one. cli.AddWarning is the route a Spec.Run handler has;
@@ -160,24 +189,9 @@ func ResolveAccounts(
 	return client, nil
 }
 
-// MeUnresolvedWarning is what a LOCAL preview publishes in place of a
-// resolution it deliberately did not perform.
-//
-// The design decision this encodes, so it is not re-litigated per command:
-// `--dry-run` is local-only and must never contact Jira, so a preview
-// cannot know the caller's account id. It therefore leaves the literal
-// `@me` in the composed payload and says so. The two rejected
-// alternatives were both worse — inventing a resolved id would publish a
-// value the preview never looked up, and leaving `@me` silently would
-// show a payload that is not what a live run would send, with nothing
-// pointing at the difference.
-//
-// `--validate-remote` is the opt-in that makes a preview resolve it for
-// real, which is the same split `issue transition` already uses for its
-// screen-state read: dry-run stays honestly free of network, and a caller
-// who wants the remote check can ask for it on a preview or a live run
-// alike. An @me lookup is genuine remote validation, so it is what earns
-// that flag on the write commands rather than declaring it hollow.
+// MeUnresolvedWarning describes a local preview without a matching configured
+// cached identity. It retains @me rather than inventing an authenticated account.
+// Live and --validate-remote resolution always read and validate Jira's reply.
 func MeUnresolvedWarning(fields []AccountField) envelope.Warning {
 	pending := MeFields(fields)
 	if len(pending) == 0 {
@@ -243,4 +257,4 @@ func joinAllButLast(flags []string) string {
 // than only from documentation. Spelled once for the reason the flag names
 // are: two flags describing the same sentinel differently is how one of
 // them comes to be believed.
-var MeHelp = fmt.Sprintf(", or %s for yourself", MeSentinel)
+var MeHelp = fmt.Sprintf(", or %s for yourself; local previews may use a matching cached account_id (unverified)", MeSentinel)

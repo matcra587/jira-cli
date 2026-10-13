@@ -79,8 +79,8 @@ func TestAuthCommandsUseSDKRecordAndPreserveUnmanagedItem(t *testing.T) {
 	}})
 	deps := testDeps(t)
 	deps.Credentials = func() (core.CredentialStore, error) { return store, nil }
-	deps.JiraClientFor = func(site, email, token string) (core.JiraClient, error) {
-		return adapterjira.New(adapterjira.Config{BaseURL: site, Email: email, APIToken: token, HTTPClient: server.Client()})
+	deps.JiraClientFor = func(site, email, token, cloudID string) (core.JiraClient, error) {
+		return adapterjira.New(adapterjira.Config{BaseURL: site, CloudID: cloudID, Email: email, APIToken: token, HTTPClient: server.Client()})
 	}
 	invoke := func(stdin string, args ...string) map[string]json.RawMessage {
 		t.Helper()

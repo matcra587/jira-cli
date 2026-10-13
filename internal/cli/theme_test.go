@@ -3,10 +3,14 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/gechr/clib/theme"
+	"github.com/gechr/clog"
+	clogtheme "github.com/gechr/clog/theme"
 )
 
 // clearEnv removes variables for the test's duration.
@@ -62,6 +66,115 @@ func resetTheme(t *testing.T) {
 
 func themeEnvNames() []string {
 	return append([]string{"COLORFGBG", "NO_COLOR"}, themeEnv...)
+}
+
+func TestAutomaticThemeUsesHintsAndPreservesEnvironmentSelection(t *testing.T) {
+	for _, tc := range []struct {
+		name, hint, want string
+	}{
+		{"light hint", "0;15", "light"},
+		{"dark hint", "15;0", "dark"},
+		{"missing hint", "", "dark"},
+		{"invalid hint", "invalid", "dark"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			clearEnv(t, themeEnvNames()...)
+			resetTheme(t)
+			t.Setenv("JIRA_THEME", " AUTO ")
+			t.Setenv("COLORFGBG", tc.hint)
+			t.Setenv("CLIB_THEME", "monokai")
+			applyTheme()
+			if got := ResolvedTheme(); got == nil || got.String() != tc.want {
+				t.Fatal("automatic selection ignored its hint or used a losing preset")
+			}
+			if os.Getenv("JIRA_THEME") != " AUTO " || len(TakeWarnings()) != 0 {
+				t.Fatal("automatic selection lost authored environment provenance or warned")
+			}
+		})
+	}
+}
+
+func TestLibraryThemeEnvironmentRestoresAutomaticSelectionAfterPanic(t *testing.T) {
+	t.Setenv("COLORFGBG", "")
+	t.Setenv("JIRA_THEME", " AUTO ")
+	t.Setenv("JIRA_EMAIL", "public@example.invalid")
+	func() {
+		defer func() {
+			if recover() != "synthetic startup failure" {
+				t.Fatal("startup failure was swallowed")
+			}
+		}()
+		WithLibraryThemeEnvironment(func() {
+			if os.Getenv("JIRA_THEME") != "dark" || os.Getenv("JIRA_EMAIL") != "public@example.invalid" {
+				t.Fatal("library pass saw the application selector or altered another setting")
+			}
+			panic("synthetic startup failure")
+		})
+	}()
+	if os.Getenv("JIRA_THEME") != " AUTO " {
+		t.Fatal("library pass lost exact authored environment bytes")
+	}
+	t.Setenv("JIRA_THEME", "dark")
+	WithLibraryThemeEnvironment(func() {
+		if os.Getenv("JIRA_THEME") != "dark" {
+			t.Fatal("concrete preset was hidden from the libraries")
+		}
+	})
+}
+
+func TestLibraryThemeEnvironmentKeepsAutomaticWinnerAbovePairs(t *testing.T) {
+	for _, pair := range []string{"dracula", "invalid-losing-pair"} {
+		t.Run(pair, func(t *testing.T) {
+			t.Setenv("JIRA_THEME", "auto")
+			t.Setenv("COLORFGBG", "0;15")
+			t.Setenv("JIRA_THEME_LIGHT", pair)
+			t.Setenv("JIRA_THEME_DARK", pair)
+			t.Setenv("CLOG_THEME_LIGHT", "light")
+			t.Setenv("CLOG_THEME_DARK", "dark")
+			t.Cleanup(func() { clog.SetEnvPrefix("") })
+			WithLibraryThemeEnvironment(func() {
+				clog.SetEnvPrefix("JIRA")
+				selected, err := clogtheme.FromEnv()
+				if err != nil || selected == nil {
+					t.Fatal("automatic winner exposed a losing theme pair", err)
+				}
+				for _, background := range []clogtheme.Background{clogtheme.BackgroundLight, clogtheme.BackgroundDark} {
+					if selected.ForBackground(background).Name() != "light" {
+						t.Fatal("syntax background differs from the passive help selection")
+					}
+				}
+			})
+			if os.Getenv("JIRA_THEME") != "auto" {
+				t.Fatal("theme pair guard lost automatic provenance")
+			}
+		})
+	}
+}
+
+func TestLibraryThemeEnvironmentSerializesConcurrentConstructors(t *testing.T) {
+	t.Setenv("JIRA_THEME", "auto")
+	t.Setenv("COLORFGBG", "0;15")
+	start := make(chan struct{})
+	var constructors sync.WaitGroup
+	for range 100 {
+		constructors.Go(func() {
+			<-start
+			WithLibraryThemeEnvironment(func() {
+				if os.Getenv("JIRA_THEME") != "light" {
+					t.Error("concurrent library pass lost the concrete winner on entry")
+				}
+				runtime.Gosched()
+				if os.Getenv("JIRA_THEME") != "light" {
+					t.Error("another constructor restored auto during the library pass")
+				}
+			})
+		})
+	}
+	close(start)
+	constructors.Wait()
+	if os.Getenv("JIRA_THEME") != "auto" {
+		t.Fatal("concurrent constructors lost exact authored provenance")
+	}
 }
 
 // TestThemeResolutionAvoidsTheTerminalProbe pins a startup cost that is
@@ -310,6 +423,18 @@ func TestTheConfigFileThemeIsReadForReal(t *testing.T) {
 		}
 		if got.String() != "catppuccin-mocha" {
 			t.Errorf("resolved %s, want catppuccin-mocha", got.String())
+		}
+	})
+
+	t.Run("automatic fallback survives an unavailable custom palette", func(t *testing.T) {
+		clearEnv(t, themeEnvNames()...)
+		resetTheme(t)
+		t.Setenv("COLORFGBG", "0;15")
+		write(t, "theme='auto'\ntheme_path='missing.toml'\n")
+		got := readThemeFromConfig()
+		warnings := TakeWarnings()
+		if got == nil || got.String() != "light" || len(warnings) != 1 || warnings[0].Type != "theme_invalid" {
+			t.Fatal("custom palette failure lost automatic fallback or fabricated an unknown selector")
 		}
 	})
 

@@ -18,7 +18,7 @@ import (
 func newSet() *cobra.Command {
 	return command.MustNew(command.Spec[envelope.ConfigSetOutput]{
 		Op: "config.set", MutatesLocalState: true, Use: "set KEY VALUE", Short: "Store one validated setting",
-		Long: "Validate and store one scalar setting in the selected configuration file. " +
+		Long: "Validate and store one setting in the selected configuration file. " +
 			"A missing file is created only after validation. No Jira client, credentials, " +
 			"environment values or built-in defaults are needed or written.\n\n" +
 			"--dry-run validates the same candidate and reports redacted previous and new " +
@@ -28,8 +28,16 @@ func newSet() *cobra.Command {
 			"Unchanged typed values retain the original bytes and metadata. Changed files " +
 			"use normalized TOML while preserving other declared settings and aliases. " +
 			"Invalid file syntax/types are refused; setting base_url can repair a malformed " +
-			"site URL. Snapshot conflicts refuse the save. This is not an atomic lock " +
+			"site URL, and api_token_env can repair a token-variable reference. " +
+			"api_token_env stores only a public JIRA_API_TOKEN or JIRA_TOKEN_ name; " +
+			"token values remain environment-only. Snapshot conflicts refuse the save. This is not an atomic lock " +
 			"against external writers.\n\n" +
+			"default_project and default_issue_type supply omitted create context; default_project also supplies unscoped structured issue list/mine context. " +
+			"default_board names a cached saved-filter scope for issue list/mine and jql build. Explicit empty values clear these preferences. " +
+			"Their completion uses only existing offline metadata.\n\n" +
+			"refresh_interval is positive seconds (default 30); team_account_ids is a JSON array of literal strings, such as [\"team-1\",\"team-2\"]. " +
+			"Use [] to clear that array. These retained client preferences are metadata; they do not start polling or add issue filters.\n\n" +
+			"account_id is cached public identity for local previews only. Its independent account_id_site, account_id_email and account_id_cloud_id must match effective scope; changing scope never rebinds an existing ID. Live runs verify Jira identity instead.\n\n" +
 			"Credentials cannot be stored here; use `jira auth login`. Manage aliases " +
 			"through `jira alias set` or `jira alias import` so their command chains are validated.",
 		Example: "$ jira config set read_only true --no-input\n\n" +

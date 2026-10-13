@@ -23,8 +23,8 @@ func newTheme() *cobra.Command {
 		Op: "config.theme", MutatesLocalState: true, Use: "theme", Short: "Inspect or select a terminal theme",
 		Long: "Inspect the stored theme selection without defaults, environment values, Jira or credentials. " +
 			"Use `jira config list` for effective values and sources.\n\n" +
-			"--name selects a built-in preset and clears an existing custom path unless --path is also supplied. " +
-			"An empty name restores fallback selection. --path selects and validates a custom TOML palette, " +
+			"--name selects a built-in preset or auto and clears an existing custom path unless --path is also supplied. " +
+			"auto uses COLORFGBG then dark without querying the terminal. An empty name restores fallback selection. --path selects and validates a custom TOML palette, " +
 			"stored as an absolute path; an empty path disables the custom palette. Its base preset and named " +
 			"RGB overrides affect help, value sinks and syntax highlighting on the next invocation. " +
 			"JIRA_THEME overrides the custom file. Relative paths authored directly in settings resolve " +
@@ -45,7 +45,7 @@ $ jira config theme --path ./palette.toml --dry-run --output=json
 $ jira config theme --path '' --no-input`,
 		Flags: func(c *cobra.Command) {
 			cmd = c
-			command.AddStringVar(c, &name, "name", "", "Select a built-in preset; empty restores fallback selection", command.FlagOpts{Terse: "Preset name", Placeholder: "name", Enum: cfg.SettingValueChoices("theme")})
+			command.AddStringVar(c, &name, "name", "", "Select a built-in preset or auto; empty restores fallback selection", command.FlagOpts{Terse: "Preset name", Placeholder: "name", Enum: cfg.SettingValueChoices("theme")})
 			command.AddStringVar(c, &path, "path", "", "Select a custom palette TOML file; empty disables it", command.FlagOpts{Terse: "Custom palette", Placeholder: "file", Hint: "file"})
 			command.AddDryRunFlag(c)
 		},

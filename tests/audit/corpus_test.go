@@ -1253,6 +1253,11 @@ var successDataShape = map[string]struct {
 	// questions it exists for.
 	"auth.status": {
 		required: []string{"base_url", "email", "account_id", "display_name", "token_source"},
+		optional: []string{"cloud_id"},
+	},
+	"auth.login": {
+		required: []string{"dry_run", "verified", "base_url", "email", "account_id", "display_name", "credential", "settings"},
+		optional: []string{"cloud_id", "replaced"},
 	},
 	"auth.whoami": {required: []string{"base_url", "user"}},
 	"config.list": {
@@ -2799,6 +2804,14 @@ func checkSuccessDeterminismPair(cap, sibling Capture) (bool, string) {
 	if err != nil {
 		return false, "sibling capture: " + err.Error()
 	}
+	if cap.Scenario.Op == "config.migrate" || cap.Scenario.Op == "config.rollback" {
+		if err := normalizeMigrationComparison(mine); err != nil {
+			return false, err.Error()
+		}
+		if err := normalizeMigrationComparison(theirs); err != nil {
+			return false, err.Error()
+		}
+	}
 	if !reflect.DeepEqual(mine, theirs) {
 		return false, fmt.Sprintf("data differs across modes: %v vs %v", mine, theirs)
 	}
@@ -2940,6 +2953,10 @@ func TestCanonicalizeMasksVolatileValues(t *testing.T) {
 		{name: "cache publication UTC timestamp", in: `{"written_at":"2026-10-03T10:11:12.123456789Z"}`, want: `{"written_at":"<CANON>"}`},
 		{name: "non-UTC cache timestamp remains visible", in: `{"written_at":"2026-10-03T10:11:12+02:00"}`, want: `{"written_at":"2026-10-03T10:11:12+02:00"}`},
 		{name: "cache metadata text is stable content", in: `{"written_at":"not a timestamp"}`, want: `{"written_at":"not a timestamp"}`},
+		{name: "dedicated random credential backup", in: `{"credential_backup":"jira-cli-recovery-01234567-89ab-cdef-0123-456789abcdef"}`, want: `{"credential_backup":"<CANON>"}`},
+		{name: "invalid credential backup remains visible", in: `{"credential_backup":"jira-cli-recovery-invalid"}`, want: `{"credential_backup":"jira-cli-recovery-invalid"}`},
+		{name: "nil credential backup remains visible", in: `{"credential_backup":"jira-cli-recovery-00000000-0000-0000-0000-000000000000"}`, want: `{"credential_backup":"jira-cli-recovery-00000000-0000-0000-0000-000000000000"}`},
+		{name: "backup spelling in unrelated data remains visible", in: `{"item":"jira-cli-recovery-01234567-89ab-cdef-0123-456789abcdef"}`, want: `{"item":"jira-cli-recovery-01234567-89ab-cdef-0123-456789abcdef"}`},
 		{
 			name: "loopback port",
 			in:   "dial tcp 127.0.0.1:43831: refused",

@@ -16,7 +16,7 @@ func TestResolveAccountsWithoutLookupBuildsNoClient(t *testing.T) {
 			client, err := ResolveAccounts(t.Context(), func(ctx context.Context) (core.JiraClient, error) {
 				calls++
 				return nil, errors.New("unexpected credential access")
-			}, preview, remote, []AccountField{{Flag: "assignee", Value: &account}})
+			}, nil, preview, remote, []AccountField{{Flag: "assignee", Value: &account}})
 			if err != nil || client != nil || calls != 0 || account != "account-123" {
 				t.Fatalf("unneeded account lookup constructed client: preview=%v remote=%v calls=%d err=%v", preview, remote, calls, err)
 			}

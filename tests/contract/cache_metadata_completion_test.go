@@ -6,8 +6,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/gechr/x/shell"
 
 	"github.com/matcra587/jira-cli/internal/adapters"
 	cachecmd "github.com/matcra587/jira-cli/internal/cli/cache"
@@ -29,6 +33,7 @@ func prepareBinaryMetadataCompletion(t *testing.T) ([]string, string) {
 		resource, items string
 	}{
 		{resource: "projects", items: `[{"id":"1","key":"DEMO","name":"Example project"}]`},
+		{resource: "issuetypes", items: `[{"id":"10001","name":"Task"}]`},
 		{resource: "fields", items: `[{"id":"customfield_10001","name":"Native field"}]`},
 	} {
 		var items []json.RawMessage
@@ -54,6 +59,10 @@ func prepareBinaryMetadataCompletion(t *testing.T) ([]string, string) {
 		if !found {
 			t.Fatalf("missing producer %s", tc.resource)
 		}
+	}
+	board := []byte(`{"boards":[{"id":42,"name":"Example board","type":null,"project_keys":[],"projects_complete":true}],"fetched_at":` + strconv.Quote(time.Now().UTC().Format(time.RFC3339Nano)) + `,"pages_fetched":1,"complete":true,"truncated":false,"project_failures":[]}`)
+	if err := store.Set(cachecmd.BoardListKey, board); err != nil {
+		t.Fatal(err)
 	}
 	path := filepath.Join(t.TempDir(), "selected.toml")
 	if err := os.WriteFile(path, []byte("base_url = 'https://example.com'\nemail = 'person@example.com'\n"), 0o600); err != nil {
@@ -117,6 +126,9 @@ printf '%s\0' "${COMPREPLY[@]}"
 		args []string
 		want []string
 	}{
+		{name: "default project", args: []string{"config", "set", "default_project", "DEM"}, want: []string{"DEMO"}},
+		{name: "default issue type", args: []string{"config", "set", "default_issue_type", "Ta"}, want: []string{"Task"}},
+		{name: "default board", args: []string{"config", "set", "default_board", "Exam"}, want: []string{"Example board"}},
 		{name: "project CSV", args: []string{"issue", "list", "--project", "DEM"}, want: []string{"DEMO"}},
 		{name: "field CSV", args: []string{"issue", "view", "DEMO-1", "--fields", "cust"}, want: []string{"customfield_10001"}},
 		{name: "literal project", args: []string{"epic", "list", "--project", "DEM"}, want: []string{"DEMO"}},
@@ -128,6 +140,41 @@ printf '%s\0' "${COMPREPLY[@]}"
 			got := strings.Split(strings.TrimSuffix(stdout, "\x00"), "\x00")
 			if exit != 0 || stderr != "" || !slices.Equal(got, tc.want) {
 				t.Fatalf("generated Bash inserted=%q want=%q exit=%d stderr=%q", got, tc.want, exit, stderr)
+			}
+		})
+	}
+}
+
+func TestFishCompletesWorkingDefaultValuesThroughGeneratedScript(t *testing.T) {
+	fish, err := exec.LookPath("fish")
+	if err != nil {
+		t.Skip("native Fish is unavailable")
+	}
+	env, selected := prepareBinaryMetadataCompletion(t)
+	script, stderr, exit := runBinaryEnv(t, env, "completion", "fish")
+	if exit != 0 || stderr != "" {
+		t.Fatal("Fish generation failed", exit, stderr)
+	}
+	dir := t.TempDir()
+	path := filepath.Join(dir, "completion.fish")
+	if err := os.WriteFile(path, []byte(script), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(jiraBinary(t), filepath.Join(dir, "jira")); err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct{ key, prefix, want string }{
+		{"default_project", "DEM", "DEMO"},
+		{"default_issue_type", "Ta", "Task"},
+		{"default_board", "Exam", "Example board"},
+		{"theme", "au", "auto"},
+	} {
+		t.Run(test.key, func(t *testing.T) {
+			line := "jira --config " + shell.Quote(selected) + " config set " + test.key + " " + test.prefix
+			stdout, stderr, exit := runExecutableIOInDirStarted(t, fish, dir, append(slices.Clone(env), "PATH="+dir+string(os.PathListSeparator)+os.Getenv("PATH")), nil, nil, nil, "--no-config", "-c", `source "$argv[1]"; or exit
+complete -C "$argv[2]"`, "--", path, line)
+			if exit != 0 || stderr != "" || strings.Split(strings.TrimSpace(stdout), "\t")[0] != test.want {
+				t.Fatalf("generated Fish default identity=%q want=%q exit=%d stderr=%q", stdout, test.want, exit, stderr)
 			}
 		})
 	}

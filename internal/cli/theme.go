@@ -54,6 +54,9 @@ var (
 	// that once parallel tests started drawing prompts.
 	chosenMu    sync.RWMutex
 	chosenTheme *theme.Theme
+	// Library prefix setup reads the process environment. Concurrent program
+	// constructors must finish restoration before the next setup can read it.
+	libraryThemeMu sync.Mutex
 )
 
 // setChosenTheme records the resolved theme.
@@ -127,6 +130,10 @@ func applyTheme() {
 				Type:    "theme_unknown",
 				Message: unknownThemeMessage(envVar, name),
 			})
+		case config.IsAutomaticTheme(name) && envVar == ourThemeEnv:
+			// The framework pass hides this application selector temporarily;
+			// command settings still need its original value and provenance.
+			keep = envVar
 		case knownToBoth && envVar == ourThemeEnv:
 			// The exception, and it is narrow. JIRA_THEME is also the
 			// environment layer of the `theme` config key, so unsetting
@@ -162,6 +169,13 @@ func applyTheme() {
 // not. Checking one alone called a working theme unknown while the
 // other was visibly applying it.
 func applyThemeName(name string) (used, knownToBoth bool) {
+	if config.IsAutomaticTheme(name) {
+		selected := automaticTheme()
+		// Resolve the application selector before either library sees it. This
+		// keeps help and syntax colors on the same passive background choice.
+		used, _ = applyThemeName(selected.String())
+		return used, false
+	}
 	var clogT clogtheme.Theme
 	clogKnows := clogT.UnmarshalText([]byte(name)) == nil
 	if clogKnows {
@@ -173,6 +187,25 @@ func applyThemeName(name string) (used, knownToBoth bool) {
 		setChosenTheme(&clibT)
 	}
 	return clogKnows || clibKnows, clogKnows && clibKnows
+}
+
+// WithLibraryThemeEnvironment resolves the application-only automatic selector
+// during the framework's library environment pass. Restore the exact authored
+// value before commands load settings so effective provenance remains intact.
+// Like ConfigureTheme, this runs only during process startup.
+func WithLibraryThemeEnvironment(run func()) {
+	libraryThemeMu.Lock()
+	defer libraryThemeMu.Unlock()
+	value, present := os.LookupEnv(ourThemeEnv)
+	if present && config.IsAutomaticTheme(value) {
+		// Keep an explicit winner so losing light/dark environment pairs cannot
+		// override syntax colors or emit their own parser errors.
+		_ = os.Setenv(ourThemeEnv, automaticTheme().String()) //nolint:errcheck // fixed valid name and preset
+		defer func() {
+			_ = os.Setenv(ourThemeEnv, value) //nolint:errcheck // restoring the original valid pair
+		}()
+	}
+	run()
 }
 
 // unknownThemeMessage says a theme name is not usable, and — when it is
@@ -189,12 +222,12 @@ func applyThemeName(name string) (used, knownToBoth bool) {
 // the minimum-length floor that keeps an open pool of identifiers quiet
 // would only suppress real answers here.
 func unknownThemeMessage(source, value string) string {
-	if near := SuggestValues(value, theme.Names()); len(near) > 0 {
+	if near := SuggestValues(value, config.ThemeChoices()); len(near) > 0 {
 		return fmt.Sprintf("%s: unknown theme %q — did you mean %s? Using the default theme.",
 			source, value, humanList(near))
 	}
 	return fmt.Sprintf("%s: unknown theme %q — using the default theme. Valid: %s.",
-		source, value, strings.Join(theme.Names(), ", "))
+		source, value, strings.Join(config.ThemeChoices(), ", "))
 }
 
 // humanList joins names the way a sentence would: "a", "a or b".
@@ -285,6 +318,11 @@ func BootstrapTheme() *theme.Theme {
 	if t := currentTheme(); t != nil {
 		return t
 	}
+	return automaticTheme()
+}
+
+// automaticTheme resolves passive background hints without settings or probes.
+func automaticTheme() *theme.Theme {
 	if t := themeFromColorFGBG(); t != nil {
 		return t
 	}

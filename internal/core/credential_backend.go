@@ -47,7 +47,7 @@ func (e *CredentialStoreError) Error() string {
 func (e *CredentialStoreError) Unwrap() error { return e.Cause }
 
 // EnvironmentCredentialStore reads no storage and refuses persistence explicitly.
-// JIRA_API_TOKEN remains an environment layer owned by configuration resolution.
+// Generic and configured named tokens remain a layer owned by configuration resolution.
 type EnvironmentCredentialStore struct{ NoCredentialStore }
 
 func (EnvironmentCredentialStore) CredentialBackend() CredentialBackend {

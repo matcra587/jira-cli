@@ -13,8 +13,13 @@ import (
 func TestSettingUpdateValidatesAllWritableScalarsAndPreservesOtherDeclarations(t *testing.T) {
 	t.Parallel()
 	values := map[string]string{
-		"credential_id": "9a245a80-ab07-4530-9b32-c51587fe9680",
-		"base_url":      "https://example.invalid", "email": "saved@example.invalid",
+		"credential_id":   "b6ff8a17-9f47-4e25-83b8-cf3f38466700",
+		"cloud_id":        "fixture-cloud",
+		"api_token_env":   "JIRA_TOKEN_SYNTHETIC_WORK",
+		"default_project": "DEFAULT", "default_issue_type": "Task", "default_board": "Sprint",
+		"refresh_interval": "45", "team_account_ids": `["team-1","team,2"]`,
+		"base_url": "https://example.invalid", "email": "saved@example.invalid",
+		"account_id": "cached-account", "account_id_site": "https://example.invalid", "account_id_email": "saved@example.invalid", "account_id_cloud_id": "fixture-cloud",
 		"keyring": "false", "read_only": "false", "timeout": "2m", "theme": "dark",
 		"secret_backend": "1password", "onepassword_account": "Fixture Account", "onepassword_vault": "Fixture Vault", "onepassword_item": "Fixture Item",
 		"glyphs": "nerd", "workday_seconds": "36000", "queries_path": "local queries", "theme_path": "custom palette.toml", "editor": "future-editor --wait",
@@ -129,6 +134,7 @@ func TestSettingUpdateAbsentEmptyAndFalseAreNewDeclarations(t *testing.T) {
 func TestSettingUpdateRejectsInvalidInputsWithoutPublication(t *testing.T) {
 	t.Parallel()
 	for _, setting := range []struct{ key, value string }{
+		{"api_token_env", "AWS_SECRET_ACCESS_KEY"},
 		{"api_token", "synthetic-forbidden-setting"},
 		{"aliases", "{}"},
 		{"read_ony", "true"},

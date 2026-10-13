@@ -1,5 +1,7 @@
 package envelope
 
+import "github.com/matcra587/jira-cli/internal/core"
+
 // TokenSource names the layer a resolved API token came from. Its own
 // type because it is a closed set that a caller may branch on, and a
 // bare string invites a typo that only shows up in someone's script.
@@ -10,7 +12,7 @@ const (
 	TokenSourceKeyring TokenSource = "keyring"
 	// TokenSourceOnePassword is the direct SDK credential store.
 	TokenSourceOnePassword TokenSource = "1password"
-	// TokenSourceEnv is JIRA_API_TOKEN.
+	// TokenSourceEnv is JIRA_API_TOKEN or a selected JIRA_TOKEN_ reference.
 	TokenSourceEnv TokenSource = "env"
 	// TokenSourceFile is the config file — possible, and worth naming so
 	// a caller can see a secret has ended up somewhere it should not be.
@@ -24,8 +26,10 @@ const (
 // the configured email back would make the command a mirror — it would
 // report success for a token belonging to somebody else entirely.
 type AuthStatusOutput struct {
-	// BaseURL is the site the credentials were checked against.
+	// BaseURL is the browser/site identity, separate from any verified gateway.
 	BaseURL string `json:"base_url"`
+	// CloudID is present only for a verified scoped gateway identity.
+	CloudID string `json:"cloud_id,omitempty"`
 	// Email is the configured account.
 	Email string `json:"email"`
 	// AccountID is the Jira account the credentials authenticated as.
@@ -50,16 +54,18 @@ type AuthStatusOutput struct {
 	TokenSource string `json:"token_source"`
 }
 
-// AuthLoginOutput is the `auth.login` payload: what was stored and who
-// it proved to be.
+// AuthLoginOutput is the verified candidate and independent credential/settings
+// publication outcomes from `auth.login`.
 type AuthLoginOutput struct {
 	// MutationState carries dry_run on both paths: a preview verifies
 	// the token and stores nothing, so a caller must be able to tell
 	// which happened.
 	MutationState
-	// BaseURL is the site the token was verified against.
+	// BaseURL is the browser/site identity, separate from any verified gateway.
 	BaseURL string `json:"base_url"`
-	// Email is the account the token was stored for.
+	// CloudID records the verified gateway scope while BaseURL stays the site.
+	CloudID string `json:"cloud_id,omitempty"`
+	// Email is the credential account verified against Jira.
 	Email string `json:"email"`
 	// Replaced names the credential this login displaced — "account on
 	// site" — when it was for a different account or site. Empty
@@ -67,10 +73,18 @@ type AuthLoginOutput struct {
 	// the displaced credential cannot be recovered from here.
 	Replaced string `json:"replaced,omitempty"`
 	// AccountID and DisplayName are what Jira answered during
-	// verification — proof the stored token works, not a restatement of
-	// what was typed.
+	// verification, independently of whether publication succeeded.
 	AccountID   string `json:"account_id"`
 	DisplayName string `json:"display_name"`
+	// Verified describes the candidate proof, independently of publication.
+	Verified bool `json:"verified"`
+	// Credential retains provider acknowledgment or unknown entered writes.
+	Credential core.CredentialPublication `json:"credential"`
+	// Settings retains actual public identity publication, including failures.
+	Settings core.AccountIdentityPublication `json:"settings"`
+	// LocatorPublication records a new public keyring reference saved before
+	// token publication. It remains visible if a later login step fails.
+	LocatorPublication *core.AccountIdentityPublication `json:"locator_publication,omitempty"`
 }
 
 // AuthLogoutOutput is the `auth.logout` payload.
@@ -99,7 +113,8 @@ func init() {
 	Register("auth.status", AuthStatusOutput{}, map[string]any{
 		"description": "The account these credentials authenticate as, verified against Jira.",
 		"properties": map[string]any{
-			"base_url":     map[string]any{"description": "Site the credentials were checked against."},
+			"base_url":     map[string]any{"description": "Browser/site identity; scoped authentication is verified at the bound gateway."},
+			"cloud_id":     map[string]any{"description": "Verified scoped-token gateway cloud ID; omitted for classic site routing."},
 			"email":        map[string]any{"description": "Configured account."},
 			"account_id":   map[string]any{"description": "Jira account ID the credentials resolved to."},
 			"display_name": map[string]any{"description": "Display name of that account."},
@@ -108,14 +123,18 @@ func init() {
 		},
 	})
 	Register("auth.login", AuthLoginOutput{}, map[string]any{
-		"description": "Result of storing and verifying an API token.",
+		"description": "Verified login and public identity publication, retaining acknowledged or unknown credential/settings effects on failure. The environment backend stores public metadata only.",
 		"properties": map[string]any{
 			"dry_run":      map[string]any{"description": "Whether this was a preview; the token is verified but not stored when true."},
-			"base_url":     map[string]any{"description": "Site the token was verified against."},
+			"base_url":     map[string]any{"description": "Browser/site identity; scoped authentication is verified at the bound gateway."},
+			"cloud_id":     map[string]any{"description": "Verified scoped-token gateway cloud ID; omitted for classic site routing."},
 			"email":        map[string]any{"description": "Account the token was stored for."},
 			"account_id":   map[string]any{"description": "Jira account ID the token resolved to."},
 			"display_name": map[string]any{"description": "Display name of that account."},
 			"replaced":     map[string]any{"description": "Credential this login displaced, when it was a different account or site."},
+			"verified":     map[string]any{"description": "The candidate authenticated as the reported native Jira account; independent of whether publication succeeded."},
+			"credential":   map[string]any{"description": "Public selected-provider acknowledgment: prepared, not_saved, saved, unknown or external. An unknown entered write must be inspected before retrying. No secret is included."},
+			"settings":     map[string]any{"description": "Actual immutable public settings candidate and publication receipt; blocked previews may verify scope without preparing a publishable candidate."},
 		},
 	})
 	Register("auth.logout", AuthLogoutOutput{}, map[string]any{
