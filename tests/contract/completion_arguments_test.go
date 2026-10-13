@@ -44,17 +44,34 @@ func completionArgumentReplies(t *testing.T, script string, env, words []string)
 		t.Fatal(err)
 	}
 	encoded := xslices.Map(words, shell.Quote)
-	driver := "source " + shell.Quote(path) + " || exit 40\ncompopt() { :; }\nCOMP_WORDS=(" + strings.Join(encoded, " ") + ")\nCOMP_CWORD=" + strconv.Itoa(len(words)-1) + "\n_jira jira " + shell.Quote(words[len(words)-1]) + " " + shell.Quote(words[len(words)-2]) + " || exit 41\nprintf '%s\\0' \"${COMPREPLY[@]}\"\n"
+	driver := "source " + shell.Quote(path) + " || exit 40\n__test_quoted=false\ncompopt() { [[ \"$*\" != *noquote* ]] || __test_quoted=true; return 0; }\nCOMP_WORDS=(" + strings.Join(encoded, " ") + ")\nCOMP_CWORD=" + strconv.Itoa(len(words)-1) + "\n_jira jira " + shell.Quote(words[len(words)-1]) + " " + shell.Quote(words[len(words)-2]) + " || exit 41\nprintf '%s\\0' \"$__test_quoted\" \"${COMPREPLY[@]}\"\n"
 	env = append(slices.Clone(env), "PATH="+filepath.Dir(jiraBinary(t))+string(os.PathListSeparator)+os.Getenv("PATH"))
 	stdout, stderr, exit := runExecutableIOInDirStarted(t, bash, dir, env, nil, nil, nil, "--noprofile", "--norc", "-c", driver)
 	if exit != 0 || stderr != "" {
 		t.Fatalf("generated Bash completion exit=%d stderr=%q", exit, stderr)
 	}
+	quoted, stdout, ok := strings.Cut(stdout, "\x00")
+	if !ok {
+		t.Fatal("completion driver omitted quoting metadata")
+	}
 	stdout = strings.TrimSuffix(stdout, "\x00")
 	if stdout == "" {
 		return nil
 	}
-	return strings.Split(stdout, "\x00")
+	values := strings.Split(stdout, "\x00")
+	if quoted == "true" {
+		// Current-word replies carry shell quoting and explicitly disable
+		// Readline's filename quoting. Decode their literal spelling here;
+		// actual editor insertion is verified independently by the PTY guard.
+		for i, value := range values {
+			parts, err := shell.Split(value)
+			if err != nil || len(parts) != 1 {
+				t.Fatal("current-word reply is not one literal shell word", value, err)
+			}
+			values[i] = parts[0]
+		}
+	}
+	return values
 }
 
 func TestCompletionIssueKeysStopBeforeCommentAndWeblinkIDs(t *testing.T) {

@@ -107,7 +107,7 @@ func TestIssueHistoryCompletionRespectsMixedPositionalGrammar(t *testing.T) {
 			if fn == nil {
 				t.Fatalf("missing contextual predictor %s", tc.kind)
 			}
-			keys := fn(tc.args)
+			keys := fn(t.Context(), "fish", tc.args)
 			if tc.want && !slices.Equal(keys, []string{"DEMO-1", "DEMO-2"}) || !tc.want && len(keys) != 0 {
 				t.Fatalf("contextual candidates=%v, want issue candidates=%t", keys, tc.want)
 			}

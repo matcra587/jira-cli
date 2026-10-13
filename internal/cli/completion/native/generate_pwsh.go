@@ -93,7 +93,8 @@ func GeneratePwsh(g *Generator) (string, error) {
 	}
 	sb.WriteString(
 		"    if ($null -eq $filterWord) { $filterWord = __" + id + "_LiteralPrefix $wordToComplete }\n" +
-			"    $completions | Where-Object { $_.ListItemText.StartsWith($filterWord, [StringComparison]::OrdinalIgnoreCase) } |\n",
+			"    $flagPrefix = __" + id + "_LiteralPrefix $wordToComplete\n" +
+			"    $completions | Where-Object { $prefix = if ($_.ResultType -eq [CompletionResultType]::ParameterName) { $flagPrefix } else { $filterWord }; $_.ListItemText.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase) } |\n",
 	)
 	sb.WriteString("        Sort-Object -Property ListItemText | ForEach-Object { __" + id + "_InlineResult $_ $(if ($inlineReplacement) { $inlineFlag } else { '' }) }\n")
 	sb.WriteString("    } finally {\n        if ($null -ne $savedExitCode) { Set-Variable LASTEXITCODE -Scope Global -Value $exitCodeValue } else { Remove-Variable LASTEXITCODE -Scope Global -ErrorAction Ignore }\n    }\n}\n")
@@ -121,6 +122,12 @@ function __%[1]s_QuoteValue {
     "'" + $Value.Replace("'", "''") + "'"
 }
 
+function __%[1]s_QuotePathValue {
+    param([string]$Value)
+    if ($Value.EndsWith('/') -or $Value.EndsWith('\')) { return "'" + $Value.Replace("'", "''") }
+    __%[1]s_QuoteValue $Value
+}
+
 function __%[1]s_LiteralPrefix {
     param([string]$Word)
     if ($Word.StartsWith("'")) {
@@ -142,9 +149,12 @@ function __%[1]s_DynamicResult {
     $parts = $Line -split "`+"`t"+`", 2
     $value = $parts[0]
     if ($value.Length -eq 0) { return }
+    $PathValue = $parts.Count -gt 1 -and $parts[1] -ceq '%[2]s'
     $tooltip = $value
-    if ($parts.Count -gt 1 -and $parts[1].Length -gt 0) { $tooltip = $parts[1] }
-    [CompletionResult]::new((__%[1]s_QuoteValue ($Prefix + $value)), ($Prefix + $value), [CompletionResultType]::ParameterValue, $tooltip)
+    if ($parts.Count -gt 1 -and $parts[1].Length -gt 0 -and -not $PathValue) { $tooltip = $parts[1] }
+    $text = if ($PathValue) { __%[1]s_QuotePathValue ($Prefix + $value) } else { __%[1]s_QuoteValue ($Prefix + $value) }
+    $type = if ($PathValue -and ($value.EndsWith('/') -or $value.EndsWith('\'))) { [CompletionResultType]::ProviderContainer } else { [CompletionResultType]::ParameterValue }
+    [CompletionResult]::new($text, ($Prefix + $value), $type, $tooltip)
 }
 
 function __%[1]s_InlineResult {
@@ -217,7 +227,7 @@ function __%[1]s_CSVContext {
         if ($closed) { return @{Valid=$false} }
         $field += $character
     }
-    @{Valid=$true; Prefix=$prefix; Selected=$selected; Field=$field; Whole=($word -eq $argument)}
+    @{Valid=$true; Prefix=$prefix; Selected=$selected; Field=$field; Argument=$argument; Whole=($word -eq $argument)}
 }
 
 function __%[1]s_CSVResult {
@@ -238,7 +248,7 @@ function __%[1]s_CSVResult {
     if ($Tooltip.Length -eq 0) { $Tooltip = $Value }
     [CompletionResult]::new($text, $Value, [CompletionResultType]::ParameterValue, $Tooltip)
 }
-`, id)
+`, id, WordDirectoryHint)
 }
 
 // pwshQuote renders s as a PowerShell single-quoted string literal, doubling
@@ -504,6 +514,8 @@ func pwshWriteValueClause(sb *strings.Builder, g *Generator, spec Spec, indent s
 	inner := indent + "    "
 
 	switch {
+	case CurrentWordPredictor(spec.Dynamic):
+		pwshWriteCurrentWordValues(sb, g, spec, inner)
 	case spec.CommaList && spec.Dynamic != "":
 		pwshWriteCommaDynamic(sb, g, spec, inner)
 	case spec.CommaList && len(spec.ValueDescs) > 0:
@@ -698,6 +710,13 @@ func pwshWriteDynArgs(
 		fmt.Fprintf(sb, "%s$fwd = @(__%s_ForwardedFlags $tokens)\n", body, id)
 	}
 	fmt.Fprintf(sb, "%s$callArgs = @(\"--%s=$kind\")\n", body, FlagComplete)
+	fmt.Fprintf(sb, "%sif ($kind.StartsWith('word_', [StringComparison]::Ordinal)) {\n", body)
+	fmt.Fprintf(sb, "%s    $completionWord = __%s_LiteralPrefix $wordToComplete\n%s    $filterWord = ''\n", body, id, body)
+	fmt.Fprintf(sb, "%s    $callArgs = @('--@shell=pwsh', \"--%s=$kind\", '--', ('%s' + $completionWord))\n", body, FlagComplete, WordArgument)
+	if forward {
+		fmt.Fprintf(sb, "%s    $callArgs += $fwd\n", body)
+	}
+	fmt.Fprintf(sb, "%s    $callArgs += '--'\n%s    if (-not $first) { $callArgs += $positional }\n%s} else {\n", body, body, body)
 	switch {
 	case forward:
 		fmt.Fprintf(sb, "%s$callArgs += '--'\n", body)
@@ -709,6 +728,7 @@ func pwshWriteDynArgs(
 		fmt.Fprintf(sb, "%s    $callArgs += $positional\n", body)
 		fmt.Fprintf(sb, "%s}\n", body)
 	}
+	fmt.Fprintf(sb, "%s}\n", body)
 	fmt.Fprintf(
 		sb,
 		"%s& '%s' @callArgs 2>$null | Where-Object { $_ } | ForEach-Object {\n",
@@ -750,6 +770,13 @@ func pwshValueFlagArray(specs []Spec) string {
 }
 
 func pwshDynamicCall(g *Generator, predictor string) string {
+	if CurrentWordPredictor(predictor) {
+		forward := ""
+		if forwardingActive(g) {
+			forward = " $fwd"
+		}
+		return fmt.Sprintf("& '%s' --@shell=pwsh --%s=%s -- ('%s' + $completionWord)%s -- 2>$null", g.AppName, FlagComplete, predictor, WordArgument, forward)
+	}
 	if forwardingActive(g) {
 		return fmt.Sprintf(
 			"& '%s' --%s=%s -- $fwd 2>$null",
@@ -762,6 +789,9 @@ func pwshDynamicCall(g *Generator, predictor string) string {
 }
 
 func pwshWriteDynamicValues(sb *strings.Builder, g *Generator, predictor, indent string) {
+	if CurrentWordPredictor(predictor) {
+		fmt.Fprintf(sb, "%s$completionWord = __%s_LiteralPrefix $wordToComplete\n%s$filterWord = ''\n", indent, pwshID(g.AppName), indent)
+	}
 	if forwardingActive(g) {
 		fmt.Fprintf(
 			sb,
@@ -784,6 +814,33 @@ func pwshWriteDynamicValues(sb *strings.Builder, g *Generator, predictor, indent
 		pwshID(g.AppName),
 	)
 	fmt.Fprintf(sb, "%s}\n", indent)
+}
+
+// Current-word callbacks match complete logical arguments themselves. A CSV
+// callback also preserves completed fields; native PowerShell can replace an
+// entire quoted argument or only the final member of a bare comma expression.
+func pwshWriteCurrentWordValues(sb *strings.Builder, g *Generator, spec Spec, indent string) {
+	if !spec.CommaList {
+		pwshWriteDynamicValues(sb, g, spec.Dynamic, indent)
+		return
+	}
+	id := pwshID(g.AppName)
+	fmt.Fprintf(sb, "%s$context = __%s_CSVContext $commandAst $wordToComplete $cursorPosition $inlineFlag $inlineText\n", indent, id)
+	fmt.Fprintf(sb, "%sif ($context.Valid) {\n", indent)
+	inner := indent + "    "
+	fmt.Fprintf(sb, "%s$completionWord = $context.Argument\n%s$filterWord = ''\n", inner, inner)
+	if forwardingActive(g) {
+		fmt.Fprintf(sb, "%s$fwd = @(__%s_ForwardedFlags @(__%s_Tokens $commandAst $wordToComplete $cursorPosition))\n", inner, id, id)
+	}
+	fmt.Fprintf(sb, "%s%s | Where-Object { $_ } | ForEach-Object {\n", inner, pwshDynamicCall(g, spec.Dynamic))
+	fmt.Fprintf(sb, "%s    $parts = $_ -split \"`t\", 2\n%s    $candidate = $parts[0]\n%s    $directory = $parts.Count -gt 1 -and $parts[1] -ceq %s\n", inner, inner, inner, pwshQuote(WordDirectoryHint))
+	fmt.Fprintf(sb, "%s    if ($context.Whole) {\n", inner)
+	fmt.Fprintf(sb, "%s        $type = if ($directory) { [CompletionResultType]::ProviderContainer } else { [CompletionResultType]::ParameterValue }\n", inner)
+	fmt.Fprintf(sb, "%s        $text = if ($directory) { __%s_QuotePathValue $candidate } else { __%s_QuoteValue $candidate }\n%s        [CompletionResult]::new($text, $candidate, $type, $candidate)\n", inner, id, id, inner)
+	fmt.Fprintf(sb, "%s    } elseif ($candidate.StartsWith($context.Prefix, [StringComparison]::Ordinal)) {\n", inner)
+	fmt.Fprintf(sb, "%s        $tail = $candidate.Substring($context.Prefix.Length)\n", inner)
+	fmt.Fprintf(sb, "%s        if ($tail -cmatch '^[\\p{L}\\p{N}\\p{M}._:/\\\\-]+$') { [CompletionResult]::new($tail, $tail, [CompletionResultType]::ParameterValue, $tail) }\n", inner)
+	fmt.Fprintf(sb, "%s    }\n%s}\n%s}\n", inner, inner, indent)
 }
 
 // pwshWriteCommaStatic emits comma-separated value completion: it splits the

@@ -126,7 +126,7 @@ func (s *Store) Backup(ctx context.Context, name string, before, expected core.C
 	if err := ctx.Err(); err != nil {
 		return recoveryFailure("backup", err, false)
 	}
-	if err, attempted := s.set(ctx, name, string(raw)); err != nil {
+	if attempted, err := s.writeRecoveryBackup(ctx, name, raw, nativeRecoveryBlobLimit()); err != nil {
 		return recoveryFailure("backup", errors.Join(err, ctx.Err()), attempted)
 	}
 	return nil
@@ -149,8 +149,12 @@ func (s *Store) ReadBackup(ctx context.Context, name string) (core.CredentialSna
 	if err := ctx.Err(); err != nil {
 		return nil, nil, recoveryFailure("read backup", err, false)
 	}
+	payload, err := s.readRecoveryBackup(ctx, name, raw)
+	if err != nil {
+		return nil, nil, recoveryFailure("read backup", err, false)
+	}
 	var backup recoveryBackup
-	if err := jsonv2.Unmarshal([]byte(raw), &backup, jsonv2.RejectUnknownMembers(true)); err != nil {
+	if err := jsonv2.Unmarshal(payload, &backup, jsonv2.RejectUnknownMembers(true)); err != nil {
 		return nil, nil, recoveryFailure("read backup", err, false)
 	}
 	before, expected := &snapshot{state: backup.Before, proofKey: bytes.Clone(backup.ProofKey)}, &snapshot{state: backup.Expected, proofKey: bytes.Clone(backup.ProofKey)}

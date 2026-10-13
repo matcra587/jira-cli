@@ -56,6 +56,12 @@ to change the number of workers.
 
 ### Check what is available locally
 
+`cache inspect` reports the selected `base_url` and `email`, the stored entries
+and the validated state of each resource. Add a resource name to narrow the
+entries and summary. Selecting `boards` includes saved-filter selector entries.
+Inspection applies the default freshness period for each resource. Issue-key
+history has no expiry.
+
 A malformed entry wrapper does not provide a trustworthy key, size or write
 time. Whole-cache inspection still shows unknown entries. `unclassified`
 counts those entries across the selected site/account cache, even when you
@@ -228,6 +234,7 @@ result is uncertain. Canceled or unstarted reads keep previous observations.
 
 ## Next
 
-Use `boards list` or `issue link types` to consume compatible primed entries.
-Use `--force` when permissions or site metadata changed. Consult `raw-api` for
-native requests beyond these primers and `machine-output` for failure frames.
+Read compatible cached entries with `boards list` or `issue link types`.
+Use `--force` after permissions or site metadata change. Read `raw-api` for
+native requests beyond these cache commands, and `machine-output` for failure
+responses.

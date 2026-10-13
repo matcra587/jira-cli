@@ -7,6 +7,8 @@ import (
 	"github.com/gechr/x/shell"
 )
 
+func bashFuncName(g *Generator) string { return "_" + strings.ReplaceAll(g.AppName, "-", "_") }
+
 // GenerateBash generates a bash shell completion script.
 func GenerateBash(g *Generator) (string, error) {
 	if err := ValidateGenerator(g); err != nil {
@@ -16,7 +18,7 @@ func GenerateBash(g *Generator) (string, error) {
 	var sb strings.Builder
 
 	command := g.AppName
-	funcName := "_" + strings.ReplaceAll(command, "-", "_")
+	funcName := bashFuncName(g)
 	cmdName := bashCmdNameFromApp(command)
 	rootSpecs := SortVisibleSpecs(g.Specs)
 	inheritedSpecs := persistentSpecs(g.Specs)
@@ -25,9 +27,9 @@ func GenerateBash(g *Generator) (string, error) {
 
 	needsPrev := hasValueFlag(g.Specs, g.Subs)
 
-	localVars := "local i cur opts cmd"
+	localVars := "local i cur opts cmd __word_inline_prefix=''"
 	if needsPrev {
-		localVars = "local i cur prev opts cmd"
+		localVars = "local i cur prev opts cmd __word_inline_prefix=''"
 	}
 	fmt.Fprintf(&sb, `# %s bash completion
 %s() {
@@ -42,6 +44,7 @@ func GenerateBash(g *Generator) (string, error) {
 `, command, funcName, localVars)
 	if needsPrev {
 		fmt.Fprint(&sb, "    prev=\"$3\"\n")
+		fmt.Fprint(&sb, "    if [[ $prev == '=' && $COMP_CWORD -ge 2 ]]; then prev=\"${COMP_WORDS[COMP_CWORD-2]}\"; fi\n")
 	}
 	if fwdFn != "" {
 		// Collect forwardable context flags once; dynamic value completions
@@ -98,11 +101,48 @@ func GenerateBash(g *Generator) (string, error) {
 	if dynFn != "" {
 		bashWriteDynamicHelper(&sb, dynFn)
 	}
+	if hasCurrentWordPredictor(g) {
+		fmt.Fprintf(&sb, `
+%s_word_quote() {
+    local __index __encoded
+    if [[ ${BASH_VERSINFO[0]} -gt 4 || ${BASH_VERSINFO[0]} -eq 4 && ${BASH_VERSINFO[1]} -ge 3 ]]; then
+        compopt -o filenames -o noquote
+        compopt +o default +o bashdefault
+    fi
+    for __index in "${!COMPREPLY[@]}"; do
+        COMPREPLY[__index]="$__word_inline_prefix${COMPREPLY[__index]}"
+        if [[ ${BASH_VERSINFO[0]} -lt 4 || ${BASH_VERSINFO[0]} -eq 4 && ${BASH_VERSINFO[1]} -lt 3 ]]; then continue; fi
+        if [[ ${COMPREPLY[__index]} == */ || ${COMPREPLY[__index]} == */\" ]]; then
+            if [[ ${BASH_VERSINFO[0]} -ge 4 ]]; then compopt -o nospace; fi
+        fi
+        printf -v __encoded '%%q' "${COMPREPLY[__index]}"
+        COMPREPLY[__index]="$__encoded"
+    done
+}
+%s_legacy_spacing() {
+    local __index __value __encoded __legacy_spacing_active=1
+    %s "$@"
+    if [[ ${BASH_VERSINFO[0]} -ge 4 ]]; then
+        compopt +o filenames +o plusdirs +o default +o bashdefault
+    fi
+    for __index in "${!COMPREPLY[@]}"; do
+        __value=${COMPREPLY[__index]}
+        printf -v __encoded '%%q' "$__value"
+        if [[ $__value != */ && $__value != */\" ]]; then __encoded="$__encoded "; fi
+        COMPREPLY[__index]="$__encoded"
+    done
+}
+`, funcName, funcName, funcName)
+	}
 
 	if fwdFn != "" {
 		bashWriteForwardedFlagsHelper(&sb, fwdFn, allForwardableSpecs(g))
 	}
 
+	if hasCurrentWordPredictor(g) {
+		fmt.Fprintf(&sb, "\nif [[ ${BASH_VERSINFO[0]} -lt 4 || ${BASH_VERSINFO[0]} -eq 4 && ${BASH_VERSINFO[1]} -lt 3 ]]; then\n    complete -F %s_legacy_spacing -o nospace %s\nelif [[ ${BASH_VERSINFO[0]} -eq 4 && ${BASH_VERSINFO[1]} -ge 4 || ${BASH_VERSINFO[0]} -gt 4 ]]; then\n    complete -F %s -o nosort -o bashdefault -o default %s\nelse\n    complete -F %s -o bashdefault -o default %s\nfi\n", funcName, command, funcName, command, funcName, command)
+		return sb.String(), nil
+	}
 	fmt.Fprintf(&sb, `
 if [[ "${BASH_VERSINFO[0]}" -eq 4 && "${BASH_VERSINFO[1]}" -ge 4 || "${BASH_VERSINFO[0]}" -gt 4 ]]; then
     complete -F %s -o nosort -o bashdefault -o default %s
@@ -141,6 +181,13 @@ func bashNeedsDynamicHelper(g *Generator) bool {
 // bashDynamicCmd returns the command and arguments that produce dynamic flag
 // completions, forwarding collected context flags when forwarding is active.
 func bashDynamicCmd(g *Generator, predictor string) string {
+	if CurrentWordPredictor(predictor) {
+		forward := ""
+		if bashForwardHelperName(g) != "" {
+			forward = ` "${__fwd[@]}"`
+		}
+		return fmt.Sprintf(`%s --@shell=bash --%s=%s -- "%s${cur}"%s --`, g.AppName, FlagComplete, predictor, WordArgument, forward)
+	}
 	if bashForwardHelperName(g) != "" {
 		return fmt.Sprintf(
 			`%s --%s=%s -- "${__fwd[@]}"`,
@@ -156,6 +203,13 @@ func bashDynamicCmd(g *Generator, predictor string) string {
 // dynamic completion slot. first==true means no preceding positionals; when
 // forwarding is active, collected context flags precede the real positionals.
 func bashDynamicArgsCmd(g *Generator, da string, first bool) string {
+	if CurrentWordPredictor(da) {
+		call := bashDynamicCmd(g, da)
+		if !first {
+			call += ` "${__dyn_pos[@]}"`
+		}
+		return call
+	}
 	forward := bashForwardHelperName(g) != ""
 	switch {
 	case forward && first:
@@ -216,6 +270,7 @@ func bashWriteForwardedFlagsHelper(sb *strings.Builder, helperName string, fwd [
 	fmt.Fprint(sb, "    local j __skip_next=0 __fwd_name=\"\"\n")
 	fmt.Fprint(sb, "    for ((j=1; j<COMP_CWORD; j++)); do\n")
 	fmt.Fprint(sb, `        if [[ "${__skip_next}" -eq 1 ]]; then
+            if [[ "${COMP_WORDS[j]}" == '=' ]]; then continue; fi
             if [[ -n "${__fwd_name}" ]]; then
                 __fwd+=("--${__fwd_name}=${COMP_WORDS[j]}")
                 __fwd_name=""
@@ -319,13 +374,28 @@ func bashWriteCmdCase(
 	opts := bashOptsString(specs, subs)
 
 	if len(dynamicArgs) > 0 {
-		fmt.Fprintf(sb, `        %s)
-            opts="%s"
-            if [[ ${cur} == -* ]]; then
+		fmt.Fprintf(sb, "        %s)\n            opts=\"%s\"\n", cmdName, opts)
+		bashWriteDynamicArgsParser(sb, specs, depth)
+		for _, spec := range specs {
+			if !CurrentWordPredictor(spec.Dynamic) {
+				continue
+			}
+			var patterns []string
+			if spec.LongFlag != "" {
+				patterns = append(patterns, "--"+spec.LongFlag+"=*")
+			}
+			if spec.ShortFlag != "" {
+				patterns = append(patterns, "-"+spec.ShortFlag+"=*")
+			}
+			if len(patterns) != 0 {
+				fmt.Fprintf(sb, "            if [[ $__after_dd -eq 0 ]]; then\n                case $cur in %s)\n                    if [[ $COMP_WORDBREAKS != *'='* ]]; then __word_inline_prefix=\"${cur%%%%=*}=\"; fi\n                    prev=${cur%%%%=*}; cur=${cur#*=}; __skip_next=1 ;;\n                esac\n            fi\n", strings.Join(patterns, "|"))
+			}
+		}
+		fmt.Fprint(sb, `            if [[ ${cur} == -* && $__after_dd -eq 0 && $__skip_next -eq 0 ]]; then
                 COMPREPLY=($(compgen -W "${opts}" -- "${cur}"))
                 return 0
             fi
-`, cmdName, opts)
+`)
 	} else {
 		fmt.Fprintf(sb, `        %s)
             opts="%s"
@@ -344,6 +414,9 @@ func bashWriteCmdCase(
 	}
 
 	if len(hasArgSpecs) > 0 {
+		if len(dynamicArgs) > 0 {
+			fmt.Fprint(sb, "            if [[ $__after_dd -eq 0 ]]; then\n")
+		}
 		fmt.Fprint(sb, "            case \"${prev}\" in\n")
 		for _, spec := range hasArgSpecs {
 			bashWritePrevCase(g, sb, spec)
@@ -353,6 +426,9 @@ func bashWriteCmdCase(
                     ;;
             esac
 `)
+		if len(dynamicArgs) > 0 {
+			fmt.Fprint(sb, "            fi\n")
+		}
 	}
 
 	switch {
@@ -363,12 +439,15 @@ func bashWriteCmdCase(
 		}
 		WriteIndented(sb, "            ", bashFileCompletionBlock)
 	case len(dynamicArgs) > 0:
-		bashWriteDynamicArgsParser(sb, specs, depth)
 		if hasMaxPositionalArgs {
 			bashWriteMaxPosGuard(sb, maxPositionalArgs)
 		}
 		fmt.Fprint(sb, "            case ${#__dyn_pos[@]} in\n")
 		for i, da := range dynamicArgs {
+			if CurrentWordPredictor(da) {
+				fmt.Fprintf(sb, "                %d)\n                    COMPREPLY=()\n                    %s '' %s\n                    %s_word_quote\n                    ;;\n", i, bashDynamicHelperName(g), bashDynamicArgsCmd(g, da, i == 0), bashFuncName(g))
+				continue
+			}
 			if i == 0 {
 				fmt.Fprintf(
 					sb,
@@ -388,12 +467,17 @@ func bashWriteCmdCase(
 				bashDynamicArgsCmd(g, da, false),
 			)
 		}
-		fmt.Fprintf(
-			sb,
-			"                *)\n                    COMPREPLY=()\n                    %s \"${cur}\" %s\n                    ;;\n",
-			bashDynamicHelperName(g),
-			bashDynamicArgsCmd(g, dynamicArgs[len(dynamicArgs)-1], false),
-		)
+		final := dynamicArgs[len(dynamicArgs)-1]
+		if CurrentWordPredictor(final) {
+			fmt.Fprintf(sb, "                *)\n                    COMPREPLY=()\n                    %s '' %s\n                    %s_word_quote\n                    ;;\n", bashDynamicHelperName(g), bashDynamicArgsCmd(g, final, false), bashFuncName(g))
+		} else {
+			fmt.Fprintf(
+				sb,
+				"                *)\n                    COMPREPLY=()\n                    %s \"${cur}\" %s\n                    ;;\n",
+				bashDynamicHelperName(g),
+				bashDynamicArgsCmd(g, dynamicArgs[len(dynamicArgs)-1], false),
+			)
+		}
 		fmt.Fprint(sb, "            esac\n")
 	default:
 		fmt.Fprint(sb, "            COMPREPLY=($(compgen -W \"${opts}\" -- \"${cur}\"))\n")
@@ -429,6 +513,7 @@ func bashWriteDynamicArgsParser(sb *strings.Builder, specs []Spec, depth int) {
                     continue
                 fi
                 if [[ "${__skip_next}" -eq 1 ]]; then
+                    if [[ "${COMP_WORDS[j]}" == '=' ]]; then continue; fi
                     __skip_next=0
                     continue
                 fi
@@ -486,6 +571,9 @@ func bashWritePrevCase(g *Generator, sb *strings.Builder, spec Spec) {
 	fmt.Fprintf(sb, "                %s)\n", strings.Join(patterns, "|"))
 
 	switch {
+	case CurrentWordPredictor(spec.Dynamic):
+		fmt.Fprintf(sb, "                    COMPREPLY=()\n                    %s '' %s\n", bashDynamicHelperName(g), bashDynamicCmd(g, spec.Dynamic))
+		fmt.Fprintf(sb, "                    %s_word_quote\n", bashFuncName(g))
 	case spec.CommaList && spec.Dynamic != "":
 		bashWriteCommaCompletion(sb, bashDynamicCmd(g, spec.Dynamic), true)
 	case spec.CommaList && len(spec.Values) > 0:
@@ -610,6 +698,7 @@ func bashWriteCommaCompletion(sb *strings.Builder, valuesExpr string, dynamic bo
 const bashFileCompletionBlock = `local line
 COMPREPLY=()
 while IFS= read -r line || [[ -n "${line}" ]]; do
+    if [[ ( ${BASH_VERSINFO[0]} -lt 4 || ${__legacy_spacing_active:-0} -eq 1 ) && -d "$line" ]]; then line="$line/"; fi
     COMPREPLY+=("${line}")
 done < <(compgen -f -- "${cur}")
 if [[ "${BASH_VERSINFO[0]}" -ge 4 ]]; then
@@ -629,6 +718,7 @@ func bashExtCompletionBlock(ext string) string {
 	return fmt.Sprintf(`local line
 COMPREPLY=()
 while IFS= read -r line || [[ -n "${line}" ]]; do
+    if [[ ${__legacy_spacing_active:-0} -eq 1 && -d "$line" ]]; then line="$line/"; fi
     COMPREPLY+=("${line}")
 done < <(
     compgen -d -- "${cur}"
@@ -641,8 +731,13 @@ fi
 }
 
 const bashDirCompletionBlock = `COMPREPLY=()
-if [[ "${BASH_VERSINFO[0]}" -ge 4 ]]; then
+if [[ "${BASH_VERSINFO[0]}" -ge 4 && ${__legacy_spacing_active:-0} -eq 0 ]]; then
     compopt -o plusdirs
+else
+    local line
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        COMPREPLY+=("$line/")
+    done < <(compgen -d -- "$cur")
 fi
 `
 

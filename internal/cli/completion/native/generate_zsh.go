@@ -43,6 +43,7 @@ _%[2]s() {
 		// pass them to the handler via "${__fwd[@]}".
 		fmt.Fprintf(&sb, "    local -a __fwd=()\n    %s\n", fwdFn)
 	}
+	zshWriteUnlistedPrefixFlags(&sb, g.Specs)
 
 	if len(sortedSubs) > 0 {
 		zshWriteArguments(
@@ -99,6 +100,33 @@ fi
 `, funcName, g.AppName)
 
 	return sb.String(), nil
+}
+
+// clib removes hidden specs before calling a registered generator. Unlisted
+// boolean flags before the command (including hidden output aliases) must not
+// become command-position words. Known values retain their original scope.
+func zshWriteUnlistedPrefixFlags(sb *strings.Builder, specs []Spec) {
+	exact, equals := argValuePatterns(specs)
+	var known []string
+	for _, spec := range specs {
+		if spec.LongFlag != "" {
+			known = append(known, "--"+spec.LongFlag, "--"+spec.LongFlag+"=*")
+		}
+		if spec.ShortFlag != "" {
+			known = append(known, "-"+spec.ShortFlag, "-"+spec.ShortFlag+"=*")
+		}
+	}
+	fmt.Fprint(sb, "    local __prefix_index=2 __prefix_skip=0 __prefix_token\n    while (( __prefix_index < CURRENT )); do\n        __prefix_token=${(Q)words[__prefix_index]}\n        if (( __prefix_skip )); then __prefix_skip=0; (( __prefix_index++ )); continue; fi\n        case $__prefix_token in\n            --) break ;;\n")
+	if len(exact) != 0 {
+		fmt.Fprintf(sb, "            %s) __prefix_skip=1 ;;\n", strings.Join(exact, "|"))
+	}
+	if len(equals) != 0 {
+		fmt.Fprintf(sb, "            %s) ;;\n", strings.Join(equals, "|"))
+	}
+	if len(known) != 0 {
+		fmt.Fprintf(sb, "            %s) ;;\n", strings.Join(known, "|"))
+	}
+	fmt.Fprint(sb, "            -*) words=(\"${(@)words[1,__prefix_index-1]}\" \"${(@)words[__prefix_index+1,-1]}\"); (( CURRENT-- )); continue ;;\n            *) break ;;\n        esac\n        (( __prefix_index++ ))\n    done\n")
 }
 
 func zshWriteArguments(
@@ -212,7 +240,11 @@ func zshWriteDynamicArgsCases(
 		zshWriteDynTokenParser(sb, inner, exact, equals)
 		fmt.Fprintf(sb, "%slocal -a items\n", inner)
 		fmt.Fprintf(sb, "%sitems=(${(f)\"%s\"})\n", inner, zshDynamicArgsExpr(g, da, i == 0))
-		fmt.Fprintf(sb, "%s%s -- \"${(@)items}\"\n", inner, zshDynamicValuesHelperName(g))
+		options := "--"
+		if CurrentWordPredictor(da) {
+			options = "-U --"
+		}
+		fmt.Fprintf(sb, "%s%s %s \"${(@)items}\"\n", inner, zshDynamicValuesHelperName(g), options)
 		fmt.Fprintf(sb, "%s;;\n", indent)
 	}
 	if !hasMaxPositionalArgs {
@@ -225,7 +257,11 @@ func zshWriteDynamicArgsCases(
 			inner,
 			zshDynamicArgsExpr(g, dynamicArgs[len(dynamicArgs)-1], false),
 		)
-		fmt.Fprintf(sb, "%s%s -- \"${(@)items}\"\n", inner, zshDynamicValuesHelperName(g))
+		options := "--"
+		if CurrentWordPredictor(dynamicArgs[len(dynamicArgs)-1]) {
+			options = "-U --"
+		}
+		fmt.Fprintf(sb, "%s%s %s \"${(@)items}\"\n", inner, zshDynamicValuesHelperName(g), options)
 		fmt.Fprintf(sb, "%s;;\n", indent)
 	}
 	fmt.Fprintf(sb, "%sesac\n", indent)
@@ -235,6 +271,16 @@ func zshWriteDynamicArgsCases(
 // dynamic completion slot. first==true means no preceding positionals; when
 // forwarding is active, collected context flags precede the real positionals.
 func zshDynamicArgsExpr(g *Generator, da string, first bool) string {
+	if CurrentWordPredictor(da) {
+		forward, positional := "", ""
+		if zshForwardHelperName(g) != "" {
+			forward = ` "${__fwd[@]}"`
+		}
+		if !first {
+			positional = ` "${__pos[@]}"`
+		}
+		return fmt.Sprintf(`$(%s --@shell=zsh --%s=%s -- "%s${(Q)words[CURRENT]}"%s --%s 2>/dev/null)`, g.AppName, FlagComplete, da, WordArgument, forward, positional)
+	}
 	forward := zshForwardHelperName(g) != ""
 	switch {
 	case forward && first:
@@ -375,6 +421,8 @@ func zshWriteSpec(g *Generator, sb *strings.Builder, spec Spec, indent string) {
 
 func zshCompleter(g *Generator, spec Spec) string {
 	switch {
+	case CurrentWordPredictor(spec.Dynamic):
+		return zshDynamicValuesAction(g, spec.Dynamic)
 	case spec.CommaList && spec.Dynamic != "":
 		return zshDynamicSequenceAction(g, spec.Dynamic)
 	case spec.CommaList && len(spec.Values) > 0:
@@ -411,9 +459,17 @@ func zshCompleter(g *Generator, spec Spec) string {
 }
 
 func zshDynamicValuesAction(g *Generator, predictor string) string {
-	return `{ local -a items; items=(${(f)"` +
+	options := " -- "
+	if CurrentWordPredictor(predictor) {
+		options = ` -U -P "$IPREFIX" -- `
+	}
+	prelude := ""
+	if CurrentWordPredictor(predictor) {
+		prelude = `local __completion_word="${(Q)words[CURRENT]}"; [[ $IPREFIX == -*=* ]] && __completion_word="${__completion_word#*=}"; `
+	}
+	return `{ ` + prelude + `local -a items; items=(${(f)"` +
 		zshDynamicExpr(g, predictor) +
-		`"}); ` + zshDynamicValuesHelperName(g) + ` -- "${(@)items}" }`
+		`"}); ` + zshDynamicValuesHelperName(g) + options + `"${(@)items}" }`
 }
 
 func zshDynamicSequenceAction(g *Generator, predictor string) string {
@@ -444,6 +500,11 @@ func zshWriteDynamicValuesHelper(sb *strings.Builder, helperName string) {
     (( $# )) && shift
     for item in "$@"; do
         value="${item%%$'\t'*}"
+        if [[ $value == */ || $value == */\" ]]; then
+            local -a directory_description=("$value")
+            compadd "${(@)options}" -S '' -d directory_description -- "$value"
+            continue
+        fi
         values+=("${value}")
         if [[ $item == *$'\t'* && -n ${item#*$'\t'} ]]; then
             descriptions+=("${value} -- ${item#*$'\t'}")
@@ -468,6 +529,13 @@ func zshForwardHelperName(g *Generator) string {
 // zshDynamicExpr returns the command substitution that produces dynamic flag
 // completions, forwarding collected context flags when forwarding is active.
 func zshDynamicExpr(g *Generator, predictor string) string {
+	if CurrentWordPredictor(predictor) {
+		forward := ""
+		if zshForwardHelperName(g) != "" {
+			forward = ` "${__fwd[@]}"`
+		}
+		return fmt.Sprintf(`$(%s --@shell=zsh --%s=%s -- "%s${__completion_word}"%s -- 2>/dev/null)`, g.AppName, FlagComplete, predictor, WordArgument, forward)
+	}
 	if zshForwardHelperName(g) != "" {
 		return fmt.Sprintf(
 			`$(%s --%s=%s -- "${__fwd[@]}" 2>/dev/null)`,

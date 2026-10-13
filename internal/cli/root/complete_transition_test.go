@@ -56,13 +56,13 @@ func TestTransitionCompletionUsesEligibleIssueHintsAndExplicitRoles(t *testing.T
 			if fn == nil {
 				t.Fatalf("missing eligible transition predictor %s", tc.kind)
 			}
-			if got := fn(tc.args); !slices.Equal(got, tc.want) {
+			if got := fn(t.Context(), "fish", tc.args); !slices.Equal(got, tc.want) {
 				t.Fatalf("contextual transition hints=%q want=%q", got, tc.want)
 			}
 		})
 	}
 	t.Setenv("JIRA_EMAIL", "other@example.com")
-	if got := completionKinds["transitionissuekey"]([]string{"DEMO-1"}); len(got) != 0 {
+	if got := completionKinds["transitionissuekey"](t.Context(), "fish", []string{"DEMO-1"}); len(got) != 0 {
 		t.Fatal("another account reused stored transition hints")
 	}
 }
@@ -115,7 +115,7 @@ func TestTransitionCompletionRejectsUnsafeOrConflictingObservations(t *testing.T
 				now = tc.observed
 			}
 			write(key, binding, now, tc.hints)
-			if got := completionKinds["cachetransition"](args); len(got) != 0 {
+			if got := completionKinds["cachetransition"](t.Context(), "fish", args); len(got) != 0 {
 				t.Fatalf("unsafe completion accepted: %q", got)
 			}
 		})

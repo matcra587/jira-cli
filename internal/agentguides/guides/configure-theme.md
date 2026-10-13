@@ -111,6 +111,11 @@ and `${NAME}` as literal filename characters. Quote command arguments when
 these characters must remain literal, so the caller's shell does not expand them.
 `config set theme_path VALUE` stores a scalar path.
 Use `config theme --path VALUE` to validate its palette.
+Shell completion for `config set theme_path` offers absolute paths to literal
+local entries from the current directory. This retains the chosen file when the
+settings file lives elsewhere. Manually authored relative values still resolve
+beside that settings file. Completion reads entry names only and does not
+validate palette contents. Other configuration values retain their choices.
 
 ## Recover
 

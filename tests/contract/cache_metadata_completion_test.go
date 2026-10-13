@@ -97,30 +97,6 @@ func TestMetadataCompletionBashInsertsIdentitiesWithoutDescriptions(t *testing.T
 	if exit != 0 || stderr != "" || !strings.Contains(script, "_jira()") {
 		t.Fatalf("generate Bash exit=%d stderr=%q", exit, stderr)
 	}
-	dir := t.TempDir()
-	scriptPath := filepath.Join(dir, "completion.bash")
-	if err := os.WriteFile(scriptPath, []byte(script), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Symlink(jiraBinary(t), filepath.Join(dir, "jira")); err != nil {
-		t.Fatal(err)
-	}
-	bash, err := exec.LookPath("bash")
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Only completion options need an interactive context. Candidate generation
-	// and the real binary callback run unchanged through the generated function.
-	driver := `source "$1"
-compopt() { :; }
-shift
-COMP_WORDS=(jira "$@")
-COMP_CWORD=$((${#COMP_WORDS[@]} - 1))
-cur=${COMP_WORDS[COMP_CWORD]}
-prev=${COMP_WORDS[COMP_CWORD-1]}
-_jira jira "$cur" "$prev" || exit
-printf '%s\0' "${COMPREPLY[@]}"
-`
 	for _, tc := range []struct {
 		name string
 		args []string
@@ -135,11 +111,10 @@ printf '%s\0' "${COMPREPLY[@]}"
 		{name: "CSV continuation", args: []string{"issue", "list", "--project", "OTHER,DEM"}, want: []string{"OTHER,DEMO"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			args := append([]string{"--noprofile", "--norc", "-c", driver, "metadata-driver", scriptPath, "--config", path}, tc.args...)
-			stdout, stderr, exit := runExecutableIOInDirStarted(t, bash, dir, append(slices.Clone(env), "PATH="+dir+string(os.PathListSeparator)+os.Getenv("PATH")), nil, nil, nil, args...)
-			got := strings.Split(strings.TrimSuffix(stdout, "\x00"), "\x00")
-			if exit != 0 || stderr != "" || !slices.Equal(got, tc.want) {
-				t.Fatalf("generated Bash inserted=%q want=%q exit=%d stderr=%q", got, tc.want, exit, stderr)
+			words := append([]string{"jira", "--config", path}, tc.args...)
+			got := completionArgumentReplies(t, script, env, words)
+			if !slices.Equal(got, tc.want) {
+				t.Fatalf("generated Bash identities=%q want=%q", got, tc.want)
 			}
 		})
 	}

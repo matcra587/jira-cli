@@ -253,13 +253,25 @@ only in the change that registers its kind.
 *   clib is pinned in `go.mod`; `dynamic-args` / `predictor=` / `FlagExtra` are
     versioned APIs. Verify them against the selected source before changing the
     dependency ([go.md](go.md)).
-*   The root registers reviewed native Bash/PowerShell/Zsh backports once through clib's
+*   The root registers reviewed native Bash/PowerShell/Zsh/Fish/Elvish backports once through clib's
     `complete.RegisterShell`, before exposing any generator. The owner is
     `internal/cli/completion/native`; it reuses the library's public model,
     validation and installation. Do not rewrite emitted scripts, lose other
     shells, import unfinished proposals, or add a module replacement that breaks
     versioned `go install`. Exercise generated scripts in real shells; a golden
     or a successful callback alone does not prove correct inserted values.
+*   A `word_` predictor requests the current literal argument through the shared
+    native transport. Its callback matches complete arguments and preserves CSV
+    quoting through `command.CSVCompletion`; never split at the last comma.
+    Attachment completion follows the actual `--file` grammar: without files,
+    the first positional is an issue and subsequent positions are local paths;
+    with files, all positionals are issue keys. Only `theme_path` configuration
+    values use filesystem candidates. Directory enumeration remains bounded,
+    literal and credential-free. Native quoting and insertion belong to the
+    registered generator, not a command or an emitted-script rewrite.
+    Theme-path suggestions become absolute paths so the selected file retains
+    its identity when settings live in another directory. This does not rewrite
+    manually authored relative configuration values.
 
 Under the construction path the two attachment points differ:
 
@@ -544,3 +556,40 @@ detect corruption; they do not authenticate a draft or authorize Jira writes.
 Editor operations require an interactive terminal before artifacts or credentials
 are opened. Previews launch no editor, publish nothing and construct no Jira client.
 These commands produce candidates only; protected remote application remains open.
+
+CSV directory choices retain an unfinished current field so a second Tab can
+complete a leaf in the same argument. Theme choices preserve literal symlink/..
+traversal when made absolute and validate the final transport bytes, including
+the current directory. Verify these identities in native editors and named guards.
+
+Declare CSV flags with the native comma metadata as well as their current-word
+predictor. Fish refuses an ambiguous unquoted separate value that looks like its
+active inline option (for example, `--file --file=name`). Quote the whole CSV
+field, `--file '"--file=name"'`, to complete that literal filename safely.
+
+PowerShell directory insertion consumes an explicit `--@directory` hint in the
+current-word callback description slot. Ordinary cached values ending in a slash
+remain complete literal arguments. Keep the hint private to the generator and
+verify both directory continuation and slash-ending configuration values. Fish
+current-word callbacks reuse the shared version-aware token helper.
+
+Bash versions before 4.3 use the shared legacy spacing path because `noquote`
+was added in 4.3. Fish 3 preserves inline option spelling explicitly when its
+editor replaces a whole quoted CSV token. Native terminal guards bind Fish
+function keys through the selected version API (`bind -k` before 4, named keys
+from 4), and explicit shell selections fail if missing.
+
+The Bash legacy spacing wrapper clears filename/default completion options
+after the selected callback and before manual quoting. Native file hints must
+not quote already quoted replies a second time on Bash 4.0–4.2. Exercise ordinary
+file and directory hints alongside the current-word callbacks.
+
+Legacy Bash spacing callbacks enumerate directory hints before clearing native
+filename options. Carry directory suffixes through file/extension hints only at
+that wrapper boundary; ordinary model generators retain their native behavior.
+
+Bash literal callback decoding normalizes the ANSI-C quoting emitted by
+`printf %q` before the selected POSIX lexer. Preserve UTF-8 octets, refuse
+unsupported escapes or malformed bytes, and never evaluate expansions. Decode
+completed context with the same owner. Guard a Unicode directory with two Tabs
+and native executed argv; a single completed basename cannot prove continuation.

@@ -74,7 +74,10 @@ compact data. Unset output plus `--jq` resolves to JSON, including for agents.
 ### Preserve native issue data
 
 Issue reads retain native metadata at `.issue.details` or `.issues[].details`.
-Identity and fields keep their existing slots. `issue view` requests
+Identity and fields keep their existing slots. Native omitted fields, explicit
+nulls and values such as false, zero, an empty list or an empty object remain
+distinct. Treat each successful native read as current facts. A failed decode
+does not supply a partial replacement for the earlier data. `issue view` requests
 renderedFields, names, schema, transitions, operations and editmeta by default.
 Explicit `--fields` uses renderedFields, names and schema. `--expand` replaces
 the preset, including `--expand=` to disable it. Search `--detail` requests

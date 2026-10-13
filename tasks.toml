@@ -267,3 +267,11 @@ run = [
     "changie batch {{usage.version}}",
     "changie merge",
 ]
+
+["test:keyring:windows"]
+description = "Verify isolated native Windows credential recovery (Windows only)"
+run = "go test -v -tags=nativekeyring -count=1 -timeout=3m ./tests/integration"
+
+["test:editor:windows"]
+description = "Verify the editor supervisor in isolated native Windows consoles"
+run = "go test -v -tags=nativeconsole -count=1 -timeout=3m -run='^TestNativeWindowsEditorConsole$' ./internal/cli/command"

@@ -49,14 +49,15 @@ func NullableNull[T any]() Nullable[T] {
 func (n *Nullable[T]) UnmarshalJSON(data []byte) error {
 	// encoding/json calls UnmarshalJSON for explicit nulls too (unlike
 	// UnmarshalText), which is exactly what makes this wrapper possible.
-	n.Set = true
-	if bytes.Equal(data, []byte("null")) {
-		n.Null = true
-		return nil
-	}
-	if err := json.Unmarshal(data, &n.Value); err != nil {
+	// Replace a complete native value, including its presence markers. A
+	// failed read must not mutate earlier state or aliased collections.
+	next := Nullable[T]{Set: true}
+	if bytes.Equal(bytes.Trim(data, " \t\r\n"), []byte("null")) {
+		next.Null = true
+	} else if err := json.Unmarshal(data, &next.Value); err != nil {
 		return fmt.Errorf("nullable value: %w", err)
 	}
+	*n = next
 	return nil
 }
 

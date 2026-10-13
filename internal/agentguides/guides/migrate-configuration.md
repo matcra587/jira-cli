@@ -150,6 +150,12 @@ restored state is a no-op. You can explicitly retry an interrupted rollback.
 
 ### Keep Windows credential backups intact
 
+On Windows, keyring recovery can retain old and new credentials that each fit
+Credential Manager independently, even when their combined backup exceeds one
+entry. Keep provider recovery entries intact. A failed preparation may retain
+partial private backup entries while leaving the primary credential unchanged.
+Inspect the migration receipt before retrying.
+
 ## Next
 
 Use `configure-credentials` for backend authorization and `machine-output` for

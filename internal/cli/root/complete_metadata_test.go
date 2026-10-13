@@ -122,24 +122,24 @@ func TestCachedMetadataCompletionReadsAllProducerShapesWithoutChangingStorage(t 
 			if fn == nil {
 				t.Fatalf("missing metadata predictor %s", tc.kind)
 			}
-			if got := fn(nil); !slices.Equal(got, tc.want) {
+			if got := fn(t.Context(), "fish", nil); !slices.Equal(got, tc.want) {
 				t.Fatalf("candidates=%q, want %q", got, tc.want)
 			}
 			if after := completionFileBytes(t, dir); !maps.Equal(before, after) {
 				t.Fatal("completion changed cache bytes")
 			}
 			t.Setenv("JIRA_EMAIL", "other@example.com")
-			if got := fn(nil); len(got) != 0 {
+			if got := fn(t.Context(), "fish", nil); len(got) != 0 {
 				t.Fatalf("completion crossed account scope: %q", got)
 			}
 			t.Setenv("JIRA_EMAIL", "person@example.com")
 			t.Setenv("JIRA_BASE_URL", "https://other.example.com")
-			if got := fn(nil); len(got) != 0 {
+			if got := fn(t.Context(), "fish", nil); len(got) != 0 {
 				t.Fatalf("completion crossed site scope: %q", got)
 			}
 			t.Setenv("JIRA_BASE_URL", "https://example.com")
 			t.Setenv("JIRA_EMAIL", "")
-			if got := fn(nil); len(got) != 0 {
+			if got := fn(t.Context(), "fish", nil); len(got) != 0 {
 				t.Fatalf("completion recovered identity from credentials: %q", got)
 			}
 		})
@@ -180,7 +180,7 @@ func TestCachedMetadataCompletionUsesProducerFreshnessAndExplicitFacts(t *testin
 						ttl = resource.DefaultTTL
 					}
 				}
-				got := fn(nil)
+				got := fn(t.Context(), "fish", nil)
 				if age > 0 && age < ttl {
 					if !slices.Equal(got, tc.want) {
 						t.Fatalf("producer TTL rejected %s age=%s: %q", tc.resource, age, got)
@@ -192,13 +192,13 @@ func TestCachedMetadataCompletionUsesProducerFreshnessAndExplicitFacts(t *testin
 			if err := os.WriteFile(path, []byte("{"), 0o600); err != nil {
 				t.Fatal(err)
 			}
-			if got := fn(nil); len(got) != 0 {
+			if got := fn(t.Context(), "fish", nil); len(got) != 0 {
 				t.Fatalf("malformed wrapper completed: %q", got)
 			}
 			if err := os.Remove(path); err != nil {
 				t.Fatal(err)
 			}
-			if got := fn(nil); len(got) != 0 {
+			if got := fn(t.Context(), "fish", nil); len(got) != 0 {
 				t.Fatalf("missing wrapper completed: %q", got)
 			}
 		})
@@ -218,7 +218,7 @@ func TestCachedMetadataCompletionDropsUnsafeIdentitiesAndSanitizesDescriptions(t
 			if fn == nil {
 				t.Fatalf("missing metadata predictor %s", tc.kind)
 			}
-			got := fn(nil)
+			got := fn(t.Context(), "fish", nil)
 			if !slices.Equal(got, tc.want) {
 				t.Fatalf("unsafe candidates=%q want=%q", got, tc.want)
 			}
@@ -291,7 +291,7 @@ func TestCachedMetadataCompletionPreservesKnownPartialValuesAndRejectsInventedFa
 				}
 			})
 			before := completionFileBytes(t, dir)
-			got := fn(nil)
+			got := fn(t.Context(), "fish", nil)
 			if slices.Contains([]string{"fields", "issuetypes", "statuses"}, tc.resource) {
 				if len(got) != 0 {
 					t.Fatalf("impossible array page completed: %q", got)
@@ -303,7 +303,7 @@ func TestCachedMetadataCompletionPreservesKnownPartialValuesAndRejectsInventedFa
 				t.Fatal("partial completion changed storage")
 			}
 			rewriteCompletionPayload(t, path, func(value map[string]json.RawMessage) { delete(value, "complete") })
-			if got := fn(nil); len(got) != 0 {
+			if got := fn(t.Context(), "fish", nil); len(got) != 0 {
 				t.Fatalf("missing completion fact trusted: %q", got)
 			}
 		})
@@ -316,10 +316,10 @@ func TestCachedBoardCompletionNeverOffersLocallyAmbiguousNames(t *testing.T) {
 	rewriteCompletionPayload(t, path, func(value map[string]json.RawMessage) {
 		value["boards"] = json.RawMessage(`[{"id":42,"name":"Σ board","project_keys":[],"projects_complete":true},{"id":43,"name":"ς board","project_keys":[],"projects_complete":true},{"id":44,"name":"Unique board","project_keys":[],"projects_complete":true}]`)
 	})
-	if got := completionKinds["cacheboard"](nil); !slices.Equal(got, []string{"Unique board\t44"}) {
+	if got := completionKinds["cacheboard"](t.Context(), "fish", nil); !slices.Equal(got, []string{"Unique board\t44"}) {
 		t.Fatalf("ambiguous names completed: %q", got)
 	}
-	if got := completionKinds["cacheboardid"](nil); !slices.Equal(got, []string{"42\tΣ board", "43\tς board", "44\tUnique board"}) {
+	if got := completionKinds["cacheboardid"](t.Context(), "fish", nil); !slices.Equal(got, []string{"42\tΣ board", "43\tς board", "44\tUnique board"}) {
 		t.Fatalf("unambiguous numeric choices lost: %q", got)
 	}
 }
@@ -349,7 +349,7 @@ func TestCachedMetadataCompletionNeverCreatesStorageOnMissingOrInvalidScope(t *t
 				args = []string{"--config", path}
 			}
 			for _, tc := range metadataCompletionCases() {
-				if got := completionKinds[tc.kind](args); len(got) != 0 {
+				if got := completionKinds[tc.kind](t.Context(), "fish", args); len(got) != 0 {
 					t.Fatalf("unavailable metadata completed: %s %q", tc.kind, got)
 				}
 			}
@@ -380,7 +380,7 @@ func TestCachedMetadataCompletionIgnoresUnrelatedNativeExtensions(t *testing.T) 
 			}
 			tc.items = string(raw)
 			prepareMetadataCompletion(t, tc)
-			if got := completionKinds[tc.kind](nil); !slices.Equal(got, tc.want) {
+			if got := completionKinds[tc.kind](t.Context(), "fish", nil); !slices.Equal(got, tc.want) {
 				t.Fatalf("unrelated native extension suppressed valid identities: %q want=%q", got, tc.want)
 			}
 		})
@@ -403,11 +403,11 @@ func TestCachedMetadataCompletionSelectsForwardedConfigScope(t *testing.T) {
 			}
 			before := completionFileBytes(t, dir)
 			fn := completionKinds[tc.kind]
-			if got := fn(nil); len(got) != 0 {
+			if got := fn(t.Context(), "fish", nil); len(got) != 0 {
 				t.Fatalf("unselected scope completed: %q", got)
 			}
 			for _, args := range [][]string{{"--config", path}, {"--config=" + path}} {
-				if got := fn(args); !slices.Equal(got, tc.want) {
+				if got := fn(t.Context(), "fish", args); !slices.Equal(got, tc.want) {
 					t.Fatalf("forwarded config %q selected candidates=%q want=%q", args, got, tc.want)
 				}
 			}
@@ -431,7 +431,7 @@ func TestCachedBoardCompletionDescribesObservedAndPartialProjects(t *testing.T) 
 		{kind: "cacheboard", want: []string{"Complete board\t42 (scrum, EX, OPS)", "Partial board\t43 (kanban, EX) [projects incomplete]"}},
 		{kind: "cacheboardid", want: []string{"42\tComplete board (scrum, EX, OPS)", "43\tPartial board (kanban, EX) [projects incomplete]"}},
 	} {
-		if got := completionKinds[tc.kind](nil); !slices.Equal(got, tc.want) {
+		if got := completionKinds[tc.kind](t.Context(), "fish", nil); !slices.Equal(got, tc.want) {
 			t.Fatalf("%s descriptions=%q want=%q", tc.kind, got, tc.want)
 		}
 	}

@@ -179,3 +179,40 @@ does not claim interruption of a synchronous filesystem operation. Only Unix
 successful syncs claim `synced`; other platforms report `platform_unconfirmed`.
 Reopening observes readiness and reports `not_checked` durability, without
 claiming publication effects from the current invocation.
+
+Filesystem completion enumerates only names in one explicitly selected literal
+directory through the bounded local owner. It reads no file contents, opens no
+credentials and never uses a glob to interpret authored metacharacters. Failed,
+incomplete or canceled inventory offers nothing; synchronous filesystem calls
+still have their native cancellation limit. Preserve the original directory
+prefix and mark directories for further completion.
+
+Use the shared command.CSVCompletion codec for an incomplete CSV argument. It
+retains completed fields byte-for-byte and decodes the unfinished field using
+strict CSV quoting, including quoted commas and doubled quotes. x/strings.SplitCSV
+trims/drops values and clib's last-comma split cannot parse this grammar. The
+encoder uses encoding/csv and represents a single empty field explicitly.
+
+CSV directory choices retain an unfinished current field so a second Tab can
+complete a leaf in the same argument. Theme choices preserve literal symlink/..
+traversal when made absolute and validate the final transport bytes, including
+the current directory. Verify these identities in native editors and named guards.
+
+PowerShell directory insertion consumes an explicit `--@directory` hint in the
+current-word callback description slot. Ordinary cached values ending in a slash
+remain complete literal arguments. Keep the hint private to the generator and
+verify both directory continuation and slash-ending configuration values. Fish
+current-word callbacks reuse the shared version-aware token helper.
+
+Bash literal callback decoding normalizes the ANSI-C quoting emitted by
+`printf %q` before the selected POSIX lexer. Preserve UTF-8 octets, refuse
+unsupported escapes or malformed bytes, and never evaluate expansions. Decode
+completed context with the same owner. Guard a Unicode directory with two Tabs
+and native executed argv; a single completed basename cannot prove continuation.
+
+Native field refreshes belong to `jira.Nullable.UnmarshalJSON`, alongside the
+shared generated-model decoder. Decode into a fresh value and publish the full
+presence/null/value tuple only after success. Null clears its prior value; a
+subsequent value clears null. Failed decoding retains the exact earlier tuple
+and leaves aliased maps, slices, pointers and raw body bytes untouched. Do not
+work around stale native fields independently in commands or adapters.

@@ -1,0 +1,3 @@
+kind: changed
+body: "Retain recoverable Windows credentials larger than the 2,560-byte Credential Manager blob limit through bounded encoded backup pieces and a descriptor published last. Verify count, size and full digest before reopening or restoring. Keep provider-owned snapshots private, preserve exact namespaces/owned-field metadata and report partial effects; the backup protocol is not a provider transaction or compare-and-swap."
+time: 2026-10-13T20:31:27-04:00
