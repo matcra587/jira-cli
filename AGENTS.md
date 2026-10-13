@@ -24,7 +24,7 @@ paths conflict, and update the relevant rule in the same implementation slice.
 *   Eligible transition hints belong to an issue, site and account, expire after
     five minutes, and never authorize a write. Preserve read timestamps and
     invalidate known outdated hints. Native input paths are context, not files to read.
-*   The composition root registers the licensed native Bash/PowerShell/Zsh generator backports
+*   The composition root registers the licensed native Bash/PowerShell/Zsh/Fish/Elvish generator backports
     in `internal/cli/completion/native` before exposing generators. Use clib's model
     and registration boundary; do not rewrite emitted shell scripts or add a local
     module replacement that breaks versioned `go install`.
@@ -306,3 +306,101 @@ detect corruption; they do not authenticate a draft or authorize Jira writes.
 Editor operations require an interactive terminal before artifacts or credentials
 are opened. Previews launch no editor, publish nothing and construct no Jira client.
 These commands produce candidates only; protected remote application remains open.
+
+Contextual filesystem completion uses one bounded directory-name owner and the
+shared command.CSVCompletion codec. Preserve literal prefixes, completed CSV
+spelling and quoted delimiters; read no file contents or credentials. The callback
+boundary carries the command context and suppresses canceled results. Actual
+shell routing and insertion require generated-script acceptance, separately from
+pure codec/filesystem guards.
+
+Current-word predictors declare the `word_` convention in command metadata.
+The native generator transports one literal `--@word=` argument, forwarded public
+flags and a separate positional terminator. Keep this inside clib's registered
+generator boundary. Bash supplies explicitly quoted replies; Fish CSV replies
+quote every current field to avoid native rank suppression. Elvish preserves the
+selected argument matcher and admits replacement candidates only for their exact
+command and seed. Verify editor insertion and executed argv, including closed
+quotes and metacharacters, rather than crediting candidate enumeration alone.
+Bash 3.2 uses a registered spacing wrapper; current shells suppress spaces after
+directory candidates. Current-word transport rejects unrepresentable bytes in
+the entire argument and decodes completed Bash context independently. Preserve
+hidden boolean aliases in native command resolution without offering them.
+Theme-path completion emits absolute choices from the literal current-directory
+inventory so settings-directory resolution cannot select a different file.
+Manually authored relative settings retain their existing semantics.
+
+CSV directory choices retain an unfinished current field so a second Tab can
+complete a leaf in the same argument. Theme choices preserve literal symlink/..
+traversal when made absolute and validate the final transport bytes, including
+the current directory. Verify these identities in native editors and named guards.
+
+Declare CSV flags with the native comma metadata as well as their current-word
+predictor. Fish refuses an ambiguous unquoted separate value that looks like its
+active inline option (for example, `--file --file=name`). Quote the whole CSV
+field, `--file '"--file=name"'`, to complete that literal filename safely.
+
+PowerShell directory insertion consumes an explicit `--@directory` hint in the
+current-word callback description slot. Ordinary cached values ending in a slash
+remain complete literal arguments. Keep the hint private to the generator and
+verify both directory continuation and slash-ending configuration values. Fish
+current-word callbacks reuse the shared version-aware token helper.
+
+Bash versions before 4.3 use the shared legacy spacing path because `noquote`
+was added in 4.3. Fish 3 preserves inline option spelling explicitly when its
+editor replaces a whole quoted CSV token. Native terminal guards bind Fish
+function keys through the selected version API (`bind -k` before 4, named keys
+from 4), and explicit shell selections fail if missing.
+
+The Bash legacy spacing wrapper clears filename/default completion options
+after the selected callback and before manual quoting. Native file hints must
+not quote already quoted replies a second time on Bash 4.0–4.2. Exercise ordinary
+file and directory hints alongside the current-word callbacks.
+
+Legacy Bash spacing callbacks enumerate directory hints before clearing native
+filename options. Carry directory suffixes through file/extension hints only at
+that wrapper boundary; ordinary model generators retain their native behavior.
+
+Bash literal callback decoding normalizes the ANSI-C quoting emitted by
+`printf %q` before the selected POSIX lexer. Preserve UTF-8 octets, refuse
+unsupported escapes or malformed bytes, and never evaluate expansions. Decode
+completed context with the same owner. Guard a Unicode directory with two Tabs
+and native executed argv; a single completed basename cannot prove continuation.
+
+Native field refreshes belong to `jira.Nullable.UnmarshalJSON`, alongside the
+shared generated-model decoder. Decode into a fresh value and publish the full
+presence/null/value tuple only after success. Null clears its prior value; a
+subsequent value clears null. Failed decoding retains the exact earlier tuple
+and leaves aliased maps, slices, pointers and raw body bytes untouched. Do not
+work around stale native fields independently in commands or adapters.
+
+Tests that load a named IANA location must provide their timezone database as a
+test dependency, for example by importing `time/tzdata` in the test file. Native
+Windows may provide time.Local without an IANA database. Preserve real DST
+transitions in the guard; do not replace them with a fixed offset or skip missing
+fixture data. Do not add timezone data to the release CLI merely to repair a test.
+
+Externally selected native update tests keep a renamed installed basename while
+preserving `.exe` on Windows. Confirm the original and candidate version commands
+actually execute before interpreting publication/download results. Test only
+disposable installation copies; preserve selected artifacts and retained backups.
+
+Windows Credential Manager caps each blob at 2,560 bytes. The keyring recovery
+owner keeps ordinary/version-2 backups intact and publishes larger private v2
+payloads as bounded encoded pieces with a version-3 descriptor last. Derive piece
+names only from the validated parent backup ID; verify count, size and full digest
+before reopening snapshots or mutating primary entries. Retain partial effects
+and native admission on cancellation/failure; this is not a provider transaction
+or compare-and-swap. Native tests use fresh random service names, synthetic
+records and independent WinCred reads, never enumeration or the user's default
+service. Run them in a separate test process so global mocks cannot earn credit.
+
+Native Windows editor acceptance uses the exported shared supervisor inside fresh
+hidden consoles. Open the owned CONIN$/CONOUT$ handles explicitly; redirected
+standard streams are not proof of terminal allocation. Observe both changed
+native modes before releasing the real editor, then verify exact restoration,
+process termination, literal argv and separation from result stdout. Cover failed
+exit, cancellation, launch failure and second-terminal capture refusal. Run
+`mise run test:editor:windows` on Windows; its nativeconsole-tagged gate fails
+explicitly on other hosts. This owner evidence does not complete public command
+acceptance or native macOS behavior.

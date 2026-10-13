@@ -1,4 +1,4 @@
-// Package native backports reviewed clib Bash, PowerShell and Zsh generator repairs while
+// Package native backports clib generator repairs and explicit current-word callbacks while
 // retaining clib's public model, validation and installation owners.
 package native
 
@@ -25,16 +25,30 @@ const (
 	HintHost     = complete.HintHost
 	HintURL      = complete.HintURL
 	HintEmail    = complete.HintEmail
+	OrderKeep    = complete.OrderKeep
+	OrderShell   = complete.OrderShell
 )
 
 // Register installs the backports before the composition root publishes its
 // first generator. All application generator access follows that barrier, so
 // concurrent program construction cannot race on clib's registration map.
-// Other shells retain their built-in generators.
+// Fish and Elvish delegate ordinary models to their built-in generators.
 var Register = sync.OnceFunc(func() {
 	complete.RegisterShell("bash", GenerateBash)
 	complete.RegisterShell("zsh", GenerateZsh)
 	complete.RegisterShell("pwsh", GeneratePwsh)
+	complete.RegisterShell("fish", func(g *Generator) (string, error) {
+		if hasCurrentWordPredictor(g) {
+			return GenerateFish(g)
+		}
+		return complete.GenerateFish(g)
+	})
+	complete.RegisterShell("elvish", func(g *Generator) (string, error) {
+		if hasCurrentWordPredictor(g) {
+			return GenerateElvish(g)
+		}
+		return complete.GenerateElvish(g)
+	})
 })
 
 func ValidateGenerator(generator *Generator) error {

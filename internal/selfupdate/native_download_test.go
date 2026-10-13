@@ -24,7 +24,11 @@ func TestNativeReleaseDownloadPublication(t *testing.T) {
 	if original == "" || candidatePath == "" {
 		t.Fatal("both native executable artifacts are required")
 	}
-	path := filepath.Join(t.TempDir(), "renamed-jira")
+	name := "renamed-jira"
+	if runtime.GOOS == xos.PlatformWindows {
+		name += ".exe"
+	}
+	path := filepath.Join(t.TempDir(), name)
 	if err := xos.CopyFile(original, path); err != nil {
 		t.Fatal(err)
 	}

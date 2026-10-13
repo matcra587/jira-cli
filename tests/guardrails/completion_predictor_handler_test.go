@@ -80,7 +80,12 @@ func TestIssueHistoryCompletionForwardsDeclaredContextWithoutExposingAliases(t *
 			case "jira issue attachment add":
 				foundAttachment = true
 				check(sub.Specs, "file")
-				if !slices.Equal(sub.DynamicArgs, []string{"attachmentissuekey"}) {
+				for _, spec := range sub.Specs {
+					if spec.LongFlag == "file" && (!spec.CommaList || spec.Dynamic != "word_file_csv") {
+						t.Error("attachment files lost their CSV current-word metadata")
+					}
+				}
+				if !slices.Equal(sub.DynamicArgs, []string{"word_attachment"}) {
 					t.Errorf("attachment grammar uses predictors %v", sub.DynamicArgs)
 				}
 			case "jira issue transition":
@@ -102,7 +107,7 @@ func TestIssueHistoryCompletionForwardsDeclaredContextWithoutExposingAliases(t *
 		if err := gen.Print(&script, shell); err != nil {
 			t.Errorf("%s context-forwarding script failed: %v", shell, err)
 		}
-		if !strings.Contains(script.String(), "attachmentissuekey") || !strings.Contains(script.String(), "transitionissuekey") {
+		if !strings.Contains(script.String(), "word_attachment") || !strings.Contains(script.String(), "transitionissuekey") {
 			t.Errorf("%s script lost contextual callback kinds", shell)
 		}
 	}

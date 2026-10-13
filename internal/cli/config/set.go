@@ -21,6 +21,7 @@ func newSet() *cobra.Command {
 		Long: "Validate and store one setting in the selected configuration file. " +
 			"A missing file is created only after validation. No Jira client, credentials, " +
 			"environment values or built-in defaults are needed or written.\n\n" +
+			"Shell completion offers absolute paths to local files for `theme_path`, so the selected file remains usable when settings live elsewhere. Other keys retain their supported values without a filesystem fallback.\n\n" +
 			"--dry-run validates the same candidate and reports redacted previous and new " +
 			"values without creating files or directories. would_change describes the " +
 			"candidate; changed and created describe actual publication. An absent " +
@@ -46,7 +47,7 @@ func newSet() *cobra.Command {
 			"# explicitly store an empty value\n" +
 			"$ jira config set email '' --config=settings.toml --no-input",
 		Args: command.ArgSpec{Min: 2, Max: 2, Positions: []command.Arg{
-			{Name: "KEY", Predictor: "configsetkey"}, {Name: "VALUE", Predictor: "configvalue"},
+			{Name: "KEY", Predictor: "configsetkey"}, {Name: "VALUE", Predictor: "word_configvalue"},
 		}},
 		Flags: command.AddDryRunFlag,
 		Human: renderSetHuman,

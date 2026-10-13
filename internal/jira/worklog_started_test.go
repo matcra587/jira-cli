@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	_ "time/tzdata" // Keep the IANA DST fixture available on native Windows.
 )
 
 func TestWorklogStartedNormalizesAcceptedForms(t *testing.T) {

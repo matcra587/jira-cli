@@ -2,6 +2,7 @@ package root
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"os"
 	"strings"
@@ -9,6 +10,36 @@ import (
 
 	"github.com/matcra587/jira-cli/internal/cli"
 )
+
+func TestCompletionContextRefusesCanceledLookupAndLateCandidates(t *testing.T) {
+	original := completionKinds
+	t.Cleanup(func() { completionKinds = original })
+	ctx, cancel := context.WithCancel(t.Context())
+	entered := 0
+	completionKinds = map[string]completionPredictor{
+		"late": func(received context.Context, shell string, args []string) []string {
+			entered++
+			if received != ctx || shell != "fish" || len(args) != 1 || args[0] != "literal" {
+				t.Fatal("callback lost its invocation context or literal arguments")
+			}
+			cancel()
+			return []string{"candidate after cancellation"}
+		},
+	}
+	if got := captureStdout(t, func() { completionHandler(ctx, "fish", "late", []string{"literal"}) }); got != "" || entered != 1 {
+		t.Fatal("late cancellation emitted candidates", got, entered)
+	}
+	if got := captureStdout(t, func() { completionHandler(ctx, "fish", "late", []string{"literal"}) }); got != "" || entered != 1 {
+		t.Fatal("canceled callback entered another lookup", got, entered)
+	}
+	legacyEntered := 0
+	legacy := withCompletionContext(map[string]func([]string) []string{
+		"existing": func([]string) []string { legacyEntered++; return []string{"existing"} },
+	})
+	if got := legacy["existing"](ctx, "fish", nil); got != nil || legacyEntered != 0 {
+		t.Fatal("legacy adapter ignored canceled admission", got, legacyEntered)
+	}
+}
 
 // captureStdout runs fn with stdout redirected and returns what it wrote.
 // The predictor laws are about what reaches the shell, so the assertion
@@ -55,12 +86,12 @@ func captureStdout(t *testing.T, fn func()) string {
 func TestCompletionHandlerPredictorLaws(t *testing.T) {
 	orig := completionKinds
 	t.Cleanup(func() { completionKinds = orig })
-	completionKinds = map[string]func(args []string) []string{
+	completionKinds = withCompletionContext(map[string]func(args []string) []string{
 		"known":   func([]string) []string { return []string{"alpha\tfirst", "beta\tsecond"} },
 		"empty":   func([]string) []string { return nil },
 		"echoes":  func(args []string) []string { return args },
 		"unwired": nil,
-	}
+	})
 
 	tests := []struct {
 		name string
@@ -79,7 +110,7 @@ func TestCompletionHandlerPredictorLaws(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := captureStdout(t, func() { completionHandler("fish", tt.kind, tt.args) })
+			got := captureStdout(t, func() { completionHandler(t.Context(), "fish", tt.kind, tt.args) })
 			if got != tt.want {
 				t.Errorf("stdout = %q, want %q", got, tt.want)
 			}
@@ -95,17 +126,17 @@ func TestCompletionHandlerPredictorLaws(t *testing.T) {
 func TestCompletionHandlerSurvivesHostilePredictors(t *testing.T) {
 	orig := completionKinds
 	t.Cleanup(func() { completionKinds = orig })
-	completionKinds = map[string]func(args []string) []string{
+	completionKinds = withCompletionContext(map[string]func(args []string) []string{
 		"newline": func([]string) []string { return []string{"good", "bad\nsecond-line", "also-good"} },
 		"panics":  func([]string) []string { panic("predictor exploded") },
-	}
+	})
 
-	got := captureStdout(t, func() { completionHandler("fish", "newline", nil) })
+	got := captureStdout(t, func() { completionHandler(t.Context(), "fish", "newline", nil) })
 	if got != "good\nalso-good\n" {
 		t.Errorf("newline candidate not dropped: %q", got)
 	}
 
-	got = captureStdout(t, func() { completionHandler("fish", "panics", nil) })
+	got = captureStdout(t, func() { completionHandler(t.Context(), "fish", "panics", nil) })
 	if got != "" {
 		t.Errorf("panicking predictor wrote to stdout: %q", got)
 	}
@@ -120,10 +151,10 @@ func TestCompletionHandlerSurvivesHostilePredictors(t *testing.T) {
 func TestCompletionKindsOmitsUnwiredEntries(t *testing.T) {
 	orig := completionKinds
 	t.Cleanup(func() { completionKinds = orig })
-	completionKinds = map[string]func(args []string) []string{
+	completionKinds = withCompletionContext(map[string]func(args []string) []string{
 		"wired":   func([]string) []string { return nil },
 		"unwired": nil,
-	}
+	})
 
 	got := CompletionKinds()
 	if len(got) != 1 || got[0] != "wired" {

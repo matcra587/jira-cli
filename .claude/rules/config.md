@@ -531,3 +531,13 @@ palettes still use literal paths relative to the selected settings directory.
 Never use x/filepath.Expand for these values: it changes their file identity.
 Policies 1–7 retain exact previous candidate derivation and special-path refusal
 so existing recovery/rollback remains valid. TUI mappings require real consumers.
+
+Windows Credential Manager caps each blob at 2,560 bytes. The keyring recovery
+owner keeps ordinary/version-2 backups intact and publishes larger private v2
+payloads as bounded encoded pieces with a version-3 descriptor last. Derive piece
+names only from the validated parent backup ID; verify count, size and full digest
+before reopening snapshots or mutating primary entries. Retain partial effects
+and native admission on cancellation/failure; this is not a provider transaction
+or compare-and-swap. Native tests use fresh random service names, synthetic
+records and independent WinCred reads, never enumeration or the user's default
+service. Run them in a separate test process so global mocks cannot earn credit.

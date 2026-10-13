@@ -54,6 +54,7 @@ func newAttachmentAdd(deps Deps) *cobra.Command {
 		Use:        "add ISSUE_KEY... [PATH...]",
 		Short:      "Attach files to issues",
 		Long: "Upload one or more files to one or more issues.\n\n" +
+			"Shell completion follows the selected grammar: recent issue keys for issue positions and local paths for file positions or `--file`. Quote the whole CSV argument when a file name contains a comma; completion retains the selected CSV fields.\n\n" +
 			"**The grammar is decided by `--file`, not by guessing.** With " +
 			"`--file` every positional is an issue key, so `jira issue " +
 			"attachment add KEY-123 KEY-124 --file report.pdf` attaches one file " +
@@ -105,14 +106,14 @@ func newAttachmentAdd(deps Deps) *cobra.Command {
 			"$ jira issue attachment add KEY-123 report.pdf --dry-run\n\n" +
 			"# just the new attachment ids, as json\n" +
 			"$ jira issue attachment add KEY-123 report.pdf --output=json --jq '.data.results[].data.attachments[].id'",
-		Args: command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY", Predictor: "attachmentissuekey"}}},
+		Args: command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY", Predictor: "word_attachment"}}},
 		Flags: func(c *cobra.Command) {
 			cmd = c
 			command.AddKeyedFlags(c, &keyed)
 			command.AddMutationFlags(c, &mut)
 			command.AddStringSliceVar(c, &files, flagFile, nil,
 				"A file to upload; repeatable, and it makes every positional an issue key",
-				command.FlagOpts{Terse: "File to upload", Placeholder: "path", Forward: true})
+				command.FlagOpts{Terse: "File to upload", Placeholder: "path", Forward: true, Complete: "predictor=word_file_csv,comma"})
 		},
 		Validate: func() error {
 			if err := keyed.Validate(); err != nil {

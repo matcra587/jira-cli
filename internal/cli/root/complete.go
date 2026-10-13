@@ -61,7 +61,8 @@ func runCompletionAction(ctx context.Context, program *concobra.Program, sink *f
 	if len(cf.UnknownFlags) > 0 {
 		return true, sink.exitCodeContext(ctx, notApplicableFlags(cf.UnknownFlags))
 	}
-	if _, err := cf.Handle(program.Generator(), completionHandler, complete.WithArgs(cargs)); err != nil {
+	handler := func(shell, kind string, args []string) { completionHandler(ctx, shell, kind, args) }
+	if _, err := cf.Handle(program.Generator(), handler, complete.WithArgs(cargs)); err != nil {
 		// Installing or printing failed for a reason of its own (an
 		// unwritable rc file, an unknown shell). It still leaves through
 		// the one boundary, so a machine caller gets a frame instead of
@@ -86,42 +87,69 @@ func notApplicableFlags(flags []string) error {
 // "value\tdescription" lines. Local guide names come from the embedded
 // source. Every published predictor needs a registered function here;
 // the guardrail joins command metadata against this dispatch table.
-var completionKinds = map[string]func(args []string) []string{
-	command.NoCompletionPredictor: func(_ []string) []string { return nil },
-	"shell":                       func(_ []string) []string { return completioncmd.Shells() },
-	"adftype":                     func(_ []string) []string { return adf.SupportIdentities() },
-	"release": func(_ []string) []string {
-		return xslices.Map(changelog.Releases(), func(release changelog.Release) string {
-			return release.Version + "\t" + release.Date
-		})
-	},
-	"guide":              guideCandidates,
-	"helppath":           helpPathCandidates,
-	"alias":              aliasCandidates,
-	"profile":            profileCandidates,
-	"savedquery":         savedQueryCandidates,
-	"configkey":          func(_ []string) []string { return config.Keys() },
-	"cacheresource":      func(_ []string) []string { return cachecmd.ResourceNames() },
-	"cacheclearresource": func(_ []string) []string { return cachecmd.ClearResourceNames() },
-	"issuekey":           issueKeyCandidates,
-	"attachmentissuekey": attachmentIssueKeyCandidates,
-	"transitionissuekey": transitionIssueKeyCandidates,
-	"cachetransition":    transitionCandidates,
-	"configsetkey":       func(_ []string) []string { return config.WritableSettingKeys() },
-	"configvalue":        configValueCandidates,
-	"legacyprofile":      legacyProfileCandidates,
-	"cachelabel":         func(args []string) []string { return metadataCandidates(args, "labels") },
-	"cacheproject":       func(args []string) []string { return metadataCandidates(args, "projects") },
-	"cacheepic":          func(args []string) []string { return metadataCandidates(args, "epics") },
-	"cachefield":         func(args []string) []string { return metadataCandidates(args, "fields") },
-	"cacheissuetype":     func(args []string) []string { return metadataCandidates(args, "issuetypes") },
-	"cachelinktype":      func(args []string) []string { return metadataCandidates(args, "linktypes") },
-	"cacheboard":         func(args []string) []string { return metadataCandidates(args, "boards") },
-	"cacheboardid":       func(args []string) []string { return metadataCandidates(args, "boardids") },
-	"cachestatus":        func(args []string) []string { return metadataCandidates(args, "statuses") },
-	"cachepriority":      func(args []string) []string { return metadataCandidates(args, "priorities") },
-	"cacheresolution":    func(args []string) []string { return metadataCandidates(args, "resolutions") },
+type completionPredictor func(context.Context, string, []string) []string
+
+// withCompletionContext preserves the existing argument-only predictors while
+// admitting context-aware filesystem predictors through the same registry.
+func withCompletionContext(functions map[string]func([]string) []string) map[string]completionPredictor {
+	out := make(map[string]completionPredictor, len(functions))
+	for kind, fn := range functions {
+		if fn == nil {
+			out[kind] = nil
+			continue
+		}
+		out[kind] = func(ctx context.Context, _ string, args []string) []string {
+			if ctx.Err() != nil {
+				return nil
+			}
+			return fn(args)
+		}
+	}
+	return out
 }
+
+var completionKinds = func() map[string]completionPredictor {
+	kinds := withCompletionContext(map[string]func(args []string) []string{
+		command.NoCompletionPredictor: func(_ []string) []string { return nil },
+		"shell":                       func(_ []string) []string { return completioncmd.Shells() },
+		"adftype":                     func(_ []string) []string { return adf.SupportIdentities() },
+		"release": func(_ []string) []string {
+			return xslices.Map(changelog.Releases(), func(release changelog.Release) string {
+				return release.Version + "\t" + release.Date
+			})
+		},
+		"guide":              guideCandidates,
+		"helppath":           helpPathCandidates,
+		"alias":              aliasCandidates,
+		"savedquery":         savedQueryCandidates,
+		"configkey":          func(_ []string) []string { return config.Keys() },
+		"cacheresource":      func(_ []string) []string { return cachecmd.ResourceNames() },
+		"cacheclearresource": func(_ []string) []string { return cachecmd.ClearResourceNames() },
+		"issuekey":           issueKeyCandidates,
+		"attachmentissuekey": attachmentIssueKeyCandidates,
+		"transitionissuekey": transitionIssueKeyCandidates,
+		"cachetransition":    transitionCandidates,
+		"configsetkey":       func(_ []string) []string { return config.WritableSettingKeys() },
+		"configvalue":        configValueCandidates,
+		"legacyprofile":      legacyProfileCandidates,
+		"profile":            profileCandidates,
+		"cachelabel":         func(args []string) []string { return metadataCandidates(args, "labels") },
+		"cacheproject":       func(args []string) []string { return metadataCandidates(args, "projects") },
+		"cacheepic":          func(args []string) []string { return metadataCandidates(args, "epics") },
+		"cachefield":         func(args []string) []string { return metadataCandidates(args, "fields") },
+		"cacheissuetype":     func(args []string) []string { return metadataCandidates(args, "issuetypes") },
+		"cachelinktype":      func(args []string) []string { return metadataCandidates(args, "linktypes") },
+		"cacheboard":         func(args []string) []string { return metadataCandidates(args, "boards") },
+		"cacheboardid":       func(args []string) []string { return metadataCandidates(args, "boardids") },
+		"cachestatus":        func(args []string) []string { return metadataCandidates(args, "statuses") },
+		"cachepriority":      func(args []string) []string { return metadataCandidates(args, "priorities") },
+		"cacheresolution":    func(args []string) []string { return metadataCandidates(args, "resolutions") },
+	})
+	kinds["word_attachment"] = attachmentWordCandidates
+	kinds["word_file_csv"] = csvFileWordCandidates
+	kinds["word_configvalue"] = configWordCandidates
+	return kinds
+}()
 
 type completionContext struct {
 	files                 []string
@@ -325,7 +353,10 @@ func CompletionKinds() []string {
 // predictor laws (help standard §4.3) bind it: it never errors and
 // never falls back to filenames — an unknown kind or a failed lookup
 // prints nothing, so TAB does nothing rather than something wrong.
-func completionHandler(_, kind string, args []string) {
+func completionHandler(ctx context.Context, shell, kind string, args []string) {
+	if ctx.Err() != nil {
+		return
+	}
 	fn, ok := completionKinds[kind]
 	if !ok || fn == nil {
 		return
@@ -345,7 +376,11 @@ func completionHandler(_, kind string, args []string) {
 	// and nothing else may print there during a callback. One candidate
 	// per line, so a value carrying a newline would read as two: drop
 	// anything that cannot be represented rather than corrupt the list.
-	for _, line := range fn(args) {
+	candidates := fn(ctx, shell, args)
+	if ctx.Err() != nil {
+		return
+	}
+	for _, line := range candidates {
 		if strings.ContainsAny(line, "\n\r") {
 			continue
 		}

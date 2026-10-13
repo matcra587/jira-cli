@@ -215,7 +215,7 @@ func TestConfigSetSchemaJQAndCompletionExposeValidatedScalarContract(t *testing.
 		t.Fatalf("jq did not expose the validated preview value: exit=%d out=%q stderr=%q", exit, stdout, stderr)
 	}
 	stdout, stderr, exit = runBinary(t, "agent", "schema", "--path=config set", "--output=json")
-	for _, required := range []string{`"config.set"`, `"previous_present"`, `"previous_secret"`, `"would_change"`, `"configsetkey"`, `"configvalue"`, `"VALUE"`} {
+	for _, required := range []string{`"config.set"`, `"previous_present"`, `"previous_secret"`, `"would_change"`, `"configsetkey"`, `"word_configvalue"`, `"VALUE"`} {
 		if exit != 0 || !strings.Contains(stdout, required) {
 			t.Fatalf("setting write discovery omitted %s: exit=%d out=%q stderr=%q", required, exit, stdout, stderr)
 		}
@@ -266,6 +266,7 @@ func TestConfigSetGeneratedBashCompletionExecutesValuePredictor(t *testing.T) {
 	cmd := exec.CommandContext(t.Context(), bash, "--noprofile", "--norc", "-c", `binary="$2"
 jira() { "$binary" "$@"; }
 source "$1"
+compopt() { :; }
 COMP_WORDS=(jira --config "$3" config set -- read_only "")
 COMP_CWORD=7
 _jira jira "" read_only

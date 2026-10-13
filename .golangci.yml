@@ -11,6 +11,7 @@ run:
     - flagmatrix
     - live
     - nativekeyring
+    - nativeconsole
 
 linters:
   # Reasonable default set, then explicitly enable important ones.
@@ -144,6 +145,9 @@ linters:
             # interrupt native pipe reads without closing borrowed descriptors.
             # gechr/x 0.6.0 has no descriptor duplication primitive.
             - golang.org/x/sys/unix
+            # Native-only editor acceptance independently observes console
+            # modes and process termination in fresh hidden Windows consoles.
+            - golang.org/x/sys/windows
             # Test-only leak proof for the attachment multipart producer;
             # refused and interrupted uploads must release their goroutines.
             - go.uber.org/goleak
