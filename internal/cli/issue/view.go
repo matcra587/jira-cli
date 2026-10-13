@@ -179,17 +179,17 @@ func newView(deps Deps) *cobra.Command {
 			out, prev, err := runView(ctx, deps, key, fields, opts)
 			preview = prev
 			if err == nil {
-				// A second deps.JiraClient() call, not a second
+				// A second deps.JiraClient(ctx) call, not a second
 				// resolution: root/deps.go wires it as
-				// sync.OnceValues(newJiraClient), so every call after the
-				// first — including runView's own, just above — returns
+				// command.OnceContextValues(newJiraClient), so subsequent
+				// calls — including runView's own, just above — return
 				// the SAME cached client at the cost of a mutex check.
 				// Reading the site back out this way, rather than
 				// threading a return value through runView's signature,
 				// keeps that signature (and its ~20 existing direct
 				// callers in view_test.go) untouched for a value only
 				// Human needs.
-				if client, cerr := deps.JiraClient(); cerr == nil {
+				if client, cerr := deps.JiraClient(ctx); cerr == nil {
 					site = client.BaseURL()
 				}
 			}
@@ -311,7 +311,7 @@ func runView(ctx context.Context, deps Deps, key string, fields []string, opts v
 		return zero, commentsPreview{}, e
 	}
 
-	client, err := deps.JiraClient()
+	client, err := deps.JiraClient(ctx)
 	if err != nil {
 		return zero, commentsPreview{}, err
 	}

@@ -84,11 +84,11 @@ func runLinkTypes(ctx context.Context, deps Deps, opts linkTypeOptions) (envelop
 	// command does build one even on a hit. That is not the round trip
 	// being spared: constructing the adapter resolves config and
 	// credentials locally and contacts nothing.
-	client, err := deps.JiraClient()
+	client, err := deps.JiraClient(ctx)
 	if err != nil {
 		return zero, err
 	}
-	read, err := readLinkTypes(ctx, client, issueCache(deps), client.BaseURL(), opts)
+	read, err := readLinkTypes(ctx, client, issueCache(ctx, deps), client.BaseURL(), opts)
 	if err != nil {
 		return zero, err
 	}

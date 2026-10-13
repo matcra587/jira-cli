@@ -120,7 +120,7 @@ func (f *fakeWriteClient) CurrentUser(context.Context) (core.UserRead, error) {
 }
 
 func writeDeps(fake *fakeWriteClient) Deps {
-	return Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	return Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 }
 
 // writeFlagsFor builds an issueWriteFlags bound through the REAL
@@ -173,7 +173,7 @@ func decodePayload(t *testing.T, raw json.RawMessage) map[string]map[string]any 
 // reach the network whatever it does next.
 func TestCreateDryRunNeverBuildsAClient(t *testing.T) {
 	asked := false
-	deps := Deps{JiraClient: func() (core.JiraClient, error) {
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 		asked = true
 		return nil, errors.New("a preview must not build a client")
 	}}
@@ -201,7 +201,7 @@ func TestCreateDryRunNeverBuildsAClient(t *testing.T) {
 // above.
 func TestEditDryRunNeverBuildsAClient(t *testing.T) {
 	asked := false
-	deps := Deps{JiraClient: func() (core.JiraClient, error) {
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 		asked = true
 		return nil, errors.New("a dry run must not build a client")
 	}}
@@ -817,7 +817,7 @@ func TestMeIsLeftUnresolvedInABarePreview(t *testing.T) {
 	t.Cleanup(func() { cli.TakeWarnings() })
 
 	asked := false
-	deps := Deps{JiraClient: func() (core.JiraClient, error) {
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 		asked = true
 		return nil, errors.New("a bare preview must not build a client")
 	}}

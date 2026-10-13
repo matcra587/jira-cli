@@ -91,7 +91,7 @@ func (f *fakeWeblinkClient) DeleteRemoteLink(_ context.Context, key, linkID stri
 }
 
 func weblinkDeps(fake *fakeWeblinkClient) Deps {
-	return Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	return Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 }
 
 func testWeblink() weblinkFlags {
@@ -207,7 +207,7 @@ func TestWeblinkAddReportsAddedVersusReplaced(t *testing.T) {
 // field is a pointer.
 func TestWeblinkAddPreviewLeavesCreatedAbsent(t *testing.T) {
 	asked := false
-	deps := Deps{JiraClient: func() (core.JiraClient, error) {
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 		asked = true
 		return nil, errors.New("a dry run must not build a client")
 	}}
@@ -325,7 +325,7 @@ func TestWeblinkDeleteTakesBothKeyAndID(t *testing.T) {
 
 func TestWeblinkDeleteDryRunNeverBuildsAClient(t *testing.T) {
 	asked := false
-	deps := Deps{JiraClient: func() (core.JiraClient, error) {
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 		asked = true
 		return nil, errors.New("a dry run must not build a client")
 	}}

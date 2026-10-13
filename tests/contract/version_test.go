@@ -402,7 +402,7 @@ func countingDeps(t *testing.T) (*root.Deps, *int) {
 	t.Cleanup(func() { clog.SetDefault(orig) })
 	calls := 0
 	return &root.Deps{
-		JiraClient: func() (core.JiraClient, error) {
+		JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 			calls++
 			return nil, errors.New("contract: version must not construct a client")
 		},

@@ -173,7 +173,7 @@ func refuseWebOnKeyedRead(cmd *cobra.Command) error {
 // exactly as runView hands back its comments preview.
 func runLinkList(ctx context.Context, deps Deps, keys []string, parallelism int) (envelope.IssueLinkListOutput, string, error) {
 	var zero envelope.IssueLinkListOutput
-	client, err := deps.JiraClient()
+	client, err := deps.JiraClient(ctx)
 	if err != nil {
 		return zero, "", err
 	}

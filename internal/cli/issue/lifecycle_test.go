@@ -104,7 +104,7 @@ func (*fakeLifecycleClient) CurrentUser(context.Context) (core.UserRead, error) 
 }
 
 func lifecycleDeps(fake core.JiraClient) Deps {
-	return Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	return Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 }
 
 // --- issue delete ---
@@ -342,7 +342,7 @@ func TestCloneOverridesBeatTheSource(t *testing.T) {
 // holds and the preview says less.
 func TestClonePreviewReadsNothing(t *testing.T) {
 	asked := false
-	deps := Deps{JiraClient: func() (core.JiraClient, error) {
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 		asked = true
 		return nil, errors.New("a bare dry run must not build a client")
 	}}
@@ -506,7 +506,7 @@ func TestRankTurnsOneResponseIntoPerKeyVerdicts(t *testing.T) {
 
 func TestRankPreviewSendsNothing(t *testing.T) {
 	asked := false
-	deps := Deps{JiraClient: func() (core.JiraClient, error) {
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 		asked = true
 		return nil, errors.New("a dry run must not build a client")
 	}}

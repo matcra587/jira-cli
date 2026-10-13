@@ -51,7 +51,7 @@ func TestCacheIssueKeysCancellationPreservesOnlyCompletedRead(t *testing.T) {
 				store.afterGet = cancel
 			}
 			factories := 0
-			cmd := newIssueKeys(Deps{Cache: func() (core.Cache, error) {
+			cmd := newIssueKeys(Deps{Cache: func(ctx context.Context) (core.Cache, error) {
 				factories++
 				if phase == "during construction" {
 					cancel()

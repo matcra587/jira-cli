@@ -220,7 +220,7 @@ func runAttachmentAdd(ctx context.Context, deps Deps, inv command.Invocation, fi
 		return out, nil
 	}
 
-	client, err := deps.JiraClient()
+	client, err := deps.JiraClient(ctx)
 	if err != nil {
 		return zero, err
 	}

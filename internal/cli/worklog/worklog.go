@@ -2,6 +2,7 @@
 package worklog
 
 import (
+	"context"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -11,7 +12,7 @@ import (
 )
 
 type Deps struct {
-	JiraClient     func() (core.JiraClient, error)
+	JiraClient     func(ctx context.Context) (core.JiraClient, error)
 	WorkdaySeconds func() (int, error)
 	Now            func() time.Time
 	Location       *time.Location

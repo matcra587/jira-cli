@@ -20,7 +20,7 @@ import (
 
 // Deps separates credential-free local management from live metadata priming.
 type Deps struct {
-	Cache   func() (core.Cache, error)
+	Cache   func(ctx context.Context) (core.Cache, error)
 	Primers PrimeDeps
 }
 
@@ -99,7 +99,7 @@ func runClear(ctx context.Context, deps Deps, inv command.Invocation, force bool
 	if deps.Cache == nil {
 		return out, cacheIO(core.ErrCacheManagementUnsupported)
 	}
-	store, err := deps.Cache()
+	store, err := deps.Cache(ctx)
 	if err != nil {
 		return out, cacheIO(err)
 	}

@@ -2,6 +2,7 @@ package root
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -26,7 +27,7 @@ func testDeps(t *testing.T) *Deps {
 	orig := clog.Default()
 	t.Cleanup(func() { clog.SetDefault(orig) })
 	return &Deps{
-		JiraClient: func() (core.JiraClient, error) { return nil, nil },
+		JiraClient: func(ctx context.Context) (core.JiraClient, error) { return nil, nil },
 		Detect: func() cli.Detection {
 			return cli.Detection{Format: output.FormatJSON}
 		},
@@ -46,7 +47,7 @@ func runQuiet(t *testing.T, args []string) (exit, clientConstructions int) {
 
 	calls := 0
 	deps := &Deps{
-		JiraClient: func() (core.JiraClient, error) {
+		JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 			calls++
 			return nil, nil
 		},
@@ -488,7 +489,7 @@ func TestCompletionFlagsDoNotEatTheNextToken(t *testing.T) {
 			orig := clog.Default()
 			t.Cleanup(func() { clog.SetDefault(orig) })
 			deps := &Deps{
-				JiraClient: func() (core.JiraClient, error) { return nil, nil },
+				JiraClient: func(ctx context.Context) (core.JiraClient, error) { return nil, nil },
 				Detect: func() cli.Detection {
 					return cli.Detection{Format: output.FormatCompact}
 				},
@@ -636,7 +637,7 @@ func TestFilterPinsAutoDeterministically(t *testing.T) {
 	orig := clog.Default()
 	t.Cleanup(func() { clog.SetDefault(orig) })
 	deps := &Deps{
-		JiraClient: func() (core.JiraClient, error) { return nil, nil },
+		JiraClient: func(ctx context.Context) (core.JiraClient, error) { return nil, nil },
 		Detect: func() cli.Detection {
 			return cli.Detection{Format: output.FormatCompact}
 		},

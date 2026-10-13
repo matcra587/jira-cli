@@ -30,7 +30,7 @@ func (f *nilMetadataTransitionListClient) GetTransitions(ctx context.Context, ke
 func TestTransitionListRejectsExplicitNilAlternateMetadata(t *testing.T) {
 	t.Parallel()
 	client := &nilMetadataTransitionListClient{&fakeTransitionClient{screens: map[string]bool{"KEY-1": false}}}
-	out, err := runTransitionList(t.Context(), Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }}, []string{"KEY-1"}, 1)
+	out, err := runTransitionList(t.Context(), Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }}, []string{"KEY-1"}, 1)
 	if !errors.Is(err, core.ErrTransitionReadInvalid) || len(out.Results) != 1 || out.Results[0].OK || out.Results[0].Data != nil {
 		t.Fatal("explicit nil field metadata was published as a usable native object")
 	}
@@ -51,7 +51,7 @@ func TestTransitionListCommandDeadlineRetainsCompletedAndQueuedTargets(t *testin
 	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
 	defer cancel()
 	client := &deadlineTransitionListClient{&fakeTransitionClient{screens: map[string]bool{"KEY-1": false}}}
-	out, err := runTransitionList(ctx, Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }}, []string{"KEY-1", "KEY-2", "KEY-3"}, 1)
+	out, err := runTransitionList(ctx, Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }}, []string{"KEY-1", "KEY-2", "KEY-3"}, 1)
 	if !errors.Is(err, context.DeadlineExceeded) || cli.MapError(err).Code != "timeout" || len(out.Results) != 3 {
 		t.Fatal("command deadline lost original cause or ordered targets")
 	}
@@ -72,7 +72,7 @@ func TestTransitionListCommandDeadlineRetainsCompletedAndQueuedTargets(t *testin
 func TestTransitionListRetainsValidJoinedReadAndCause(t *testing.T) {
 	t.Parallel()
 	client := &joinedTransitionReadClient{&fakeTransitionClient{screens: map[string]bool{"KEY-1": false}}}
-	out, err := runTransitionList(t.Context(), Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }}, []string{"KEY-1"}, 1)
+	out, err := runTransitionList(t.Context(), Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }}, []string{"KEY-1"}, 1)
 	if !errors.Is(err, context.Canceled) || len(out.Results) != 1 || out.Results[0].OK || out.Results[0].Err == nil || out.Results[0].Err.Code != cli.CodeCanceled || out.Results[0].Data == nil || len(out.Results[0].Data.Transitions.Value) != 2 {
 		t.Fatal("joined transition read lost native data or its original cancellation")
 	}
@@ -87,7 +87,7 @@ func (*emptyTransitionListClient) GetTransitions(context.Context, string) (core.
 func TestTransitionListAcceptsExplicitEmptyNativeList(t *testing.T) {
 	t.Parallel()
 	client := &emptyTransitionListClient{&fakeTransitionClient{}}
-	out, err := runTransitionList(t.Context(), Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }}, []string{"KEY-1"}, 1)
+	out, err := runTransitionList(t.Context(), Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }}, []string{"KEY-1"}, 1)
 	if err != nil || len(out.Results) != 1 || !out.Results[0].OK || out.Results[0].Data == nil || out.Results[0].Data.Transitions.Value == nil || len(out.Results[0].Data.Transitions.Value) != 0 {
 		t.Fatal("an explicit empty transition list was refused or replaced")
 	}
@@ -102,7 +102,7 @@ func (*unusableTransitionListClient) GetTransitions(context.Context, string) (co
 func TestTransitionListAndMutationRejectUnusableAlternateRead(t *testing.T) {
 	opts := transitionOpts(t, true)
 	client := &unusableTransitionListClient{&fakeTransitionClient{}}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }}
 	out, err := runTransitionList(t.Context(), deps, []string{"KEY-1"}, 1)
 	if cli.MapError(err).Code != "transition_read_invalid" || len(out.Results) != 1 || out.Results[0].OK || out.Results[0].Data != nil {
 		t.Fatal("alternate transition discovery fabricated a usable workflow")
@@ -118,7 +118,7 @@ func TestTransitionListPreCancellationRetainsTargetsWithoutClient(t *testing.T) 
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 	calls := 0
-	out, err := runTransitionList(ctx, Deps{JiraClient: func() (core.JiraClient, error) {
+	out, err := runTransitionList(ctx, Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 		calls++
 		return nil, errors.New("client must remain lazy")
 	}}, []string{"KEY-1", "KEY-2"}, 1)

@@ -23,7 +23,7 @@ import (
 const epicJQL = "issuetype = Epic"
 
 type Deps struct {
-	JiraClient func() (core.JiraClient, error)
+	JiraClient func(ctx context.Context) (core.JiraClient, error)
 }
 
 type options struct {
@@ -135,7 +135,7 @@ func searchEpics(ctx context.Context, client core.JiraClient, o options) (envelo
 
 func runList(ctx context.Context, deps Deps, o options) (envelope.EpicListOutput, error) {
 	out := envelope.EpicListOutput{Epics: []envelope.IssueView{}, JQL: o.query}
-	client, err := deps.JiraClient()
+	client, err := deps.JiraClient(ctx)
 	if err != nil {
 		return out, err
 	}
@@ -153,7 +153,7 @@ func zeroCounts() map[string]int {
 
 func runBoard(ctx context.Context, deps Deps, o options) (envelope.EpicBoardOutput, error) {
 	out := envelope.EpicBoardOutput{Epics: []envelope.EpicBoardRow{}, JQL: o.query, Totals: zeroCounts()}
-	client, err := deps.JiraClient()
+	client, err := deps.JiraClient(ctx)
 	if err != nil {
 		return out, err
 	}

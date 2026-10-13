@@ -125,7 +125,7 @@ type errReader struct{ err error }
 func (r errReader) Read([]byte) (int, error) { return 0, r.err }
 
 func attachmentDeps(fake *fakeAttachmentClient) Deps {
-	return Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	return Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 }
 
 // --- attachment add ---
@@ -199,7 +199,7 @@ func TestAttachmentAddPreviewChecksMetadataWithoutClient(t *testing.T) {
 		t.Fatal(err)
 	}
 	asked := false
-	deps := Deps{JiraClient: func() (core.JiraClient, error) {
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 		asked = true
 		return nil, errors.New("a dry run must not build a client")
 	}}
@@ -322,7 +322,7 @@ func downloadOpts(dir string) downloadOptions {
 func TestDownloadBarePreviewResolvesNothing(t *testing.T) {
 	dir := t.TempDir()
 	asked := false
-	deps := Deps{JiraClient: func() (core.JiraClient, error) {
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 		asked = true
 		return nil, errors.New("a bare dry run must not build a client")
 	}}
@@ -375,7 +375,7 @@ func TestDownloadRemotePreviewResolvesButWritesNothing(t *testing.T) {
 func TestDownloadWithAsNeedsNoLookup(t *testing.T) {
 	dir := t.TempDir()
 	asked := false
-	deps := Deps{JiraClient: func() (core.JiraClient, error) {
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 		asked = true
 		return nil, errors.New("--as needs no site read")
 	}}

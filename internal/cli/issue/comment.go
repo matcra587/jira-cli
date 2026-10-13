@@ -300,7 +300,7 @@ func runCommentListWeb(ctx context.Context, deps Deps, key string, open browserO
 // testable against a fake core.JiraClient, matching runView's own split.
 func runCommentList(ctx context.Context, deps Deps, key string, start, limit int, order core.CommentOrder) (envelope.IssueCommentListOutput, error) {
 	var zero envelope.IssueCommentListOutput
-	client, err := deps.JiraClient()
+	client, err := deps.JiraClient(ctx)
 	if err != nil {
 		return zero, err
 	}
@@ -351,7 +351,7 @@ func runCommentList(ctx context.Context, deps Deps, key string, start, limit int
 // reader resumes from StartAt+Returned, which this shape gives directly.
 func drainCommentList(ctx context.Context, deps Deps, key string, order core.CommentOrder) (envelope.IssueCommentListOutput, error) {
 	var zero envelope.IssueCommentListOutput
-	client, err := deps.JiraClient()
+	client, err := deps.JiraClient(ctx)
 	if err != nil {
 		return zero, err
 	}

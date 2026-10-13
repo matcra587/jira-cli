@@ -289,11 +289,18 @@ func MapError(err error) Classification {
 	if err == nil {
 		return Classification{}
 	}
+	// A provider cause or its outer wrapper may contain authentication
+	// material. Preserve context classification while formatting only the
+	// sanitized provider boundary.
+	messageErr := err
+	if backend, ok := errors.AsType[*core.CredentialStoreError](err); ok {
+		messageErr = backend
+	}
 	switch {
 	case errors.Is(err, context.DeadlineExceeded):
-		return newError("timeout", err)
+		return newError("timeout", messageErr)
 	case errors.Is(err, context.Canceled):
-		return newError("canceled", err)
+		return newError("canceled", messageErr)
 	}
 	var writeErr *output.WriteError
 	if errors.As(err, &writeErr) {
@@ -368,6 +375,14 @@ func MapError(err error) Classification {
 		return newError(CodeJQEvalFailed, err)
 	case errors.Is(err, output.ErrFilterTooLarge):
 		return newError(CodeJQOutputTooLarge, err)
+	}
+	if backend, ok := errors.AsType[*core.CredentialStoreError](err); ok {
+		e := newError(CodeAuthStoreUnavailable, backend)
+		e.Hint = "Check the selected credential backend, its account and item coordinates, and authorization; or supply explicit environment credentials."
+		if backend.Attempted {
+			e.Hint = "The credential write was attempted and may have completed. Inspect the selected backend before retrying."
+		}
+		return e
 	}
 	if coded, ok := errors.AsType[*CodedError](err); ok {
 		return newError(coded.Code, err)

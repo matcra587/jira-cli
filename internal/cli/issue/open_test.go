@@ -22,8 +22,11 @@ func TestOpenCanonicalTargetAndBrowserHandoff(t *testing.T) {
 			siteCalls := 0
 			deps := Deps{
 				BrowseSite: func() (string, error) { siteCalls++; return "https://example.invalid/jira/", nil },
-				JiraClient: func() (core.JiraClient, error) { t.Fatal("opening constructed a client"); return nil, nil },
-				Cache:      func() (core.Cache, error) { t.Fatal("opening constructed cache"); return nil, nil },
+				JiraClient: func(ctx context.Context) (core.JiraClient, error) {
+					t.Fatal("opening constructed a client")
+					return nil, nil
+				},
+				Cache: func(ctx context.Context) (core.Cache, error) { t.Fatal("opening constructed cache"); return nil, nil },
 			}
 			ctx := t.Context()
 			if mode != "" {

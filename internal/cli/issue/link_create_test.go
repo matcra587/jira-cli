@@ -106,7 +106,7 @@ func (f *fakeLinkWriteClient) DeleteIssueLink(_ context.Context, linkID string) 
 }
 
 func linkWriteDeps(fake *fakeLinkWriteClient) Deps {
-	return Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	return Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 }
 
 func linkCreateOpts(typeInput string) linkCreateOptions {
@@ -296,7 +296,7 @@ func TestLinkCreateRefusesAnAmbiguousPhrase(t *testing.T) {
 // unresolved rather than leaving an absent type ambiguous.
 func TestLinkCreateBarePreviewResolvesNothing(t *testing.T) {
 	asked := false
-	deps := Deps{JiraClient: func() (core.JiraClient, error) {
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 		asked = true
 		return nil, errors.New("a bare dry run must not build a client")
 	}}
@@ -552,7 +552,7 @@ func TestLinkDeleteRemovesTheIdItWasGiven(t *testing.T) {
 
 func TestLinkDeleteDryRunNeverBuildsAClient(t *testing.T) {
 	asked := false
-	deps := Deps{JiraClient: func() (core.JiraClient, error) {
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 		asked = true
 		return nil, errors.New("a dry run must not build a client")
 	}}

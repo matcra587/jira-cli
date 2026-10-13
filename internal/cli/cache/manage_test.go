@@ -51,7 +51,7 @@ func TestCacheClearPreflightNeverOpensStorage(t *testing.T) {
 				cancel()
 			}
 			calls := 0
-			_, err := runClear(ctx, Deps{Cache: func() (core.Cache, error) { calls++; return &managementStub{}, nil }}, tc.inv, false)
+			_, err := runClear(ctx, Deps{Cache: func(ctx context.Context) (core.Cache, error) { calls++; return &managementStub{}, nil }}, tc.inv, false)
 			if calls != 0 || cli.MapError(err).Code != tc.code {
 				t.Fatalf("preflight = %v, calls=%d", err, calls)
 			}
@@ -68,7 +68,7 @@ func TestCacheClearPreviewAndResourceSelectionPreserveOtherEntries(t *testing.T)
 		{ID: "links", Key: LinkTypesPrefix + "https://example.com"},
 		{ID: "broken", Malformed: true},
 	}}
-	deps := Deps{Cache: func() (core.Cache, error) { return stub, nil }}
+	deps := Deps{Cache: func(ctx context.Context) (core.Cache, error) { return stub, nil }}
 	for _, preview := range []bool{true, false} {
 		out, err := runClear(t.Context(), deps, command.Invocation{Args: []string{"boards"}, DryRun: preview}, true)
 		if err != nil || out.WouldRemove != 3 || out.Unclassified != 1 || len(out.Entries) != 3 {
@@ -117,7 +117,7 @@ func TestCacheClearRetainsPartialInventoryAndDeletionOutcomes(t *testing.T) {
 		if inventoryFailure {
 			stub.readErr = cause
 		}
-		out, err := runClear(t.Context(), Deps{Cache: func() (core.Cache, error) { return stub, nil }}, command.Invocation{}, true)
+		out, err := runClear(t.Context(), Deps{Cache: func(ctx context.Context) (core.Cache, error) { return stub, nil }}, command.Invocation{}, true)
 		if !errors.Is(err, cause) || cli.MapError(err).Code != cli.CodeCacheIO || out.WouldRemove != 3 || len(out.Entries) != 3 {
 			t.Fatalf("retained outcomes = %+v, %v", out, err)
 		}
@@ -139,7 +139,7 @@ func TestCacheClearCancellationRetainsCompletedAndQueuedEntries(t *testing.T) {
 		cancel()
 		return true, nil
 	}}
-	out, err := runClear(ctx, Deps{Cache: func() (core.Cache, error) { return stub, nil }}, command.Invocation{}, true)
+	out, err := runClear(ctx, Deps{Cache: func(ctx context.Context) (core.Cache, error) { return stub, nil }}, command.Invocation{}, true)
 	if !errors.Is(err, context.Canceled) || cli.MapError(err).Code != cli.CodeCanceled || out.Removed != 1 || out.WouldRemove != 2 || len(stub.deleted) != 1 || !out.Entries[0].Attempted || !out.Entries[0].Removed || out.Entries[1].Attempted || out.Entries[1].Removed {
 		t.Fatalf("canceled clear lost ordered receipts: %+v, %v", out, err)
 	}
@@ -168,7 +168,7 @@ func TestCacheClearRetainsFinalAcknowledgementAfterCancellationOrError(t *testin
 				}
 				return true, cause
 			}}
-			out, err := runClear(ctx, Deps{Cache: func() (core.Cache, error) { return stub, nil }}, command.Invocation{}, true)
+			out, err := runClear(ctx, Deps{Cache: func(ctx context.Context) (core.Cache, error) { return stub, nil }}, command.Invocation{}, true)
 			if !errors.Is(err, cause) || out.Removed != 1 || out.WouldRemove != 1 || len(out.Entries) != 1 || !out.Entries[0].Attempted || !out.Entries[0].Removed {
 				t.Fatalf("final acknowledgement lost: %+v, %v", out, err)
 			}

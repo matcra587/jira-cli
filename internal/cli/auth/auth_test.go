@@ -32,14 +32,14 @@ type fakeStore struct {
 
 func newFakeStore() *fakeStore { return &fakeStore{secrets: map[string]string{}} }
 
-func (f *fakeStore) Get(account string) (string, error) {
+func (f *fakeStore) Get(ctx context.Context, account string) (string, error) {
 	if s, ok := f.secrets[account]; ok {
 		return s, nil
 	}
 	return "", core.ErrNoCredential
 }
 
-func (f *fakeStore) Set(account, secret string) error {
+func (f *fakeStore) Set(ctx context.Context, account, secret string) error {
 	f.setCall++
 	if f.failSet != nil {
 		return f.failSet
@@ -48,7 +48,7 @@ func (f *fakeStore) Set(account, secret string) error {
 	return nil
 }
 
-func (f *fakeStore) Delete(account string) error {
+func (f *fakeStore) Delete(ctx context.Context, account string) error {
 	f.delCall++
 	delete(f.secrets, account)
 	return nil
@@ -258,10 +258,10 @@ func newHarness(t *testing.T, site SiteInfo) *harness {
 			h.client.sawToken = token
 			return h.client, nil
 		},
-		Site: func() (SiteInfo, error) { return h.site, nil },
+		Site: func(ctx context.Context) (SiteInfo, error) { return h.site, nil },
 		// Nothing else supplies a token in these tests, so removing the
 		// stored one really does log you out.
-		SiteWithoutStore: func() (SiteInfo, error) {
+		SiteWithoutStore: func(ctx context.Context) (SiteInfo, error) {
 			bare := h.site
 			bare.Token, bare.TokenSource = "", ""
 			return bare, nil
@@ -279,11 +279,15 @@ func identOf(s SiteInfo) identity {
 // test exercises the same account resolution the command does.
 func doLogout(t *testing.T, h *harness, dryRun bool) (envelope.AuthLogoutOutput, error) {
 	t.Helper()
-	site, err := h.deps.Site()
+	site, err := h.deps.Site(t.Context())
 	if err != nil {
 		t.Fatalf("site: %v", err)
 	}
-	return logout(h.deps, site, accountToRemove(h.deps, site.Email), dryRun)
+	account, err := accountToRemove(t.Context(), h.deps, site.Email)
+	if err != nil {
+		t.Fatalf("account: %v", err)
+	}
+	return logout(t.Context(), h.deps, site, account, dryRun)
 }
 
 func configured() SiteInfo {
@@ -309,7 +313,7 @@ func TestLoginVerifiesBeforeStoring(t *testing.T) {
 	if h.store.setCall != 0 {
 		t.Errorf("the credential store was written %d time(s) despite verification failing", h.store.setCall)
 	}
-	if _, err := credentials.Load(h.store); err == nil {
+	if _, err := credentials.Load(t.Context(), h.store); err == nil {
 		t.Error("a rejected token was stored")
 	}
 }
@@ -326,7 +330,7 @@ func TestLoginStoresTheVerifiedToken(t *testing.T) {
 	}
 	// Decoded, not compared as a blob: the record is a contract, and the
 	// identity must land with the secret or a later run cannot use it.
-	rec, err := credentials.Load(h.store)
+	rec, err := credentials.Load(t.Context(), h.store)
 	if err != nil {
 		t.Fatalf("load stored record: %v", err)
 	}
@@ -498,7 +502,7 @@ func TestStatusNeedsNoCredentialStore(t *testing.T) {
 func TestLogoutRemovesTheStoredToken(t *testing.T) {
 	t.Parallel()
 	h := newHarness(t, configured())
-	if err := credentials.Save(h.store, credentials.Record{
+	if err := credentials.Save(t.Context(), h.store, credentials.Record{
 		Site: "https://example.atlassian.net", Email: "person@example.com", Token: "a-token",
 	}); err != nil {
 		t.Fatal(err)
@@ -508,7 +512,7 @@ func TestLogoutRemovesTheStoredToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("logout: %v", err)
 	}
-	if _, err := credentials.Load(h.store); err == nil {
+	if _, err := credentials.Load(t.Context(), h.store); err == nil {
 		t.Error("the token is still stored after logout")
 	}
 	// Removing a local copy is not revocation, and the payload has to
@@ -560,7 +564,7 @@ func TestTokenReturnsTheResolvedSecret(t *testing.T) {
 	site := configured()
 	site.Token = "a-good-token"
 
-	got, err := tokenValue(newHarness(t, site).deps)
+	got, err := tokenValue(t.Context(), newHarness(t, site).deps)
 	if err != nil {
 		t.Fatalf("tokenValue: %v", err)
 	}
@@ -574,7 +578,7 @@ func TestTokenReturnsTheResolvedSecret(t *testing.T) {
 // not silently produce an empty string.
 func TestTokenFailsWithNothingStored(t *testing.T) {
 	t.Parallel()
-	_, err := tokenValue(newHarness(t, configured()).deps)
+	_, err := tokenValue(t.Context(), newHarness(t, configured()).deps)
 	if err == nil {
 		t.Fatal("an empty token was returned as success")
 	}
@@ -714,7 +718,7 @@ func TestDryRunNeverTouchesTheCredentialStore(t *testing.T) {
 
 	t.Run("logout removes nothing", func(t *testing.T) {
 		h := newHarness(t, configured())
-		if err := credentials.Save(h.store, credentials.Record{
+		if err := credentials.Save(t.Context(), h.store, credentials.Record{
 			Site: "https://example.atlassian.net", Email: "person@example.com", Token: "a-token",
 		}); err != nil {
 			t.Fatal(err)
@@ -727,7 +731,7 @@ func TestDryRunNeverTouchesTheCredentialStore(t *testing.T) {
 		if h.store.delCall != 0 {
 			t.Errorf("a preview deleted from the credential store %d time(s)", h.store.delCall)
 		}
-		if _, err := credentials.Load(h.store); err != nil {
+		if _, err := credentials.Load(t.Context(), h.store); err != nil {
 			t.Errorf("a preview removed the stored credential: %v", err)
 		}
 		if !out.DryRun {
@@ -748,7 +752,7 @@ func TestLogoutSaysWhenAnotherSourceTakesOver(t *testing.T) {
 	t.Parallel()
 	h := newHarness(t, configured())
 	// A token from the file layer waits behind the stored one.
-	h.deps.SiteWithoutStore = func() (SiteInfo, error) {
+	h.deps.SiteWithoutStore = func(ctx context.Context) (SiteInfo, error) {
 		behind := h.site
 		behind.Token = "a-file-token"
 		behind.TokenSource = string(envelope.TokenSourceFile)
@@ -786,7 +790,7 @@ func TestLogoutIsSilentWhenItReallyLogsYouOut(t *testing.T) {
 func TestLoginSaysWhatItReplaced(t *testing.T) {
 	t.Parallel()
 	h := newHarness(t, configured())
-	if err := credentials.Save(h.store, credentials.Record{
+	if err := credentials.Save(t.Context(), h.store, credentials.Record{
 		Site: "https://other.atlassian.net", Email: "someone@other.example", Token: "old-token",
 	}); err != nil {
 		t.Fatal(err)
@@ -810,7 +814,7 @@ func TestLoginSaysWhatItReplaced(t *testing.T) {
 func TestLoginIsSilentWhenReplacingItself(t *testing.T) {
 	t.Parallel()
 	h := newHarness(t, configured())
-	if err := credentials.Save(h.store, credentials.Record{
+	if err := credentials.Save(t.Context(), h.store, credentials.Record{
 		Site: "https://example.atlassian.net", Email: "person@example.com", Token: "old-token",
 	}); err != nil {
 		t.Fatal(err)
@@ -851,7 +855,7 @@ func TestLogoutReportsAFileTokenTakingOver(t *testing.T) {
 func TestLogoutActuallyRemovesASeededCredential(t *testing.T) {
 	t.Parallel()
 	h := newHarness(t, configured())
-	if err := credentials.Save(h.store, credentials.Record{
+	if err := credentials.Save(t.Context(), h.store, credentials.Record{
 		Site: "https://example.atlassian.net", Email: "person@example.com", Token: "a-token",
 	}); err != nil {
 		t.Fatal(err)
@@ -860,7 +864,7 @@ func TestLogoutActuallyRemovesASeededCredential(t *testing.T) {
 	if _, err := doLogout(t, h, false); err != nil {
 		t.Fatalf("logout: %v", err)
 	}
-	if _, err := credentials.Load(h.store); err == nil {
+	if _, err := credentials.Load(t.Context(), h.store); err == nil {
 		t.Error("the seeded credential is still stored after logout")
 	}
 	if h.store.delCall == 0 {

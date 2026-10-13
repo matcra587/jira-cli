@@ -3,6 +3,7 @@
 package matrix
 
 import (
+	"context"
 	"errors"
 	"io"
 	"sync"
@@ -30,7 +31,7 @@ var (
 func liveTree() *cobra.Command {
 	liveOnce.Do(func() {
 		deps := &root.Deps{
-			JiraClient: func() (core.JiraClient, error) {
+			JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 				return nil, errors.New("flagmatrix: the enumerator never constructs a jira client")
 			},
 			Detect: func() cli.Detection {

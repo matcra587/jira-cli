@@ -1,19 +1,23 @@
 package root
 
 import (
+	"context"
 	"os"
 	"strings"
 	"sync"
 
+	"github.com/gechr/clive"
 	"github.com/gechr/clive/notify"
 	"github.com/gechr/clive/updater"
 
 	"github.com/matcra587/jira-cli/internal/adapters"
 	adapterjira "github.com/matcra587/jira-cli/internal/adapters/jira"
 	"github.com/matcra587/jira-cli/internal/adapters/keyring"
+	adapteronepassword "github.com/matcra587/jira-cli/internal/adapters/onepassword"
 	"github.com/matcra587/jira-cli/internal/cli"
 	authcmd "github.com/matcra587/jira-cli/internal/cli/auth"
 	cachecmd "github.com/matcra587/jira-cli/internal/cli/cache"
+	"github.com/matcra587/jira-cli/internal/cli/command"
 	jqlcmd "github.com/matcra587/jira-cli/internal/cli/jql"
 	updatecmd "github.com/matcra587/jira-cli/internal/cli/update"
 	"github.com/matcra587/jira-cli/internal/config"
@@ -25,8 +29,8 @@ import (
 // Deps is the composition root's wiring: every I/O adapter a command can
 // need, injected as a constructor so nothing is built until a RunE that
 // needs it runs. Manual constructor injection only — no container, no
-// globals, no init() — and each constructor is once-per-process via
-// sync.OnceValues, so every command in an invocation shares one instance.
+// globals, no init() — and each credential-backed constructor is memoized by
+// command.OnceContextValues, so an invocation shares one lazily built instance.
 type Deps struct {
 	// NotifyTool performs anonymous background release reads. A nil tool disables
 	// passive checks; NotifyOptions supplies Clive's cache and transport seams.
@@ -38,21 +42,21 @@ type Deps struct {
 	// first call. Help, completion, and version paths must never call it
 	// — speed is a felt property, and those paths open no network client.
 	// TestClientFreePathsConstructNothing pins the contract.
-	JiraClient func() (core.JiraClient, error)
+	JiraClient func(ctx context.Context) (core.JiraClient, error)
 
 	// Cache returns the process's metadata cache — a disk cache, because
 	// the reads it spares span invocations rather than repeating inside
 	// one (a CLI runs once and exits, so an in-process map could never
 	// help). Constructed on first use like the client above.
-	Cache func() (core.Cache, error)
+	Cache func(ctx context.Context) (core.Cache, error)
 
 	// BuildPreferences and CacheFor serve local JQL and cache management without
 	// opening the credential store or constructing a Jira client.
 	BuildPreferences func() (jqlcmd.BuildPreferences, error)
 	CacheFor         func(site, account string) (core.Cache, error)
 
-	// Credentials opens the operating system credential store. A
-	// constructor so nothing touches the keyring until a command that
+	// Credentials constructs the selected credential store. A
+	// constructor so nothing opens credentials until a command that
 	// needs it runs — and so tests substitute one instead of writing to
 	// the developer's real store.
 	Credentials func() (core.CredentialStore, error)
@@ -74,17 +78,30 @@ type Deps struct {
 
 // defaultDeps wires the production constructors.
 func defaultDeps() *Deps {
-	return &Deps{
+	store := sync.OnceValues(credentialStore)
+	deps := &Deps{
 		NotifyTool: selfupdate.ReleaseTool{},
 		Update:     updatecmd.DefaultDeps(),
-		JiraClient: sync.OnceValues(newJiraClient),
-		// OnceValues for JiraClient's reason: resolving the cache
+		JiraClient: command.OnceContextValues(func(ctx context.Context) (core.JiraClient, error) {
+			credentials, err := store()
+			if err != nil {
+				return nil, err
+			}
+			return newJiraClient(ctx, credentials)
+		}),
+		// OnceContextValues for JiraClient's reason: resolving the cache
 		// directory is filesystem work, and several commands in one run
 		// must not each repeat it.
-		Cache:            sync.OnceValues(newCache),
+		Cache: command.OnceContextValues(func(ctx context.Context) (core.Cache, error) {
+			credentials, err := store()
+			if err != nil {
+				return nil, err
+			}
+			return newCache(ctx, credentials)
+		}),
 		BuildPreferences: buildPreferences,
 		CacheFor:         newScopedDiskCache,
-		Credentials:      credentialStore,
+		Credentials:      store,
 		JiraClientFor: func(site, email, token string) (core.JiraClient, error) {
 			resolved, err := config.Load(config.Options{})
 			if err != nil {
@@ -103,6 +120,7 @@ func defaultDeps() *Deps {
 			return cli.Detect(os.Stdout)
 		},
 	}
+	return deps
 }
 
 // workdaySeconds resolves only preferences; it never opens the keyring or
@@ -144,14 +162,10 @@ func newScopedDiskCache(site, account string) (core.Cache, error) {
 // than as a command failure — readLinkTypes' whole design is that every
 // cache problem falls through to the read that was going to happen
 // anyway.
-func newCache() (core.Cache, error) {
+func newCache(ctx context.Context, store core.CredentialStore) (core.Cache, error) {
 	// Existing read-through consumers can resolve an account stored only in
 	// keyring. Local management uses configuredCache instead.
-	store, err := credentialStore()
-	if err != nil {
-		return nil, err
-	}
-	resolved, err := config.Load(config.Options{Credentials: store})
+	resolved, err := config.Resolve(ctx, config.Options{}, store)
 	if err != nil {
 		return nil, err
 	}
@@ -160,8 +174,8 @@ func newCache() (core.Cache, error) {
 
 // configuredCache shares the explicit-scope factory with offline JQL. It never
 // guesses an account or opens the credential-backed read-through constructor.
-func configuredCache(deps *Deps) (core.Cache, error) {
-	scope, err := metadataCacheScope(deps, true)
+func configuredCache(ctx context.Context, deps *Deps) (core.Cache, error) {
+	scope, err := metadataCacheScope(ctx, deps, true)
 	return scope.Store, err
 }
 
@@ -176,16 +190,12 @@ func configuredCache(deps *Deps) (core.Cache, error) {
 // Config carries ReadOnly into the transport, which is what makes the
 // write gate reachable: an operator sets JIRA_READ_ONLY and every
 // command is covered, including ones that never think to check.
-func newJiraClient() (core.JiraClient, error) {
-	store, err := credentialStore()
-	if err != nil {
-		return nil, err
-	}
-	return jiraClientFrom(config.Options{Credentials: store})
+func newJiraClient(ctx context.Context, store core.CredentialStore) (core.JiraClient, error) {
+	return jiraClientFrom(ctx, config.Options{}, store)
 }
 
-func jiraClientFrom(opts config.Options) (core.JiraClient, error) {
-	resolved, err := config.Load(opts)
+func jiraClientFrom(ctx context.Context, opts config.Options, store core.CredentialStore) (core.JiraClient, error) {
+	resolved, err := config.Resolve(ctx, opts, store)
 	if err != nil {
 		return nil, err
 	}
@@ -213,8 +223,7 @@ func jiraClientFrom(opts config.Options) (core.JiraClient, error) {
 	})
 }
 
-// credentialStore opens the OS credential store, unless it is turned
-// off.
+// credentialStore selects a credential provider without opening it.
 //
 // The setting is resolved from a load that does NOT consult the store,
 // because deciding whether to open it cannot depend on having opened it.
@@ -223,20 +232,17 @@ func credentialStore() (core.CredentialStore, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !resolved.Config.Keyring {
-		return core.NoCredentialStore{}, nil
-	}
-	if resolved.NamedProfiles && resolved.Config.CredentialID == "" {
+	if resolved.NamedProfiles && resolved.Config.SecretBackend == core.CredentialBackendKeyring && resolved.Config.CredentialID == "" {
 		return credentials.UnselectedStore{}, nil
 	}
-	return credentials.Select(keyring.New(), resolved.Config.CredentialID), nil
+	return credentialStoreFor(resolved.Config), nil
 }
 
 // siteInfoWithoutStore resolves as siteInfo does but with the credential
 // store withheld, which answers "what would still authenticate if the
 // stored record were gone?".
-func siteInfoWithoutStore() (authcmd.SiteInfo, error) {
-	return siteFrom(config.Options{})
+func siteInfoWithoutStore(ctx context.Context) (authcmd.SiteInfo, error) {
+	return siteFrom(ctx, config.Options{}, nil)
 }
 
 // siteInfo resolves the configured site, account, and token, and reports
@@ -247,18 +253,18 @@ func siteInfoWithoutStore() (authcmd.SiteInfo, error) {
 // find, and provenance is already how this CLI answers "why is it this?"
 // — so the answer comes from the loader's own layer tracking rather than
 // being guessed at the call site.
-func siteInfo() (authcmd.SiteInfo, error) {
+func siteInfo(ctx context.Context) (authcmd.SiteInfo, error) {
 	store, err := credentialStore()
 	if err != nil {
 		return authcmd.SiteInfo{}, err
 	}
-	return siteFrom(config.Options{Credentials: store})
+	return siteFrom(ctx, config.Options{}, store)
 }
 
 // siteFrom resolves configuration and reports the identity plus the
 // layer the token came from.
-func siteFrom(opts config.Options) (authcmd.SiteInfo, error) {
-	resolved, err := config.Load(opts)
+func siteFrom(ctx context.Context, opts config.Options, store core.CredentialStore) (authcmd.SiteInfo, error) {
+	resolved, err := config.Resolve(ctx, opts, store)
 	if err != nil {
 		return authcmd.SiteInfo{}, err
 	}
@@ -279,14 +285,14 @@ func credentialReadFailure(resolved *config.Resolved) error {
 	}
 	return &cli.CodedError{
 		Code:    cli.CodeAuthStoreUnavailable,
-		Message: "the system credential store could not be read; stored credentials were not verified",
+		Message: "the selected credential store could not be read; stored credentials were not verified",
 		Cause:   resolved.CredentialError,
 	}
 }
 
 // metadataCacheScope keeps live keyring resolution in the established cache
 // constructor while previews use only explicit non-secret scope preferences.
-func metadataCacheScope(deps *Deps, local bool) (cachecmd.MetadataScope, error) {
+func metadataCacheScope(ctx context.Context, deps *Deps, local bool) (cachecmd.MetadataScope, error) {
 	if deps.BuildPreferences == nil || local && deps.CacheFor == nil {
 		return cachecmd.MetadataScope{}, core.ErrCacheManagementUnsupported
 	}
@@ -309,9 +315,39 @@ func metadataCacheScope(deps *Deps, local bool) (cachecmd.MetadataScope, error) 
 	if local {
 		store, err = deps.CacheFor(prefs.BaseURL, prefs.Account)
 	} else if deps.Cache != nil {
-		store, err = deps.Cache()
+		store, err = deps.Cache(ctx)
 	} else {
 		err = core.ErrCacheManagementUnsupported
 	}
 	return cachecmd.MetadataScope{Site: prefs.BaseURL, Email: prefs.Account, Store: store}, err
+}
+
+// credentialStoreFor selects a provider using only local public preferences.
+// SDK construction and authentication are deferred until a credential operation.
+func credentialStoreFor(settings config.Config) core.CredentialStore {
+	switch settings.SecretBackend {
+	case core.CredentialBackendOnePassword:
+		return adapteronepassword.New(adapteronepassword.Config{
+			Account: settings.OnePasswordAccount, Vault: settings.OnePasswordVault,
+			Item: settings.OnePasswordItem, IntegrationVersion: clive.Current(),
+		})
+	case core.CredentialBackendEnvironment:
+		return core.EnvironmentCredentialStore{}
+	default:
+		if !settings.Keyring {
+			return core.NoCredentialStore{}
+		}
+		return credentials.Select(keyring.New(), settings.CredentialID)
+	}
+}
+
+func siteFromDeps(ctx context.Context, deps *Deps) (authcmd.SiteInfo, error) {
+	if deps.Credentials == nil {
+		return siteInfo(ctx)
+	}
+	store, err := deps.Credentials()
+	if err != nil {
+		return authcmd.SiteInfo{}, err
+	}
+	return siteFrom(ctx, config.Options{}, store)
 }

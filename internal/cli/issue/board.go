@@ -322,11 +322,11 @@ func resolveListBoard(
 	opts boardOptions,
 	in *command.JQLInput,
 ) (listBoardResolution, error) {
-	client, err := deps.JiraClient()
+	client, err := deps.JiraClient(ctx)
 	if err != nil {
 		return listBoardResolution{}, err
 	}
-	read, err := resolveBoard(ctx, client, issueCache(deps), client.BaseURL(), opts)
+	read, err := resolveBoard(ctx, client, issueCache(ctx, deps), client.BaseURL(), opts)
 	if err != nil {
 		return listBoardResolution{}, err
 	}

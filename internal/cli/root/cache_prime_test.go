@@ -64,13 +64,13 @@ func TestPublicMetadataPrimersUseConsumerFormatsAndFreshHits(t *testing.T) {
 			var memory adapters.MemoryCache
 			client := &cachePrimerClient{}
 			deps := testDeps(t)
-			deps.Cache = func() (core.Cache, error) { return &memory, nil }
+			deps.Cache = func(ctx context.Context) (core.Cache, error) { return &memory, nil }
 			// A live primer must preserve the ordinary constructor's keyring-only identity.
 			deps.BuildPreferences = func() (jqlcmd.BuildPreferences, error) {
 				return jqlcmd.BuildPreferences{BaseURL: "https://example.com"}, nil
 			}
 			clientFactories := 0
-			deps.JiraClient = func() (core.JiraClient, error) { clientFactories++; return client, nil }
+			deps.JiraClient = func(ctx context.Context) (core.JiraClient, error) { clientFactories++; return client, nil }
 			invoke := func(args ...string) []byte {
 				t.Helper()
 				var stdout, stderr bytes.Buffer
@@ -127,8 +127,14 @@ func TestPublicMetadataPreviewsResolveScopeWithoutCredentialsOrStorageCreation(t
 		t.Run(resource.Name, func(t *testing.T) {
 			t.Setenv("XDG_CACHE_HOME", t.TempDir())
 			deps := testDeps(t)
-			deps.Cache = func() (core.Cache, error) { t.Fatal("preview opened credential-backed cache"); return nil, nil }
-			deps.JiraClient = func() (core.JiraClient, error) { t.Fatal("preview constructed Jira client"); return nil, nil }
+			deps.Cache = func(ctx context.Context) (core.Cache, error) {
+				t.Fatal("preview opened credential-backed cache")
+				return nil, nil
+			}
+			deps.JiraClient = func(ctx context.Context) (core.JiraClient, error) {
+				t.Fatal("preview constructed Jira client")
+				return nil, nil
+			}
 			deps.Credentials = func() (core.CredentialStore, error) { t.Fatal("preview opened credentials"); return nil, nil }
 			preferences := 0
 			deps.BuildPreferences = func() (jqlcmd.BuildPreferences, error) {
@@ -164,7 +170,10 @@ func TestPublicMetadataScopeFailuresPrecedeClientsAndOpeningStorage(t *testing.T
 	for _, mode := range []string{"missing preview account", "invalid site", "cache unavailable"} {
 		t.Run(mode, func(t *testing.T) {
 			deps := testDeps(t)
-			deps.JiraClient = func() (core.JiraClient, error) { t.Fatal("scope refusal constructed client"); return nil, nil }
+			deps.JiraClient = func(ctx context.Context) (core.JiraClient, error) {
+				t.Fatal("scope refusal constructed client")
+				return nil, nil
+			}
 			deps.CacheFor = func(string, string) (core.Cache, error) { t.Fatal("bad local scope opened cache"); return nil, nil }
 			deps.BuildPreferences = func() (jqlcmd.BuildPreferences, error) {
 				site := "https://example.com"
@@ -174,7 +183,7 @@ func TestPublicMetadataScopeFailuresPrecedeClientsAndOpeningStorage(t *testing.T
 				return jqlcmd.BuildPreferences{BaseURL: site}, nil
 			}
 			cause := errors.New("cache unavailable")
-			deps.Cache = func() (core.Cache, error) {
+			deps.Cache = func(ctx context.Context) (core.Cache, error) {
 				if mode != "cache unavailable" {
 					t.Fatal("bad scope opened live cache")
 				}
@@ -212,11 +221,11 @@ func TestPublicMetadataFailureTextDoesNotClaimCacheReuseOrCollection(t *testing.
 		t.Run(name, func(t *testing.T) {
 			deps := testDeps(t)
 			var store adapters.MemoryCache
-			deps.Cache = func() (core.Cache, error) { return &store, nil }
+			deps.Cache = func(ctx context.Context) (core.Cache, error) { return &store, nil }
 			deps.BuildPreferences = func() (jqlcmd.BuildPreferences, error) {
 				return jqlcmd.BuildPreferences{BaseURL: "https://example.com"}, nil
 			}
-			deps.JiraClient = func() (core.JiraClient, error) {
+			deps.JiraClient = func(ctx context.Context) (core.JiraClient, error) {
 				if preview {
 					t.Fatal("preview constructed Jira client")
 				}
@@ -245,11 +254,14 @@ func TestPublicMetadataCappedCacheRetainsResumeAndActionableWarning(t *testing.T
 	if err := store.Set("v1:metadata:labels", []byte(`{"version":1,"items":["kept"],"count":1,"pages":100,"complete":false,"truncated_reason":"max_pages","next_start":1}`)); err != nil {
 		t.Fatal(err)
 	}
-	deps.Cache = func() (core.Cache, error) { return &store, nil }
+	deps.Cache = func(ctx context.Context) (core.Cache, error) { return &store, nil }
 	deps.BuildPreferences = func() (jqlcmd.BuildPreferences, error) {
 		return jqlcmd.BuildPreferences{BaseURL: "https://example.com"}, nil
 	}
-	deps.JiraClient = func() (core.JiraClient, error) { t.Fatal("bounded reuse constructed client"); return nil, nil }
+	deps.JiraClient = func(ctx context.Context) (core.JiraClient, error) {
+		t.Fatal("bounded reuse constructed client")
+		return nil, nil
+	}
 	var stdout, stderr bytes.Buffer
 	program, sink := newProgram(deps, &stdout, &stderr)
 	if exit := execute(t.Context(), program, sink, []string{"cache", "labels", "--output=json"}); exit != 0 {

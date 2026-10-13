@@ -57,7 +57,10 @@ func newLogin(deps Deps) *cobra.Command {
 		MutatesLocalState: true,
 		Use:               "login",
 		Short:             "Store an API token for the configured account",
-		Long: "Store an API token in your operating system's credential store.\n\n" +
+		Long: "Store an API token in the selected credential store.\n\n" +
+			"The default is the OS keyring. With secret_backend=1password, the direct " +
+			"SDK updates only the owned credential field in the selected item. " +
+			"The env backend cannot save tokens. See `jira agent guide configure-credentials`.\n\n" +
 			"The token is read from standard input with `--with-token`. There " +
 			"is no `--token` flag, and there will not be one: a flag value is " +
 			"visible to every process on the machine through `ps`, and it " +
@@ -133,12 +136,12 @@ func runLogin(ctx context.Context, deps Deps, inv command.Invocation, flags logi
 // job lands here, and a command that blocks on input nobody can supply
 // is worse than one that fails with the flags to use.
 func gather(ctx context.Context, inv command.Invocation, deps Deps, flags loginFlags) (identity, string, error) {
-	stored, err := deps.Site()
+	stored, err := deps.Site(ctx)
 	// An independently supplied token can be verified without reading the old
 	// credential. Retain public defaults, but never bypass invalid settings or
 	// cancellation while resolving them.
 	if err != nil && cli.MapError(err).Code == cli.CodeAuthStoreUnavailable && deps.SiteWithoutStore != nil {
-		stored, err = deps.SiteWithoutStore()
+		stored, err = deps.SiteWithoutStore(ctx)
 	}
 	if err != nil {
 		return identity{}, "", err
@@ -223,12 +226,17 @@ func login(ctx context.Context, deps Deps, ident identity, token string, dryRun 
 		// Read from the store already opened for the write, not a second
 		// resolution: on a macOS keychain each open can mean a prompt,
 		// which is the same fault logout was just fixed for.
-		if prev, prevErr := credentials.Load(store); prevErr == nil && prev.Complete() {
-			if prev.Site != ident.site || prev.Email != ident.email {
-				replaced = prev.Email + " on " + prev.Site
-			}
+		prev, prevErr := credentials.Load(ctx, store)
+		if contextErr := ctx.Err(); contextErr != nil {
+			return zero, contextErr
 		}
-		if saveErr := credentials.Save(store, credentials.Record{
+		if errors.Is(prevErr, context.Canceled) || errors.Is(prevErr, context.DeadlineExceeded) {
+			return zero, prevErr
+		}
+		if prevErr == nil && prev.Complete() && (prev.Site != ident.site || prev.Email != ident.email) {
+			replaced = prev.Email + " on " + prev.Site
+		}
+		if saveErr := credentials.Save(ctx, store, credentials.Record{
 			Site:  ident.site,
 			Email: ident.email,
 			Token: token,

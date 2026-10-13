@@ -33,7 +33,7 @@ func (c *worklogClient) AddWorklog(ctx context.Context, key string, req jira.Add
 
 func clientDeps(c *worklogClient) Deps {
 	d := fixedDeps()
-	d.JiraClient = func() (core.JiraClient, error) { return c, nil }
+	d.JiraClient = func(ctx context.Context) (core.JiraClient, error) { return c, nil }
 	return d
 }
 
@@ -44,7 +44,7 @@ func storedWorklog(id string) *jira.Worklog {
 func TestWorklogAddPreviewIsLocalAndInventsNoRecord(t *testing.T) {
 	t.Parallel()
 	deps := fixedDeps()
-	deps.JiraClient = func() (core.JiraClient, error) {
+	deps.JiraClient = func(ctx context.Context) (core.JiraClient, error) {
 		t.Error("preview constructed a client")
 		return nil, errors.New("preview must remain local")
 	}
@@ -159,7 +159,7 @@ func TestWorklogAddTotalFailureRetainsOrderedReceiptsAndSeverity(t *testing.T) {
 func TestWorklogAddRefusesUnsafeInputsBeforeClient(t *testing.T) {
 	t.Parallel()
 	deps := fixedDeps()
-	deps.JiraClient = func() (core.JiraClient, error) {
+	deps.JiraClient = func(ctx context.Context) (core.JiraClient, error) {
 		t.Error("invalid input constructed client")
 		return nil, errors.New("unexpected client")
 	}
@@ -184,7 +184,7 @@ func TestWorklogCanceledBeforeConstruction(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 	deps := fixedDeps()
-	deps.JiraClient = func() (core.JiraClient, error) {
+	deps.JiraClient = func(ctx context.Context) (core.JiraClient, error) {
 		t.Error("canceled command constructed client")
 		return nil, context.Canceled
 	}

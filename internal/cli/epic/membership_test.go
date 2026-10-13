@@ -40,7 +40,7 @@ func membershipRead(t *testing.T, raw string) core.IssueRead {
 }
 
 func membershipDeps(c *membershipClient) Deps {
-	return Deps{JiraClient: func() (core.JiraClient, error) { return c, nil }}
+	return Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return c, nil }}
 }
 
 func membershipOpts() membershipOptions {
@@ -49,7 +49,7 @@ func membershipOpts() membershipOptions {
 
 func TestEpicMembershipLocalPreviewAndSelfRefusal(t *testing.T) {
 	t.Parallel()
-	deps := Deps{JiraClient: func() (core.JiraClient, error) {
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 		t.Error("local input/preview constructed a client")
 		return nil, errors.New("must remain local")
 	}}

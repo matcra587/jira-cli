@@ -126,7 +126,7 @@ func (f *fakeWatcherWriteClient) CurrentUser(context.Context) (core.UserRead, er
 const resolvedAccountID = "aaaa1111bbbb2222cccc3333"
 
 func watcherWriteDeps(fake *fakeWatcherWriteClient) Deps {
-	return Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	return Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 }
 
 const testAccountID = "5b10a2844c20165700ede21g"
@@ -145,7 +145,7 @@ func TestWatcherWriteDryRunNeverBuildsAClient(t *testing.T) {
 	for name, verb := range map[string]watcherVerb{"add": watcherAdd, "remove": watcherRemove} {
 		t.Run(name, func(t *testing.T) {
 			asked := false
-			deps := Deps{JiraClient: func() (core.JiraClient, error) {
+			deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 				asked = true
 				return nil, errors.New("a dry run must not build a client")
 			}}
@@ -318,7 +318,7 @@ func TestWatcherReadbackBoundaryRetainsAcknowledgedWrite(t *testing.T) {
 				}
 				fake := &fakeWatcherWriteClient{}
 				client := watcherReadbackBoundaryClient{fakeWatcherWriteClient: fake, waitForCancellation: canceled}
-				deps := Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }}
+				deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }}
 				results, err := runWatcherWrite(ctx, deps, invocation(false, "KEY-1"), selected, writeOptions(false))
 				if (err != nil) != canceled || (canceled && !errors.Is(err, context.DeadlineExceeded)) || len(results) != 1 || !results[0].OK || results[0].Data == nil || results[0].Data.Readback != nil || results[0].Data.ReadbackError == nil || len(fake.added)+len(fake.removed) != 1 {
 					t.Fatal("readback boundary discarded acknowledgement, invented state or lost cancellation")
@@ -357,7 +357,7 @@ func TestWatcherDeadlineRetainsLateJoinedOutcomes(t *testing.T) {
 			ctx, cancel := context.WithTimeout(t.Context(), time.Millisecond)
 			defer cancel()
 			client := lateWatcherReceiptClient{}
-			deps := Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }}
+			deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }}
 			if verb == "list" {
 				out, err := runWatchersList(ctx, deps, []string{"KEY-1"}, 1)
 				if !errors.Is(err, context.DeadlineExceeded) || len(out.Results) != 1 || !out.Results[0].OK || out.Results[0].Data == nil || out.Results[0].Issue.Key != "KEY-1" || out.Results[0].Data.WatchCount != 0 || out.Results[0].Data.IsWatching {
@@ -615,7 +615,7 @@ func TestResolveWatcherUserLeavesMeInABarePreview(t *testing.T) {
 	t.Cleanup(func() { cli.TakeWarnings() })
 
 	asked := false
-	deps := Deps{JiraClient: func() (core.JiraClient, error) {
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 		asked = true
 		return nil, errors.New("a bare preview must not build a client")
 	}}

@@ -31,7 +31,7 @@ const (
 
 // Deps keeps help, schema and completion independent of authentication.
 type Deps struct {
-	JiraClient func() (core.JiraClient, error)
+	JiraClient func(ctx context.Context) (core.JiraClient, error)
 }
 
 // New builds the account discovery group. Assignment remains a separate action.
@@ -114,7 +114,7 @@ func runSearch(ctx context.Context, deps Deps, query string, start, limit int, a
 		err.Field = "QUERY"
 		return out, err
 	}
-	client, err := deps.JiraClient()
+	client, err := deps.JiraClient(ctx)
 	if err != nil {
 		return out, err
 	}

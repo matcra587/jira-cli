@@ -178,6 +178,8 @@ value uses the default for that resource.
 
 ## Recover
 
+### The command succeeded, but one resource failed
+
 Read every refresh row before deciding what to retry. Each `results[]` row has
 `resource`, `ok`, `data` and, on failure, `error`. Full JSON puts the rows at
 `data.results[]`. Compact success starts at `results[]`.

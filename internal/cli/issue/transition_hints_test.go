@@ -25,8 +25,8 @@ func TestTransitionListRecordsOnlySuccessfulIssueHints(t *testing.T) {
 		t.Fatal(err)
 	}
 	deps := Deps{
-		JiraClient: func() (core.JiraClient, error) { return client, nil },
-		Cache:      func() (core.Cache, error) { return &memory, nil },
+		JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil },
+		Cache:      func(ctx context.Context) (core.Cache, error) { return &memory, nil },
 	}
 	out, err := runTransitionList(t.Context(), deps, []string{"DEMO-1", "DEMO-2"}, 1)
 	if err != nil || len(out.Results) != 2 || !out.Results[0].OK || out.Results[1].OK || out.Results[1].Err == nil {
@@ -62,8 +62,8 @@ func TestTransitionAttemptInvalidatesHintsWithoutChangingOutcome(t *testing.T) {
 				client.transitionErr = map[string]error{"DEMO-1": cause}
 			}
 			deps := Deps{
-				JiraClient: func() (core.JiraClient, error) { return client, nil },
-				Cache:      func() (core.Cache, error) { return &memory, nil },
+				JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil },
+				Cache:      func(ctx context.Context) (core.Cache, error) { return &memory, nil },
 			}
 			out, err := runTransition(t.Context(), deps, invocation(false, "DEMO-1", "Done"), transitionOpts(t, false))
 			if len(out.Results) != 1 || out.Results[0].Data == nil || !out.Results[0].Data.Attempted || failure && !errors.Is(err, cause) || !failure && err != nil {
@@ -98,7 +98,7 @@ func TestTransitionHintsCancellationStillInvalidatesCompletedFailures(t *testing
 		{result: envelope.KeyedResult[jira.Transitions]{Issue: envelope.IssueRef{Key: "DEMO-3"}}, err: context.Canceled},
 		{result: envelope.KeyedResult[jira.Transitions]{Issue: envelope.IssueRef{Key: "DEMO-4"}, OK: true, Data: read.Transitions}, observed: observed},
 	}
-	recordTransitionHints(ctx, Deps{Cache: func() (core.Cache, error) { return &memory, nil }}, outcomes)
+	recordTransitionHints(ctx, &memory, outcomes)
 	if _, _, state := cachecmd.TransitionHints(&memory, "DEMO-1"); state != "missing" {
 		t.Fatal("cancellation retained a known invalid completed observation")
 	}

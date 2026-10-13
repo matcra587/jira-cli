@@ -109,11 +109,27 @@ real-shell guards without regressing contextual completion or versioned installa
 
 ## Context and portability
 
-*   Every Jira call takes the command's context — cancellation and
-    `--timeout` flow from cobra's `cmd.Context()`; no `context.Background()`
-    on command paths.
-*   CGO exists only for the `1password` backend behind build tags with
-    `_nocgo` stubs; everything else must build with `CGO_ENABLED=0`.
+*   Credential reads/writes and credential-backed client/cache factories take
+    the command's context explicitly. `config.Load` stays local; use
+    `config.Resolve(ctx, options, store)` for the credential layer. Do not put
+    contexts in options or adapters, or replace a command context with a detached
+    background context.
+*   Preserve lazy initialization with `command.OnceContextValues` when a factory
+    needs context. Its first context belongs to one command invocation; results,
+    errors and panics retain `sync.OnceValues` semantics. Cheap constructors and
+    explicit-scope metadata caches remain local and store-free.
+*   The current OS-keyring library is synchronous and context-free internally.
+    Check cancellation before native reads or mutations; do not claim in-flight
+    cancellation or start a detached worker to simulate it. A native mutation
+    already entered retains its actual return; cancellation does not prove no write.
+*   Every Jira call takes the command's context, preserving caller cancellation
+    and deadlines. `--timeout` configures the HTTP client; it does not create
+    a command-wide deadline. No `context.Background()` on command paths.
+*   The CLI and 1Password service-account SDK path build with `CGO_ENABLED=0`.
+    Linux/macOS desktop authorization requires CGO; Windows uses native loading.
+    SDK initializer admission and store queues honor context. Cold upstream WASM
+    loading uses a background context internally; do not claim full interruption.
+    Never silently substitute `op` or treat synthetic refusal as live SDK success.
 *   Windows is a release target: `filepath` for paths, no Unix-only
     assumptions (separators, `/proc`, signals).
 

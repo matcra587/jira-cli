@@ -24,9 +24,9 @@ func newStatus(deps Deps) *cobra.Command {
 			"that has been revoked is indistinguishable from a working one " +
 			"until something calls the API, and reporting \"logged in\" for a " +
 			"dead token is worse than reporting nothing.\n\n" +
-			"An unreadable system keyring without a usable environment token fails " +
+			"An unreadable selected credential store without a usable environment token fails " +
 			"with exit 1 and auth_store_unavailable. That failure does not establish " +
-			"whether stored credentials exist; restore keyring access before replacing them.\n\n" +
+			"whether stored credentials exist; restore store access before replacing them.\n\n" +
 			"A successful HTTP reply must contain one complete account object " +
 			"with an account ID. A malformed reply fails with exit 5 and " +
 			"current_user_response_invalid; it does not confirm authentication.\n\n" +

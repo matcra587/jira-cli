@@ -118,7 +118,7 @@ func TestListCoversEveryKey(t *testing.T) {
 	// timeout renders and is not secret: it is a duration the caller
 	// chose, and the whole point of showing it is that "why did this
 	// request give up?" is answerable from `config current`.
-	want := []string{"base_url", "email", "credential_id", "api_token", "keyring", "read_only", "timeout", "theme", "theme_path", "glyphs", "workday_seconds", "queries_path", "editor", "aliases"}
+	want := []string{"base_url", "email", "credential_id", "api_token", "keyring", "secret_backend", "onepassword_account", "onepassword_vault", "onepassword_item", "read_only", "timeout", "theme", "theme_path", "glyphs", "workday_seconds", "queries_path", "editor", "aliases"}
 
 	if got := cfg.Keys(); !slices.Equal(got, want) {
 		t.Fatalf("config declares keys %v, want %v — a new setting has to be added to this test deliberately", got, want)

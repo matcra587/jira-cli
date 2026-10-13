@@ -45,7 +45,7 @@ func TestValidateResultsKeepDiagnosticsAuthoredTextAndNative(t *testing.T) {
 	}
 	queries := []string{"authored", "invalid", "authored"}
 	fake := &fakeClient{parsed: &native}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 	for _, mode := range []core.JQLValidationMode{core.JQLValidationStrict, core.JQLValidationWarn, core.JQLValidationNone} {
 		out, err := runValidate(t.Context(), deps, queries, mode)
 		if err != nil || out.Mode != string(mode) || !reflect.DeepEqual(fake.queries, queries) || fake.mode != mode || !reflect.DeepEqual(out.SubmittedQueries, queries) || len(out.Queries) != 3 || !out.Queries[0].Valid || out.Queries[1].Valid || !out.Queries[2].Valid || out.Queries[0].Query != "normalized" || !out.Queries[0].Errors.Null || out.Queries[1].Errors.Value[0] != "syntax error" || !reflect.DeepEqual(out.Parsed, native) {
@@ -66,7 +66,7 @@ func TestValidateResultsKeepDiagnosticsAuthoredTextAndNative(t *testing.T) {
 
 func TestJQLLocalRefusalsAndCancellationNeedNoClient(t *testing.T) {
 	t.Parallel()
-	deps := Deps{JiraClient: func() (core.JiraClient, error) {
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 		t.Error("local refusal constructed a client")
 		return nil, errors.New("unexpected client")
 	}}
@@ -97,14 +97,14 @@ func TestJQLCommandsRejectMissingOrIncompleteReadResults(t *testing.T) {
 	t.Parallel()
 	for _, parsed := range []*jira.ParsedJqlQueries{nil, {}, {Queries: jira.NullableNull[[]jira.ParsedJqlQuery]()}, {Queries: jira.NullableOf([]jira.ParsedJqlQuery{})}, {Queries: jira.NullableOf([]jira.ParsedJqlQuery{{}})}} {
 		fake := &fakeClient{parsed: parsed}
-		deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+		deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 		out, err := runValidate(t.Context(), deps, []string{"one"}, core.JQLValidationStrict)
 		if err == nil || cli.MapError(err).Code != cli.CodeJQLResponseInvalid || len(out.Queries) > 0 {
 			t.Fatalf("incomplete parser result accepted: %+v %v", out, err)
 		}
 	}
 	fake := &fakeClient{}
-	if _, err := runReference(t.Context(), Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}); err == nil || cli.MapError(err).Code != cli.CodeJQLResponseInvalid {
+	if _, err := runReference(t.Context(), Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}); err == nil || cli.MapError(err).Code != cli.CodeJQLResponseInvalid {
 		t.Fatalf("nil reference became success: %v", err)
 	}
 }
@@ -117,7 +117,7 @@ func TestJQLReferenceProjectsDiscoveryAndKeepsNative(t *testing.T) {
 			t.Fatal(err)
 		}
 		fake := &fakeClient{reference: &native}
-		out, err := runReference(t.Context(), Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }})
+		out, err := runReference(t.Context(), Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }})
 		if err != nil || out.Fields == nil || out.Functions == nil || !reflect.DeepEqual(out.Reference, native) || !reflect.DeepEqual(out.ReservedWords, native.JqlReservedWords) || len(out.Fields) != len(native.VisibleFieldNames.Value) || len(out.Functions) != len(native.VisibleFunctionNames.Value) {
 			t.Fatalf("reference projection collapsed native state: %+v %v", out, err)
 		}
@@ -135,7 +135,7 @@ func TestJQLReadFailuresRemainErrors(t *testing.T) {
 	t.Parallel()
 	want := errors.New("fixture transport failure")
 	fake := &fakeClient{err: want}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 	if out, err := runValidate(t.Context(), deps, []string{"one"}, core.JQLValidationStrict); !errors.Is(err, want) || len(out.Queries) > 0 {
 		t.Fatalf("parser failure fabricated results: %+v %v", out, err)
 	}

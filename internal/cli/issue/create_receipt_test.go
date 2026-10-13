@@ -31,7 +31,7 @@ func TestIssueCreateRequiresExplicitSeamAcknowledgement(t *testing.T) {
 			t.Parallel()
 			client := &receiptIssueCreateClient{status: status, issue: &jira.CreatedIssue{ID: "9001", Key: "NEW-1"}}
 			in := writeFlagsFor(t, command.CreateIssueVerb, "--project=KEY", "--type=Task", "--summary=authored")
-			out, err := runCreate(t.Context(), Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }}, invocation(false), in, createOptions{verify: true})
+			out, err := runCreate(t.Context(), Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }}, invocation(false), in, createOptions{verify: true})
 			if err == nil || cli.MapError(err).Code != "issue_create_response_invalid" || client.calls != 1 || client.reads != 0 || out.Issue != nil || out.Applied || !out.Attempted || len(out.Payload) == 0 {
 				t.Fatal("creation claimed a seam identity without native201 or discarded an uncertain attempt")
 			}
@@ -59,7 +59,7 @@ func TestIssueCreateRetainsReturnedIdentityAndOriginalCause(t *testing.T) {
 			t.Parallel()
 			client := &receiptIssueCreateClient{status: 201, issue: &jira.CreatedIssue{ID: "9001", Key: "NEW-1"}, cause: cause}
 			in := writeFlagsFor(t, command.CreateIssueVerb, "--project=KEY", "--type=Task", "--summary=authored")
-			out, err := runCreate(t.Context(), Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }}, invocation(false), in, createOptions{verify: true})
+			out, err := runCreate(t.Context(), Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }}, invocation(false), in, createOptions{verify: true})
 			if !errors.Is(err, cause) || client.calls != 1 || client.reads != 0 || out.Issue == nil || out.Issue.Key != "NEW-1" || out.Issue.ID != "9001" || len(out.Payload) == 0 || out.Verified != nil || out.VerifyFailed {
 				t.Fatal("creation discarded its returned identity or original cause, or read back after failure")
 			}
@@ -70,7 +70,7 @@ func TestIssueCreateRetainsReturnedIdentityAndOriginalCause(t *testing.T) {
 func TestIssueCreateDeadlinePublishesJoinedIdentity(t *testing.T) {
 	t.Parallel()
 	client := &receiptIssueCreateClient{status: 201, issue: &jira.CreatedIssue{ID: "9001", Key: "NEW-1"}, late: true}
-	cmd := newCreate(Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }})
+	cmd := newCreate(Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }})
 	if err := cmd.ParseFlags([]string{"--project=KEY", "--type=Task", "--summary=authored", "--verify"}); err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +102,7 @@ func TestIssueCreateRefusesUnusableIdentity(t *testing.T) {
 			t.Parallel()
 			client := &receiptIssueCreateClient{status: 201, issue: identity}
 			in := writeFlagsFor(t, command.CreateIssueVerb, "--project=KEY", "--type=Task", "--summary=authored")
-			out, err := runCreate(t.Context(), Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }}, invocation(false), in, createOptions{verify: true})
+			out, err := runCreate(t.Context(), Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }}, invocation(false), in, createOptions{verify: true})
 			if err == nil || cli.MapError(err).Code != "issue_create_response_invalid" || client.calls != 1 || client.reads != 0 || out.Issue != nil || len(out.Payload) == 0 {
 				t.Fatal("creation accepted an unusable identity or discarded its attempted payload")
 			}

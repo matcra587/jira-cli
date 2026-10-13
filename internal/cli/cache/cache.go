@@ -119,11 +119,11 @@ func save[T any](store core.Cache, key string, value T) bool {
 
 // Open degrades a missing or failed constructor to a cache that always misses.
 // Commands still return the answer they fetched when storage is unavailable.
-func Open(constructor func() (core.Cache, error)) core.Cache {
+func Open(ctx context.Context, constructor func(ctx context.Context) (core.Cache, error)) core.Cache {
 	if constructor == nil {
 		return Disabled{}
 	}
-	store, err := constructor()
+	store, err := constructor(ctx)
 	if err != nil || store == nil {
 		return Disabled{}
 	}

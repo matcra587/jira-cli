@@ -34,7 +34,7 @@ func TestAttachmentDeleteRequiresExplicitSeamAcknowledgement(t *testing.T) {
 		t.Run(map[bool]string{false: "zero without error", true: "unacknowledged cancellation"}[cause != nil], func(t *testing.T) {
 			t.Parallel()
 			client := &receiptAttachmentDeleteClient{cause: cause}
-			out, err := runAttachmentDelete(t.Context(), Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }}, invocation(false, "10042"), true)
+			out, err := runAttachmentDelete(t.Context(), Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }}, invocation(false, "10042"), true)
 			if out.AttachmentID != "" || err == nil || client.calls != 1 {
 				t.Fatal("attachment deletion published an identity without an acknowledgement")
 			}
@@ -52,7 +52,7 @@ func TestAttachmentDeleteRequiresExplicitSeamAcknowledgement(t *testing.T) {
 func TestAttachmentDeleteDeadlinePublishesJoinedAcknowledgement(t *testing.T) {
 	t.Parallel()
 	client := &receiptAttachmentDeleteClient{late: true}
-	cmd := newAttachmentDelete(Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }})
+	cmd := newAttachmentDelete(Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }})
 	if err := cmd.Flags().Set("force", "true"); err != nil {
 		t.Fatal(err)
 	}

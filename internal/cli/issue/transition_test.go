@@ -143,7 +143,7 @@ func sortedCopy[T any](lock, unlock func(), items *[]T, key func(T) string) []st
 }
 
 func transitionDeps(fake *fakeTransitionClient) Deps {
-	return Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	return Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 }
 
 // drainWarnings takes the warnings this run raised.
@@ -400,7 +400,7 @@ func TestTransitionCommentFailureIsASuccessfulKey(t *testing.T) {
 // cannot reach the network whatever it does next.
 func TestTransitionBareDryRunNeverBuildsAClient(t *testing.T) {
 	asked := false
-	deps := Deps{JiraClient: func() (core.JiraClient, error) {
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 		asked = true
 		return nil, errors.New("a bare dry run must not build a client")
 	}}

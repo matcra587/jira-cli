@@ -19,7 +19,7 @@ import (
 
 // Deps preserves credential-free help, schema and static completion.
 type Deps struct {
-	JiraClient func() (core.JiraClient, error)
+	JiraClient func(ctx context.Context) (core.JiraClient, error)
 	// Preferences and CacheFor never access the credential store. CacheFor
 	// must isolate the supplied non-secret site/account identity.
 	Preferences func() (BuildPreferences, error)
@@ -98,7 +98,7 @@ func runValidate(ctx context.Context, deps Deps, queries []string, mode core.JQL
 	if err := ctx.Err(); err != nil {
 		return envelope.JQLValidateOutput{}, err
 	}
-	client, err := deps.JiraClient()
+	client, err := deps.JiraClient(ctx)
 	if err != nil {
 		return envelope.JQLValidateOutput{}, err
 	}
@@ -124,7 +124,7 @@ func runReference(ctx context.Context, deps Deps) (envelope.JQLReferenceOutput, 
 	if err := ctx.Err(); err != nil {
 		return envelope.JQLReferenceOutput{}, err
 	}
-	client, err := deps.JiraClient()
+	client, err := deps.JiraClient(ctx)
 	if err != nil {
 		return envelope.JQLReferenceOutput{}, err
 	}

@@ -33,7 +33,7 @@ const (
 
 // Deps carries a lazy client constructor. Help and previews construct no client.
 type Deps struct {
-	JiraClient func() (core.JiraClient, error)
+	JiraClient func(ctx context.Context) (core.JiraClient, error)
 }
 
 // New builds the raw API group. HTTP aliases preserve the canonical operation.
@@ -175,7 +175,7 @@ func run(ctx context.Context, deps Deps, inv command.Invocation, method string, 
 	if inv.DryRun {
 		return out, nil
 	}
-	client, err := deps.JiraClient()
+	client, err := deps.JiraClient(ctx)
 	if err != nil {
 		return out, err
 	}

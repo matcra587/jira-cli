@@ -89,6 +89,10 @@ linters:
             # CGO-free build holds. The alternative, 99designs/keyring,
             # has been unmaintained since 2022 and still rides godbus v1.
             - github.com/zalando/go-keyring
+            # Direct credential integration uses the official SDK only.
+            - github.com/1password/onepassword-sdk-go
+            # Cancellable SDK store admission; gechr/x/sync v0.6.0 only has Parallel.
+            - golang.org/x/sync/semaphore
             # Interactive forms for `auth login` and the logout
             # confirmation. v2 module paths ONLY: the v1 packages pull a
             # second, older rendering stack alongside the one clib

@@ -2,6 +2,7 @@ package root
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -17,9 +18,15 @@ import (
 
 type failedCredentialStore struct{ err error }
 
-func (s failedCredentialStore) Get(string) (string, error) { return "", s.err }
-func (failedCredentialStore) Set(string, string) error     { panic("unexpected credential write") }
-func (failedCredentialStore) Delete(string) error          { panic("unexpected credential deletion") }
+func (s failedCredentialStore) Get(ctx context.Context, _ string) (string, error) { return "", s.err }
+
+func (failedCredentialStore) Set(ctx context.Context, _, _ string) error {
+	panic("unexpected credential write")
+}
+
+func (failedCredentialStore) Delete(ctx context.Context, _ string) error {
+	panic("unexpected credential deletion")
+}
 
 func TestSiteResolutionReportsCredentialStoreFailure(t *testing.T) {
 	for _, tc := range []struct {
@@ -36,16 +43,9 @@ func TestSiteResolutionReportsCredentialStoreFailure(t *testing.T) {
 				t.Fatal(err)
 			}
 			cause := errors.New("fixture private backend detail")
-			site, err := siteFrom(config.Options{
-				Path: path,
-				Environ: func() []string {
-					return []string{
-						"JIRA_BASE_URL=https://fixture.example.invalid",
-						"JIRA_EMAIL=fixture@example.invalid", "JIRA_API_TOKEN=" + tc.token,
-					}
-				},
-				Credentials: failedCredentialStore{err: cause},
-			})
+			site, err := siteFrom(t.Context(), config.Options{Path: path, Environ: func() []string {
+				return []string{"JIRA_BASE_URL=https://fixture.example.invalid", "JIRA_EMAIL=fixture@example.invalid", "JIRA_API_TOKEN=" + tc.token}
+			}}, failedCredentialStore{err: cause})
 			if strings.TrimSpace(tc.token) != "" {
 				if err != nil || site.Token != tc.token || site.TokenSource != string(config.LayerEnv) {
 					t.Fatalf("usable environment fallback was blocked: %v", err)
@@ -80,16 +80,9 @@ func TestJiraClientResolutionReportsCredentialStoreFailure(t *testing.T) {
 				t.Fatal(err)
 			}
 			cause := errors.New("fixture private backend detail")
-			client, err := jiraClientFrom(config.Options{
-				Path: path,
-				Environ: func() []string {
-					return []string{
-						"JIRA_BASE_URL=https://fixture.example.invalid",
-						"JIRA_EMAIL=fixture@example.invalid", "JIRA_API_TOKEN=" + token,
-					}
-				},
-				Credentials: failedCredentialStore{err: cause},
-			})
+			client, err := jiraClientFrom(t.Context(), config.Options{Path: path, Environ: func() []string {
+				return []string{"JIRA_BASE_URL=https://fixture.example.invalid", "JIRA_EMAIL=fixture@example.invalid", "JIRA_API_TOKEN=" + token}
+			}}, failedCredentialStore{err: cause})
 			if strings.TrimSpace(token) != "" {
 				if err != nil || client == nil {
 					t.Fatalf("usable fallback could not construct the client: %v", err)

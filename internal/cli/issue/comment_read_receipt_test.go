@@ -38,7 +38,7 @@ func (f *lateCommentReadClient) GetComments(ctx context.Context, _ string, start
 
 func TestCommentListDeadlineRetainsObservedEmptyPage(t *testing.T) {
 	client := &lateCommentReadClient{empty: true}
-	cmd := newCommentList(Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }})
+	cmd := newCommentList(Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }})
 	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
 	defer cancel()
 	cmd.SetContext(ctx)
@@ -65,7 +65,7 @@ func TestCommentListDeadlinePublishesJoinedPage(t *testing.T) {
 		t.Run(map[bool]string{false: "page", true: "walk"}[all], func(t *testing.T) {
 			t.Parallel()
 			client := &lateCommentReadClient{}
-			cmd := newCommentList(Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }})
+			cmd := newCommentList(Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }})
 			if all {
 				if err := cmd.Flags().Set("all", "true"); err != nil {
 					t.Fatal(err)
@@ -96,7 +96,7 @@ func TestCommentListJoinedPagePreservesOriginalReadCause(t *testing.T) {
 			client := &fakeCommentClient{read: core.CommentRead{Page: &jira.CommentPage{
 				StartAt: 0, MaxResults: 50, Total: 1, Comments: []jira.Comment{{ID: jira.NullableOf("10042")}},
 			}}, err: cause}
-			deps := Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }}
+			deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }}
 			var out envelope.IssueCommentListOutput
 			var err error
 			if all {

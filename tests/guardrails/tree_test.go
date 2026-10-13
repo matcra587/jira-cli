@@ -1,6 +1,7 @@
 package guardrails
 
 import (
+	"context"
 	"errors"
 	"io"
 	"testing"
@@ -29,7 +30,7 @@ func guardProgram(t *testing.T) *concobra.Program {
 	orig := clog.Default()
 	t.Cleanup(func() { clog.SetDefault(orig) })
 	deps := &root.Deps{
-		JiraClient: func() (core.JiraClient, error) {
+		JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 			return nil, errors.New("guardrails: a metadata walk never constructs a jira client")
 		},
 		Detect: func() cli.Detection {

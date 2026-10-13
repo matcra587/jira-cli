@@ -23,7 +23,7 @@ func (f searchFake) SearchUsers(ctx context.Context, q string, start, limit int)
 }
 
 func searchDeps(fn func(context.Context, string, int, int) (core.UserSearchRead, error)) Deps {
-	return Deps{JiraClient: func() (core.JiraClient, error) { return searchFake{search: fn}, nil }}
+	return Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return searchFake{search: fn}, nil }}
 }
 
 func match(id string, active bool) *jira.User {
@@ -158,7 +158,10 @@ func TestSearchPageRejectsMalformedIdentitiesAtomically(t *testing.T) {
 func TestSearchBlankQueryBeforeClient(t *testing.T) {
 	t.Parallel()
 	called := false
-	_, err := runSearch(t.Context(), Deps{JiraClient: func() (core.JiraClient, error) { called = true; return nil, errors.New("unexpected constructor") }}, " \t\n", 0, 50, false)
+	_, err := runSearch(t.Context(), Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) {
+		called = true
+		return nil, errors.New("unexpected constructor")
+	}}, " \t\n", 0, 50, false)
 	if called || cli.MapError(err).Code != cli.CodeArgValueInvalid {
 		t.Fatalf("blank query reached client: %v", err)
 	}

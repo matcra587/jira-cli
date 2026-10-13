@@ -52,7 +52,7 @@ func TestLinkDeadlinePublishesJoinedOutcomes(t *testing.T) {
 		t.Run(verb, func(t *testing.T) {
 			t.Parallel()
 			client := &linkReceiptSeamClient{late: true}
-			deps := Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }}
+			deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }}
 			cmd := newLinkList(deps)
 			if verb == "create" {
 				cmd = newLinkCreate(deps)
@@ -94,7 +94,7 @@ func TestLinkTotalFailurePreservesOriginalTransportCause(t *testing.T) {
 			client := &linkReceiptSeamClient{cause: cause}
 			var err error
 			if verb == "list" {
-				out, _, failure := runLinkList(t.Context(), Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }}, []string{"KEY-1", "KEY-2"}, 1)
+				out, _, failure := runLinkList(t.Context(), Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }}, []string{"KEY-1", "KEY-2"}, 1)
 				err = failure
 				if len(out.Results) != 2 || out.Results[0].OK || out.Results[1].OK {
 					t.Fatal("link read discarded total-failure outcomes")

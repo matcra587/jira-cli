@@ -2,6 +2,7 @@ package root
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"slices"
@@ -23,7 +24,7 @@ func TestOpenAndIssueWebUseSettingsWithoutAdapters(t *testing.T) {
 				siteCalls++
 				return jqlcmd.BuildPreferences{BaseURL: "https://example.invalid/jira"}, nil
 			}
-			deps.JiraClient = func() (core.JiraClient, error) {
+			deps.JiraClient = func(ctx context.Context) (core.JiraClient, error) {
 				t.Fatal("browse route constructed a Jira client")
 				return nil, errors.New("unexpected")
 			}
@@ -31,7 +32,10 @@ func TestOpenAndIssueWebUseSettingsWithoutAdapters(t *testing.T) {
 				t.Fatal("browse route opened credentials")
 				return nil, errors.New("unexpected")
 			}
-			deps.Cache = func() (core.Cache, error) { t.Fatal("browse route opened cache"); return nil, errors.New("unexpected") }
+			deps.Cache = func(ctx context.Context) (core.Cache, error) {
+				t.Fatal("browse route opened cache")
+				return nil, errors.New("unexpected")
+			}
 			var stdout, stderr bytes.Buffer
 			program, sink := newProgram(deps, &stdout, &stderr)
 			args := append(append([]string{}, route...), "--output=json")
@@ -105,8 +109,14 @@ func TestOpenHistoryUsesOnlyExplicitLocalScope(t *testing.T) {
 				}
 				return &memory, nil
 			}
-			deps.Cache = func() (core.Cache, error) { t.Fatal("URL history opened credential-backed cache"); return nil, nil }
-			deps.JiraClient = func() (core.JiraClient, error) { t.Fatal("URL history opened client"); return nil, nil }
+			deps.Cache = func(ctx context.Context) (core.Cache, error) {
+				t.Fatal("URL history opened credential-backed cache")
+				return nil, nil
+			}
+			deps.JiraClient = func(ctx context.Context) (core.JiraClient, error) {
+				t.Fatal("URL history opened client")
+				return nil, nil
+			}
 			var stdout, stderr bytes.Buffer
 			program, sink := newProgram(deps, &stdout, &stderr)
 			args := append(append([]string{}, route...), "--output=json")

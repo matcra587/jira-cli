@@ -10,6 +10,8 @@ import (
 
 	"github.com/google/uuid"
 	koanftoml "github.com/knadh/koanf/parsers/toml"
+
+	"github.com/matcra587/jira-cli/internal/core"
 )
 
 // Profile contains public authored metadata, never credential contents.
@@ -19,7 +21,7 @@ type Profile struct {
 	Selected      bool
 	BaseURL       string
 	Email         string
-	SecretBackend string
+	SecretBackend core.CredentialBackend
 	CredentialID  string
 }
 
@@ -77,7 +79,10 @@ func (f *File) Profiles() ([]Profile, error) {
 		if err != nil {
 			return nil, err
 		}
-		backend := "keyring"
+		backend := decoded.SecretBackend
+		if backend == "" {
+			backend = core.CredentialBackendKeyring
+		}
 		profiles = append(profiles, Profile{
 			Name: name, Default: name == doc.defaultProfile,
 			Selected: name == selected, BaseURL: Redacted("base_url", decoded.BaseURL),

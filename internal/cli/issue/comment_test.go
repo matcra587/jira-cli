@@ -49,7 +49,7 @@ func (f *fakeCommentClient) GetComments(_ context.Context, _ string, startAt, ma
 
 func TestRunCommentListMapsStartAndLimitToStartAtAndMaxResults(t *testing.T) {
 	fake := &fakeCommentClient{read: core.CommentRead{Page: &jira.CommentPage{StartAt: 25, MaxResults: 10, Total: 25, Comments: []jira.Comment{}}}}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	if _, err := runCommentList(t.Context(), deps, "ABC-1", 25, 10, core.CommentOrderDefault); err != nil {
 		t.Fatalf("runCommentList: %v", err)
@@ -69,7 +69,7 @@ func TestRunCommentListMapsStartAndLimitToStartAtAndMaxResults(t *testing.T) {
 // rather than silently produce an empty-but-successful page.
 func TestRunCommentListFailsLoudlyOnNilPage(t *testing.T) {
 	deps := Deps{
-		JiraClient: func() (core.JiraClient, error) {
+		JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 			return &fakeCommentClient{read: core.CommentRead{Page: nil}}, nil
 		},
 	}
@@ -89,7 +89,7 @@ func TestRunCommentListFailsLoudlyOnNilPage(t *testing.T) {
 // (commentsCalled stays false).
 func TestRunCommentListWebBuildsIssueURLWithoutFetching(t *testing.T) {
 	fake := &fakeCommentClient{baseURL: "https://example.atlassian.net"}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	var calls []recordedOpen
 	out, err := runCommentListWeb(t.Context(), deps, "ABC-123", fakeOpener(&calls, nil))
@@ -118,7 +118,7 @@ func TestRunCommentListWebBuildsIssueURLWithoutFetching(t *testing.T) {
 // loudly rather than silently degrading.
 func TestRunCommentListWebRejectsMalformedKey(t *testing.T) {
 	fake := &fakeCommentClient{baseURL: "https://example.atlassian.net"}
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 
 	var calls []recordedOpen
 	_, err := runCommentListWeb(t.Context(), deps, "not a valid key", fakeOpener(&calls, nil))
@@ -582,7 +582,7 @@ func (f *pagingCommentClient) GetComments(_ context.Context, _ string, startAt, 
 }
 
 func pagingDeps(f *pagingCommentClient) Deps {
-	return Deps{JiraClient: func() (core.JiraClient, error) { return f, nil }}
+	return Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return f, nil }}
 }
 
 // TestDrainCommentListPagesRatherThanFetchingEverythingAtOnce is the

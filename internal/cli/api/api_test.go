@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"strings"
@@ -30,7 +31,7 @@ func TestRawValidationPrecedesBodyAndClient(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			deps := Deps{JiraClient: func() (core.JiraClient, error) {
+			deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 				t.Error("invalid raw request constructed its client")
 				return nil, errors.New("unexpected client")
 			}}
@@ -53,7 +54,7 @@ func (r failReader) Read([]byte) (int, error) {
 
 func TestRawPreviewReadsExactStdinWithoutClient(t *testing.T) {
 	t.Parallel()
-	deps := Deps{JiraClient: func() (core.JiraClient, error) {
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 		t.Error("preview constructed a client")
 		return nil, errors.New("unexpected client")
 	}}

@@ -114,7 +114,7 @@ func runMembership(ctx context.Context, deps Deps, inv command.Invocation, input
 		})
 		return out, nil
 	}
-	client, err := deps.JiraClient()
+	client, err := deps.JiraClient(ctx)
 	if err != nil {
 		return out, err
 	}

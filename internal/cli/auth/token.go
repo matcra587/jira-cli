@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -22,7 +23,8 @@ func newToken(deps Deps) *cobra.Command {
 			"and a newline. `--output` does not change it. Wrapping a secret " +
 			"in a JSON frame would carry it into logs, `--jq` output, and " +
 			"anything that records machine output.\n\n" +
-			"Whatever consumes this inherits responsibility for it.",
+			"Whatever consumes this inherits responsibility for it. Interrupted resolution " +
+			"prints no token, even when an environment token is configured.",
 		Example: "# capture it in a shell variable\n" +
 			"$ token=$(jira auth token)\n\n" +
 			"# call the REST API directly with it\n" +
@@ -41,7 +43,7 @@ func newToken(deps Deps) *cobra.Command {
 }
 
 func runToken(cmd *cobra.Command, deps Deps) error {
-	token, err := tokenValue(deps)
+	token, err := tokenValue(cmd.Context(), deps)
 	if err != nil {
 		return err
 	}
@@ -54,9 +56,15 @@ func runToken(cmd *cobra.Command, deps Deps) error {
 
 // tokenValue returns the resolved token, or an auth failure when there
 // is none.
-func tokenValue(deps Deps) (string, error) {
-	site, err := deps.Site()
+func tokenValue(ctx context.Context, deps Deps) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	site, err := deps.Site(ctx)
 	if err != nil {
+		return "", err
+	}
+	if err := ctx.Err(); err != nil {
 		return "", err
 	}
 	if strings.TrimSpace(site.Token) == "" {

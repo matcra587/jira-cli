@@ -75,7 +75,7 @@ func (r *recordingConfirm) ask(_ context.Context, c prompt.Confirm) (bool, error
 }
 
 func commentDeleteDeps(fake *fakeCommentDeleteClient, confirm *recordingConfirm) Deps {
-	deps := Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 	if confirm != nil {
 		deps.Confirm = confirm.ask
 	}
@@ -102,7 +102,7 @@ func TestCommentDeleteDryRunNeitherAsksNorBuildsAClient(t *testing.T) {
 	asked := false
 	confirm := &recordingConfirm{answer: false}
 	deps := Deps{
-		JiraClient: func() (core.JiraClient, error) {
+		JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 			asked = true
 			return nil, errors.New("a dry run must not build a client")
 		},

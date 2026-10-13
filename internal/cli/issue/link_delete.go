@@ -124,7 +124,7 @@ func runLinkDelete(ctx context.Context, deps Deps, inv command.Invocation) (enve
 		return out, nil
 	}
 
-	client, err := deps.JiraClient()
+	client, err := deps.JiraClient(ctx)
 	if err != nil {
 		return zero, err
 	}

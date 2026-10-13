@@ -4,6 +4,7 @@ package audit
 
 import (
 	"cmp"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -74,7 +75,7 @@ var (
 func liveTree() *cobra.Command {
 	liveOnce.Do(func() {
 		deps := &root.Deps{
-			JiraClient: func() (core.JiraClient, error) {
+			JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 				return nil, errors.New("outputaudit: the inventory never constructs a jira client")
 			},
 			Detect: func() cli.Detection {

@@ -43,7 +43,7 @@ func TestRankAlternateClientCannotInventAcknowledgements(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			client := &rankOutcomeClient{write: write}
-			out, err := runRank(t.Context(), Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }}, invocation(false, "KEY-1", "KEY-2"), "KEY-9", "")
+			out, err := runRank(t.Context(), Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }}, invocation(false, "KEY-1", "KEY-2"), "KEY-9", "")
 			if !errors.Is(err, core.ErrRankResponseInvalid) || cli.MapError(err).Exit != cli.ExitServer || client.calls.Load() != 1 || out.Anchor != "KEY-9" || out.Position != "before" || len(out.Results) != 2 {
 				t.Fatal("alternate rank client fabricated a batch acknowledgement")
 			}
@@ -70,7 +70,7 @@ func (f *rankReceiptClient) RankIssues(ctx context.Context, _ jira.RankRequest) 
 func TestRankDeadlinePreservesJoinedAcknowledgement(t *testing.T) {
 	t.Parallel()
 	client := &rankReceiptClient{late: true}
-	cmd := newRank(Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }})
+	cmd := newRank(Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }})
 	if err := cmd.Flags().Set("before", "KEY-9"); err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +97,7 @@ func TestRankTotalFailurePreservesOriginalTransportCause(t *testing.T) {
 	t.Parallel()
 	cause := &adapterjira.APIError{StatusCode: http.StatusTooManyRequests, RetryAfterSeconds: 7, Retry: core.RetryInfo{Attempts: 1, Waited: time.Millisecond}}
 	client := &rankReceiptClient{cause: cause}
-	out, err := runRank(t.Context(), Deps{JiraClient: func() (core.JiraClient, error) { return client, nil }}, invocation(false, "KEY-1", "KEY-2"), "KEY-9", "")
+	out, err := runRank(t.Context(), Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }}, invocation(false, "KEY-1", "KEY-2"), "KEY-9", "")
 	actual, ok := errors.AsType[*adapterjira.APIError](err)
 	class := cli.MapError(err)
 	if !ok || actual != cause || class.Code != "jira_rate_limited" || class.RetryAfterSeconds != 7 || class.Attempts != 1 || class.Waited != time.Millisecond || client.calls.Load() != 1 || out.Anchor != "KEY-9" || len(out.Results) != 2 {

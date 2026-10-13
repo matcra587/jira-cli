@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -146,11 +147,6 @@ type Options struct {
 	// not a convenience: tests that mutate the real environment cannot
 	// run in parallel and leak into each other.
 	Environ func() []string
-	// Credentials supplies the stored API token. nil skips the keyring
-	// layer entirely, which is what every path that must not touch the
-	// developer's real credential store wants — tests, and the config
-	// commands that only report.
-	Credentials core.CredentialStore
 }
 
 // Load resolves configuration from defaults, then the file, then the
@@ -162,6 +158,34 @@ type Options struct {
 // credentials, so treating absence as failure would make the common path
 // the broken one.
 func Load(opts Options) (*Resolved, error) {
+	return load(opts, nil, LayerKeyring)
+}
+
+// Resolve loads configuration with the supplied credential store. Credential
+// reads receive the invocation context; Load remains local and credential-free.
+// A nil store omits the credential layer while preserving the same precedence.
+func Resolve(ctx context.Context, opts Options, store core.CredentialStore) (*Resolved, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	var readCredentials func(string) (credentials.Record, error)
+	if store != nil {
+		readCredentials = func(id string) (credentials.Record, error) {
+			return credentials.Load(ctx, credentials.Select(store, id))
+		}
+	}
+	credentialLayer := LayerKeyring
+	if provider, ok := store.(core.CredentialBackendProvider); ok && provider.CredentialBackend() == core.CredentialBackendOnePassword {
+		credentialLayer = LayerOnePassword
+	}
+	resolved, err := load(opts, readCredentials, credentialLayer)
+	if contextErr := ctx.Err(); contextErr != nil {
+		return nil, contextErr
+	}
+	return resolved, err
+}
+
+func load(opts Options, readCredentials func(string) (credentials.Record, error), credentialLayer Layer) (*Resolved, error) {
 	environ := opts.Environ
 	if environ == nil {
 		environ = os.Environ
@@ -180,9 +204,9 @@ func Load(opts Options) (*Resolved, error) {
 
 	var warnings []string
 	var credentialError error
-	// storedSite is the site the credential record belongs to, kept so
-	// the tuple check below can tell whether it still applies.
-	var storedSite string
+	// Retain the record's binding so key-by-key merging cannot pair its
+	// token with another site or account.
+	var storedSite, storedEmail string
 	layers := map[Layer]*koanf.Koanf{}
 	merged := koanf.New(delim)
 
@@ -258,8 +282,8 @@ func Load(opts Options) (*Resolved, error) {
 	if err := envLayer.Load(envProvider(opts.Environ), nil); err != nil {
 		return nil, fmt.Errorf("load environment: %w", err)
 	}
-	if doc.named && merged.String("credential_id") == "" {
-		opts.Credentials = nil
+	if doc.named && merged.String("credential_id") == "" && credentialLayer == LayerKeyring {
+		readCredentials = nil
 	}
 
 	// Credential store, if one is wired and holds a record.
@@ -268,9 +292,13 @@ func Load(opts Options) (*Resolved, error) {
 	// `jira auth login` stores all three together — a login is one
 	// command, and identity is useless apart from the secret it
 	// authenticates with.
-	if opts.Credentials != nil {
-		rec, credErr := credentials.Load(credentials.Select(opts.Credentials, merged.String("credential_id")))
+	if readCredentials != nil {
+		rec, credErr := readCredentials(merged.String("credential_id"))
 		switch {
+		case errors.Is(credErr, context.Canceled), errors.Is(credErr, context.DeadlineExceeded):
+			// Cancellation is an operation outcome, not an unavailable layer
+			// that a higher-precedence token may silently replace.
+			return nil, credErr
 		case credErr == nil && !rec.Complete():
 			// A record missing its site or account cannot be used as
 			// one. Contributing only the token would pair a verified
@@ -295,6 +323,7 @@ func Load(opts Options) (*Resolved, error) {
 				}
 			}
 			storedSite = rec.Site
+			storedEmail = rec.Email
 			stored := map[string]any{
 				"base_url":  rec.Site,
 				"email":     rec.Email,
@@ -303,11 +332,11 @@ func Load(opts Options) (*Resolved, error) {
 			{
 				keyringLayer := koanf.New(delim)
 				if err := keyringLayer.Load(confmap.Provider(stored, delim), nil); err != nil {
-					return nil, fmt.Errorf("load keyring: %w", err)
+					return nil, fmt.Errorf("load credential layer: %w", err)
 				}
-				layers[LayerKeyring] = keyringLayer
+				layers[credentialLayer] = keyringLayer
 				if err := merged.Merge(keyringLayer); err != nil {
-					return nil, fmt.Errorf("merge keyring: %w", err)
+					return nil, fmt.Errorf("merge credential layer: %w", err)
 				}
 			}
 		case errors.Is(credErr, credentials.ErrNotStored):
@@ -371,10 +400,10 @@ func Load(opts Options) (*Resolved, error) {
 	// normalized value against a raw one made "https://site/" read as a
 	// different host from "https://site" — dropping a credential that
 	// still applied, and warning about a host identical to itself.
-	if _, ok := layers[LayerKeyring]; ok && storedSite != "" &&
+	if _, ok := layers[credentialLayer]; ok && storedSite != "" &&
 		credentials.NormalizeSite(cfg.BaseURL) != storedSite {
-		delete(layers, LayerKeyring)
-		rebuilt, rebuildErr := reresolveWithout(opts, path, LayerKeyring)
+		delete(layers, credentialLayer)
+		rebuilt, rebuildErr := reresolveWithout(opts, path, credentialLayer)
 		if rebuildErr != nil {
 			return nil, rebuildErr
 		}
@@ -382,6 +411,17 @@ func Load(opts Options) (*Resolved, error) {
 			"stored credentials are for %s, but base_url resolved to %s — they were not used",
 			storedSite, cfg.BaseURL,
 		))
+		return rebuilt, nil
+	}
+	// An explicit environment token may use its own email. When the stored
+	// token wins, however, the email must still match the verified record.
+	if provenance(layers)["api_token"] == credentialLayer &&
+		!strings.EqualFold(strings.TrimSpace(cfg.Email), strings.TrimSpace(storedEmail)) {
+		rebuilt, rebuildErr := reresolveWithout(opts, path, credentialLayer)
+		if rebuildErr != nil {
+			return nil, rebuildErr
+		}
+		rebuilt.Warnings = append(rebuilt.Warnings, "stored credentials belong to a different account; they were not used")
 		return rebuilt, nil
 	}
 
@@ -539,11 +579,10 @@ func resolvePath(path string) (string, error) {
 // merges destructively, so a layer cannot be un-merged, and rebuilding
 // is the only way to get provenance that matches the values.
 func reresolveWithout(opts Options, path string, skip Layer) (*Resolved, error) {
-	if skip != LayerKeyring {
+	if skip != LayerKeyring && skip != LayerOnePassword {
 		return nil, fmt.Errorf("cannot re-resolve without layer %q", skip)
 	}
 	stripped := opts
 	stripped.Path = path
-	stripped.Credentials = nil
 	return Load(stripped)
 }

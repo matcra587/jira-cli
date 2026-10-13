@@ -24,7 +24,7 @@ func newTransitionList(deps Deps) *cobra.Command {
 		Op: "issue.transition.list", Identity: true, Keyed: true, Passthrough: true,
 		Use: "list ISSUE_KEY...", Short: "Discover available workflow transitions",
 		Long: "Read the available transitions for each explicit issue, including native transition IDs, destinations, screen state and returned field metadata. This replaces the historical no-target transition listing.\n\n" +
-			"Successful reads record bounded ID/name/destination hints for the selected site/account. Hints expire five minutes after the read completes; completion never fetches Jira or treats them as permission. Inspect or clear them with cache inspect transitions and cache clear transitions. Cache failures do not replace native read results.\n\n" +
+			"Successful reads record bounded ID/name/destination hints for the selected site/account. Hints expire five minutes after the read completes; completion never fetches Jira or treats them as permission. Inspect or clear them with cache inspect transitions and cache clear transitions. Cache failures do not replace native read results. Completed failed reads invalidate old hints even if a later issue cancels the command; canceled or unstarted reads retain their previous observations.\n\n" +
 			"The read requests expand=transitions.fields. Machine results retain the complete native response at results[].data, including schemas, allowed values, defaults and unknown extensions. A field absent from returned metadata is not proof that Jira accepts it. Human output marks required fields when Jira supplies that fact.\n\n" +
 			"This command only reads and works in read-only mode. Results follow issue order; partial failure does not discard successful reads. Total failure, timeout and interruption retain all joined outcomes. Discovery is a snapshot, not a guarantee that a later transition will succeed. --web is refused; use issue view ISSUE_KEY --web for an issue page.",
 		Example: "$ jira issue transition list KEY-123\n\n$ jira issue transition list KEY-123 KEY-124 --parallelism 1 --output=json",
@@ -57,11 +57,12 @@ func runTransitionList(ctx context.Context, deps Deps, keys []string, parallelis
 	var client core.JiraClient
 	var err error
 	if ctx.Err() == nil {
-		client, err = deps.JiraClient()
+		client, err = deps.JiraClient(ctx)
 		if err != nil {
 			return envelope.IssueTransitionListOutput{}, err
 		}
 	}
+	store := transitionHintCache(ctx, deps)
 	outcomes := make([]transitionReadOutcome, len(keys))
 	_, err = command.Spin(ctx, fmt.Sprintf("Loading transitions for %d issues", len(keys)), func(ctx context.Context) (struct{}, error) {
 		xsync.Parallel(parallelism, len(keys), func(i int) {
@@ -75,7 +76,7 @@ func runTransitionList(ctx context.Context, deps Deps, keys []string, parallelis
 	for i, outcome := range outcomes {
 		out.Results[i], raw[i] = outcome.result, outcome.err
 	}
-	recordTransitionHints(ctx, deps, outcomes)
+	recordTransitionHints(ctx, store, outcomes)
 	return out, errors.Join(err, command.KeyedFailure(out.Results, raw))
 }
 

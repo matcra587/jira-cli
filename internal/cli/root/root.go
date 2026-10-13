@@ -239,9 +239,11 @@ func newProgramWithTheme(deps *Deps, stdout, stderr io.Writer, resolveTheme func
 	program.Root.AddCommand(epiccmd.New(epiccmd.Deps{JiraClient: deps.JiraClient}))
 	program.Root.AddCommand(worklogcmd.New(worklogcmd.Deps{JiraClient: deps.JiraClient, WorkdaySeconds: workdaySeconds}))
 	program.Root.AddCommand(cachecmd.New(cachecmd.Deps{
-		Cache: func() (core.Cache, error) { return configuredCache(deps) },
+		Cache: func(ctx context.Context) (core.Cache, error) { return configuredCache(ctx, deps) },
 		Primers: cachecmd.PrimeDeps{
-			Scope:      func(local bool) (cachecmd.MetadataScope, error) { return metadataCacheScope(deps, local) },
+			Scope: func(ctx context.Context, local bool) (cachecmd.MetadataScope, error) {
+				return metadataCacheScope(ctx, deps, local)
+			},
 			JiraClient: deps.JiraClient, FetchBoards: boardscmd.FetchMetadata, DecodeBoards: boardscmd.DecodeMetadata,
 		},
 	}))
@@ -253,11 +255,11 @@ func newProgramWithTheme(deps *Deps, stdout, stderr io.Writer, resolveTheme func
 	// not a convention.
 	issueDeps := issuecmd.Deps{
 		JiraClient: deps.JiraClient,
-		IssueMetadata: func() (issuecmd.InputDiscoveryClient, error) {
+		IssueMetadata: func(ctx context.Context) (issuecmd.InputDiscoveryClient, error) {
 			if deps.JiraClient == nil {
 				return nil, core.ErrIssueMetadataUnavailable
 			}
-			client, err := deps.JiraClient()
+			client, err := deps.JiraClient(ctx)
 			if err != nil {
 				return nil, err
 			}
@@ -285,7 +287,7 @@ func newProgramWithTheme(deps *Deps, stdout, stderr io.Writer, resolveTheme func
 	authDeps := authcmd.Deps{
 		Credentials:      deps.Credentials,
 		ClientFor:        deps.JiraClientFor,
-		Site:             siteInfo,
+		Site:             func(ctx context.Context) (authcmd.SiteInfo, error) { return siteFromDeps(ctx, deps) },
 		SiteWithoutStore: siteInfoWithoutStore,
 		// The real dialog. A test hands the command an answer instead.
 		Confirm: prompt.Run,
@@ -708,12 +710,12 @@ func newRoot(deps *Deps, sink *failureSink, renderer *help.Renderer) *cobra.Comm
 			constructor := deps.Cache
 			if browseOnly {
 				// A local URL must not open credentials merely to record history.
-				constructor = func() (core.Cache, error) { return configuredCache(deps) }
+				constructor = func(ctx context.Context) (core.Cache, error) { return configuredCache(ctx, deps) }
 			}
 			if constructor == nil {
 				return
 			}
-			store, err := constructor()
+			store, err := constructor(ctx)
 			if err == nil && store != nil {
 				_ = cachecmd.RecordIssueKeys(store, keys) //nolint:errcheck // Disposable completion history cannot fail the observed operation.
 			}

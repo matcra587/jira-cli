@@ -3,6 +3,7 @@
 package cli_test
 
 import (
+	"context"
 	"errors"
 	"io"
 	"strings"
@@ -37,7 +38,7 @@ func restoreLogger(t *testing.T) {
 func TestForeignFlagTableTargetsExist(t *testing.T) {
 	restoreLogger(t)
 	deps := &root.Deps{
-		JiraClient: func() (core.JiraClient, error) {
+		JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 			return nil, errors.New("suggest test: no client")
 		},
 		Detect: func() cli.Detection {

@@ -50,7 +50,7 @@ func (f *inputMetadataClient) SearchIssues(ctx context.Context, query string, fi
 }
 
 func inputMetadataDeps(client InputDiscoveryClient) Deps {
-	return Deps{IssueMetadata: func() (InputDiscoveryClient, error) { return client, nil }}
+	return Deps{IssueMetadata: func(ctx context.Context) (InputDiscoveryClient, error) { return client, nil }}
 }
 
 const inputNativeField = `{"fieldId":"customfield_14002","key":"displayKey","name":"Plugin choice","schema":{"type":"future","custom":"plugin:choice","future":null},"required":true,"operations":["set"],"allowedValues":[{"id":"7001","future":{"n":9007199254740993}}],"defaultValue":{"id":"7001"},"future":"\u003c&"}`
@@ -181,7 +181,13 @@ func TestInputDiscoveryRefusesAuthoredOptionsBeforeClientOrInput(t *testing.T) {
 			t.Run(verb+" "+tc.option, func(t *testing.T) {
 				t.Parallel()
 				var calls atomic.Int32
-				deps := Deps{IssueMetadata: func() (InputDiscoveryClient, error) { calls.Add(1); return nil, errors.New("unexpected client") }, JiraClient: func() (core.JiraClient, error) { calls.Add(1); return nil, errors.New("unexpected client") }}
+				deps := Deps{IssueMetadata: func(ctx context.Context) (InputDiscoveryClient, error) {
+					calls.Add(1)
+					return nil, errors.New("unexpected client")
+				}, JiraClient: func(ctx context.Context) (core.JiraClient, error) {
+					calls.Add(1)
+					return nil, errors.New("unexpected client")
+				}}
 				cmd := newCreate(deps)
 				args := []string{"--generate-json", "--project=KEY", "--type=Task", tc.option}
 				var keys []string
@@ -210,7 +216,7 @@ func TestCreateInputRequiresContextBeforeClient(t *testing.T) {
 	} {
 		t.Run(strings.Join(args, " "), func(t *testing.T) {
 			t.Parallel()
-			cmd := newCreate(Deps{IssueMetadata: func() (InputDiscoveryClient, error) {
+			cmd := newCreate(Deps{IssueMetadata: func(ctx context.Context) (InputDiscoveryClient, error) {
 				t.Error("missing context reached the authenticated client")
 				return nil, core.ErrIssueMetadataUnavailable
 			}})
@@ -383,8 +389,8 @@ func TestEditInputUsesCompleteSelectorAndSameAuthenticatedClient(t *testing.T) {
 		},
 	}
 	deps := inputMetadataDeps(client)
-	deps.JiraClient = func() (core.JiraClient, error) { constructions.Add(1); return client, nil }
-	deps.IssueMetadata = func() (InputDiscoveryClient, error) {
+	deps.JiraClient = func(ctx context.Context) (core.JiraClient, error) { constructions.Add(1); return client, nil }
+	deps.IssueMetadata = func(ctx context.Context) (InputDiscoveryClient, error) {
 		t.Error("selector constructed a second authenticated metadata client")
 		return nil, core.ErrIssueMetadataUnavailable
 	}
@@ -410,7 +416,7 @@ func TestEditInputReadsExplicitFileTargetsWithoutMutationConfirmation(t *testing
 		return core.IssueEditMetadataRead{Native: inputEditDocument("")}, nil
 	}}
 	deps := inputMetadataDeps(client)
-	deps.JiraClient = func() (core.JiraClient, error) {
+	deps.JiraClient = func(ctx context.Context) (core.JiraClient, error) {
 		t.Error("file selector constructed the query client")
 		return nil, core.ErrIssueMetadataUnavailable
 	}
@@ -433,7 +439,7 @@ func TestInputDiscoveryPreservesConfigurationFailuresAndPreCanceledTargets(t *te
 	}{
 		{name: "missing factory", deps: Deps{}, code: cli.CodeIssueMetadataUnavailable},
 		{name: "nil client", deps: inputMetadataDeps(nil), code: cli.CodeIssueMetadataUnavailable},
-		{name: "authentication", deps: Deps{IssueMetadata: func() (InputDiscoveryClient, error) {
+		{name: "authentication", deps: Deps{IssueMetadata: func(ctx context.Context) (InputDiscoveryClient, error) {
 			return nil, cli.NewCodedError(cli.CodeAuthMissing, "missing credentials")
 		}}, code: cli.CodeAuthMissing},
 	} {
@@ -456,7 +462,7 @@ func TestInputDiscoveryPreservesConfigurationFailuresAndPreCanceledTargets(t *te
 	}
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	deps := Deps{IssueMetadata: func() (InputDiscoveryClient, error) {
+	deps := Deps{IssueMetadata: func(ctx context.Context) (InputDiscoveryClient, error) {
 		t.Error("canceled input discovery opened client")
 		return nil, core.ErrIssueMetadataUnavailable
 	}}

@@ -63,7 +63,7 @@ func (f *fakeWatchersClient) GetWatchers(_ context.Context, key string) (core.Wa
 }
 
 func watchersDeps(fake *fakeWatchersClient) Deps {
-	return Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	return Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 }
 
 // wireWatcher is one fixture watcher, every published field populated so

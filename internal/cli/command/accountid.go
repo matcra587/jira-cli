@@ -130,7 +130,7 @@ func ResolveMe(ctx context.Context, client core.JiraClient, fields []AccountFiel
 // decision and the two could have drifted.
 func ResolveAccounts(
 	ctx context.Context,
-	newClient func() (core.JiraClient, error),
+	newClient func(ctx context.Context) (core.JiraClient, error),
 	dryRun, validateRemote bool,
 	fields []AccountField,
 ) (core.JiraClient, error) {
@@ -150,7 +150,7 @@ func ResolveAccounts(
 		return nil, nil
 	}
 
-	client, err := newClient()
+	client, err := newClient(ctx)
 	if err != nil {
 		return nil, err
 	}

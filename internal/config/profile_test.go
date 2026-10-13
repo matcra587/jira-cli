@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -34,15 +35,23 @@ type foundationStore struct {
 	reads   int
 }
 
-func (s *foundationStore) Get(key string) (string, error) {
+func (s *foundationStore) Get(_ context.Context, key string) (string, error) {
 	s.reads++
 	if value, ok := s.records[key]; ok {
 		return value, nil
 	}
 	return "", core.ErrNoCredential
 }
-func (s *foundationStore) Set(key, value string) error { s.records[key] = value; return nil }
-func (s *foundationStore) Delete(key string) error     { delete(s.records, key); return nil }
+
+func (s *foundationStore) Set(_ context.Context, key, value string) error {
+	s.records[key] = value
+	return nil
+}
+
+func (s *foundationStore) Delete(_ context.Context, key string) error {
+	delete(s.records, key)
+	return nil
+}
 
 func foundationConfig(t *testing.T, data string) string {
 	t.Helper()
@@ -119,12 +128,12 @@ func TestProfileFoundationStoredSlotsAndBinding(t *testing.T) {
 		{"de25b949-7427-45db-9e29-fe27de9d0ef7", "https://personal.example.invalid", "personal@example.invalid", "personal-token"},
 		{"default", "https://flat.example.invalid", "flat@example.invalid", "flat-token"},
 	} {
-		if err := credentials.Save(credentials.Select(store, identity.slot), credentials.Record{Site: identity.site, Email: identity.email, Token: identity.token}); err != nil {
+		if err := credentials.Save(t.Context(), credentials.Select(store, identity.slot), credentials.Record{Site: identity.site, Email: identity.email, Token: identity.token}); err != nil {
 			t.Fatal(err)
 		}
 	}
 	for _, name := range []string{"work", "personal"} {
-		loaded, err := config.Load(config.Options{Path: path, Profile: name, Credentials: store, Environ: func() []string { return nil }})
+		loaded, err := config.Resolve(t.Context(), config.Options{Path: path, Profile: name, Environ: func() []string { return nil }}, store)
 		if err != nil || loaded.Config.APIToken != name+"-token" {
 			t.Fatalf("slot selection %s: %v", name, err)
 		}
@@ -135,18 +144,18 @@ func TestProfileFoundationStoredSlotsAndBinding(t *testing.T) {
 	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	loaded, err := config.Load(config.Options{Path: path, Profile: "office", Credentials: store, Environ: func() []string { return nil }})
+	loaded, err := config.Resolve(t.Context(), config.Options{Path: path, Profile: "office", Environ: func() []string { return nil }}, store)
 	if err != nil || loaded.Config.APIToken != "work-token" {
 		t.Fatal("rename lost credential", err)
 	}
-	if err := credentials.Save(credentials.Select(store, "6261bdc7-c460-4d6a-9b67-d3d5f78fc627"), credentials.Record{Site: "https://other.example.invalid", Email: "work@example.invalid", Token: "other-token"}); err != nil {
+	if err := credentials.Save(t.Context(), credentials.Select(store, "6261bdc7-c460-4d6a-9b67-d3d5f78fc627"), credentials.Record{Site: "https://other.example.invalid", Email: "work@example.invalid", Token: "other-token"}); err != nil {
 		t.Fatal(err)
 	}
-	loaded, err = config.Load(config.Options{Path: path, Profile: "office", Credentials: store, Environ: func() []string { return nil }})
+	loaded, err = config.Resolve(t.Context(), config.Options{Path: path, Profile: "office", Environ: func() []string { return nil }}, store)
 	if err != nil || loaded.Config.APIToken != "" || loaded.Config.BaseURL != "https://work.example.invalid" || len(loaded.Warnings) != 1 {
 		t.Fatal("stored metadata replaced authored identity", err)
 	}
-	if _, err := credentials.Load(store); err != nil {
+	if _, err := credentials.Load(t.Context(), store); err != nil {
 		t.Fatal("flat credential changed", err)
 	}
 }
@@ -162,7 +171,7 @@ func TestProfileFoundationInvalidOrUnselectedCannotReadCredentials(t *testing.T)
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			store := &foundationStore{records: map[string]string{}}
-			_, err := config.Load(config.Options{Path: foundationConfig(t, data), Credentials: store, Environ: func() []string { return nil }})
+			_, err := config.Resolve(t.Context(), config.Options{Path: foundationConfig(t, data), Environ: func() []string { return nil }}, store)
 			if err == nil || store.reads != 0 {
 				t.Fatal("invalid declarations reached provider")
 			}
@@ -170,12 +179,12 @@ func TestProfileFoundationInvalidOrUnselectedCannotReadCredentials(t *testing.T)
 	}
 	for _, data := range []string{"format_version=1\ndefault_profile=''\n[profiles]\n", strings.ReplaceAll(profileFoundation, "credential_id='6261bdc7-c460-4d6a-9b67-d3d5f78fc627'\n", "")} {
 		store := &foundationStore{records: map[string]string{}}
-		loaded, err := config.Load(config.Options{Path: foundationConfig(t, data), Credentials: store, Environ: func() []string { return nil }})
+		loaded, err := config.Resolve(t.Context(), config.Options{Path: foundationConfig(t, data), Environ: func() []string { return nil }}, store)
 		if err != nil || !loaded.NamedProfiles || store.reads != 0 {
 			t.Fatal("missing named locator reached flat provider", err)
 		}
 	}
-	if err := credentials.Save(credentials.UnselectedStore{}, credentials.Record{Token: "synthetic-token"}); err == nil || errors.Is(err, core.ErrNoCredential) {
+	if err := credentials.Save(t.Context(), credentials.UnselectedStore{}, credentials.Record{Token: "synthetic-token"}); err == nil || errors.Is(err, core.ErrNoCredential) {
 		t.Fatal("missing named locator allowed write")
 	}
 }

@@ -608,7 +608,7 @@ func newIssueList(deps Deps, currentAccount bool) *cobra.Command {
 				// (view.go): root/deps.go's sync.OnceValues means every
 				// call after the first, including runList's own just
 				// above, returns the SAME cached client.
-				if client, cerr := deps.JiraClient(); cerr == nil {
+				if client, cerr := deps.JiraClient(ctx); cerr == nil {
 					site = client.BaseURL()
 				}
 			}
@@ -674,7 +674,7 @@ func newIssueList(deps Deps, currentAccount bool) *cobra.Command {
 // parse is a configuration fault, not an input one.
 func runListWeb(ctx context.Context, deps Deps, jql string, open browserOpener) (envelope.IssueListOutput, error) {
 	var zero envelope.IssueListOutput
-	client, err := deps.JiraClient()
+	client, err := deps.JiraClient(ctx)
 	if err != nil {
 		return zero, err
 	}
@@ -872,7 +872,7 @@ type countEstimate struct {
 func runCount(ctx context.Context, deps Deps, jql string) (envelope.IssueListOutput, error) {
 	var zero envelope.IssueListOutput
 
-	client, err := deps.JiraClient()
+	client, err := deps.JiraClient(ctx)
 	if err != nil {
 		return zero, err
 	}
@@ -903,7 +903,7 @@ func runList(ctx context.Context, deps Deps, jql string, fields []string, nextPa
 		return zero, countEstimate{}, e
 	}
 
-	client, err := deps.JiraClient()
+	client, err := deps.JiraClient(ctx)
 	if err != nil {
 		return zero, countEstimate{}, err
 	}

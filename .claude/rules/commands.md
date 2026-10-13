@@ -36,7 +36,7 @@ func newView(deps Deps) *cobra.Command {
 
         Validate: func() error { ... },         // reject before any I/O
         Run: func(ctx context.Context, inv command.Invocation) (envelope.IssueViewOutput, error) {
-            client, err := deps.JiraClient()    // deps by CLOSURE, not on Invocation
+            client, err := deps.JiraClient(ctx)    // deps by CLOSURE, not on Invocation
             ...
             issue, err := client.GetIssue(ctx, inv.Args[0], fields)
             ...
@@ -293,9 +293,11 @@ policy by reading env/config ad hoc:
     the dry-run path (see `cache refresh`). Every human surface narrates a
     dry-run in preview tense — conditional completion lines, preview
     spinner/fanout/`--debug` lifecycles — see [output.md](output.md).
-*   **Read-only** — `command.ReadOnlyEnabled`: `JIRA_READ_ONLY` env wins on the
-    OFF→ON direction only; enforcement lives at the HTTP transport (see
-    [security.md](security.md)).
+*   **Read-only** — `config.Resolve` supplies `Config.ReadOnly` to the Jira
+    adapter. `JIRA_READ_ONLY` overrides the file in both directions, including
+    explicit `false` or `0`. Resolution errors stop client construction.
+    The transport blocks writes while allowing its classified reads; this
+    does not prohibit local settings/cache changes. See [security.md](security.md).
 *   **ADF authoring** — local `adf convert` is strict by default and validates
     every candidate against the pinned schema. Dropped content refuses with
     `adf_content_loss`, retaining the candidate and diagnostics; explicit
@@ -413,3 +415,8 @@ scope. Honor `--` before interpreting flag values. Preserve the caller's
 `LASTEXITCODE` and avoid recording errors for an absent exit-status variable.
 Bare short inline CSV is a PowerShell parse error; omit unrepairable suggestions
 and support quoted whole values instead.
+
+Resolve transition-hint cache scope before read/write fan-out and retain that
+public cache for finalization. A later cancellation must not cause another
+credential lookup just to invalidate a completed failed read or attempted write.
+Canceled/unstarted reads and previews do not publish changed workflow hints.

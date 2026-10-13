@@ -20,11 +20,11 @@ type Deps struct {
 	BrowseSite func() (string, error)
 
 	// JiraClient returns the configured Jira client.
-	JiraClient func() (core.JiraClient, error)
+	JiraClient func(ctx context.Context) (core.JiraClient, error)
 
 	// IssueMetadata returns the authenticated read-only input-discovery seam.
 	// Its constructor stays lazy; inspecting help or schema never opens it.
-	IssueMetadata func() (InputDiscoveryClient, error)
+	IssueMetadata func(ctx context.Context) (InputDiscoveryClient, error)
 
 	// Cache returns the process's metadata cache, constructed on first use
 	// like the client above.
@@ -38,7 +38,7 @@ type Deps struct {
 	// cache failure as a miss, so a nil field or a failing constructor
 	// degrades to the uncached behavior this CLI had before, never to an
 	// error (see issueCache).
-	Cache func() (core.Cache, error)
+	Cache func(ctx context.Context) (core.Cache, error)
 
 	// Confirm asks a yes/no question and reports the answer.
 	//

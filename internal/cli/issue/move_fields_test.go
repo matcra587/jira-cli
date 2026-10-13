@@ -29,7 +29,7 @@ func TestMoveFieldsConfirmationBeforeClient(t *testing.T) {
 			client := &fakeWriteClient{}
 			clients, prompts := 0, 0
 			deps := Deps{
-				JiraClient: func() (core.JiraClient, error) { clients++; return client, nil },
+				JiraClient: func(ctx context.Context) (core.JiraClient, error) { clients++; return client, nil },
 				Confirm:    func(_ context.Context, q prompt.Confirm) (bool, error) { prompts++; return tt.accept, nil },
 			}
 			inv := command.Invocation{Args: []string{"KEY-1"}, DryRun: tt.preview, Interactive: tt.interactive, Stdin: strings.NewReader(`{"fields":{"issuetype":{"id":"10001"}}}`)}
@@ -50,7 +50,7 @@ func TestMoveFieldsConfirmationBeforeClient(t *testing.T) {
 func TestMoveFieldsCanceledContextNeverWrites(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	_, err := runEdit(ctx, Deps{JiraClient: func() (core.JiraClient, error) {
+	_, err := runEdit(ctx, Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 		t.Error("canceled operation constructed client")
 		return nil, errors.New("unexpected client")
 	}}, command.Invocation{Args: []string{"KEY-1"}, Stdin: strings.NewReader(`{"fields":{"summary":"Change"}}`)}, &issueWriteFlags{jsonInput: "-"}, editOptions{fieldMove: true, force: true, parallelism: 1})

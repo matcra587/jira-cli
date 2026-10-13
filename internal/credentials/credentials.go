@@ -1,6 +1,5 @@
 // Package credentials encodes what `jira auth login` stores: the site,
-// the account, and the API token, kept together in the operating
-// system's credential store.
+// the account, and the API token, kept together in the selected credential store.
 //
 // Together, deliberately. The site and account are not secret, but they
 // are useless apart from the token and the token is useless apart from
@@ -9,6 +8,7 @@
 package credentials
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -62,8 +62,11 @@ func (r Record) Complete() bool {
 }
 
 // Load reads the stored record.
-func Load(store core.CredentialStore) (Record, error) {
-	raw, err := store.Get(account)
+func Load(ctx context.Context, store core.CredentialStore) (Record, error) {
+	raw, err := store.Get(ctx, account)
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return Record{}, err
+	}
 	if errors.Is(err, core.ErrNoCredential) {
 		return Record{}, ErrNotStored
 	}
@@ -89,7 +92,7 @@ func Load(store core.CredentialStore) (Record, error) {
 }
 
 // Save writes the record, replacing anything stored.
-func Save(store core.CredentialStore, rec Record) error {
+func Save(ctx context.Context, store core.CredentialStore, rec Record) error {
 	rec.Version = Version
 	rec.Site = normalizeSite(rec.Site)
 	if strings.TrimSpace(rec.Token) == "" {
@@ -99,13 +102,13 @@ func Save(store core.CredentialStore, rec Record) error {
 	if err != nil {
 		return fmt.Errorf("encode credentials: %w", err)
 	}
-	return store.Set(account, string(raw))
+	return store.Set(ctx, account, string(raw))
 }
 
 // Clear removes the record. Removing one that is not there succeeds:
 // logout's contract is the end state, not the transition.
-func Clear(store core.CredentialStore) error {
-	return store.Delete(account)
+func Clear(ctx context.Context, store core.CredentialStore) error {
+	return store.Delete(ctx, account)
 }
 
 // NormalizeSite is normalizeSite, exported because every comparison of

@@ -1,6 +1,7 @@
 package command
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -12,7 +13,7 @@ func TestResolveAccountsWithoutLookupBuildsNoClient(t *testing.T) {
 		for _, remote := range []bool{false, true} {
 			account := "account-123"
 			calls := 0
-			client, err := ResolveAccounts(t.Context(), func() (core.JiraClient, error) {
+			client, err := ResolveAccounts(t.Context(), func(ctx context.Context) (core.JiraClient, error) {
 				calls++
 				return nil, errors.New("unexpected credential access")
 			}, preview, remote, []AccountField{{Flag: "assignee", Value: &account}})

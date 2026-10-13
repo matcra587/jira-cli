@@ -22,13 +22,13 @@ func TestLoginPreviewDoesNotRequireReadableStoredCredentials(t *testing.T) {
 			const email = "fixture@example.invalid"
 			const token = "synthetic-candidate-token"
 			h := newHarness(t, SiteInfo{})
-			h.deps.Site = func() (SiteInfo, error) {
+			h.deps.Site = func(ctx context.Context) (SiteInfo, error) {
 				return SiteInfo{}, &cli.CodedError{
 					Code:    cli.CodeAuthStoreUnavailable,
 					Message: "fixture store unavailable", Cause: errors.New("fixture backend denied"),
 				}
 			}
-			h.deps.SiteWithoutStore = func() (SiteInfo, error) {
+			h.deps.SiteWithoutStore = func(ctx context.Context) (SiteInfo, error) {
 				if explicit {
 					return SiteInfo{}, nil
 				}
@@ -58,13 +58,13 @@ func TestLoginIdentityFallbackDoesNotHideOtherFailures(t *testing.T) {
 	for _, cause := range []error{errors.New("fixture invalid config"), context.Canceled} {
 		t.Run(cause.Error(), func(t *testing.T) {
 			h := newHarness(t, SiteInfo{})
-			h.deps.Site = func() (SiteInfo, error) {
+			h.deps.Site = func(ctx context.Context) (SiteInfo, error) {
 				if errors.Is(cause, context.Canceled) {
 					return SiteInfo{}, &cli.CodedError{Code: cli.CodeAuthStoreUnavailable, Message: "canceled fixture lookup", Cause: cause}
 				}
 				return SiteInfo{}, cause
 			}
-			h.deps.SiteWithoutStore = func() (SiteInfo, error) {
+			h.deps.SiteWithoutStore = func(ctx context.Context) (SiteInfo, error) {
 				t.Fatal("login fell back after a config or cancellation failure")
 				return SiteInfo{}, nil
 			}

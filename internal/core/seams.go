@@ -569,12 +569,12 @@ var ErrNoCredential = errors.New("no stored credential")
 type CredentialStore interface {
 	// Get returns the stored secret for account, or ErrNoCredential when
 	// nothing is stored.
-	Get(account string) (string, error)
+	Get(ctx context.Context, account string) (string, error)
 	// Set stores secret for account, replacing any existing entry.
-	Set(account, secret string) error
+	Set(ctx context.Context, account, secret string) error
 	// Delete removes the account's credential. Deleting an absent entry
 	// succeeds — logout's contract is the end state, not the transition.
-	Delete(account string) error
+	Delete(ctx context.Context, account string) error
 }
 
 // NoCredentialStore is the store used when the credential store is
@@ -582,13 +582,15 @@ type CredentialStore interface {
 // "I saved your token" is the one thing a disabled store must never say.
 type NoCredentialStore struct{}
 
-func (NoCredentialStore) Get(string) (string, error) { return "", ErrNoCredential }
+func (NoCredentialStore) Get(ctx context.Context, _ string) (string, error) {
+	return "", ErrNoCredential
+}
 
-func (NoCredentialStore) Set(string, string) error {
+func (NoCredentialStore) Set(ctx context.Context, _, _ string) error {
 	return errors.New("the credential store is turned off (keyring = false), so there is nowhere to save the token")
 }
 
-func (NoCredentialStore) Delete(string) error { return nil }
+func (NoCredentialStore) Delete(ctx context.Context, _ string) error { return nil }
 
 // Cache stores metadata bytes between reads so repeated calls stay snappy
 // (cache-first, network on miss).

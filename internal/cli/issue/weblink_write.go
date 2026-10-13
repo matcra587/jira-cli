@@ -224,7 +224,7 @@ func runWeblinkAdd(ctx context.Context, deps Deps, inv command.Invocation, link 
 		return out, nil
 	}
 
-	client, err := deps.JiraClient()
+	client, err := deps.JiraClient(ctx)
 	if err != nil {
 		return zero, err
 	}
@@ -483,7 +483,7 @@ func runWeblinkDelete(ctx context.Context, deps Deps, inv command.Invocation) (e
 		return out, nil
 	}
 
-	client, err := deps.JiraClient()
+	client, err := deps.JiraClient(ctx)
 	if err != nil {
 		return zero, err
 	}

@@ -19,8 +19,8 @@ func TestEmbeddedGuidesMatchAssembledCommandTree(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if guides.Len() != 9 {
-		t.Fatalf("embedded guide corpus has %d guides, want 9", guides.Len())
+	if guides.Len() != 10 {
+		t.Fatalf("embedded guide corpus has %d guides, want 10", guides.Len())
 	}
 	program := NewProgram(testDeps(t), io.Discard, io.Discard)
 	tree, err := discovery.Build(program.Root)

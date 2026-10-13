@@ -123,7 +123,7 @@ func issueWithLinks(key string, links ...jira.IssueLink) *jira.IssueBean {
 }
 
 func linkDeps(fake *fakeLinkClient) Deps {
-	return Deps{JiraClient: func() (core.JiraClient, error) { return fake, nil }}
+	return Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 }
 
 // TestRunLinkListNarrowsTheReadToLinks pins that a link read asks Jira

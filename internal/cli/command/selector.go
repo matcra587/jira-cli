@@ -285,7 +285,7 @@ func (t Targets) Resolved() bool {
 // built comes back so the caller does not construct a second.
 func ResolveTargets(
 	ctx context.Context,
-	newClient func() (core.JiraClient, error),
+	newClient func(ctx context.Context) (core.JiraClient, error),
 	f SelectorFlags,
 	args []string,
 	dryRun, validateRemote bool,
@@ -315,7 +315,7 @@ func ResolveTargets(
 		return nil, Targets{Summary: summary}, nil
 	}
 
-	client, err := newClient()
+	client, err := newClient(ctx)
 	if err != nil {
 		return nil, Targets{}, err
 	}

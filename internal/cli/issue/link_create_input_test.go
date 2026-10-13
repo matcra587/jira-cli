@@ -1,6 +1,7 @@
 package issue
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -178,7 +179,7 @@ func TestLinkCreateJSONInputMalformedIsACallerError(t *testing.T) {
 // local, which the second assertion holds it to.
 func TestLinkCreateJSONInputIsCheckedByTheBarePreview(t *testing.T) {
 	asked := false
-	deps := Deps{JiraClient: func() (core.JiraClient, error) {
+	deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) {
 		asked = true
 		return nil, errors.New("a bare preview must not build a client")
 	}}

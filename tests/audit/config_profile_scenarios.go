@@ -10,10 +10,12 @@ theme='dark'
 [profiles.work]
 base_url='https://work.example.invalid'
 email='work@example.invalid'
+secret_backend='env'
 read_only=true
 [profiles.personal]
 base_url='https://personal.example.invalid'
 email='personal@example.invalid'
+secret_backend='env'
 read_only=false
 `
 
@@ -114,7 +116,7 @@ func checkProfileList(data map[string]any) (bool, string) {
 	}
 	for index, name := range []string{"personal", "work"} {
 		profile, ok := profiles[index].(map[string]any)
-		if !ok || len(profile) != 6 || profile["name"] != name || profile["default"] != (name == "work") || profile["selected"] != (name == "personal") || profile["base_url"] != "https://"+name+".example.invalid" || profile["email"] != name+"@example.invalid" || profile["secret_backend"] != "keyring" {
+		if !ok || len(profile) != 6 || profile["name"] != name || profile["default"] != (name == "work") || profile["selected"] != (name == "personal") || profile["base_url"] != "https://"+name+".example.invalid" || profile["email"] != name+"@example.invalid" || profile["secret_backend"] != "env" {
 			return false, fmt.Sprintf("profile %d lost authored metadata or confused selected and default state", index)
 		}
 	}

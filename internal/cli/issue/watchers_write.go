@@ -395,7 +395,7 @@ func runWatcherWrite(
 	client := opts.client
 	if client == nil {
 		var err error
-		if client, err = deps.JiraClient(); err != nil {
+		if client, err = deps.JiraClient(ctx); err != nil {
 			return nil, err
 		}
 	}

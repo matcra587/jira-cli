@@ -442,7 +442,7 @@ func runClone(ctx context.Context, deps Deps, inv command.Invocation, opts clone
 		return out, nil
 	}
 
-	client, err := newClient()
+	client, err := newClient(ctx)
 	if err != nil {
 		return zero, err
 	}
