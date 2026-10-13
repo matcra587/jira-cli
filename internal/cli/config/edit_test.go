@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/matcra587/jira-cli/internal/cli"
+	"github.com/matcra587/jira-cli/internal/cli/command"
 	cfg "github.com/matcra587/jira-cli/internal/config"
 	"github.com/matcra587/jira-cli/internal/envelope"
 )
@@ -230,7 +231,7 @@ func TestResolveEditorPrefersTheToolSpecificVariable(t *testing.T) {
 			for _, name := range editorVars {
 				t.Setenv(name, tt.env[name])
 			}
-			got, err := resolveEditor("")
+			got, err := command.ResolveEditor("")
 			if err != nil {
 				t.Fatalf("resolveEditor: %v", err)
 			}
@@ -250,7 +251,7 @@ func TestResolveEditorSplitsArguments(t *testing.T) {
 	}
 	t.Setenv("JIRA_EDITOR", `true --wait`)
 
-	got, err := resolveEditor("")
+	got, err := command.ResolveEditor("")
 	if err != nil {
 		t.Fatalf("resolveEditor: %v", err)
 	}
@@ -270,7 +271,7 @@ func TestResolveEditorRejectsAnEditorThatCannotRun(t *testing.T) {
 	}
 	t.Setenv("EDITOR", "definitely-not-an-editor-on-this-machine")
 
-	_, err := resolveEditor("")
+	_, err := command.ResolveEditor("")
 	if err == nil {
 		t.Fatal("an editor that is not on PATH was accepted")
 	}
@@ -290,7 +291,7 @@ func TestResolveEditorRefusesRatherThanGuessing(t *testing.T) {
 		t.Setenv(name, "")
 	}
 
-	_, err := resolveEditor("")
+	_, err := command.ResolveEditor("")
 	if err == nil {
 		t.Fatal("an editor was chosen although none is configured")
 	}

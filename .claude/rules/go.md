@@ -75,10 +75,10 @@ Check the module's docs (pkg.go.dev or its source) before concluding a
 primitive is missing — a gap is an upstream candidate, not a license to
 hand-roll. A
 deliberately different local implementation is allowed when its doc comment
-says why and names the library function it is not (existing examples:
-`internal/jira/worklog.go` `ParseDuration` — Jira workday semantics, not
-`x/human.ParseDuration`; `internal/tui/components/markdown` — richer than
-`primer/render.Markdown`).
+says why and names the library function it is not. For example,
+`internal/issueedit` needs rooted no-clobber publication, which the selected
+`x/os.AtomicWrite` replacement primitive does not provide; see Recoverable
+description publication below.
 
 gechr deps are pre-1.0: version bumps are deliberate, dedicated changes with
 an API-diff review — never a side effect of unrelated work. The pinned
@@ -158,3 +158,24 @@ real-shell guards without regressing contextual completion or versioned installa
 *   Live verification targets the dedicated probe project configured via
     `JIRA_LIVETEST_PROJECT` — never create test issues, comments, or
     transitions in a real project's board.
+
+Editor consumers share `command.ResolveEditor` and `command.RunEditor`. Preserve
+JIRA_EDITOR, stored editor, VISUAL, EDITOR precedence, literal argv, early executable
+validation and no fallback. Preference reads remain local and credential-free;
+terminal/process ownership stays in RunEditor. Do not duplicate selection in a domain.
+
+## Recoverable description publication
+
+The pinned `x/os.AtomicWrite` replaces an existing target and does not offer a
+rooted no-clobber publication primitive. `internal/issueedit` therefore stages
+immutable bytes under `os.Root` and publishes with `Root.Link`, refusing existing
+members. Remove the private stage before making the published inode read-only:
+Windows read-only attributes affect every hard link. Retain operation admission,
+acknowledgment and durability separately, including failures after publication.
+Rooted reads reject symlinks/nonregular members, use bounded reads and recheck
+identity. Unix opens also use no-follow/nonblocking flags to refuse substituted
+FIFOs without hanging. Filesystem calls check context at their boundaries; this
+does not claim interruption of a synchronous filesystem operation. Only Unix
+successful syncs claim `synced`; other platforms report `platform_unconfirmed`.
+Reopening observes readiness and reports `not_checked` durability, without
+claiming publication effects from the current invocation.

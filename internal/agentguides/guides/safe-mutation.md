@@ -3,7 +3,7 @@ slug: safe-mutation
 title: Preview and verify a Jira change
 description: Inspect a local mutation preview, submit deliberately and verify the outcome.
 when_to_use: Before creating, editing, transitioning, cloning, deleting an issue or recording effort.
-commands: [jira issue create, jira issue edit, jira issue transition, jira issue clone, jira issue delete, jira issue move, jira issue move status, jira issue move fields, jira epic add, jira epic remove, jira worklog add, jira worklog list, jira issue attachment add, jira issue link create, jira issue link list, jira issue link delete, jira issue weblink add, jira issue weblink list, jira issue weblink delete, jira cache clear]
+commands: [jira issue create, jira issue edit, jira issue edit prepare, jira issue edit draft, jira issue edit inspect, jira issue edit resume, jira issue transition, jira issue clone, jira issue delete, jira issue move, jira issue move status, jira issue move fields, jira epic add, jira epic remove, jira worklog add, jira worklog list, jira issue attachment add, jira issue link create, jira issue link list, jira issue link delete, jira issue weblink add, jira issue weblink list, jira issue weblink delete, jira cache clear]
 order: 40
 ---
 
@@ -70,6 +70,21 @@ provide a missing acknowledgement. Jira read-only policy refuses remote writes
 even with `--force`.
 
 ### Check field readback and remote metadata
+
+### Prepare an existing description without losing native data
+
+Prepare an existing description with `jira issue edit prepare KEY-123`. This
+read works in read-only mode and returns `data.snapshot`, `data.markdown` and
+`data.regions` (compact omits `data`). Keep the original snapshot with its
+anchors. It binds the native issue ID and public site/account/API route.
+It retains exact ADF bytes at `snapshot.description_bytes` (base64), including whitespace and
+unknown nodes and root extensions. Keep the complete snapshot. Its adjacent native JSON view may compact whitespace.
+Reopening uses the retained original bytes.
+Explicit null stays null.
+An absent description or incomplete native identity is refused. Protected
+regions must remain unchanged and present once. Preparation creates no editing
+artifacts, opens no editor and changes no Jira fields. A timestamp, fresh read
+or successful merge never establishes a server-enforced write condition.
 
 ### Discover live input for create or edit
 
@@ -494,6 +509,41 @@ Inspect typed errors, hints and retained receipts. A failure, timeout,
 cancellation or output error can follow an applied write. Read the resource
 before retrying and repeat only the remaining intended step. The CLI never
 automatically replays writes or broadens a failed selector.
+
+### Create and recover a description draft
+
+`jira issue edit draft ISSUE_KEY --directory DIR` reads a bound native description
+and creates `DIR` itself. That path must be unused and its parent must exist.
+Pass the same `DIR` to inspect or resume the saved draft. It contains
+`source.json` with exact native description bytes and public identity,
+`description.md` with editable text and protected anchors, and `manifest.json`
+with corruption checks. Treat every file as private issue content. Preserve the
+source and manifest. Edit only the Markdown outside its protected anchors.
+
+Add `--edit` to open the configured editor after publication. The editor uses
+`JIRA_EDITOR`, stored editor, `VISUAL`, then `EDITOR`, with literal arguments.
+Interactive editor operations refuse headless execution before opening artifacts
+or credentials. An editor failure or cancellation retains the draft and saved
+work. Inspect the reported paths and publication receipt after any failure. A
+partial directory is not necessarily a ready draft. Never overwrite an existing
+draft directory to retry preparation.
+
+### Inspect or refresh an existing draft
+
+`jira issue edit inspect --directory DIR` validates and prepares a native
+candidate locally, without credentials. `--refresh` explicitly reads the same
+immutable issue ID under the recorded site/account/API route and merges current
+native state with saved edits. Changed scope, damaged anchors and conflicts refuse
+without a candidate. Digests detect corruption, not authentic provenance.
+
+### Resume editing without writing to Jira
+
+`jira issue edit resume --directory DIR` reopens the existing Markdown in the
+shared editor. Invalid saved text can be repaired. Changed native backups refuse.
+Draft/resume `--dry-run` validates local admission and editor selection where
+applicable, but launches no editor, creates no files and opens no Jira client.
+None of these commands writes to Jira. A prepared or refreshed candidate is not
+server-enforced lost-update protection. Protected remote application remains unavailable.
 
 ## Next
 

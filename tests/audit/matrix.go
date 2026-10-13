@@ -84,12 +84,6 @@ type Exemption struct {
 // cell, so the cost of an uncoverable surface is visible in review
 // rather than hidden behind a pattern.
 //
-// editSuccessNeedsPTY is the single reviewed reason behind every
-// config.edit success exemption. One constant, not ten copies: if the
-// justification ever stops being true it has to stop being true in one
-// place, and a divergence between entries would then mean something.
-const editSuccessNeedsPTY = "config edit succeeds only by launching an editor on a real terminal, and the corpus drives the binary through pipes — a PTY is the one thing this harness cannot give it. The path is not unverified: internal/cli/config/edit_test.go exercises the seed, copy, validate, and atomic-replace behavior directly, and the two machine-reachable refusals (no editor configured, no terminal) are recorded here as failure cells. Revisit if the harness ever gains a PTY."
-
 // authWriteNeedsRealKeyring explains logout's native-store success exemptions.
 // Environment login publishes only public metadata and now has safe live corpus
 // coverage. Logout still needs a real provider to remove a stored credential.
@@ -146,62 +140,9 @@ var exemptions = []Exemption{
 		Reason: authWriteNeedsRealKeyring,
 		Date:   "2026-08-03",
 	},
-	{
-		Cell:   "config.edit||success|json|M4",
-		Reason: editSuccessNeedsPTY,
-		Date:   "2026-08-03",
-	},
-	{
-		Cell:   "config.edit||success|json|M5",
-		Reason: editSuccessNeedsPTY,
-		Date:   "2026-08-03",
-	},
-	{
-		Cell:   "config.edit||success|json|M6",
-		Reason: editSuccessNeedsPTY,
-		Date:   "2026-08-03",
-	},
-	{
-		Cell:   "config.edit||success|json|M8",
-		Reason: editSuccessNeedsPTY,
-		Date:   "2026-08-03",
-	},
-	{
-		Cell:   "config.edit||success|json|M12",
-		Reason: editSuccessNeedsPTY,
-		Date:   "2026-08-03",
-	},
-	{
-		Cell:   "config.edit||success|compact|M4",
-		Reason: editSuccessNeedsPTY,
-		Date:   "2026-08-03",
-	},
-	{
-		Cell:   "config.edit||success|compact|M5",
-		Reason: editSuccessNeedsPTY,
-		Date:   "2026-08-03",
-	},
-	{
-		Cell:   "config.edit||success|compact|M6",
-		Reason: editSuccessNeedsPTY,
-		Date:   "2026-08-03",
-	},
-	{
-		Cell:   "config.edit||success|compact|M8",
-		Reason: editSuccessNeedsPTY,
-		Date:   "2026-08-03",
-	},
-	{
-		Cell:   "config.edit||success|compact|M12",
-		Reason: editSuccessNeedsPTY,
-		Date:   "2026-08-03",
-	},
-	// H3/H4 extend the SAME two reviewed reasons above to the human
-	// mode this slice adds: auth.logout and config.edit still
-	// have no captured human SUCCESS, for the identical reason their
-	// machine-mode success cells are already exempt above (a real
-	// keyring or a PTY the harness cannot give them). Their only
-	// REACHABLE human capture is the dry-run preview, and H3/H4 ARE
+	// Logout's native-store restriction also applies to human success.
+	// Config editing now has real terminal captures and no success exemption.
+	// Logout's reachable human capture is the dry-run preview; H3/H4 are
 	// evaluated there — see cellAxes's CategoryDryRun+ModeHuman branch
 	// — so this is not new unevaluated surface, just the same known gap
 	// restated for the two axes this slice adds.
@@ -215,29 +156,11 @@ var exemptions = []Exemption{
 		Reason: authWriteNeedsRealKeyring,
 		Date:   "2026-08-05",
 	},
-	{
-		Cell:   "config.edit||success|human|H3",
-		Reason: editSuccessNeedsPTY,
-		Date:   "2026-08-05",
-	},
-	{
-		Cell:   "config.edit||success|human|H4",
-		Reason: editSuccessNeedsPTY,
-		Date:   "2026-08-05",
-	},
-	// H5 restates the identical gap one more time, for the human_color
-	// capture these same three ops have no success recipe for either —
-	// same two reviewed reasons, same "the dry-run IS the reachable
-	// capture" resolution (cellAxes's CategoryDryRun+ModeHumanColor
-	// branch), nothing new about the surface itself.
+	// Logout's same native-store restriction covers human_color success.
+	// Its dry-run capture still exercises H5 through the shared branch.
 	{
 		Cell:   "auth.logout||success|human_color|H5",
 		Reason: authWriteNeedsRealKeyring,
-		Date:   "2026-08-06",
-	},
-	{
-		Cell:   "config.edit||success|human_color|H5",
-		Reason: editSuccessNeedsPTY,
 		Date:   "2026-08-06",
 	},
 }

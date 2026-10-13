@@ -80,7 +80,10 @@ func New(deps Deps) *cobra.Command {
 	cmd.AddCommand(newRank(deps))
 	cmd.AddCommand(newTransition(deps))
 	cmd.AddCommand(newCreate(deps))
-	cmd.AddCommand(newEdit(deps))
+	edit := newEdit(deps)
+	edit.AddCommand(newEditPrepare(deps))
+	edit.AddCommand(newEditDraft(deps), newEditInspect(deps), newEditResume(deps))
+	cmd.AddCommand(edit)
 	cmd.AddCommand(newMove(deps))
 	return cmd
 }

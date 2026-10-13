@@ -9,6 +9,15 @@ import (
 	"testing"
 )
 
+const fileCompletionDriver = `source "$1" || exit 40
+compopt() { :; }
+shift
+COMP_WORDS=(jira "$@")
+COMP_CWORD=$((${#COMP_WORDS[@]} - 1))
+_jira jira "${COMP_WORDS[COMP_CWORD]}" "${COMP_WORDS[COMP_CWORD-1]}" || exit 41
+printf '%s\0' "${COMPREPLY[@]}"
+`
+
 func TestCompletionInputFileValuesPreserveLiteralPaths(t *testing.T) {
 	script, stderr, exit := runBinary(t, "completion", "bash")
 	if exit != 0 || stderr != "" {
@@ -29,14 +38,6 @@ func TestCompletionInputFileValuesPreserveLiteralPaths(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	driver := `source "$1" || exit 40
-compopt() { :; }
-shift
-COMP_WORDS=(jira "$@")
-COMP_CWORD=$((${#COMP_WORDS[@]} - 1))
-_jira jira "${COMP_WORDS[COMP_CWORD]}" "${COMP_WORDS[COMP_CWORD-1]}" || exit 41
-printf '%s\0' "${COMPREPLY[@]}"
-`
 	for _, args := range [][]string{
 		{"--config", "candidate"},
 		{"api", "post", "/rest/api/3/myself", "--input", "candidate"},
@@ -59,12 +60,73 @@ printf '%s\0' "${COMPREPLY[@]}"
 		{"worklog", "add", "KEY-1", "--json-input", "candidate"},
 	} {
 		t.Run(strings.Join(args[:len(args)-1], " "), func(t *testing.T) {
-			command := append([]string{"--noprofile", "--norc", "-c", driver, "file-driver", path}, args...)
+			command := append([]string{"--noprofile", "--norc", "-c", fileCompletionDriver, "file-driver", path}, args...)
 			stdout, stderr, exit := runExecutableIOInDirStarted(t, bash, dir, nil, nil, nil, nil, command...)
 			got := strings.Split(strings.TrimSuffix(stdout, "\x00"), "\x00")
 			slices.Sort(got)
 			if exit != 0 || stderr != "" || !slices.Equal(got, want) {
 				t.Fatalf("file candidates=%q, want %q; exit=%d stderr=%q", got, want, exit, stderr)
+			}
+		})
+	}
+}
+
+func TestDraftDirectoryCompletionDelegatesNativeFallbackWithoutArtifactReads(t *testing.T) {
+	script, stderr, exit := runBinary(t, "completion", "bash")
+	if exit != 0 || stderr != "" {
+		t.Fatal("Bash generator did not run", exit, stderr)
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	path := filepath.Join(dir, "completion.bash")
+	if err := os.WriteFile(path, []byte(script), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"candidate space", "candidate-directory"}
+	for _, name := range want {
+		if err := os.Mkdir(filepath.Join(dir, name), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		// Deliberately invalid content: completion must inspect directory names
+		// alone, without trying to validate or reopen a saved draft.
+		if err := os.WriteFile(filepath.Join(dir, name, "source.json"), []byte("invalid draft"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(dir, "candidate-file"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// Bash's plusdirs option asks Readline to add native directory candidates
+	// after the function returns. Observe the actual generator's request, then
+	// exercise Bash's own compgen fallback; this is not a Readline/PTY receipt.
+	const directoryDriver = `source "$1" || exit 40
+native_dirs=false
+compopt() { [[ "$*" == '-o plusdirs' ]] && native_dirs=true; return 0; }
+shift
+COMP_WORDS=(jira "$@")
+COMP_CWORD=$((${#COMP_WORDS[@]} - 1))
+_jira jira "${COMP_WORDS[COMP_CWORD]}" "${COMP_WORDS[COMP_CWORD-1]}" || exit 41
+[[ "$native_dirs" == true && ${#COMPREPLY[@]} == 0 ]] || exit 42
+while IFS= read -r candidate; do printf '%s\0' "$candidate"; done < <(compgen -d -- "${COMP_WORDS[COMP_CWORD]}")
+`
+	for _, args := range [][]string{
+		{"issue", "edit", "draft", "KEY-1", "--directory", "candidate"},
+		{"issue", "edit", "inspect", "--directory", "candidate"},
+		{"issue", "edit", "resume", "--directory", "candidate"},
+	} {
+		t.Run(args[2], func(t *testing.T) {
+			command := append([]string{"--noprofile", "--norc", "-c", directoryDriver, "directory-driver", path}, args...)
+			stdout, stderr, exit := runExecutableIOInDirStarted(t, bash, dir, []string{"JIRA_BASE_URL=https://unreachable.example.invalid", "JIRA_API_TOKEN=", "JIRA_KEYRING=false"}, nil, nil, nil, command...)
+			got := strings.Split(strings.TrimSuffix(stdout, "\x00"), "\x00")
+			for i := range got {
+				got[i] = strings.TrimSuffix(got[i], "/")
+			}
+			slices.Sort(got)
+			if exit != 0 || stderr != "" || !slices.Equal(got, want) {
+				t.Fatal("native directory candidates lost literal names or admitted files", got, exit, stderr)
 			}
 		})
 	}

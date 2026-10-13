@@ -162,6 +162,23 @@ const CodeIssueCreateResponseInvalid = "issue_create_response_invalid"
 // CodeIssueCreateFollowupFailed reports creation with a failed native followup.
 const CodeIssueCreateFollowupFailed = "issue_create_followup_failed"
 
+// Local draft failures retain recovery paths and distinguish malformed artifacts,
+// changed originals and actual filesystem failures.
+const (
+	CodeIssueEditDraftInvalid = "issue_edit_draft_invalid"
+	CodeIssueEditDraftChanged = "issue_edit_draft_changed"
+	CodeIssueEditDraftIO      = "issue_edit_draft_io"
+)
+
+// CodeIssueDescriptionUnavailable reports a client without bound description reads.
+const CodeIssueDescriptionUnavailable = "issue_description_unavailable"
+
+// CodeIssueDescriptionResponseInvalid reports an unusable native description snapshot.
+const CodeIssueDescriptionResponseInvalid = "issue_description_response_invalid"
+
+// CodeIssueDescriptionScopeChanged refuses a different issue or constructed client.
+const CodeIssueDescriptionScopeChanged = "issue_description_scope_changed"
+
 // CodeIssueCloneSourceInvalid reports source or metadata that cannot be copied safely.
 const CodeIssueCloneSourceInvalid = "issue_clone_source_invalid"
 
@@ -179,56 +196,62 @@ const (
 // stays resource-neutral on purpose: jira_not_found covers every Jira 404
 // (issue, board, user, …), so it says "identifier", never "issue key".
 var registry = map[string]spec{
-	CodeIssueMetadataResponseInvalid: {exit: ExitServer, hint: "Retry the metadata read or inspect its native endpoint with `jira api get`. Incomplete or contradictory metadata cannot establish an input skeleton."},
-	CodeIssueMetadataUnavailable:     {exit: ExitValidation, hint: "Use a configured Jira adapter that supports live issue input discovery. Help and schema remain available without opening a client."},
-	CodeIssueTypeUnknown:             {exit: ExitValidation, hint: "Rerun with --output=json to inspect this project's available issue types in data.issue_types, then choose one with --type."},
-	CodeIssueTypeAmbiguous:           {exit: ExitValidation, hint: "Rerun with --output=json to inspect matching issue types in data.issue_types, then use one explicit issue-type ID with --type."},
-	CodeUpdateUnsupported:            {exit: ExitValidation, hint: "Use the original installation method, or install a published release; inspect `jira update --help`."},
-	CodeUpdateFailed:                 {exit: ExitServer, hint: "Inspect the retained update receipt and installed executable before retrying. Check release availability, installation permissions and package-manager diagnostics."},
-	CodeUpdateOwnership:              {exit: ExitValidation, hint: "Run the executable owned by matcra587/tap/jira, or update the current copy through its original installation method. Other copies are preserved."},
-	CodeUpdateIntegrity:              {exit: ExitServer, hint: "Do not install the rejected download. Inspect the published release assets and checksums before retrying."},
-	CodeUpdateChanged:                {exit: ExitValidation, hint: "The installed executable changed during this update. Inspect its current version before requesting another update."},
-	CodeUpdateUnavailable:            {exit: ExitNotFound, hint: "No published update release was found. Check the repository's releases before retrying."},
-	CodeIssueCloneSourceInvalid:      {exit: ExitServer, hint: "Inspect the source issue and /rest/api/3/field with `jira api get`. This source was not cloned because its native fields could not be classified safely. Inspect other sources' outcomes before retrying."},
-	CodeIssueCreateFollowupFailed:    {exit: ExitServer, hint: "Inspect the retained native receipt and created issue. Retry only the failed transition or watcher operation; repeating create or clone makes another issue."},
-	CodeIssueCreateResponseInvalid:   {exit: ExitServer, hint: "Inspect the project's issues and retained creation payload before retrying. Jira may already have created it; repeating create or clone makes duplicates. Creation writes are never automatically replayed."},
-	CodeIssueDeleteResponseInvalid:   {exit: ExitServer, hint: "Inspect each requested issue and any subtasks before retrying. Jira may already have deleted them; deletion writes are never automatically replayed."},
-	CodeRankResponseInvalid:          {exit: ExitServer, hint: "Inspect the backlog order and native ranking response before retrying. Jira may already have moved some issues; ranking writes are never automatically replayed."},
-	CodeWeblinkResponseInvalid:       {exit: ExitServer, hint: "Inspect the issue's web links and native response before retrying a write. Jira may already have stored it; repeating an add without the same global ID creates duplicates."},
-	CodeCommentResponseInvalid:       {exit: ExitServer, hint: "Retry reads as needed. Inspect the issue's comment list before retrying a write; Jira may already have stored it."},
-	CodeTransitionResponseInvalid:    {exit: ExitServer, hint: "Inspect the issue's current status and comments before retrying; the transition may already have landed."},
-	CodeTransitionReadInvalid:        {exit: ExitServer, hint: "Retry transition discovery or inspect the native workflow with `jira api get`. Do not transition using incomplete or contradictory metadata."},
-	CodeAttachmentResponseInvalid:    {exit: ExitServer, hint: "Retry reads as needed. Inspect the issue's attachment list before retrying a write; Jira may already have applied it. Repeating an upload creates duplicates."},
-	CodeAttachmentFileInvalid:        {exit: ExitValidation, hint: "Inspect the local attachment paths. Use readable regular files, with each file and their combined content no larger than 100 MiB."},
-	CodeJiraPreconditionFailed:       {exit: ExitValidation, hint: "Fetch the current resource, reconcile edits, and choose a new precondition before sending another write."},
-	CodeBoardCacheUnavailable:        {exit: ExitNotFound, hint: "Run `jira issue list` with the same --board or --board-id selector and --refresh --as-jql to cache its saved filter, then retry `jira jql build`. The site and account must match; local composition never refreshes the cache."},
-	CodeJQLResponseInvalid:           {exit: ExitServer, hint: "Jira returned malformed JQL response data. Retry the read or inspect the native response with `jira api`; query diagnostics are separate from this protocol failure."},
-	CodeBulkOperationFailed:          {exit: ExitServer, hint: "Inspect the retained task progress and per-issue failure reasons. Verify any processed issues before submitting another move."},
-	CodeBulkOutcomeUnconfirmed:       {exit: ExitServer, hint: "The task did not confirm this issue's outcome. Inspect its current project/type and the retained native task progress before repeating a move."},
-	CodeBulkOperationResponseInvalid: {exit: ExitServer, hint: "Jira returned a malformed bulk-operation receipt. Retain any task identity and inspect its progress before repeating a write; the move may already be accepted."},
-	CodeWorklogResponseInvalid:       {exit: ExitServer, hint: "Jira returned a malformed worklog response. Inspect the issue's worklogs before retrying a write; a worklog may already have been created."},
-	"jira_unauthorized":              {exit: ExitAuth, hint: "Jira rejected the credentials — check the account email, and re-run `jira auth login --with-token` if the token was revoked."},
-	CodeAuthMissing:                  {exit: ExitAuth, hint: "Pipe a token in with `jira auth login --with-token` — for example from a password manager."},
-	CodeAuthStoreUnavailable:         {exit: ExitAuth, hint: "Unlock or restore access to the system keyring and retry, or supply explicit environment credentials."},
-	"jira_forbidden":                 {exit: ExitAuth, hint: "The credentials work but lack permission for this resource — ask a Jira admin, or switch to a profile that has it."},
-	"jira_not_found":                 {exit: ExitNotFound, hint: "Check the identifier — the site answered, but nothing lives at it."},
-	"jira_bad_request":               {exit: ExitValidation, hint: "Jira rejected some of the values — fix the fields it flagged and send it again."},
-	"jira_request_failed":            {exit: ExitValidation, hint: "Jira refused the request — the message carries its exact status and complaint."},
-	"jira_rate_limited":              {exit: ExitRateLimit, hint: "Jira throttled this call even after automatic retries — wait out the reported pause, then run it again."},
-	"jira_server_error":              {exit: ExitServer, hint: "Jira itself failed — wait and retry, or check the site's status page."},
-	CodeRedirectRefused:              {exit: ExitServer, hint: "Inspect the redirect and configured site/API scope. For a mutation, check the affected resource before retrying; the original request may have reached Jira."},
-	CodeSelectorIncomplete:           {exit: ExitServer, hint: "The complete target set could not be resolved; nothing was written. Inspect the search with `jira issue list --output=json`, or review explicit keys and pass them through `--from-file`."},
-	CodeOutputWriteFailed:            {exit: ExitOutput, hint: "The result could not be written to the destination — a mutation may still have happened — check the affected Jira resource before running the command again."},
-	CodeAPIResponseIncomplete:        {exit: ExitOutput, hint: "Inspect the partial HTTP receipt. Verify mutation outcomes before retrying; for a read, allow a larger --max-response-bytes or fix the interrupted response."},
-	CodeUserSearchResponseInvalid:    {exit: ExitServer, hint: "Inspect any retained user matches. Jira returned a malformed or repeated page; narrow the query or inspect the user/search endpoint with `jira api get`."},
-	CodeCurrentUserResponseInvalid:   {exit: ExitServer, hint: "Jira returned a malformed current-account response. Inspect it with `jira api get /rest/api/3/myself`; authentication was not confirmed and account-dependent writes were not started."},
-	CodeBoardResponseInvalid:         {exit: ExitServer, hint: "Jira returned a malformed board or associated-project page. Inspect the Agile endpoint with `jira api get` before retrying."},
-	CodeCacheResponseInvalid:         {exit: ExitServer, hint: "Jira returned malformed or inconsistent metadata. Inspect retained values and the metadata endpoint with `jira api get`; an incomplete read must not replace cached metadata."},
-	CodeSearchResponseInvalid:        {exit: ExitServer, hint: "Jira returned a malformed or repeated search page. Inspect any retained issues and the raw response with `jira api post /rest/api/3/search/jql`; selector writes were not started."},
-	"canceled":                       {exit: ExitCanceled, hint: "The command was interrupted. Inspect any attempted mutations before retrying; rerun interrupted reads as needed."},
-	"timeout":                        {exit: ExitTimeout, hint: "The command's deadline passed. Inspect any attempted mutations before retrying; allow a longer timeout for reads."},
-	"validation_failed":              {exit: ExitValidation, hint: "Check the values you passed and try again."},
-	CodeInsecureScheme:               {exit: ExitValidation, hint: "Use an `https://` site URL — Basic auth rides the first request, so plain http would send the API token in the clear."},
+	CodeIssueEditDraftInvalid:           {exit: ExitValidation, hint: "Keep source.json and description.md. Inspect the readiness manifest and native backup; repair authored Markdown with issue edit resume. No candidate or Jira write was accepted."},
+	CodeIssueEditDraftChanged:           {exit: ExitValidation, hint: "Retain the original native backup and saved work. Inspect the changed directory or source before reopening; do not replace an existing draft or retry creation over it."},
+	CodeIssueEditDraftIO:                {exit: ExitValidation, hint: "Inspect retained recovery paths and acknowledged publication effects before retrying. Check local permissions, free space and hard-link support; partial creation and editor saves may already exist."},
+	CodeIssueDescriptionUnavailable:     {exit: ExitValidation, hint: "Use a configured Jira adapter that supports bound native description reads. Help and schema remain available without opening a client."},
+	CodeIssueDescriptionResponseInvalid: {exit: ExitServer, hint: "Inspect the native issue description and identity with `jira api get`. No editable snapshot was prepared from incomplete or malformed state."},
+	CodeIssueDescriptionScopeChanged:    {exit: ExitValidation, hint: "Use the snapshot's original site and account, or prepare a fresh snapshot. Public timestamps and cached identity do not authorize a Jira write."},
+	CodeIssueMetadataResponseInvalid:    {exit: ExitServer, hint: "Retry the metadata read or inspect its native endpoint with `jira api get`. Incomplete or contradictory metadata cannot establish an input skeleton."},
+	CodeIssueMetadataUnavailable:        {exit: ExitValidation, hint: "Use a configured Jira adapter that supports live issue input discovery. Help and schema remain available without opening a client."},
+	CodeIssueTypeUnknown:                {exit: ExitValidation, hint: "Rerun with --output=json to inspect this project's available issue types in data.issue_types, then choose one with --type."},
+	CodeIssueTypeAmbiguous:              {exit: ExitValidation, hint: "Rerun with --output=json to inspect matching issue types in data.issue_types, then use one explicit issue-type ID with --type."},
+	CodeUpdateUnsupported:               {exit: ExitValidation, hint: "Use the original installation method, or install a published release; inspect `jira update --help`."},
+	CodeUpdateFailed:                    {exit: ExitServer, hint: "Inspect the retained update receipt and installed executable before retrying. Check release availability, installation permissions and package-manager diagnostics."},
+	CodeUpdateOwnership:                 {exit: ExitValidation, hint: "Run the executable owned by matcra587/tap/jira, or update the current copy through its original installation method. Other copies are preserved."},
+	CodeUpdateIntegrity:                 {exit: ExitServer, hint: "Do not install the rejected download. Inspect the published release assets and checksums before retrying."},
+	CodeUpdateChanged:                   {exit: ExitValidation, hint: "The installed executable changed during this update. Inspect its current version before requesting another update."},
+	CodeUpdateUnavailable:               {exit: ExitNotFound, hint: "No published update release was found. Check the repository's releases before retrying."},
+	CodeIssueCloneSourceInvalid:         {exit: ExitServer, hint: "Inspect the source issue and /rest/api/3/field with `jira api get`. This source was not cloned because its native fields could not be classified safely. Inspect other sources' outcomes before retrying."},
+	CodeIssueCreateFollowupFailed:       {exit: ExitServer, hint: "Inspect the retained native receipt and created issue. Retry only the failed transition or watcher operation; repeating create or clone makes another issue."},
+	CodeIssueCreateResponseInvalid:      {exit: ExitServer, hint: "Inspect the project's issues and retained creation payload before retrying. Jira may already have created it; repeating create or clone makes duplicates. Creation writes are never automatically replayed."},
+	CodeIssueDeleteResponseInvalid:      {exit: ExitServer, hint: "Inspect each requested issue and any subtasks before retrying. Jira may already have deleted them; deletion writes are never automatically replayed."},
+	CodeRankResponseInvalid:             {exit: ExitServer, hint: "Inspect the backlog order and native ranking response before retrying. Jira may already have moved some issues; ranking writes are never automatically replayed."},
+	CodeWeblinkResponseInvalid:          {exit: ExitServer, hint: "Inspect the issue's web links and native response before retrying a write. Jira may already have stored it; repeating an add without the same global ID creates duplicates."},
+	CodeCommentResponseInvalid:          {exit: ExitServer, hint: "Retry reads as needed. Inspect the issue's comment list before retrying a write; Jira may already have stored it."},
+	CodeTransitionResponseInvalid:       {exit: ExitServer, hint: "Inspect the issue's current status and comments before retrying; the transition may already have landed."},
+	CodeTransitionReadInvalid:           {exit: ExitServer, hint: "Retry transition discovery or inspect the native workflow with `jira api get`. Do not transition using incomplete or contradictory metadata."},
+	CodeAttachmentResponseInvalid:       {exit: ExitServer, hint: "Retry reads as needed. Inspect the issue's attachment list before retrying a write; Jira may already have applied it. Repeating an upload creates duplicates."},
+	CodeAttachmentFileInvalid:           {exit: ExitValidation, hint: "Inspect the local attachment paths. Use readable regular files, with each file and their combined content no larger than 100 MiB."},
+	CodeJiraPreconditionFailed:          {exit: ExitValidation, hint: "Fetch the current resource, reconcile edits, and choose a new precondition before sending another write."},
+	CodeBoardCacheUnavailable:           {exit: ExitNotFound, hint: "Run `jira issue list` with the same --board or --board-id selector and --refresh --as-jql to cache its saved filter, then retry `jira jql build`. The site and account must match; local composition never refreshes the cache."},
+	CodeJQLResponseInvalid:              {exit: ExitServer, hint: "Jira returned malformed JQL response data. Retry the read or inspect the native response with `jira api`; query diagnostics are separate from this protocol failure."},
+	CodeBulkOperationFailed:             {exit: ExitServer, hint: "Inspect the retained task progress and per-issue failure reasons. Verify any processed issues before submitting another move."},
+	CodeBulkOutcomeUnconfirmed:          {exit: ExitServer, hint: "The task did not confirm this issue's outcome. Inspect its current project/type and the retained native task progress before repeating a move."},
+	CodeBulkOperationResponseInvalid:    {exit: ExitServer, hint: "Jira returned a malformed bulk-operation receipt. Retain any task identity and inspect its progress before repeating a write; the move may already be accepted."},
+	CodeWorklogResponseInvalid:          {exit: ExitServer, hint: "Jira returned a malformed worklog response. Inspect the issue's worklogs before retrying a write; a worklog may already have been created."},
+	"jira_unauthorized":                 {exit: ExitAuth, hint: "Jira rejected the credentials — check the account email, and re-run `jira auth login --with-token` if the token was revoked."},
+	CodeAuthMissing:                     {exit: ExitAuth, hint: "Pipe a token in with `jira auth login --with-token` — for example from a password manager."},
+	CodeAuthStoreUnavailable:            {exit: ExitAuth, hint: "Unlock or restore access to the system keyring and retry, or supply explicit environment credentials."},
+	"jira_forbidden":                    {exit: ExitAuth, hint: "The credentials work but lack permission for this resource — ask a Jira admin, or switch to a profile that has it."},
+	"jira_not_found":                    {exit: ExitNotFound, hint: "Check the identifier — the site answered, but nothing lives at it."},
+	"jira_bad_request":                  {exit: ExitValidation, hint: "Jira rejected some of the values — fix the fields it flagged and send it again."},
+	"jira_request_failed":               {exit: ExitValidation, hint: "Jira refused the request — the message carries its exact status and complaint."},
+	"jira_rate_limited":                 {exit: ExitRateLimit, hint: "Jira throttled this call even after automatic retries — wait out the reported pause, then run it again."},
+	"jira_server_error":                 {exit: ExitServer, hint: "Jira itself failed — wait and retry, or check the site's status page."},
+	CodeRedirectRefused:                 {exit: ExitServer, hint: "Inspect the redirect and configured site/API scope. For a mutation, check the affected resource before retrying; the original request may have reached Jira."},
+	CodeSelectorIncomplete:              {exit: ExitServer, hint: "The complete target set could not be resolved; nothing was written. Inspect the search with `jira issue list --output=json`, or review explicit keys and pass them through `--from-file`."},
+	CodeOutputWriteFailed:               {exit: ExitOutput, hint: "The result could not be written to the destination — a mutation may still have happened — check the affected Jira resource before running the command again."},
+	CodeAPIResponseIncomplete:           {exit: ExitOutput, hint: "Inspect the partial HTTP receipt. Verify mutation outcomes before retrying; for a read, allow a larger --max-response-bytes or fix the interrupted response."},
+	CodeUserSearchResponseInvalid:       {exit: ExitServer, hint: "Inspect any retained user matches. Jira returned a malformed or repeated page; narrow the query or inspect the user/search endpoint with `jira api get`."},
+	CodeCurrentUserResponseInvalid:      {exit: ExitServer, hint: "Jira returned a malformed current-account response. Inspect it with `jira api get /rest/api/3/myself`; authentication was not confirmed and account-dependent writes were not started."},
+	CodeBoardResponseInvalid:            {exit: ExitServer, hint: "Jira returned a malformed board or associated-project page. Inspect the Agile endpoint with `jira api get` before retrying."},
+	CodeCacheResponseInvalid:            {exit: ExitServer, hint: "Jira returned malformed or inconsistent metadata. Inspect retained values and the metadata endpoint with `jira api get`; an incomplete read must not replace cached metadata."},
+	CodeSearchResponseInvalid:           {exit: ExitServer, hint: "Jira returned a malformed or repeated search page. Inspect any retained issues and the raw response with `jira api post /rest/api/3/search/jql`; selector writes were not started."},
+	"canceled":                          {exit: ExitCanceled, hint: "The command was interrupted. Inspect any attempted mutations before retrying; rerun interrupted reads as needed."},
+	"timeout":                           {exit: ExitTimeout, hint: "The command's deadline passed. Inspect any attempted mutations before retrying; allow a longer timeout for reads."},
+	"validation_failed":                 {exit: ExitValidation, hint: "Check the values you passed and try again."},
+	CodeInsecureScheme:                  {exit: ExitValidation, hint: "Use an `https://` site URL — Basic auth rides the first request, so plain http would send the API token in the clear."},
 	// Input-failure rows: one class-specific hint per code, so a bad verb,
 	// a bad flag, and a bad value each say what to fix. Hints stay static —
 	// the offender rides Field and candidates ride Suggestions.
@@ -321,10 +344,22 @@ func MapError(err error) Classification {
 	// import this package. They sit ahead of the API tier: a request the
 	// gate refused never reached Jira, so it has no status to classify.
 	switch {
+	case errors.Is(err, core.ErrIssueEditDraftChanged):
+		return newError(CodeIssueEditDraftChanged, err)
+	case errors.Is(err, core.ErrIssueEditDraftInvalid):
+		return newError(CodeIssueEditDraftInvalid, err)
+	case errors.Is(err, core.ErrIssueEditDraftIO):
+		return newError(CodeIssueEditDraftIO, err)
 	case errors.Is(err, core.ErrIssueMetadataInvalid):
 		return newError(CodeIssueMetadataResponseInvalid, err)
 	case errors.Is(err, core.ErrIssueMetadataUnavailable):
 		return newError(CodeIssueMetadataUnavailable, err)
+	case errors.Is(err, core.ErrIssueDescriptionUnavailable):
+		return newError(CodeIssueDescriptionUnavailable, err)
+	case errors.Is(err, core.ErrIssueDescriptionInvalid):
+		return newError(CodeIssueDescriptionResponseInvalid, err)
+	case errors.Is(err, core.ErrIssueDescriptionScopeChanged):
+		return newError(CodeIssueDescriptionScopeChanged, err)
 	case errors.Is(err, core.ErrIssueCloneSourceInvalid):
 		return newError(CodeIssueCloneSourceInvalid, err)
 	case errors.Is(err, core.ErrIssueCreateResponseInvalid):

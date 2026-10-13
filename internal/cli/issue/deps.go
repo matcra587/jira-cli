@@ -15,6 +15,11 @@ import (
 // client — which is what makes the "config list cannot open one"
 // property load-bearing rather than theoretical.
 type Deps struct {
+	// EditorCommand reads only a public preference and resolves literal argv.
+	// EditFile owns terminal/process execution; neither opens Jira credentials.
+	EditorCommand func(context.Context) ([]string, error)
+	EditFile      func(context.Context, []string, string) error
+
 	// Preferences and CacheFor use public site/account context only. Default
 	// board lookup must never use the credential-backed Cache constructor.
 	Preferences func() (core.IssuePreferences, error)

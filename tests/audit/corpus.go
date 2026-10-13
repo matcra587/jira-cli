@@ -225,6 +225,17 @@ func runScenario(bin string, s Scenario, mode Mode, baseURL string) (Capture, er
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
+	var finishTerminal func() error
+	if s.Terminal {
+		if s.Stdin != "" {
+			return Capture{}, fmt.Errorf("scenario %q cannot combine terminal and piped input", s.ID)
+		}
+		finishTerminal, err = attachAuditTerminal(cmd, &stderr)
+		if err != nil {
+			return Capture{}, fmt.Errorf("scenario %q terminal invocation is unrun: %w", s.ID, err)
+		}
+		defer func() { _ = finishTerminal() }() //nolint:errcheck // closes admission failures; completed runs check the first close outcome below
+	}
 
 	// Seed the recipe's input files BEFORE the fingerprint below, not
 	// after. A file-fed input route (--json-input, --markdown-file) needs
@@ -266,6 +277,11 @@ func runScenario(bin string, s Scenario, mode Mode, baseURL string) (Capture, er
 			return Capture{}, fmt.Errorf("scenario %q mode %s: %w", s.ID, mode, err)
 		}
 		code = exit.ExitCode()
+	}
+	if finishTerminal != nil {
+		if err := finishTerminal(); err != nil {
+			return Capture{}, fmt.Errorf("scenario %q terminal capture failed: %w", s.ID, err)
+		}
 	}
 	after, err := fingerprint(workdir)
 	if err != nil {

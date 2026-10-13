@@ -50,6 +50,11 @@ func schemaOfType(t reflect.Type, visited map[reflect.Type]bool) map[string]any 
 	if t == reflect.TypeFor[json.RawMessage]() {
 		return map[string]any{}
 	}
+	// encoding/json emits ordinary byte slices as base64 strings. RawMessage
+	// above remains native JSON, and fixed byte arrays below remain arrays.
+	if t == reflect.TypeFor[[]byte]() {
+		return map[string]any{"type": "string", "contentEncoding": "base64"}
+	}
 	// A wrapper whose MarshalJSON emits something other than its own field
 	// layout must be schematized by what it EMITS. jira.Nullable[T] is the
 	// live case — every generated wire field is one, and publishing its

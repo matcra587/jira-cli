@@ -300,3 +300,9 @@ carries provenance. Human --web also retains its existing single browser URL lin
 metadata to either single-purpose stdout surface. Human --count likewise retains
 its existing single result line; snapshot provenance remains in its machine
 frame. Only ordinary human listings add the configured-board line.
+
+Ordinary `[]byte` fields publish base64 strings through the shared schema owner,
+with null only where actual JSON permits it. `json.RawMessage` remains native
+JSON and fixed byte arrays remain arrays. Exercise actual registered command
+schemas for native description snapshots, including source and refreshed current
+backups; a top-level shape audit alone cannot establish nested wire-type fidelity.

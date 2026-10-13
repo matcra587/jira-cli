@@ -41,6 +41,58 @@ func TestAgentSchemaGolden(t *testing.T) {
 	docenttest.SchemaGolden(t, write, "testdata/agent-api-post-schema.json", *updateAgentSchema)
 }
 
+func TestIssueDraftPublishedSchemasDescribeBase64NativeBackups(t *testing.T) {
+	for _, path := range []string{"issue edit prepare", "issue edit draft", "issue edit inspect", "issue edit resume"} {
+		t.Run(path, func(t *testing.T) {
+			var stdout bytes.Buffer
+			program, sink := newProgram(testDeps(t), &stdout, io.Discard)
+			if exit := execute(t.Context(), program, sink, []string{"agent", "schema", "--path=" + path, "--output=json"}); exit != 0 {
+				t.Fatal("actual registered schema invocation failed", exit, stdout.String())
+			}
+			var frame struct {
+				OK   bool                       `json:"ok"`
+				Data envelope.AgentSchemaOutput `json:"data"`
+			}
+			var selected docent.Command
+			if json.Unmarshal(stdout.Bytes(), &frame) != nil || !frame.OK || json.Unmarshal(frame.Data.Schema, &selected) != nil || selected.Path != "jira "+path {
+				t.Fatal("actual published command schema is unavailable", stdout.String())
+			}
+			properties, ok := selected.OutputSchema["properties"].(map[string]any)
+			if !ok {
+				t.Fatal("selected operation has no published output properties", selected.OutputSchema)
+			}
+			members := []string{"source", "current"}
+			if path == "issue edit prepare" {
+				members = []string{"snapshot"}
+			}
+			for _, member := range members {
+				snapshot, ok := properties[member].(map[string]any)
+				if !ok {
+					t.Fatal("native backup is missing from published schema", member)
+				}
+				fields, ok := snapshot["properties"].(map[string]any)
+				if !ok {
+					t.Fatal("native backup fields are missing", member)
+				}
+				preimage, ok := fields["description_bytes"].(map[string]any)
+				if !ok || preimage["contentEncoding"] != "base64" {
+					t.Fatal("native preimage lost base64 encoding", member, preimage)
+				}
+				kind := preimage["type"]
+				if kind != "string" {
+					kinds, ok := kind.([]any)
+					if !ok || len(kinds) != 2 || kinds[0] != "string" || kinds[1] != "null" {
+						t.Fatal("published preimage schema contradicts actual JSON strings", member, preimage)
+					}
+				}
+				if _, present := preimage["items"]; present {
+					t.Fatal("base64 string retained an integer-array schema", member, preimage)
+				}
+			}
+		})
+	}
+}
+
 func TestAgentCommandsNeverConstructJiraAdapters(t *testing.T) {
 	markdown := filepath.Join(t.TempDir(), "notes.md")
 	native := filepath.Join(t.TempDir(), "native.json")
@@ -51,6 +103,12 @@ func TestAgentCommandsNeverConstructJiraAdapters(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, args := range [][]string{
+		{"issue", "edit", "draft", "--help"},
+		{"issue", "edit", "inspect", "--help"},
+		{"issue", "edit", "resume", "--help"},
+		{"agent", "schema", "--path=issue edit draft", "--output=json"},
+		{"agent", "schema", "--path=issue edit inspect", "--output=json"},
+		{"agent", "schema", "--path=issue edit resume", "--output=json"},
 		{"issue", "create", "--help"},
 		{"issue", "list", "--help"},
 		{"issue", "mine", "--help"},

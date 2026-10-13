@@ -36,7 +36,7 @@ func newView(deps Deps) *cobra.Command {
         Op:    "issue.view",                    // and its class flags, flat — see below
         Use:   "view ISSUE_KEY",
         Short: "Show one issue",                // mandatory — the help standard gates it
-        Args:  command.IssueKeyArg,             // arity + hardening + predictor
+        Args:  command.ArgSpec{Min: 1, Max: 1, Positions: []command.Arg{{Name: "ISSUE_KEY", Predictor: "issuekey"}}},
         Flags: func(c *cobra.Command) {         // the ONLY per-command surface
             command.AddBoolVar(c, &all, "all", false, "...", command.FlagOpts{})
         },
@@ -406,9 +406,10 @@ guardrails. The remaining points require review.
     the title is styled: [prompts.md](prompts.md).
 *   **Bare `jira`** is contract-aware: TTY renders help, non-TTY/agent emits
     the JSON schema (root.go) — don't add root-level behavior that breaks this.
-*   **`jira issue edit KEY` with no field flags** opens `$EDITOR`; agent/non-TTY
-    context refuses with exit 3 and a remediation hint — preserve that guard
-    when touching the editor flow.
+*   **`jira issue edit KEY` with no authored change** currently refuses with
+    exit 3. `issue edit prepare` reads a bound native editing artifact; it does
+    not launch an editor or publish a replacement. Recoverable draft commands use
+    shared editor and preservation owners; protected remote application remains open.
 
 Completion generation removes Cobra's combined boolean `h/help` spec when
 Conductor supplies separate short and long help descriptions. Keep this repair
@@ -501,3 +502,45 @@ writes. Environment login verifies configured tokens and publishes public
 metadata only. Authentication previews may verify proposed scope and report
 blocked publication without changing settings or credentials. See config.md for
 provider binding and per-field public-default admission.
+
+Issue description preparation uses core.PrepareIssueDescription and
+IssueDescriptionSession over the shared adf.EditSession. Bind the native issue ID
+and the constructed client's public site/account/API route; reread by immutable ID so
+issue-key moves remain usable. Check scope before and after the read, validate
+authored anchors before remote work and preserve original buffers independently.
+Native absent descriptions or incomplete identities refuse; explicit null remains
+null after a blank editor save. Preserve unknown ADF bytes and current root state.
+Updated is diagnostic only. Preparation/merge owns no Jira writer and is not CAS.
+`issue edit prepare` is a typed read through command.Spec and shared View; ordinary
+edit still needs authored changes. Recoverable editor drafts use the local owner described below; protected remote
+application remains an unfinished capability.
+
+Bound description reads admit only final responses inside the configured API
+scope with the exact request credential binding. Reuse the authenticated-reply
+owner shared with CurrentUser; media redirects cannot supply editing identity.
+Strict description decoding requires one complete bounded native object, refuses
+duplicates/trailing data and preserves body cancellation causes. Serialized
+snapshots keep exact native bytes at description_bytes (base64), independently
+of the adjacent JSON view's whitespace compaction. Reopening verifies semantic
+agreement and uses the byte preimage. Preserve both fields and all public scope.
+
+A client lacking bound description reads returns `issue_description_unavailable`;
+reserve `issue_description_scope_changed` for an actual snapshot/client mismatch.
+
+Editor consumers share `command.ResolveEditor` and `command.RunEditor`. Preserve
+JIRA_EDITOR, stored editor, VISUAL, EDITOR precedence, literal argv, early executable
+validation and no fallback. Preference reads remain local and credential-free;
+terminal/process ownership stays in RunEditor. Do not duplicate selection in a domain.
+
+Recoverable issue description drafts use `internal/issueedit` over the shared
+bound description session. `issue edit draft` creates an unused child directory;
+`inspect` validates saved text locally unless `--refresh` explicitly requests a
+bound native reread; `resume` edits the existing Markdown through the shared
+editor supervisor. All three declare native directory completion metadata.
+Publish the exact native source and editable Markdown before the manifest, and
+retain partial files, saved work and acknowledged effects on failure. Never
+clobber existing members or delete the recovery directory automatically. Digests
+detect corruption; they do not authenticate a draft or authorize Jira writes.
+Editor operations require an interactive terminal before artifacts or credentials
+are opened. Previews launch no editor, publish nothing and construct no Jira client.
+These commands produce candidates only; protected remote application remains open.
