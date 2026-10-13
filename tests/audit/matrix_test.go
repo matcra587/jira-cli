@@ -161,10 +161,10 @@ func TestLiveExemptionTableIsClean(t *testing.T) {
 	for _, p := range validateExemptions(exemptions, expected) {
 		t.Errorf("exemption table: %s", p)
 	}
-	// Exact success exemptions remain only for terminal editing and native
-	// credential removal. Environment login now supplies real success captures.
+	// Exact success exemptions remain only for native credential removal.
+	// Environment login and real terminal editing now have success captures.
 	wantExempt := []string{}
-	for _, op := range []string{"auth.logout", "config.edit"} {
+	for _, op := range []string{"auth.logout"} {
 		for _, mode := range []string{"compact", "json"} {
 			for _, axis := range []string{"M12", "M4", "M5", "M6", "M8"} {
 				wantExempt = append(wantExempt, op+"||success|"+mode+"|"+axis)
@@ -184,7 +184,7 @@ func TestLiveExemptionTableIsClean(t *testing.T) {
 	if !slices.Equal(gotExempt, wantExempt) {
 		t.Errorf("exempt cells = %v, want %v", gotExempt, wantExempt)
 	}
-	if len(exemptions) != 26 {
+	if len(exemptions) != 13 {
 		t.Errorf("exemption table has %d entries; adding one is a reviewed decision that must also move this pin", len(exemptions))
 	}
 }

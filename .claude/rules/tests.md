@@ -256,3 +256,39 @@ actual palette selected after migration. Use owned literal files plus environmen
 and home decoys; inspect rendered colors and exact rollback bytes. Exercise all
 recorded policy versions, missing relative origins, cancellation and native
 Windows. Decode-only preparation never reads palette files or process expansion.
+
+Bound description guards must distinguish absent, null and empty documents;
+retain exact future ADF bytes, large numbers and independent snapshot buffers.
+Prove native ID rereads after issue-key moves, site/account/API-route checks on both sides of
+reads, cancellation and invalid-anchor refusal before I/O. A blank editor save
+must not turn native null into an empty document. Exercise actual registered
+preparation in read-only mode and all output formats, then reopen its native
+artifact. Fresh reads and merges do not establish server-enforced CAS.
+
+Exercise real foreign redirects, missing/changed request authentication, malformed
+HTTP 200 objects, wrong native types, duplicates and trailing bodies. They must
+produce typed upstream failures without a candidate. Use whitespace-bearing
+native ADF to prove exported byte preimages survive JSON/compact serialization
+and reopening. Preserve cancellation/deadline causes from interrupted bodies.
+
+Recoverable draft guards exercise no-clobber publication, manifest-last ordering,
+partial acknowledgments, changed backups, bounded strict reopening and saved-work
+retention. Drive actual draft/inspect/resume commands in each output mode; editor
+acceptance uses real subprocesses and terminals, including cancellation, reaping
+and restoration of both borrowed terminals. Mocked editor calls alone do not
+establish process behavior. Local inspection must work without credentials or
+network access; refreshed inspection binds the immutable issue ID and public scope.
+
+The output audit now captures editor success through real Linux PTYs, including
+`config edit`; its former success exemptions no longer apply. Unsupported native
+terminal allocation fails explicitly as unrun evidence. Cross-compilation and
+Linux PTY receipts do not establish Windows/macOS terminal acceptance. Preserve
+all existing passing matrix cells when deliberately updating the baseline.
+
+Native Windows Go OpenRoot currently prevents renaming its directory through a
+handle without delete sharing. The directory-move guard must verify the exact
+sharing-violation refusal, an unchanged usable candidate and no moved directory;
+that receipt does not claim a successful redirection challenge. Platforms that
+permit the move must exercise the changed-directory refusal. Preserve these
+platform distinctions instead of treating a failed fixture operation as a passing
+redirect guard or silently skipping it.

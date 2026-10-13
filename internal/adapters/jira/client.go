@@ -221,6 +221,14 @@ func (c *Client) BaseURL() string {
 // reads credentials again or contacts Jira; token bytes remain private.
 func (c *Client) Account() string { return c.email }
 
+// JiraScope reports the public site, account and API route actually bound at
+// construction. A scoped gateway can differ from the browser/site URL.
+func (c *Client) JiraScope() core.JiraScope {
+	return core.JiraScope{Site: c.site.String(), Account: c.email, APIBaseURL: c.base.String()}
+}
+
+var _ core.IssueDescriptionClient = (*Client)(nil)
+
 // GetIssue implements core.JiraClient: one issue by key, fields narrowed
 // to the requested IDs when given.
 func (c *Client) GetIssue(ctx context.Context, key string, fields []string, expand ...string) (core.IssueRead, error) {
@@ -240,9 +248,18 @@ func (c *Client) GetIssue(ctx context.Context, key string, fields []string, expa
 		return core.IssueRead{}, fmt.Errorf("get issue: %w", err)
 	}
 	defer resp.Body.Close() //nolint:errcheck // read-only body; a close failure loses nothing
+	descriptionSource := len(fields) == 2 && fields[0] == "description" && fields[1] == "updated"
+	if descriptionSource {
+		if err := c.requireAuthenticatedReply(resp, core.ErrIssueDescriptionInvalid, "description"); err != nil {
+			return core.IssueRead{}, err
+		}
+	}
 	attachmentsOnly := len(fields) == 1 && fields[0] == "attachment"
 	fullSource := len(fields) == 1 && fields[0] == "*all"
 	if resp.StatusCode != http.StatusOK {
+		if descriptionSource && resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusMultipleChoices {
+			return core.IssueRead{}, fmt.Errorf("%w: description read returned HTTP %d instead of 200", core.ErrIssueDescriptionInvalid, resp.StatusCode)
+		}
 		if fullSource && resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusMultipleChoices {
 			return core.IssueRead{}, fmt.Errorf("%w: full issue read returned HTTP %d instead of 200", core.ErrIssueCloneSourceInvalid, resp.StatusCode)
 		}
@@ -250,6 +267,10 @@ func (c *Client) GetIssue(ctx context.Context, key string, fields []string, expa
 			return core.IssueRead{}, fmt.Errorf("%w: attachment issue read returned HTTP %d instead of 200", core.ErrAttachmentResponseInvalid, resp.StatusCode)
 		}
 		return core.IssueRead{}, c.apiError(resp, info)
+	}
+	if descriptionSource {
+		issue, err := decodeDescriptionIssue(resp.Body)
+		return core.IssueRead{Issue: issue, Retry: info}, err
 	}
 	if attachmentsOnly {
 		issue, err := decodeAttachmentIssue(resp.Body)
@@ -291,12 +312,8 @@ func (c *Client) CurrentUser(ctx context.Context) (core.UserRead, error) {
 	defer resp.Body.Close() //nolint:errcheck // read-only body; a close failure loses nothing
 	// Media reads may follow a redirect without credentials, but such a reply
 	// cannot verify the account/token tuple used for authentication publication.
-	if resp.Request == nil || resp.Request.URL == nil || !withinBase(c.base, resp.Request.URL) {
-		return core.UserRead{}, fmt.Errorf("%w: identity reply left the authenticated API scope", ErrCurrentUserResponseInvalid)
-	}
-	email, token, authenticated := resp.Request.BasicAuth()
-	if !authenticated || email != c.email || token != c.token {
-		return core.UserRead{}, fmt.Errorf("%w: identity request lost its credential binding", ErrCurrentUserResponseInvalid)
+	if err := c.requireAuthenticatedReply(resp, ErrCurrentUserResponseInvalid, "identity"); err != nil {
+		return core.UserRead{}, err
 	}
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusMultipleChoices {

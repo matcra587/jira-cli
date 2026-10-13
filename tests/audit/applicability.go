@@ -232,9 +232,9 @@ func cellAxes(m command.Meta, c Category, mode Mode) []Axis {
 		switch mode {
 		case ModeHuman:
 			// A mutation's ONLY reachable human capture — auth.login/logout
-			// and config.edit have no captured human SUCCESS (their live
-			// paths need a real keyring or a PTY the harness cannot give
-			// them; see the exemption table), so this is where H2/H3/H4
+			// has no captured human SUCCESS (its live
+			// path needs a real keyring the harness must not open for
+			// removal; see the exemption table), so this is where H2/H3/H4
 			// actually get proven for the mutation/local-state classes. H2
 			// joins them the same way H1 joins the CategorySuccess branch
 			// above — applicabilityFor keeps H2 in Applies only for

@@ -23,6 +23,44 @@ func schemaProps(t *testing.T, schema map[string]any) map[string]any {
 	return props
 }
 
+func TestSchemaOfBytePreimagesMatchesBase64EncodingAndNativeJSON(t *testing.T) {
+	type byteForms struct {
+		Preimage []byte          `json:"preimage"`
+		Optional []byte          `json:"optional,omitempty"`
+		Native   json.RawMessage `json:"native"`
+		Array    [2]byte         `json:"array"`
+	}
+	props := schemaProps(t, envelope.SchemaOf(byteForms{}, nil))
+	preimage := props["preimage"].(map[string]any)
+	optional := props["optional"].(map[string]any)
+	if !reflect.DeepEqual(preimage["type"], []string{"string", "null"}) || preimage["contentEncoding"] != "base64" || optional["type"] != "string" || optional["contentEncoding"] != "base64" {
+		t.Fatal("byte preimages do not describe actual encoding", props)
+	}
+	if len(props["native"].(map[string]any)) != 0 || props["array"].(map[string]any)["type"] != "array" {
+		t.Fatal("byte preimage refinement changed native JSON or fixed arrays", props)
+	}
+	for _, preimage := range [][]byte{nil, {}, []byte("native preimage")} {
+		encoded, err := json.Marshal(byteForms{Preimage: preimage, Native: json.RawMessage(`{"future":9007199254740993}`)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var actual map[string]any
+		if err := json.Unmarshal(encoded, &actual); err != nil {
+			t.Fatal(err)
+		}
+		if preimage == nil {
+			if actual["preimage"] != nil {
+				t.Fatal("nil preimage was not null", encoded)
+			}
+		} else if _, ok := actual["preimage"].(string); !ok {
+			t.Fatal("present preimage was not a string", encoded)
+		}
+		if _, present := actual["optional"]; present {
+			t.Fatal("omitted byte preimage was invented", encoded)
+		}
+	}
+}
+
 func TestSchemaOfOmitZeroMatchesActualEncoding(t *testing.T) {
 	type optionalValues struct {
 		Email jira.Nullable[string] `json:"email,omitzero"`

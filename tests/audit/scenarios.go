@@ -54,6 +54,9 @@ type Scenario struct {
 	// before fingerprinting. It uses the same isolated binary/environment; a
 	// failed setup refuses the scenario instead of interpreting incidental output.
 	SetupArgs []string
+	// Terminal supplies real stdin/stderr terminals for an editor recipe.
+	// Unsupported native allocation fails rather than fabricating success.
+	Terminal bool
 	// Executable copies the cached CLI to this relative owned fixture path.
 	// Installation detection depends on the running executable, not environment
 	// hints; managed-channel recipes therefore need a real isolated copy.

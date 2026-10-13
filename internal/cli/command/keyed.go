@@ -341,6 +341,13 @@ var keyFailureSeverity = map[string]int{
 	cli.CodeUpdateIntegrity:   0,
 	cli.CodeUpdateChanged:     0,
 	cli.CodeUpdateUnavailable: 0,
+	// Bound description preparation is a single read, outside issue fan-out.
+	cli.CodeIssueEditDraftInvalid:           0,
+	cli.CodeIssueEditDraftChanged:           0,
+	cli.CodeIssueEditDraftIO:                0,
+	cli.CodeIssueDescriptionUnavailable:     0,
+	cli.CodeIssueDescriptionResponseInvalid: 0,
+	cli.CodeIssueDescriptionScopeChanged:    0,
 	// User discovery is a single read, outside issue fan-out.
 	cli.CodeUserSearchResponseInvalid:  0,
 	cli.CodeCurrentUserResponseInvalid: 0,

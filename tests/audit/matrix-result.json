@@ -7096,6 +7096,97 @@
       "status": "pass"
     },
     {
+      "op": "config.edit",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "config.edit",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "config.edit",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "config.edit",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "config.edit",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "config.edit",
+      "category": "success",
+      "mode": "human_color",
+      "axis": "H5",
+      "status": "pass"
+    },
+    {
+      "op": "config.edit",
+      "category": "success",
+      "mode": "human",
+      "axis": "H3",
+      "status": "pass"
+    },
+    {
+      "op": "config.edit",
+      "category": "success",
+      "mode": "human",
+      "axis": "H4",
+      "status": "pass"
+    },
+    {
+      "op": "config.edit",
+      "category": "success",
+      "mode": "json",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "config.edit",
+      "category": "success",
+      "mode": "json",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "config.edit",
+      "category": "success",
+      "mode": "json",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "config.edit",
+      "category": "success",
+      "mode": "json",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "config.edit",
+      "category": "success",
+      "mode": "json",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
       "op": "config.get",
       "category": "failure",
       "mode": "compact",
@@ -11994,6 +12085,183 @@
       "status": "pass"
     },
     {
+      "op": "issue.edit.draft",
+      "category": "dry_run",
+      "mode": "compact",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.draft",
+      "category": "dry_run",
+      "mode": "compact",
+      "axis": "M7",
+      "status": "pass",
+      "detail": "preview must not create a directory, launch an editor or invent a native candidate"
+    },
+    {
+      "op": "issue.edit.draft",
+      "category": "dry_run",
+      "mode": "human_color",
+      "axis": "H5",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.draft",
+      "category": "dry_run",
+      "mode": "human",
+      "axis": "H2",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.draft",
+      "category": "dry_run",
+      "mode": "human",
+      "axis": "H3",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.draft",
+      "category": "dry_run",
+      "mode": "human",
+      "axis": "H4",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.draft",
+      "category": "dry_run",
+      "mode": "json",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.draft",
+      "category": "dry_run",
+      "mode": "json",
+      "axis": "M7",
+      "status": "pass",
+      "detail": "preview must not create a directory, launch an editor or invent a native candidate"
+    },
+    {
+      "op": "issue.edit.draft",
+      "category": "failure",
+      "mode": "compact",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.draft",
+      "category": "failure",
+      "mode": "json",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.draft",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M10",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.draft",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.draft",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.draft",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.draft",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.draft",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.draft",
+      "category": "success",
+      "mode": "human_color",
+      "axis": "H5",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.draft",
+      "category": "success",
+      "mode": "human",
+      "axis": "H3",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.draft",
+      "category": "success",
+      "mode": "human",
+      "axis": "H4",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.draft",
+      "category": "success",
+      "mode": "json",
+      "axis": "M10",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.draft",
+      "category": "success",
+      "mode": "json",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.draft",
+      "category": "success",
+      "mode": "json",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.draft",
+      "category": "success",
+      "mode": "json",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.draft",
+      "category": "success",
+      "mode": "json",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.draft",
+      "category": "success",
+      "mode": "json",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
       "op": "issue.edit.input",
       "variant": "--generate-json",
       "category": "failure",
@@ -12196,6 +12464,505 @@
     {
       "op": "issue.edit.input",
       "variant": "--generate-json",
+      "category": "success",
+      "mode": "json",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.inspect",
+      "category": "failure",
+      "mode": "compact",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.inspect",
+      "category": "failure",
+      "mode": "json",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.inspect",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M10",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.inspect",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.inspect",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.inspect",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.inspect",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.inspect",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.inspect",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M7",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.inspect",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.inspect",
+      "category": "success",
+      "mode": "human_color",
+      "axis": "H5",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.inspect",
+      "category": "success",
+      "mode": "human",
+      "axis": "H1",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.inspect",
+      "category": "success",
+      "mode": "human",
+      "axis": "H3",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.inspect",
+      "category": "success",
+      "mode": "human",
+      "axis": "H4",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.inspect",
+      "category": "success",
+      "mode": "json",
+      "axis": "M10",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.inspect",
+      "category": "success",
+      "mode": "json",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.inspect",
+      "category": "success",
+      "mode": "json",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.inspect",
+      "category": "success",
+      "mode": "json",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.inspect",
+      "category": "success",
+      "mode": "json",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.inspect",
+      "category": "success",
+      "mode": "json",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.inspect",
+      "category": "success",
+      "mode": "json",
+      "axis": "M7",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.inspect",
+      "category": "success",
+      "mode": "json",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.prepare",
+      "category": "failure",
+      "mode": "compact",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.prepare",
+      "category": "failure",
+      "mode": "json",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.prepare",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M1",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.prepare",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M10",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.prepare",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.prepare",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.prepare",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.prepare",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.prepare",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.prepare",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M7",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.prepare",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.prepare",
+      "category": "success",
+      "mode": "human_color",
+      "axis": "H5",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.prepare",
+      "category": "success",
+      "mode": "human",
+      "axis": "H1",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.prepare",
+      "category": "success",
+      "mode": "human",
+      "axis": "H3",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.prepare",
+      "category": "success",
+      "mode": "human",
+      "axis": "H4",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.prepare",
+      "category": "success",
+      "mode": "json",
+      "axis": "M1",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.prepare",
+      "category": "success",
+      "mode": "json",
+      "axis": "M10",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.prepare",
+      "category": "success",
+      "mode": "json",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.prepare",
+      "category": "success",
+      "mode": "json",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.prepare",
+      "category": "success",
+      "mode": "json",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.prepare",
+      "category": "success",
+      "mode": "json",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.prepare",
+      "category": "success",
+      "mode": "json",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.prepare",
+      "category": "success",
+      "mode": "json",
+      "axis": "M7",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.prepare",
+      "category": "success",
+      "mode": "json",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.resume",
+      "category": "dry_run",
+      "mode": "compact",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.resume",
+      "category": "dry_run",
+      "mode": "compact",
+      "axis": "M7",
+      "status": "pass",
+      "detail": "preview must not create a directory, launch an editor or invent a native candidate"
+    },
+    {
+      "op": "issue.edit.resume",
+      "category": "dry_run",
+      "mode": "human_color",
+      "axis": "H5",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.resume",
+      "category": "dry_run",
+      "mode": "human",
+      "axis": "H2",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.resume",
+      "category": "dry_run",
+      "mode": "human",
+      "axis": "H3",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.resume",
+      "category": "dry_run",
+      "mode": "human",
+      "axis": "H4",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.resume",
+      "category": "dry_run",
+      "mode": "json",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.resume",
+      "category": "dry_run",
+      "mode": "json",
+      "axis": "M7",
+      "status": "pass",
+      "detail": "preview must not create a directory, launch an editor or invent a native candidate"
+    },
+    {
+      "op": "issue.edit.resume",
+      "category": "failure",
+      "mode": "compact",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.resume",
+      "category": "failure",
+      "mode": "json",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.resume",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M10",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.resume",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.resume",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.resume",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.resume",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.resume",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.resume",
+      "category": "success",
+      "mode": "human_color",
+      "axis": "H5",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.resume",
+      "category": "success",
+      "mode": "human",
+      "axis": "H3",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.resume",
+      "category": "success",
+      "mode": "human",
+      "axis": "H4",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.resume",
+      "category": "success",
+      "mode": "json",
+      "axis": "M10",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.resume",
+      "category": "success",
+      "mode": "json",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.resume",
+      "category": "success",
+      "mode": "json",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.resume",
+      "category": "success",
+      "mode": "json",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.resume",
+      "category": "success",
+      "mode": "json",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "issue.edit.resume",
       "category": "success",
       "mode": "json",
       "axis": "M8",

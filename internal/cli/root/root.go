@@ -265,9 +265,11 @@ func newProgramWithTheme(deps *Deps, stdout, stderr io.Writer, resolveTheme func
 	// "config list cannot open one" a property the type system holds,
 	// not a convention.
 	issueDeps := issuecmd.Deps{
-		Preferences: deps.BuildPreferences,
-		CacheFor:    deps.CacheFor,
-		JiraClient:  deps.JiraClient,
+		EditorCommand: deps.EditorCommand,
+		EditFile:      deps.EditFile,
+		Preferences:   deps.BuildPreferences,
+		CacheFor:      deps.CacheFor,
+		JiraClient:    deps.JiraClient,
 		IssueMetadata: func(ctx context.Context) (issuecmd.InputDiscoveryClient, error) {
 			if deps.JiraClient == nil {
 				return nil, core.ErrIssueMetadataUnavailable

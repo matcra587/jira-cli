@@ -34,7 +34,9 @@ import (
 // command.OnceContextValues, so an invocation shares one lazily built instance.
 type Deps struct {
 	// BindContext connects lazy legacy constructors to Cobra's execution context.
-	BindContext func(func() context.Context)
+	BindContext   func(func() context.Context)
+	EditorCommand func(context.Context) ([]string, error)
+	EditFile      func(context.Context, []string, string) error
 
 	// NotifyTool performs anonymous background release reads. A nil tool disables
 	// passive checks; NotifyOptions supplies Clive's cache and transport seams.
@@ -121,9 +123,11 @@ func defaultDeps() *Deps {
 		return config.Resolve(ctx, opts, selected)
 	})
 	deps := &Deps{
-		BindContext: func(contextFor func() context.Context) { settings.contextFor = contextFor },
-		NotifyTool:  selfupdate.ReleaseTool{},
-		Update:      updatecmd.DefaultDeps(),
+		BindContext:   func(contextFor func() context.Context) { settings.contextFor = contextFor },
+		EditorCommand: editorCommand,
+		EditFile:      command.RunEditor,
+		NotifyTool:    selfupdate.ReleaseTool{},
+		Update:        updatecmd.DefaultDeps(),
 		JiraClient: command.OnceContextValues(func(ctx context.Context) (core.JiraClient, error) {
 			configuration, err := resolved(ctx)
 			if err != nil {
@@ -172,6 +176,31 @@ func defaultDeps() *Deps {
 		},
 	}
 	return deps
+}
+
+// editorCommand uses the selected public settings file, never a credential
+// store or token environment reference. An explicit override can repair work
+// even when that settings file cannot be decoded.
+func editorCommand(ctx context.Context) ([]string, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	configured := ""
+	if os.Getenv("JIRA_EDITOR") == "" {
+		file, err := config.ReadFile(ctx, "")
+		if err != nil {
+			return nil, err
+		}
+		setting, err := file.Setting("editor")
+		if err != nil {
+			return nil, err
+		}
+		configured = setting.Value
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return command.ResolveEditor(configured)
 }
 
 func resolveIdentitySaveSite(ctx context.Context, opts config.Options, newStore func(config.Config) core.CredentialStore) (authcmd.SiteInfo, error) {
