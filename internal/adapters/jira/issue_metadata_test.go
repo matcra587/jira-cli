@@ -360,3 +360,79 @@ func TestIssueMetadataCaptureBoundRejectsIncompleteDocument(t *testing.T) {
 		t.Fatalf("truncated metadata published as complete: fields=%d native_bytes=%d err=%v", len(read.Fields), len(read.Native), err)
 	}
 }
+
+func TestIssueMetadataRejectsUnboundRedirects(t *testing.T) {
+	t.Parallel()
+	for _, scope := range []string{"foreign-origin", "outside-base", "inside-base"} {
+		for _, resource := range []string{"project", "types", "fields", "edit"} {
+			t.Run(scope+"/"+resource, func(t *testing.T) {
+				t.Parallel()
+				var replies atomic.Int32
+				reply := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					replies.Add(1)
+					user, token, bound := r.BasicAuth()
+					if scope == "inside-base" {
+						if !bound || user != "fixture@example.com" || token != "fixture" {
+							t.Error("scoped redirect lost credentials")
+						}
+					} else if bound {
+						t.Error("unscoped redirect leaked credentials")
+					}
+					switch resource {
+					case "project":
+						_, _ = io.WriteString(w, `{"id":"10402","key":"ENG"}`)
+					case "types":
+						_, _ = io.WriteString(w, strings.ReplaceAll(metadataTypePage, `"startAt":3`, `"startAt":0`))
+					case "fields":
+						_, _ = io.WriteString(w, strings.ReplaceAll(metadataFieldPage, `"startAt":3`, `"startAt":0`))
+					case "edit":
+						_, _ = io.WriteString(w, metadataEditMap)
+					}
+				})
+				foreign := httptest.NewServer(reply)
+				defer foreign.Close()
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if strings.HasSuffix(r.URL.Path, "/reply") {
+						reply.ServeHTTP(w, r)
+						return
+					}
+					target := foreign.URL + "/reply"
+					if scope == "outside-base" {
+						target = "/reply"
+					}
+					if scope == "inside-base" {
+						target = "/ex/jira/fixture-cloud/reply"
+					}
+					http.Redirect(w, r, target, http.StatusFound)
+				}))
+				defer server.Close()
+				client, err := New(Config{BaseURL: server.URL + "/ex/jira/fixture-cloud", Email: "fixture@example.com", APIToken: "fixture"})
+				if err != nil {
+					t.Fatal(err)
+				}
+				switch resource {
+				case "project":
+					_, err = client.GetCreateIssueProject(t.Context(), "ENG")
+				case "types":
+					_, err = client.GetCreateIssueTypes(t.Context(), "ENG", 0, 2)
+				case "fields":
+					_, err = client.GetCreateIssueFields(t.Context(), "ENG", "10001", 0, 2)
+				case "edit":
+					_, err = client.GetEditIssueFields(t.Context(), "ENG-1")
+				}
+				if replies.Load() != 1 {
+					t.Fatalf("redirect guard did not observe a reply: %d", replies.Load())
+				}
+				if scope == "inside-base" {
+					if err != nil {
+						t.Fatalf("authenticated scoped redirect refused: %v", err)
+					}
+					return
+				}
+				if !errors.Is(err, core.ErrIssueMetadataInvalid) {
+					t.Fatalf("unbound metadata established a context: %v", err)
+				}
+			})
+		}
+	}
+}

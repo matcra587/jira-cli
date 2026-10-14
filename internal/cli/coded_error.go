@@ -28,6 +28,7 @@ var codedCodes = []string{
 	CodeAuthStoreUnavailable,
 	CodeCanceled,
 	CodeSelectorIncomplete,
+	CodeUserLookupResponseInvalid,
 	CodeUserSearchResponseInvalid,
 	CodeCurrentUserResponseInvalid,
 	CodeJQLResponseInvalid,

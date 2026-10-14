@@ -30,6 +30,11 @@ func TestAuthStatusRejectsMalformedSuccessfulCurrentUserPayloads(t *testing.T) {
 		{name: "trailing object", value: `{"accountId":"fixture"} {}`},
 		{name: "trailing garbage", value: `{"accountId":"fixture"} garbage`},
 		{name: "truncated", value: `{"accountId":`},
+		{name: "duplicate identity", value: `{"accountId":null,"accountId":"fixture"}`},
+		{name: "escaped duplicate identity", value: `{"accountId":"other","account\u0049d":"fixture"}`},
+		{name: "case variant identity", value: `{"accountId":"fixture","ACCOUNTID":"other"}`},
+		{name: "duplicate activity", value: `{"accountId":"fixture","active":false,"active":true}`},
+		{name: "case variant email", value: `{"accountId":"fixture","EmailAddress":"other@example.invalid"}`},
 	} {
 		for _, mode := range []string{"json", "compact", "human", "agent"} {
 			t.Run(body.name+"/"+mode, func(t *testing.T) {

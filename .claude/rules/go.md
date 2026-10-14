@@ -216,3 +216,36 @@ presence/null/value tuple only after success. Null clears its prior value; a
 subsequent value clears null. Failed decoding retains the exact earlier tuple
 and leaves aliased maps, slices, pointers and raw body bytes untouched. Do not
 work around stale native fields independently in commands or adapters.
+
+Literal watcher preflight uses `AccountField.ValidateRemoteID` through the shared
+`ResolveAccounts` owner only under explicit `--validate-remote`. Bare previews
+and ordinary literal writes remain lazy; @me/query lookup keeps its own policy.
+`core.ResolveActiveAccount` and the native `GetUser` adapter both enforce exact
+account binding, native identity/activity markers and deleted-state validity.
+Preserve authenticated final API scope/credential binding, bounded capture,
+HTTP/retry/context classification and unknown native members. Missing/null
+activity is an invalid reply; inactive/deleted accounts refuse. One exact-ID
+read is shared across all issue keys, separately from query-search matches.
+Resolve all requested fields before publishing any; no lookup proves watcher
+permission or issue existence. New Jira seams belong in shared failing test
+stubs, never silent successful unused methods.
+
+User search validates every raw native row through `jira.DecodeNativeObject`
+before typed decoding or page publication. Reject duplicate decoded root members
+and case variants of accountId/active/deleted, including escaped duplicates;
+permissive typed JSON decoding cannot establish identity or activity. Preserve
+unknown member bytes, absent/null email, fetched-row paging, completed prior
+pages and complete unique-active resolution. An invalid later row publishes no
+part of its page and cannot authorize an account write. Context checks precede
+transport entry and publication. Use the same shared admission for discovery,
+watcher queries and assignee email; never add per-command decoders.
+
+Current-user authentication admits raw JSON through `jira.DecodeNativeObject`
+with generated `UserDetails` properties before typed decoding. Reject duplicate
+decoded root names and case variants of native members before authentication,
+credential/settings publication or @me writes. Preserve the existing streamed
+EOF confirmation and its configured timeout/cancellation, authenticated scope,
+HTTP taxonomy, safe-read retry receipt, opaque IDs and native unknown bytes.
+Current-user authentication does not require active=true; absent/false activity
+and privacy-hidden nullable values retain their existing semantics. Keep the
+injected-client identity guard independent of transport admission.

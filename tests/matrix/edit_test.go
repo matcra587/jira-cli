@@ -220,15 +220,21 @@ func TestEditValidateRemoteResolvesMe(t *testing.T) {
 	t.Parallel()
 	stub := fwNewStub(t)
 	res := fwExec(t, stub.url(), nil, "", append(fwEditArgs("--assignee", "@me"), "--dry-run", "--validate-remote")...)
-	env := fwParse(t, res)
+	env := fwSuccess(t, res)
 	if got := fwAt(t, fwPayload(t, env), "fields", "assignee", "accountId"); got != fwAccountID {
 		t.Fatalf("fields.assignee.accountId = %#v, want the resolved %q", got, fwAccountID)
 	}
 	if len(stub.find("GET", "/rest/api/3/myself")) == 0 {
 		t.Fatalf("no GET /myself recorded; requests: %v", stub.requests())
 	}
+	if len(stub.find("GET", "/rest/api/3/issue/KEY-123/editmeta")) != 1 || len(stub.find("PUT", "/rest/api/3/issue/")) != 0 {
+		t.Fatal("explicit edit preflight omitted metadata or wrote")
+	}
+	if got := fwAt(t, env.Data, "results", 0, "data", "field_preflight", "fields"); len(got.([]any)) != 1 {
+		t.Fatal("edit metadata preflight omitted checked fields")
+	}
 	Prove(t, fwEditPath, "validate-remote",
-		"--dry-run --validate-remote sent GET /myself and the payload carries the RESOLVED account id in place of @me")
+		"remote preview resolves @me once, reads issue-bound editable field metadata, publishes checked field IDs and sends no write")
 }
 
 // TestEditMarkdownRoutes proves the Markdown route's two flags on edit.

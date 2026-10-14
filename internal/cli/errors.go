@@ -93,8 +93,17 @@ const CodeAPIResponseIncomplete = "api_response_incomplete"
 // CodeJiraPreconditionFailed means Jira refused the supplied HTTP precondition.
 const CodeJiraPreconditionFailed = "jira_precondition_failed"
 
+const (
+	CodeUserNotFound             = "user_not_found"
+	CodeUserAmbiguous            = "user_ambiguous"
+	CodeUserResolutionIncomplete = "user_resolution_incomplete"
+)
+
 // CodeUserSearchResponseInvalid reports malformed or repeated upstream pages.
 const CodeUserSearchResponseInvalid = "user_search_response_invalid"
+
+// CodeUserLookupResponseInvalid reports an unusable or mismatched exact-account reply.
+const CodeUserLookupResponseInvalid = "user_lookup_response_invalid"
 
 // CodeCurrentUserResponseInvalid reports an unusable upstream account response.
 const CodeCurrentUserResponseInvalid = "current_user_response_invalid"
@@ -190,12 +199,14 @@ const (
 	CodeIssueMetadataUnavailable     = "issue_metadata_unavailable"
 	CodeIssueTypeUnknown             = "issue_type_unknown"
 	CodeIssueTypeAmbiguous           = "issue_type_ambiguous"
+	CodeIssueFieldPreflightFailed    = "issue_field_preflight_failed"
 )
 
 // registry maps every code to its exit and hint. The shared not-found hint
 // stays resource-neutral on purpose: jira_not_found covers every Jira 404
 // (issue, board, user, …), so it says "identifier", never "issue key".
 var registry = map[string]spec{
+	CodeIssueFieldPreflightFailed:       {exit: ExitValidation, hint: "Inspect this context with issue create/edit --generate-json and choose an available field and operation. No write was sent for the refused context; metadata does not validate field values or guarantee permission."},
 	CodeIssueEditDraftInvalid:           {exit: ExitValidation, hint: "Keep source.json and description.md. Inspect the readiness manifest and native backup; repair authored Markdown with issue edit resume. No candidate or Jira write was accepted."},
 	CodeIssueEditDraftChanged:           {exit: ExitValidation, hint: "Retain the original native backup and saved work. Inspect the changed directory or source before reopening; do not replace an existing draft or retry creation over it."},
 	CodeIssueEditDraftIO:                {exit: ExitValidation, hint: "Inspect retained recovery paths and acknowledged publication effects before retrying. Check local permissions, free space and hard-link support; partial creation and editor saves may already exist."},
@@ -243,6 +254,10 @@ var registry = map[string]spec{
 	CodeSelectorIncomplete:              {exit: ExitServer, hint: "The complete target set could not be resolved; nothing was written. Inspect the search with `jira issue list --output=json`, or review explicit keys and pass them through `--from-file`."},
 	CodeOutputWriteFailed:               {exit: ExitOutput, hint: "The result could not be written to the destination — a mutation may still have happened — check the affected Jira resource before running the command again."},
 	CodeAPIResponseIncomplete:           {exit: ExitOutput, hint: "Inspect the partial HTTP receipt. Verify mutation outcomes before retrying; for a read, allow a larger --max-response-bytes or fix the interrupted response."},
+	CodeUserNotFound:                    {exit: ExitValidation, hint: "No visible active match was returned; permissions or privacy can restrict search. Use jira user search and pass the intended account ID."},
+	CodeUserAmbiguous:                   {exit: ExitValidation, hint: "Use jira user search to inspect visible matches, then pass the intended account ID explicitly."},
+	CodeUserResolutionIncomplete:        {exit: ExitValidation, hint: "The visible search window could not establish one account. Use jira user search and pass the intended account ID explicitly."},
+	CodeUserLookupResponseInvalid:       {exit: ExitServer, hint: "Jira returned an unusable or mismatched account reply. Inspect the intended account ID; the lookup does not establish watcher permissions."},
 	CodeUserSearchResponseInvalid:       {exit: ExitServer, hint: "Inspect any retained user matches. Jira returned a malformed or repeated page; narrow the query or inspect the user/search endpoint with `jira api get`."},
 	CodeCurrentUserResponseInvalid:      {exit: ExitServer, hint: "Jira returned a malformed current-account response. Inspect it with `jira api get /rest/api/3/myself`; authentication was not confirmed and account-dependent writes were not started."},
 	CodeBoardResponseInvalid:            {exit: ExitServer, hint: "Jira returned a malformed board or associated-project page. Inspect the Agile endpoint with `jira api get` before retrying."},
@@ -390,6 +405,14 @@ func MapError(err error) Classification {
 		return newError(CodeInsecureScheme, err)
 	case errors.Is(err, adapterjira.ErrUnsafeRedirect):
 		return newError(CodeRedirectRefused, err)
+	case errors.Is(err, core.ErrUserNotFound):
+		return newError(CodeUserNotFound, err)
+	case errors.Is(err, core.ErrUserAmbiguous):
+		return newError(CodeUserAmbiguous, err)
+	case errors.Is(err, core.ErrUserResolutionIncomplete):
+		return newError(CodeUserResolutionIncomplete, err)
+	case errors.Is(err, core.ErrUserLookupResponseInvalid):
+		return newError(CodeUserLookupResponseInvalid, err)
 	case errors.Is(err, adapterjira.ErrUserSearchResponseInvalid):
 		return newError(CodeUserSearchResponseInvalid, err)
 	case errors.Is(err, adapterjira.ErrCurrentUserResponseInvalid):
@@ -437,6 +460,11 @@ func MapError(err error) Classification {
 		}
 		e := newError(code, err)
 		e.Field = "type"
+		return e
+	}
+	if preflight, ok := errors.AsType[*core.IssueFieldPreflightError](err); ok {
+		e := newError(CodeIssueFieldPreflightFailed, err)
+		e.Field = preflight.Field
 		return e
 	}
 	if apiErr, ok := errors.AsType[*adapterjira.APIError](err); ok {

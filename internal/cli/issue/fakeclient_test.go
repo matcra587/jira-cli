@@ -16,7 +16,7 @@ import (
 // which one rather than a nil-pointer panic or a silent zero value.
 //
 // It exists because the alternative had a running cost this package kept
-// paying. core.JiraClient is twenty-one methods and each fake spelled out
+// paying. core.JiraClient has many methods and each fake spelled out
 // every one of them; adding a seam meant editing ten files, and when two
 // branches each added one, the merge was textually clean and the test
 // build broke in both directions — neither side's fakes had the other's
@@ -77,6 +77,10 @@ func (unusedJiraClient) GetWatchers(context.Context, string) (core.WatcherRead, 
 
 func (unusedJiraClient) CurrentUser(context.Context) (core.UserRead, error) {
 	return core.UserRead{}, unused("CurrentUser")
+}
+
+func (unusedJiraClient) GetUser(context.Context, string) (core.UserRead, error) {
+	return core.UserRead{}, unused("GetUser")
 }
 
 func (unusedJiraClient) SearchUsers(context.Context, string, int, int) (core.UserSearchRead, error) {

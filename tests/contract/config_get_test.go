@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	xos "github.com/gechr/x/os"
+
 	"github.com/matcra587/jira-cli/internal/envelope"
 )
 
@@ -57,7 +59,13 @@ func TestConfigGetRefusesMissingExplicitFileAndUnknownKeyBeforeIO(t *testing.T) 
 
 func TestConfigGetRedactsSecretsAndKeepsHumanControlsOut(t *testing.T) {
 	t.Parallel()
-	path := filepath.Join(t.TempDir(), "stored-\x1b[31m.toml")
+	name := "stored-\x1b[31m.toml"
+	if xos.IsWindows() {
+		// Windows cannot represent control characters in a filename. Retain
+		// literal Unicode paths and the stored-value control checks below.
+		name = "stored-古い.toml"
+	}
+	path := filepath.Join(t.TempDir(), name)
 	const token = "synthetic-get-token"
 	const siteSecret = "synthetic-get-password"
 	const file = "api_token='" + token + "'\nbase_url='https://user:" + siteSecret + "@example.invalid'\nemail=\"saved\\u001b[31m@example.invalid\"\n"

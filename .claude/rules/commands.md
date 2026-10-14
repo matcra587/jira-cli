@@ -593,3 +593,93 @@ Bash literal callback decoding normalizes the ANSI-C quoting emitted by
 unsupported escapes or malformed bytes, and never evaluate expansions. Decode
 completed context with the same owner. Guard a Unicode directory with two Tabs
 and native executed argv; a single completed basename cannot prove continuation.
+
+Core comparisons are untagged results; publish verification rows through
+envelope.VerifiedField at the shared CLI boundary. Both ordinary and terse
+--verify help describe later observation after acknowledgement.
+
+Requested-field verification belongs to core.CompareIssueWrite and the shared
+create/edit readback owner. Request authored fields/update IDs plus existing
+summary/status/updated once. The production adapter retains exact native field bytes separately from typed
+presentation and admits bounded complete authenticated JSON before comparison; malformed or unavailable readbacks retain
+acknowledged writes with verify_failed. Typed verified.fields rows preserve
+native observed absent/null/value and report matches/differs/unverified in sorted
+field order. Exact numeric spelling stays significant. Known identity/collection
+checks tolerate response metadata, including identified cascading-select children.
+Collection replacements require both requested
+and observed membership; add/remove updates may retain untouched members. Unsupported or
+ambiguous updates, absent fields and different ADF remain unverified, including
+custom-field documents admitted by the shared ADF parser. Derive
+warnings from typed Spec results in target order, never the concurrent global
+queue. A later difference neither proves a Jira drop nor supplies remote CAS.
+
+Explicit create/edit --validate-remote checks requested field IDs and native
+operation names against complete context-bound metadata through shared discovery
+and preflight owners. Preserve request values and bytes; never convert, strip or
+infer fields. Bare previews stay local; unflagged live requests retain Jira value
+validation. Native create ID/name meaning must not be guessed: a display name
+that equals another type's ID still selects by name. Project/issuetype create
+identities retain their structural screen exemption. Publish only checked field
+IDs in envelope.IssueFieldPreflight, per key on edit; values, requiredness,
+permissions, top-level members and future write success are outside this check.
+Refused or malformed contexts send no write; ordered partial successes remain
+real and are never replayed. Cancellation cannot admit a completed metadata read.
+Metadata readers must validate the final successful HTTP reply against the client's
+authenticated API scope and exact credentials through the shared reply owner.
+Credential-free redirects cannot establish project, type, field or edit context.
+Keep raw API media redirects usable and preserve ordinary HTTP error classification.
+
+Bare email lookup is opt-in for the assignee flag through command.AccountField.
+Use core.ResolveVisibleUser and ActiveUserSearchPage for the same authenticated
+visible-search policy as user discovery. Preserve privacy-hidden email; the sole
+visible query match is not a verified exact email address or assignability proof.
+An observed empty page establishes completion; short pages do not. Missing,
+ambiguous, repeated, invalid or capped results cannot authorize a write. Keep
+all bound account fields unchanged until every requested remote lookup succeeds, and
+check cancellation after reads. Bare previews retain email with an unresolved
+warning and open no client or cached preferences unless @me also needs them.
+Native payload account IDs are never interpreted as email lookup requests.
+
+Watcher add/remove accepts explicit --user-query name/email searches through
+command.AccountField.LookupQuery and the shared account resolver. --user stays
+literal IDs/@me; the flags conflict even when either was authored empty. Pure
+validation rejects blank query before I/O. Query text is never @me or cached
+identity, even when spelled @me. Search requires one complete visible active
+match and inherits the shared authenticated response, bounds and cancellation
+policy. Resolve once before keyed work; a match is not exact email/name proof or
+watcher permission. Bare previews retain user_query with account_query_unresolved
+and empty account_id, opening no client or preferences for that query. Live and
+explicit remote previews publish the resolved ID plus original query context.
+
+Literal watcher preflight uses `AccountField.ValidateRemoteID` through the shared
+`ResolveAccounts` owner only under explicit `--validate-remote`. Bare previews
+and ordinary literal writes remain lazy; @me/query lookup keeps its own policy.
+`core.ResolveActiveAccount` and the native `GetUser` adapter both enforce exact
+account binding, native identity/activity markers and deleted-state validity.
+Preserve authenticated final API scope/credential binding, bounded capture,
+HTTP/retry/context classification and unknown native members. Missing/null
+activity is an invalid reply; inactive/deleted accounts refuse. One exact-ID
+read is shared across all issue keys, separately from query-search matches.
+Resolve all requested fields before publishing any; no lookup proves watcher
+permission or issue existence. New Jira seams belong in shared failing test
+stubs, never silent successful unused methods.
+
+User search validates every raw native row through `jira.DecodeNativeObject`
+before typed decoding or page publication. Reject duplicate decoded root members
+and case variants of accountId/active/deleted, including escaped duplicates;
+permissive typed JSON decoding cannot establish identity or activity. Preserve
+unknown member bytes, absent/null email, fetched-row paging, completed prior
+pages and complete unique-active resolution. An invalid later row publishes no
+part of its page and cannot authorize an account write. Context checks precede
+transport entry and publication. Use the same shared admission for discovery,
+watcher queries and assignee email; never add per-command decoders.
+
+Current-user authentication admits raw JSON through `jira.DecodeNativeObject`
+with generated `UserDetails` properties before typed decoding. Reject duplicate
+decoded root names and case variants of native members before authentication,
+credential/settings publication or @me writes. Preserve the existing streamed
+EOF confirmation and its configured timeout/cancellation, authenticated scope,
+HTTP taxonomy, safe-read retry receipt, opaque IDs and native unknown bytes.
+Current-user authentication does not require active=true; absent/false activity
+and privacy-hidden nullable values retain their existing semantics. Keep the
+injected-client identity guard independent of transport admission.

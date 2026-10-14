@@ -64,6 +64,10 @@ type fakeClient struct {
 
 func (f *fakeClient) BaseURL() string { return "" }
 
+func (f *fakeClient) GetUser(context.Context, string) (core.UserRead, error) {
+	return core.UserRead{}, errors.New("unexpected exact-user lookup during authentication")
+}
+
 func (f *fakeClient) SearchUsers(context.Context, string, int, int) (core.UserSearchRead, error) {
 	return core.UserSearchRead{}, errors.New("unexpected user search during authentication")
 }

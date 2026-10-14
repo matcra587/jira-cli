@@ -20,7 +20,14 @@ func TestLoginRejectsMalformedIdentityBeforeOpeningCredentialStore(t *testing.T)
 		{name: "live", dryRun: false},
 		{name: "preview", dryRun: true},
 	} {
-		for _, body := range []string{`null`, `{}`, `{"accountId":""}`, `{"accountId":" \t"}`, `{"accountId":"fixture"} {}`} {
+		for _, body := range []string{
+			`null`, `{}`, `{"accountId":""}`, `{"accountId":" \t"}`, `{"accountId":"fixture"} {}`,
+			`{"accountId":null,"accountId":"fixture"}`,
+			`{"accountId":"other","account\u0049d":"fixture"}`,
+			`{"accountId":"fixture","ACCOUNTID":"other"}`,
+			`{"accountId":"fixture","active":false,"active":true}`,
+			`{"accountId":"fixture","EmailAddress":"other@example.invalid"}`,
+		} {
 			t.Run(body+"/"+mode.name, func(t *testing.T) {
 				t.Parallel()
 				calls := 0
@@ -38,7 +45,8 @@ func TestLoginRejectsMalformedIdentityBeforeOpeningCredentialStore(t *testing.T)
 				opened := false
 				store := newFakeStore()
 				deps := Deps{
-					Credentials: func() (core.CredentialStore, error) { opened = true; return store, nil },
+					IdentityTarget: loginTestTarget(t),
+					Credentials:    func() (core.CredentialStore, error) { opened = true; return store, nil },
 					ClientFor: func(site, email, candidate, cloudID string) (core.JiraClient, error) {
 						return adapterjira.New(adapterjira.Config{BaseURL: site, CloudID: cloudID, Email: email, APIToken: candidate, HTTPClient: &http.Client{Transport: transport}})
 					},

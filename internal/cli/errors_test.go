@@ -54,6 +54,8 @@ func TestMapError(t *testing.T) {
 		{name: "unavailable metadata client", err: fmt.Errorf("setup: %w", core.ErrIssueMetadataUnavailable), wantCode: CodeIssueMetadataUnavailable, wantExit: ExitValidation},
 		{name: "unknown project issue type", err: &core.IssueTypeResolutionError{Requested: "missing"}, wantCode: CodeIssueTypeUnknown, wantExit: ExitValidation},
 		{name: "ambiguous project issue type", err: &core.IssueTypeResolutionError{Requested: "Task", Ambiguous: true}, wantCode: CodeIssueTypeAmbiguous, wantExit: ExitValidation},
+		{name: "unavailable issue field operation", err: &core.IssueFieldPreflightError{Field: "labels", Operation: "remove", Reason: "unavailable"}, wantCode: CodeIssueFieldPreflightFailed, wantExit: ExitValidation},
+		{name: "canceled field preflight", err: errors.Join(&core.IssueFieldPreflightError{Field: "labels"}, context.Canceled), wantCode: "canceled", wantExit: ExitCanceled},
 		{name: "canceled metadata", err: errors.Join(core.ErrIssueMetadataInvalid, context.Canceled), wantCode: "canceled", wantExit: ExitCanceled},
 		{name: "expired metadata", err: errors.Join(core.ErrIssueMetadataUnavailable, context.DeadlineExceeded), wantCode: "timeout", wantExit: ExitTimeout},
 		{name: "canceled current account", err: errors.Join(adapterjira.ErrCurrentUserResponseInvalid, context.Canceled), wantCode: "canceled", wantExit: ExitCanceled},
@@ -134,7 +136,7 @@ func TestRegistryIsComplete(t *testing.T) {
 	t.Parallel()
 	statuses := []int{400, 401, 403, 404, 405, 409, 412, 429, 500, 502, 503}
 	codes := map[string]bool{"canceled": true, "timeout": true, "validation_failed": true, "output_write_failed": true, CodeRedirectRefused: true, CodeAPIResponseIncomplete: true}
-	for _, err := range []error{attachmentfiles.ErrInvalid, core.ErrAttachmentResponseInvalid, core.ErrCommentResponseInvalid, core.ErrTransitionResponseInvalid, core.ErrTransitionReadInvalid, core.ErrWeblinkResponseInvalid, core.ErrRankResponseInvalid, core.ErrIssueDeleteResponseInvalid, core.ErrIssueCreateResponseInvalid, core.ErrIssueCreateFollowupFailed, core.ErrIssueDescriptionInvalid, core.ErrIssueDescriptionScopeChanged, core.ErrIssueDescriptionUnavailable, core.ErrIssueEditDraftInvalid, core.ErrIssueEditDraftChanged, core.ErrIssueEditDraftIO, core.ErrIssueMetadataInvalid, core.ErrIssueMetadataUnavailable, &core.IssueTypeResolutionError{}, &core.IssueTypeResolutionError{Ambiguous: true}} {
+	for _, err := range []error{core.ErrUserNotFound, core.ErrUserAmbiguous, core.ErrUserResolutionIncomplete, core.ErrUserSearchResponseInvalid, core.ErrUserLookupResponseInvalid, attachmentfiles.ErrInvalid, core.ErrAttachmentResponseInvalid, core.ErrCommentResponseInvalid, core.ErrTransitionResponseInvalid, core.ErrTransitionReadInvalid, core.ErrWeblinkResponseInvalid, core.ErrRankResponseInvalid, core.ErrIssueDeleteResponseInvalid, core.ErrIssueCreateResponseInvalid, core.ErrIssueCreateFollowupFailed, core.ErrIssueDescriptionInvalid, core.ErrIssueDescriptionScopeChanged, core.ErrIssueDescriptionUnavailable, core.ErrIssueEditDraftInvalid, core.ErrIssueEditDraftChanged, core.ErrIssueEditDraftIO, core.ErrIssueMetadataInvalid, core.ErrIssueMetadataUnavailable, &core.IssueTypeResolutionError{}, &core.IssueTypeResolutionError{Ambiguous: true}, &core.IssueFieldPreflightError{}} {
 		codes[MapError(err).Code] = true
 	}
 	for _, s := range statuses {

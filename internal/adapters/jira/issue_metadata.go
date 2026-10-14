@@ -66,11 +66,13 @@ func (c *Client) readIssueMetadata(ctx context.Context, path []string, query url
 		return nil, err
 	}
 	// Reuse the raw transport's bounded capture and retry/auth/scope owners.
-	// DoAPI takes raw segments and its shared request builder encodes them.
+	// The shared request builder encodes raw segments.
 	// Pre-encoding would reject legitimate Unicode or spaces as unsafe input.
-	response, err := c.DoAPI(ctx, core.APIRequest{
+	response, err := c.doAPI(ctx, core.APIRequest{
 		Method: http.MethodGet, Endpoint: "/" + strings.Join(path, "/"), Query: query,
 		MaxResponseBytes: core.DefaultMaxAPIResponseBytes,
+	}, func(response *http.Response) error {
+		return c.requireAuthenticatedReply(response, core.ErrIssueMetadataInvalid, "issue metadata")
 	})
 	if err != nil {
 		return nil, err

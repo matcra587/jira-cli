@@ -257,3 +257,18 @@ raw API read, then proves both offline target callbacks from an isolated cache.
 Expected IDs come from an independent native-response projection. Credential
 storage is disabled and HTTP proxies are unreachable during callbacks; this
 checks that completion uses the observation without contacting Jira.
+
+Requested-field verification acceptance creates one fresh owned issue and checks
+its project/type/summary/ownership label readback. It then adds and removes only
+one synthetic label while preserving the ownership label, verifying the summary
+and final label membership. Independent raw native reads confirm the observed
+state. Malformed/unavailable readbacks and ignored changes use hermetic fixtures;
+no live write is replayed to plant those faults. This is a post-write observation,
+not a server-enforced precondition or attribution of a later difference.
+
+`TestLiveIssueFieldPreflight` checks complete create and issue-bound edit metadata
+with the normal CLI. A read-only create preview and its owned live creation keep
+the same native payload; an admitted edit retains its checked field IDs. An
+unavailable field refuses on the owned issue, followed by an independent native
+state read. This tests screen/operation admission, not value validation, future
+permissions or server-enforced concurrency protection.

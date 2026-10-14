@@ -6,7 +6,7 @@ import "testing"
 
 func TestLiveWatcherMutationOwnershipGrammar(t *testing.T) {
 	t.Parallel()
-	r := &liveRun{verified: true, watcherAccountID: "current-account", manifest: liveManifest{Issues: []ownedIssue{
+	r := &liveRun{verified: true, account: "self@example.test", watcherAccountID: "current-account", watcherQuery: "self@example.test", manifest: liveManifest{Issues: []ownedIssue{
 		{Key: "KEY-1", ID: "1"},
 		{Key: "KEY-2", ID: "2"},
 		{Key: "KEY-3", ID: "3", Deleted: true},
@@ -15,6 +15,8 @@ func TestLiveWatcherMutationOwnershipGrammar(t *testing.T) {
 		{"issue", "watchers", "add", "KEY-1", "--user=@me"},
 		{"issue", "watchers", "remove", "KEY-1", "--user", "current-account", "--dry-run", "--validate-remote"},
 		{"issue", "watchers", "add", "KEY-1", "--user=current-account", "--no-readback", "--parallelism=1"},
+		{"issue", "watchers", "add", "KEY-1", "--user-query=self@example.test"},
+		{"issue", "watchers", "remove", "KEY-1", "--user-query", "self@example.test", "--dry-run", "--validate-remote"},
 	} {
 		if err := r.checkMutation([]string{"KEY-1"}, args); err != nil {
 			t.Fatalf("owned current-account watcher workflow refused: %v", err)
@@ -30,6 +32,11 @@ func TestLiveWatcherMutationOwnershipGrammar(t *testing.T) {
 		"extra-target":       {"issue", "watchers", "add", "KEY-1", "KEY-2", "--user=@me"},
 		"duplicate-target":   {"issue", "watchers", "add", "KEY-1", "KEY-1", "--user=@me"},
 		"foreign-account":    {"issue", "watchers", "add", "KEY-1", "--user=other-account"},
+		"foreign-query":      {"issue", "watchers", "add", "KEY-1", "--user-query=other@example.test"},
+		"query-sentinel":     {"issue", "watchers", "add", "KEY-1", "--user-query=@me"},
+		"two-identifiers":    {"issue", "watchers", "add", "KEY-1", "--user=@me", "--user-query=self@example.test"},
+		"missing-query":      {"issue", "watchers", "add", "KEY-1", "--user-query"},
+		"repeated-query":     {"issue", "watchers", "add", "KEY-1", "--user-query=self@example.test", "--user-query=self@example.test"},
 		"missing-account":    {"issue", "watchers", "add", "KEY-1"},
 		"missing-user-value": {"issue", "watchers", "add", "KEY-1", "--user"},
 		"repeated-user":      {"issue", "watchers", "add", "KEY-1", "--user=@me", "--user=current-account"},
@@ -59,6 +66,11 @@ func TestLiveWatcherMutationOwnershipGrammar(t *testing.T) {
 		t.Fatal("watcher mutation accepted an unbound current account")
 	}
 	r.watcherAccountID = "current-account"
+	r.watcherQuery = ""
+	if err := r.checkMutation([]string{"KEY-1"}, []string{"issue", "watchers", "add", "KEY-1", "--user-query=self@example.test"}); err == nil {
+		t.Fatal("watcher mutation accepted an unbound query")
+	}
+	r.watcherQuery = "self@example.test"
 	r.verified = false
 	if err := r.checkMutation([]string{"KEY-1"}, args); err == nil {
 		t.Fatal("watcher mutation accepted unverified credentials")

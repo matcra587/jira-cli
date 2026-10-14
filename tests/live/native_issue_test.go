@@ -18,17 +18,22 @@ import (
 )
 
 type nativeIssueInput struct {
-	key    string
-	parent string
-	digest [sha256.Size]byte
+	key       string
+	parent    string
+	digest    [sha256.Size]byte
+	preflight bool
 }
 
-// Only this run's fixed property, owned-parent and custom-date workflows register issue input.
+// Only fixed property, owned-parent, custom-date and missing-field preflight workflows register issue input.
 // Exact arguments, active ownership and a byte digest prevent a registered
 // file from becoming a route to selectors, fan-out or another issue.
 func (r *liveRun) checkNativeIssueMutation(keys, args []string) error {
 	if len(args) > 0 && args[len(args)-1] == "--dry-run" {
 		args = args[:len(args)-1]
+	}
+	preflight := len(args) == 6 && args[5] == "--validate-remote"
+	if preflight {
+		args = args[:5]
 	}
 	if !r.verified || len(keys) != 1 || len(args) != 5 || args[0] != "issue" || args[1] != "edit" || args[2] != keys[0] || args[3] != "--json-input" || r.ownedLiveIssue(keys[0]) == nil {
 		return errors.New("native live issue edit requires exactly one active owned target and registered input")
@@ -36,6 +41,9 @@ func (r *liveRun) checkNativeIssueMutation(keys, args []string) error {
 	registered, ok := r.issueInputs[args[4]]
 	if !ok || registered.key != keys[0] {
 		return errors.New("native live issue input is not registered for this owned target")
+	}
+	if registered.preflight != preflight {
+		return errors.New("native preflight input requires its explicit metadata check")
 	}
 	if registered.parent != "" && r.ownedLiveIssue(registered.parent) == nil {
 		return errors.New("native live parent input requires an active owned parent")
@@ -45,6 +53,25 @@ func (r *liveRun) checkNativeIssueMutation(keys, args []string) error {
 		return errors.New("native live issue input changed after registration")
 	}
 	return nil
+}
+
+// nativeMissingFieldInput registers one fixed refusal probe. The mandatory
+// metadata check prevents it becoming an arbitrary live issue payload route.
+func (r *liveRun) nativeMissingFieldInput(t *testing.T, key string) string {
+	t.Helper()
+	if !r.verified || r.ownedLiveIssue(key) == nil {
+		t.Fatal("native preflight input requires a verified active owned issue")
+	}
+	data := []byte(`{"fields":{"jira_cli_preflight_missing_fixture":false}}`)
+	path := filepath.Join(r.dir, "missing-field-"+output.NewRequestID()+".json")
+	if err := xos.AtomicWrite(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if r.issueInputs == nil {
+		r.issueInputs = make(map[string]nativeIssueInput)
+	}
+	r.issueInputs[path] = nativeIssueInput{key: key, digest: sha256.Sum256(data), preflight: true}
+	return path
 }
 
 const livePropertyValue = `{"enabled":false,"empty":[],"nullable":null,"markup":"<>&","count":0}`

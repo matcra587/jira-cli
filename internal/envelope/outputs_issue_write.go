@@ -1,6 +1,10 @@
 package envelope
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"github.com/matcra587/jira-cli/internal/jira"
+)
 
 // IssueCreateOutput is the `issue.create` operation's payload: the request
 // that was composed, and the issue Jira made from it.
@@ -42,6 +46,9 @@ type IssueCreateOutput struct {
 	// `--json-input`. Live --generate-json publishes a separate read shape
 	// with context-specific metadata and unfilled value placeholders.
 	Payload json.RawMessage `json:"payload"`
+	// FieldPreflight records an explicitly requested metadata check. Values,
+	// permissions and top-level request members are outside that check.
+	FieldPreflight *IssueFieldPreflight `json:"field_preflight,omitempty"`
 	// DescriptionRoute names which of the three input routes produced the
 	// description: "adf" when the whole payload came from --json-input,
 	// "markdown" for --markdown/--markdown-file, and empty when the issue
@@ -128,6 +135,8 @@ type IssueEditOutput struct {
 // would republish one fact once per key, which is the exact duplication
 // the top-level placement above exists to avoid.
 type IssueEditData struct {
+	// FieldPreflight is this issue's complete screen/operation check, when asked.
+	FieldPreflight *IssueFieldPreflight `json:"field_preflight,omitempty"`
 	// Verified is this key's readback, present only under `--verify`.
 	Verified *VerifiedIssue `json:"verified,omitempty"`
 	// VerifyFailed reports that this key's readback was attempted and did
@@ -140,12 +149,9 @@ type IssueEditData struct {
 
 // VerifiedIssue is what a `--verify` readback found stored after the write.
 //
-// Deliberately NARROW — three fields, not the whole issue. The flag's
-// question is "did the write land?", and the cheapest honest answer is the
-// issue as the site now reports it in the members a create or an edit is
-// most likely to have touched. A caller who wants everything runs `jira
-// issue view`, which exists, returns the full field set, and does not have
-// to be reimplemented inside a write's envelope.
+// Existing summary/status/time metadata accompanies comparisons of requested
+// fields. A readback is a later observation, not proof against concurrent
+// writers or evidence that Jira caused a difference.
 //
 // It is also what makes the flag worth gating. The readback is a SECOND
 // round trip — the create endpoint answers with an identity and the edit
@@ -161,6 +167,24 @@ type VerifiedIssue struct {
 	// are exempt from the CLI's UTC-RFC-3339 rule by design (M5), like
 	// every other wire-sourced time in this contract.
 	Updated string `json:"updated"`
+	// Fields reports only authored field IDs, in sorted order. Observed native
+	// absence/null/value remains distinct; unsupported checks stay unverified.
+	Fields []VerifiedField `json:"fields"`
+}
+
+// VerifiedField publishes one requested field's later comparison and observed
+// native value. An absent value remains distinct from explicit null.
+type VerifiedField struct {
+	Field    string                         `json:"field"`
+	Outcome  string                         `json:"outcome"`
+	Reason   string                         `json:"reason"`
+	Observed jira.Nullable[json.RawMessage] `json:"observed,omitzero"`
+}
+
+// IssueFieldPreflight identifies fields admitted by one context's complete
+// metadata snapshot. It does not validate values or guarantee a later write.
+type IssueFieldPreflight struct {
+	Fields []string `json:"fields"`
 }
 
 func init() {
@@ -171,13 +195,13 @@ func init() {
 		"description": "The issue created from the composed request, with the request that produced it.",
 		"properties": map[string]any{
 			"dry_run": map[string]any{
-				"description": "True when this was a preview. It composes the request without creating anything. --validate-remote permits account resolution reads; a local preview cannot establish server field validity.",
+				"description": "True when this was a preview. It composes the request without creating anything. --validate-remote permits account resolution and complete context-bound field/operation metadata reads. Values and permissions remain unchecked; a local preview cannot establish server field validity.",
 			},
 			"attempted": map[string]any{"description": "True when the client creation operation was invoked. This does not prove Jira received the request; cancellation can stop transport."},
 			"applied":   map[string]any{"description": "True only when Jira acknowledged creation with HTTP 201, independently of usable identity or command failure. Inspect before repeating create or clone."},
 			"receipt":   map[string]any{"description": "The complete native creation response object, preserving optional transition/watchers outcomes and future members. A failed followup retains the created issue identity. Absent when no complete object was decoded."},
 			"payload": map[string]any{
-				"description": "The request body composed from --json-input, the Markdown route and the field flags. Identical on the preview and the live path, and valid input for --json-input.",
+				"description": "The request body composed from --json-input, the Markdown route and the field flags. Live and explicit remote previews contain resolved account flags; local previews may retain warned account placeholders. Native JSON account IDs remain literal. Valid input for --json-input.",
 			},
 			"description_route": map[string]any{
 				"description": "Which input route produced the description: adf (--json-input), markdown (--markdown/--markdown-file), or empty for none.",
@@ -185,8 +209,11 @@ func init() {
 			"issue": map[string]any{
 				"description": "The usable identity returned with native HTTP 201. It survives command failure, but is absent on previews and unusable responses; applied can still be true without an identity.",
 			},
+			"field_preflight": map[string]any{
+				"description": "Requested field IDs admitted by complete context-bound metadata under --validate-remote. Values, requiredness, permissions and top-level request members are outside this screen/operation check; metadata does not guarantee a later write.",
+			},
 			"verified": map[string]any{
-				"description": "The issue as the site reports it after the write. Present only under --verify, which pays for a second request.",
+				"description": "Later summary/status/time and sorted requested-field comparisons, with native observed absent/null/value. Present only under --verify. Differences and incomplete checks retain the acknowledged write; this observation is not concurrency protection.",
 			},
 			"verify_failed": map[string]any{
 				"description": "True when --verify was asked for and the readback did not answer. The issue was still created; only the confirmation is missing.",
@@ -198,13 +225,13 @@ func init() {
 		"description": "The field changes applied to each named issue, with the request that produced them.",
 		"properties": map[string]any{
 			"dry_run": map[string]any{
-				"description": "True when this was a preview. A preview composes the request and stops; it never contacts Jira, so it cannot report whether the issues exist or whether the values are valid.",
+				"description": "True when this was a preview. A preview composes the request without writing. --validate-remote permits account resolution and complete per-issue field/operation metadata reads; otherwise it stays local. Values and permissions remain unchecked.",
 			},
 			"notify": map[string]any{
 				"description": "Whether the request asked Jira to email the issue's watchers. This is what was REQUESTED, not what happened: suppressing the notification needs the administer Jira or administer project permission, and Jira ignores the request from a caller without it while reporting no difference. It rides the query string, so it does not appear in payload.",
 			},
 			"payload": map[string]any{
-				"description": "The request body sent to every key, composed from --json-input, the Markdown route and the field flags. Identical on the preview and the live path.",
+				"description": "The request body sent to every key, composed from --json-input, the Markdown route and the field flags. Live and explicit remote previews contain resolved account flags; local previews may retain warned account placeholders. Native JSON account IDs remain literal.",
 			},
 			"description_route": map[string]any{
 				"description": "Which input route produced the description: adf (--json-input), markdown (--markdown/--markdown-file), or empty for none.",

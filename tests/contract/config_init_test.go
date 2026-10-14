@@ -137,8 +137,9 @@ func TestConfigInitCreatesOnlyExplicitAccountMetadata(t *testing.T) {
 func TestConfigInitRequiresCompleteExplicitInputBeforeFileIO(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		name string
-		args []string
+		name        string
+		args        []string
+		invalidUTF8 bool
 	}{
 		{name: "neither"},
 		{name: "missing email", args: []string{"--base-url=https://example.invalid"}},
@@ -148,10 +149,13 @@ func TestConfigInitRequiresCompleteExplicitInputBeforeFileIO(t *testing.T) {
 		{name: "malformed site", args: []string{"--base-url=example.invalid", "--email=person@example.invalid"}},
 		{name: "credential site", args: []string{"--base-url=https://person:" + "private-marker" + "@example.invalid", "--email=person@example.invalid"}},
 		{name: "remote plaintext", args: []string{"--base-url=http://example.invalid", "--email=person@example.invalid"}},
-		{name: "invalid email utf8", args: []string{"--base-url=https://example.invalid", "--email=\xff"}},
-		{name: "invalid site utf8", args: []string{"--base-url=https://example.invalid/\xff", "--email=person@example.invalid"}},
+		{name: "invalid email utf8", args: []string{"--base-url=https://example.invalid", "--email=\xff"}, invalidUTF8: true},
+		{name: "invalid site utf8", args: []string{"--base-url=https://example.invalid/\xff", "--email=person@example.invalid"}, invalidUTF8: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.invalidUTF8 && xos.IsWindows() {
+				t.Skip("Windows UTF-16 argv cannot carry invalid UTF-8; in-process initialization guards retain raw-byte coverage")
+			}
 			path := filepath.Join(t.TempDir(), "new-parent", "settings.toml")
 			args := append([]string{"config", "init", "--config", path, "--output=json", "--no-input"}, tc.args...)
 			stdout, stderr, exit := runBinaryEnv(t, []string{"JIRA_BASE_URL=https://environment.example.invalid", "JIRA_EMAIL=environment@example.invalid", "JIRA_KEYRING=false"}, args...)

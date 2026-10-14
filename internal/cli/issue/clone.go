@@ -246,8 +246,10 @@ func newClone(deps Deps) *cobra.Command {
 			"A failed row can still carry `data.applied` (HTTP 201), a usable " +
 			"`data.clone` identity and the complete native `data.receipt`. " +
 			"Inspect these before retrying any source.\n\n" +
-			"`--dry-run` reports which issues would be cloned and stops. It " +
-			"contacts nobody, so it cannot show you the fields it would copy — " +
+			"`--dry-run` reports which issues would be cloned and stops. " +
+			"A bare preview contacts nobody. `--validate-remote` permits selector " +
+			"and account reads, including unique visible assignee email lookup. " +
+			"A preview cannot show you the fields it would copy — " +
 			"those live on the source, and reading them is what a live run does " +
 			"first. Known nonempty account-ID overrides are inspectable in " +
 			"data.account_overrides, including cached preview identity. They do " +
@@ -330,6 +332,9 @@ func newClone(deps Deps) *cobra.Command {
 				return err
 			}
 			if err := fields.Conflict(); err != nil {
+				return err
+			}
+			if err := command.ValidateAccountLookups(fields.AccountFields()); err != nil {
 				return err
 			}
 			// Parsed in Validate so a malformed pair is refused before any

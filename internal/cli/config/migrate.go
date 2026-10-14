@@ -20,7 +20,7 @@ import (
 
 type migrationFlags struct {
 	source, profile, directory, service string
-	yes                                 bool
+	yes, deferTUI                       bool
 }
 
 func newMigrate(deps Deps) *cobra.Command {
@@ -33,7 +33,7 @@ func newMigrate(deps Deps) *cobra.Command {
 			"--source-profile explicitly selects a legacy subset. Global --profile selects runtime settings and does not filter migration. " +
 			"The source default and all supported preferences are retained.\n\n" +
 			"--dry-run reads local files only and creates nothing. It does not inspect credentials. " +
-			"Unmapped preferences block conversion. " +
+			"Unmapped preferences block conversion; --defer-tui retains recognized TUI settings only in exact recovery bytes. " +
 			"Legacy environment token references are preserved without reading their values.\n\n" +
 			"A live conversion requires an unused --recovery-dir and --yes in headless mode. Protected configuration preimages " +
 			"and a durable per-resource journal precede provider writes. All provider destinations are resolved before writes; " +
@@ -51,6 +51,7 @@ $ jira config migrate --source=old.toml --config=settings.toml --recovery-dir=re
 			command.AddStringVar(cmd, &flags.directory, "recovery-dir", "", "Publish protected recovery in this unused explicit directory", command.FlagOpts{Terse: "Recovery directory", Placeholder: "DIR", Hint: "dir"})
 			command.AddStringVar(cmd, &flags.service, "legacy-keyring-service", "jira-cli", "Read the historical keyring service namespace", command.FlagOpts{Terse: "Historical keyring service", Placeholder: "NAME"})
 			command.AddBoolVar(cmd, &flags.yes, "yes", false, "Confirm conversion without prompting", command.FlagOpts{Terse: "Confirm conversion", Shorthand: "y"})
+			command.AddBoolVar(cmd, &flags.deferTUI, "defer-tui", false, "Retain recognized TUI settings in recovery for later migration", command.FlagOpts{Terse: "Defer TUI settings"})
 			command.AddDryRunFlag(cmd)
 		},
 		Validate:      func() error { return migrationRequired("source", flags.source) },
@@ -83,14 +84,18 @@ func runMigrate(ctx context.Context, deps Deps, inv command.Invocation, flags mi
 	if err != nil {
 		return out, migrationError(err)
 	}
-	migration, err := cfg.PrepareProfileMigration(ctx, source.Contents(), source.Path(), flags.profile)
+	options := cfg.LegacyMigrationOptions{DeferTUI: flags.deferTUI}
+	migration, err := cfg.PrepareProfileMigration(ctx, source.Contents(), source.Path(), flags.profile, options)
 	if err != nil {
 		return out, migrationError(err)
 	}
 	out.SourcePath, out.Path, out.Profile = source.Path(), target.Path(), migration.DefaultProfile()
 	out.Profiles = migration.Profiles()
 	out.SourceSHA256 = migration.SourceSHA256()
-	out.Mapped, out.Unmapped = migration.Mapped(), migration.Unmapped()
+	out.Mapped, out.Unmapped, out.Deferred = migration.Mapped(), migration.Unmapped(), migration.Deferred()
+	if out.Deferred == nil {
+		out.Deferred = []string{}
+	}
 	if out.Mapped == nil {
 		out.Mapped = []string{}
 	}
@@ -104,7 +109,7 @@ func runMigrate(ctx context.Context, deps Deps, inv command.Invocation, flags mi
 		}
 		return out, migrationError(cfg.ErrLegacyPreferencesUnmapped)
 	}
-	plan, err := cfg.PrepareProfileTransaction(ctx, source, target, flags.profile, flags.service)
+	plan, err := cfg.PrepareProfileTransaction(ctx, source, target, flags.profile, flags.service, options)
 	if err != nil {
 		return out, migrationError(err)
 	}
@@ -218,6 +223,9 @@ func renderMigrateHuman(v *output.View, env envelope.Envelope) error {
 		v.Line("converted profiles", cli.Text(strings.Join(out.Profiles, ", ")), "into", cli.Text(out.Path))
 	default:
 		v.Line("conversion incomplete; inspect retained recovery")
+	}
+	if len(out.Deferred) != 0 {
+		v.Line("TUI settings deferred; retained only in original source/recovery:", strings.Join(out.Deferred, ", "))
 	}
 	if out.RecoveryPublished {
 		v.Line("configuration recovery:", cli.Text(out.Recovery.Configuration))

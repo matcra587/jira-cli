@@ -155,6 +155,14 @@ func (s *fwStub) serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch {
+	case r.Method == http.MethodGet && r.URL.Path == "/rest/api/3/project/KEY":
+		fwWriteJSON(w, http.StatusOK, `{"id":"10402","key":"KEY"}`)
+	case r.Method == http.MethodGet && r.URL.Path == "/rest/api/3/issue/createmeta/10402/issuetypes":
+		fwWriteJSON(w, http.StatusOK, `{"startAt":0,"maxResults":50,"total":1,"issueTypes":[{"id":"10002","name":"Task"}]}`)
+	case r.Method == http.MethodGet && r.URL.Path == "/rest/api/3/issue/createmeta/10402/issuetypes/10002":
+		fwWriteJSON(w, http.StatusOK, `{"startAt":0,"maxResults":50,"total":2,"fields":[{"fieldId":"summary","key":"summary","name":"Summary","schema":{"type":"string"},"required":true,"operations":["set"]},{"fieldId":"assignee","key":"assignee","name":"Assignee","schema":{"type":"user"},"required":false,"operations":["set"]}]}`)
+	case r.Method == http.MethodGet && r.URL.Path == "/rest/api/3/issue/KEY-123/editmeta":
+		fwWriteJSON(w, http.StatusOK, `{"fields":{"assignee":{"key":"assignee","name":"Assignee","schema":{"type":"user"},"required":false,"operations":["set"]}}}`)
 	case r.Method == http.MethodGet && r.URL.Path == "/rest/api/3/myself":
 		fwWriteJSON(w, http.StatusOK, `{"accountId":"`+fwAccountID+`","displayName":"Matrix User"}`)
 	case r.Method == http.MethodGet && r.URL.Path == "/rest/api/3/filter/42":

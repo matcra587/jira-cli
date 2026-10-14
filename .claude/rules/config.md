@@ -60,8 +60,9 @@ query loaders expand home and environment paths at runtime; preparation preserve
 the authored query path without resolving it.
 
 `LegacyMigration.Candidate` refuses zero preparations and unresolved `Unmapped`
-preferences. Missing runtime/default/gateway/TUI mappings and unresolved relative path
-origins must remain visible and block partial publication. Original recovery
+preferences. Missing runtime mappings and unresolved relative path origins must
+remain visible and block partial publication. Explicit policy-9 TUI deferral is
+the sole exception described below. Original recovery
 bytes remain private; internal preparation state is not an envelope payload.
 File/credential publication, recoverable preimages and rollback are separate
 required migration stages; preparation alone does not deliver the migration CLI.
@@ -541,3 +542,12 @@ and native admission on cancellation/failure; this is not a provider transaction
 or compare-and-swap. Native tests use fresh random service names, synthetic
 records and independent WinCred reads, never enumeration or the user's default
 service. Run them in a separate test process so global mocks cannot earn credit.
+
+Explicit CLI-only conversion uses `LegacyMigrationOptions{DeferTUI: true}` through
+the shared preparation, recovery and transaction owners. `config migrate
+--defer-tui` records mapping policy 9 and reports recognized global TUI declaration
+names in `deferred`. Retain their exact values only in original source/recovery
+bytes; never publish inert TUI settings or claim they became active. Ordinary
+conversion remains strict policy 8. Policies 1–8 preserve their exact derivation
+and TUI refusal; rederivation uses the recorded policy. Unknown declarations and
+malformed shapes still refuse. TUI runtime remains a separate milestone.

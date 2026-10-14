@@ -119,7 +119,7 @@ func (f *fakeWriteClient) CurrentUser(context.Context) (core.UserRead, error) {
 	}}, nil
 }
 
-func writeDeps(fake *fakeWriteClient) Deps {
+func writeDeps(fake core.JiraClient) Deps {
 	return Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return fake, nil }}
 }
 
@@ -861,7 +861,7 @@ func TestValidateRemoteResolvesMeInAPreview(t *testing.T) {
 	t.Cleanup(func() { cli.TakeWarnings() })
 
 	fake := &fakeWriteClient{}
-	out, err := runCreate(t.Context(), writeDeps(fake), invocation(true),
+	out, err := runCreate(t.Context(), writeDeps(writePreflightFixture(fake)), invocation(true),
 		writeFlagsFor(t, command.CreateIssueVerb,
 			"--project", "ENG", "--type", "Task", "--summary", "x", "--assignee", command.MeSentinel),
 		createOptions{validateRemote: true})
@@ -902,7 +902,11 @@ func TestNoSentinelCostsNoLookup(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			fake := &fakeWriteClient{}
-			if _, err := runCreate(t.Context(), writeDeps(fake), invocation(tc.dry),
+			client := core.JiraClient(fake)
+			if tc.opts.validateRemote {
+				client = writePreflightFixture(fake)
+			}
+			if _, err := runCreate(t.Context(), writeDeps(client), invocation(tc.dry),
 				writeFlagsFor(t, command.CreateIssueVerb,
 					"--project", "ENG", "--type", "Task", "--summary", "x", "--assignee", "acct-1"),
 				tc.opts); err != nil {

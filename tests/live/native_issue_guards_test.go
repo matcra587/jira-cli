@@ -123,3 +123,35 @@ func TestLiveParentInputRequiresActiveOwnedParent(t *testing.T) {
 		t.Fatal("foreign parent accepted")
 	}
 }
+
+func TestLiveMissingFieldInputRequiresOwnedMetadataPreflight(t *testing.T) {
+	t.Parallel()
+	r := &liveRun{verified: true, dir: t.TempDir(), manifest: liveManifest{Issues: []ownedIssue{{Key: "KEY-123", ID: "10001"}, {Key: "KEY-124", ID: "10002"}}}}
+	path := r.nativeMissingFieldInput(t, "KEY-123")
+	args := []string{"issue", "edit", "KEY-123", "--json-input", path, "--validate-remote"}
+	if err := r.checkMutation([]string{"KEY-123"}, args); err != nil {
+		t.Fatalf("owned refusal probe was not admitted: %v", err)
+	}
+	for name, call := range map[string][]string{
+		"no-preflight":           args[:5],
+		"different-owned-target": {"issue", "edit", "KEY-124", "--json-input", path, "--validate-remote"},
+		"extra-target":           {"issue", "edit", "KEY-123", "--json-input", path, "--validate-remote", "KEY-124"},
+		"selector":               {"issue", "edit", "KEY-123", "--json-input", path, "--validate-remote", "--jql=project=KEY"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := r.checkMutation([]string{call[2]}, call); err == nil {
+				t.Fatal("unsafe refusal probe admitted")
+			}
+		})
+	}
+	_, ordinary := r.nativePropertyInput(t, "KEY-123", false)
+	if err := r.checkMutation([]string{"KEY-123"}, []string{"issue", "edit", "KEY-123", "--json-input", ordinary, "--validate-remote"}); err == nil {
+		t.Fatal("new flag broadened ordinary native recipe")
+	}
+	if err := os.WriteFile(path, []byte(`{"fields":{"summary":"changed"}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.checkMutation([]string{"KEY-123"}, args); err == nil {
+		t.Fatal("changed refusal probe admitted")
+	}
+}

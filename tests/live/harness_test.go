@@ -116,6 +116,7 @@ type liveRun struct {
 	moveTypes        map[string]bool
 	attachmentInputs map[string][sha256.Size]byte
 	watcherAccountID string
+	watcherQuery     string
 	commentInputs    map[string]nativeCommentInput
 	commentRole      string
 	linkTypes        map[string]storedLinkType

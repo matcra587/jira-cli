@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -231,6 +232,9 @@ func TestADFValidationInWorkingDirectoryWithURLCharacters(t *testing.T) {
 	for _, name := range []string{"braces{}", "percent%", "fragment#", "question?"} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
+			if runtime.GOOS == "windows" && strings.Contains(name, "?") {
+				t.Skip("Windows filenames cannot contain a question mark")
+			}
 			workdir := filepath.Join(t.TempDir(), name)
 			if err := os.Mkdir(workdir, 0o700); err != nil {
 				t.Fatal(err)

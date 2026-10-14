@@ -59,13 +59,18 @@ type LegacyRecovery struct {
 // preimage without creating directories or publishing configuration. Snapshots
 // must come from OpenFile; unsupported or secret-bearing preimages are refused.
 func PrepareLegacyRecovery(ctx context.Context, source, target *File, profile string) (*LegacyRecoveryPlan, error) {
+	return PrepareLegacyRecoveryWithOptions(ctx, source, target, profile, LegacyMigrationOptions{})
+}
+
+// PrepareLegacyRecoveryWithOptions records the selected mapping policy and exact preimages.
+func PrepareLegacyRecoveryWithOptions(ctx context.Context, source, target *File, profile string, options LegacyMigrationOptions) (*LegacyRecoveryPlan, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	if source == nil || target == nil || !source.exists {
 		return nil, ErrLegacyRecovery
 	}
-	migration, err := PrepareLegacyMigration(ctx, source.original, source.path, profile)
+	migration, err := PrepareLegacyMigrationWithOptions(ctx, source.original, source.path, profile, options)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +79,7 @@ func PrepareLegacyRecovery(ctx context.Context, source, target *File, profile st
 		return nil, err
 	}
 	record := legacyRecoveryRecord{
-		Version: legacyMigrationVersion, Profile: migration.selection.Name,
+		Version: migration.version, Profile: migration.selection.Name,
 		Source: recoverySnapshot(source), Target: recoverySnapshot(target),
 		Candidate: candidate, CandidateSHA256: recoveryDigest(candidate),
 	}
@@ -294,7 +299,7 @@ func (r legacyRecoveryRecord) validate(ctx context.Context) error {
 		}
 	}
 	if r.Version == namedMigrationVersion {
-		if r.MappingVersion != legacyMigrationVersion {
+		if r.MappingVersion != legacyMigrationVersion && r.MappingVersion != legacyMigrationDeferredTUIVersion {
 			return ErrLegacyRecovery
 		}
 		migration, err := prepareProfileMigration(ctx, r.Source.Contents, r.Source.Path, r.SourceProfile, r.MappingVersion, r.ProfileIDs)

@@ -305,11 +305,12 @@ var keyFailureSeverity = map[string]int{
 	cli.CodeCacheResponseInvalid:  2,
 
 	// 1 — genuinely about the key that carried it.
-	"jira_not_found":                 1,
-	"jira_bad_request":               1,
-	"jira_request_failed":            1,
-	cli.CodeJiraPreconditionFailed:   1,
-	cli.CodeTransitionScreenRequired: 1,
+	"jira_not_found":                  1,
+	"jira_bad_request":                1,
+	"jira_request_failed":             1,
+	cli.CodeJiraPreconditionFailed:    1,
+	cli.CodeTransitionScreenRequired:  1,
+	cli.CodeIssueFieldPreflightFailed: 1,
 	// Inputs are inspected once, then reopened per key; replacement or
 	// permission changes can therefore produce a local refusal per key.
 	cli.CodeAttachmentFileInvalid: 1,
@@ -349,7 +350,12 @@ var keyFailureSeverity = map[string]int{
 	cli.CodeIssueDescriptionResponseInvalid: 0,
 	cli.CodeIssueDescriptionScopeChanged:    0,
 	// User discovery is a single read, outside issue fan-out.
+	// Account discovery is resolved before a keyed issue mutation starts.
+	cli.CodeUserNotFound:               0,
+	cli.CodeUserAmbiguous:              0,
+	cli.CodeUserResolutionIncomplete:   0,
 	cli.CodeUserSearchResponseInvalid:  0,
+	cli.CodeUserLookupResponseInvalid:  0,
 	cli.CodeCurrentUserResponseInvalid: 0,
 	// Local metadata capability and type resolution precede issue reads.
 	cli.CodeIssueMetadataUnavailable: 0,

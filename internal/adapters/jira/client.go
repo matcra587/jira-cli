@@ -232,6 +232,10 @@ var _ core.IssueDescriptionClient = (*Client)(nil)
 // GetIssue implements core.JiraClient: one issue by key, fields narrowed
 // to the requested IDs when given.
 func (c *Client) GetIssue(ctx context.Context, key string, fields []string, expand ...string) (core.IssueRead, error) {
+	return c.getIssue(ctx, key, fields, nil, expand...)
+}
+
+func (c *Client) getIssue(ctx context.Context, key string, fields []string, verification *map[string]json.RawMessage, expand ...string) (core.IssueRead, error) {
 	query := url.Values{}
 	if len(expand) > 0 {
 		query.Set("expand", strings.Join(expand, ","))
@@ -248,6 +252,17 @@ func (c *Client) GetIssue(ctx context.Context, key string, fields []string, expa
 		return core.IssueRead{}, fmt.Errorf("get issue: %w", err)
 	}
 	defer resp.Body.Close() //nolint:errcheck // read-only body; a close failure loses nothing
+	if verification != nil {
+		if resp.StatusCode != http.StatusOK {
+			return core.IssueRead{}, c.apiError(resp, info)
+		}
+		if err := c.requireAuthenticatedReply(resp, errIssueVerificationInvalid, "issue verification"); err != nil {
+			return core.IssueRead{}, err
+		}
+		issue, nativeFields, err := decodeVerificationIssue(resp.Body, fields)
+		*verification = nativeFields
+		return core.IssueRead{Issue: issue, Retry: info}, err
+	}
 	descriptionSource := len(fields) == 2 && fields[0] == "description" && fields[1] == "updated"
 	if descriptionSource {
 		if err := c.requireAuthenticatedReply(resp, core.ErrIssueDescriptionInvalid, "description"); err != nil {
@@ -321,9 +336,9 @@ func (c *Client) CurrentUser(ctx context.Context) (core.UserRead, error) {
 		}
 		return core.UserRead{}, c.apiError(resp, info)
 	}
-	var user *wire.UserDetails
+	var raw json.RawMessage
 	decoder := json.NewDecoder(resp.Body)
-	if err := decoder.Decode(&user); err != nil {
+	if err := decoder.Decode(&raw); err != nil {
 		return core.UserRead{}, fmt.Errorf("%w: decode account: %w", ErrCurrentUserResponseInvalid, err)
 	}
 	// EOF confirmation shares the configured whole-request timeout and
@@ -336,6 +351,13 @@ func (c *Client) CurrentUser(ctx context.Context) (core.UserRead, error) {
 		// Preserve interrupted body reads so cancellation and timeout retain
 		// their precedence in the shared CLI taxonomy.
 		return core.UserRead{}, fmt.Errorf("%w: finish account response: %w", ErrCurrentUserResponseInvalid, err)
+	}
+	if _, err := wire.DecodeNativeObject(raw, wire.WireSchemaProperties()["UserDetails"]); err != nil {
+		return core.UserRead{}, fmt.Errorf("%w: native account: %w", ErrCurrentUserResponseInvalid, err)
+	}
+	var user *wire.UserDetails
+	if err := json.Unmarshal(raw, &user); err != nil {
+		return core.UserRead{}, fmt.Errorf("%w: decode account: %w", ErrCurrentUserResponseInvalid, err)
 	}
 	if core.RequireCurrentUserIdentity(user) != nil {
 		return core.UserRead{}, fmt.Errorf("%w: account lacks an identity", ErrCurrentUserResponseInvalid)

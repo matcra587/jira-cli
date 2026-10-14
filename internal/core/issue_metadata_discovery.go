@@ -44,6 +44,19 @@ func (e *IssueTypeResolutionError) Error() string {
 // case-insensitively and must identify one type across every returned page.
 // Metadata is an observation, not permission or a guarantee for a later write.
 func DiscoverCreateIssueMetadata(ctx context.Context, client IssueMetadataClient, project, requestedType string) (*IssueCreateMetadata, error) {
+	return discoverCreateIssueMetadata(ctx, client, project, requestedType, true, true, "")
+}
+
+// DiscoverCreateIssueMetadataForIdentity retains a native issue-type object's
+// ID/name meaning. A name equal to another type's ID must not select that ID.
+func DiscoverCreateIssueMetadataForIdentity(ctx context.Context, client IssueMetadataClient, project, id, name string) (*IssueCreateMetadata, error) {
+	if id != "" {
+		return discoverCreateIssueMetadata(ctx, client, project, id, true, false, name)
+	}
+	return discoverCreateIssueMetadata(ctx, client, project, name, false, true, "")
+}
+
+func discoverCreateIssueMetadata(ctx context.Context, client IssueMetadataClient, project, requestedType string, allowID, allowName bool, expectedName string) (*IssueCreateMetadata, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -56,9 +69,19 @@ func DiscoverCreateIssueMetadata(ctx context.Context, client IssueMetadataClient
 	if err != nil {
 		return nil, err
 	}
-	selected, id, err := resolveCreateIssueType(types, requestedType)
+	selected, id, err := resolveCreateIssueTypeIdentity(types, requestedType, allowID, allowName)
 	if err != nil {
 		return nil, err
+	}
+	if expectedName != "" {
+		members, err := metadataObject(selected)
+		if err != nil {
+			return nil, err
+		}
+		var actualName string
+		if json.Unmarshal(members["name"], &actualName) != nil || !strings.EqualFold(expectedName, actualName) {
+			return nil, &IssueFieldPreflightError{Field: "issuetype", Reason: "authored issue-type identities disagree with the resolved context"}
+		}
 	}
 	fields, fieldPages, err := collectIssueMetadata(ctx, func(ctx context.Context, startAt int) (IssueMetadataRead, error) {
 		return client.GetCreateIssueFields(ctx, project, id, startAt, issueMetadataPageSize)
@@ -125,8 +148,8 @@ func collectIssueMetadata(ctx context.Context, read func(context.Context, int) (
 	}
 }
 
-func resolveCreateIssueType(types map[string]json.RawMessage, requested string) (json.RawMessage, string, error) {
-	if selected, exists := types[requested]; exists {
+func resolveCreateIssueTypeIdentity(types map[string]json.RawMessage, requested string, allowID, allowName bool) (json.RawMessage, string, error) {
+	if selected, exists := types[requested]; exists && allowID {
 		return selected, requested, nil
 	}
 	candidates := make([]json.RawMessage, 0)
@@ -144,7 +167,7 @@ func resolveCreateIssueType(types map[string]json.RawMessage, requested string) 
 				return nil, "", fmt.Errorf("%w: issue type name is not a string", ErrIssueMetadataInvalid)
 			}
 		}
-		if strings.EqualFold(name, requested) {
+		if allowName && strings.EqualFold(name, requested) {
 			candidates = append(candidates, raw)
 			selectedID = id
 		}

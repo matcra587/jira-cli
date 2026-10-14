@@ -121,6 +121,12 @@ func APIRequestIsRead(in core.APIRequest) bool { return isReadPath(in.Method, in
 // Raw bodies share request construction with domain JSON bodies but retain
 // their original bytes and content type rather than being marshaled again.
 func (c *Client) DoAPI(ctx context.Context, in core.APIRequest) (*core.APIResponse, error) {
+	return c.doAPI(ctx, in, nil)
+}
+
+// doAPI lets bound domain reads validate the final successful reply before
+// capture. Raw API requests continue to support credential-free media redirects.
+func (c *Client) doAPI(ctx context.Context, in core.APIRequest, admit func(*http.Response) error) (*core.APIResponse, error) {
 	if err := ValidateAPIRequest(in); err != nil {
 		return nil, err
 	}
@@ -149,6 +155,11 @@ func (c *Client) DoAPI(ctx context.Context, in core.APIRequest) (*core.APIRespon
 		// mark the missing body and return the original permanent refusal.
 		out.Truncated = true
 		return out, requestErr
+	}
+	if admit != nil && resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusMultipleChoices {
+		if err := admit(resp); err != nil {
+			return nil, err
+		}
 	}
 	var bodyReader io.Reader = resp.Body
 	if in.MaxResponseBytes > 0 {

@@ -18,9 +18,16 @@ select migration input. Keep the entire original source in protected recovery.
 ### Check whether the source can be converted
 
 Preview first. `data.unmapped` lists declarations whose runtime mappings remain
-unfinished; `data.ready=false` blocks live conversion. Remaining TUI preferences
-require runtime mappings. Legacy theme paths retain literal ~ and $ characters;
-relative names are anchored to the explicit legacy source directory. Historical `JIRA_TOKEN_<profile>` names
+unfinished. `data.ready=false` blocks live conversion. For CLI-only conversion,
+explicit `--defer-tui` retains recognized global TUI settings in exact source
+recovery bytes. `data.deferred` lists their declaration names without values.
+Those declarations do not become active settings. Unknown declarations and
+invalid declaration types or structures still block conversion. Without this
+option, TUI declarations remain unmapped.
+
+Legacy theme paths retain literal ~ and $ characters.
+Relative names resolve against the explicit legacy source directory.
+Historical `JIRA_TOKEN_<profile>` names
 become explicit `api_token_env` references for every selected backend.
 Previews never inspect credentials, create directories or contact Jira.
 
@@ -30,8 +37,8 @@ The live conversion example needs an unused recovery directory and `--yes` in
 headless mode. Read Preconditions before conversion or rollback.
 
 ```sh
-jira config migrate --source=old.toml --source-profile=work --dry-run --output=json
-jira config migrate --source=old.toml --source-profile=work --config=settings.toml --recovery-dir=recovery --yes --no-input --output=json
+jira config migrate --source=old.toml --defer-tui --config=settings.toml --dry-run --output=json
+jira config migrate --source=old.toml --defer-tui --config=settings.toml --recovery-dir=recovery --yes --no-input --output=json
 jira config rollback --journal=recovery/migration.json --dry-run --output=json
 jira config rollback --journal=recovery/migration.json --yes --no-input --output=json
 ```
@@ -83,7 +90,7 @@ Reopening an older journal does not add working defaults retroactively.
 Policy 5
 retains the selected `theme.name=auto` as a flat selector using the v0.16 passive
 background hint and dark fallback. Policies 1–4 keep their original derivation
-and automatic-theme refusal. Remaining TUI preferences still block migration.
+and automatic-theme refusal. Ordinary conversion still refuses TUI declarations.
 
 Policy 6 retains selected refresh metadata with its historical nonpositive-to-30-second fallback,
 and retains authored team ID arrays without changing IDs or declaration presence.
@@ -100,6 +107,10 @@ Policy 8 preserves all literal legacy theme paths, including `~`, `$NAME` and
 `${NAME}`. It resolves relative names against the legacy source directory without
 reading a palette, home directory or environment value during preparation.
 Versions 1–7 retain their original candidate derivation and special-path refusal.
+
+Explicit `--defer-tui` uses policy 9, retaining policy-8 CLI mappings while
+recording the choice to defer TUI state. Policies 1–8 keep their original TUI
+refusal. Reopened recovery derives its candidate by the recorded policy.
 
 ### Verify the converted account
 

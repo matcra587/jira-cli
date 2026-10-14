@@ -24,7 +24,7 @@ func init() {
 		wantProspective string
 		forbidCompleted []string
 	}{"would restore migration preimages", []string{"restored migration preimages"}}
-	successDataShape["config.migrate"] = struct{ required, optional []string }{required: []string{"dry_run", "source_path", "path", "profile", "backend", "source_credential", "target_credential", "source_sha256", "mapped", "unmapped", "ready", "recovery", "recovery_published", "receipt"}}
+	successDataShape["config.migrate"] = struct{ required, optional []string }{required: []string{"dry_run", "source_path", "path", "profile", "profiles", "backend", "source_credential", "target_credential", "source_sha256", "mapped", "unmapped", "deferred", "ready", "recovery", "recovery_published", "receipt"}}
 	successDataShape["config.rollback"] = struct{ required, optional []string }{required: []string{"dry_run", "journal", "would_restore_configuration", "credential_inspection_required", "restored", "receipt"}}
 	dryRunPreview["config.migrate"] = func(data map[string]any) (bool, string) {
 		return data["profile"] == "work" && data["ready"] == true && data["recovery_published"] == false && data["receipt"] == nil, "preview must retain selected metadata without publishing or inspecting credentials"

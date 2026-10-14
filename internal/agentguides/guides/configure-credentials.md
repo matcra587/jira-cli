@@ -111,6 +111,16 @@ preview may verify proposed scope while reporting blocked settings. Run
 `jira auth status` to verify the resolved account.
 Inspect `token_source` and optional `cloud_id`.
 
+Verification requires one complete native account object with exact member
+names. Duplicate decoded members, including escaped duplicates, and case
+variants refuse with `current_user_response_invalid` before login saves
+credentials, whoami saves identity or `@me` authorizes an account write. Native
+privacy-hidden values and absent or false activity remain valid for current-user
+authentication. Verification waits for the response to end and honors the
+configured timeout and cancellation.
+
+### Select classic or scoped-token routing
+
 Login first verifies classic site routing. Only a real 401/403 refusal can trigger
 public `/_edge/tenant_info` discovery, followed by verification through the fixed
 `https://api.atlassian.com/ex/jira/<cloudId>` gateway. Public discovery sends no

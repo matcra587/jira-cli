@@ -138,11 +138,51 @@ Disable credentials and route HTTP through unreachable proxies for callbacks.
 Do not clear the user's normal completion cache as a test cleanup shortcut.
 
 Native PowerShell guards use `JIRA_TEST_PWSH_BINARY` for an explicit runtime.
+Windows child environments must retain `PATHEXT`: PowerShell uses it to execute
+native callbacks and literal `.exe` observer paths. Keep profile/config/cache
+directories owned by the fixture. Check actual child exits and receipts before
+interpreting empty completion output as a product defect.
+Directory continuations use the platform's path separator when the shell
+supplies it; keep authored slash prefixes and non-path values exact. Do not
+normalize all observed argv to hide unrelated identity changes.
 Validate the executable, generated dispatch, callback argv, literal insertion,
 actual TabExpansion2 replacement and native argv. A standalone completion string
 cannot prove a comma argument assembled correctly. Execute only a validated
 single command containing literal fixture arguments; never evaluate arbitrary
 candidate expressions. Run native Windows separately from Linux shell checks.
+
+Elvish callback guards load generated scripts in the real editor namespace of
+an owned native console. Apply its registered matcher before comparing candidate
+stems; positional completers also emit flag names for the editor to filter.
+Exercise positional, current-word and ordinary dynamic flags, reload and literal
+CSV identities. Callback/matcher execution does not prove Tab insertion; test
+that separately through the real editor. Keep descriptions out of inserted values.
+Actual Windows Elvish insertion uses an owned native console and key records:
+submit the complete line, Tab, then a bound marker key before Enter. Assert exact
+observer argv and a successful joined shell exit. External callbacks use the
+real CLI; the accepted command records arguments without performing a mutation.
+Bound runtime and admission, preserve selected configuration and literal CSV,
+and keep these guards distinct from direct callback/matcher tests.
+Include ordinary cached field CSV insertion with descriptions, an already selected
+identity and separate/inline flags, alongside current-word filesystem CSV roles.
+Dynamic comma-list guards cover described and bare rows, selected-value exclusion
+and both separate and inline flags. Assemble the final identity before producing
+rich candidates; descriptions must not participate in CSV concatenation.
+
+Every new watcher selector flag needs a proving matrix case for each write verb.
+User-query cases assert the complete lookup precedes keyed writes, exact resolved
+account identity and authored query receipts; an unregistered contract test does
+not satisfy the matrix's owned command/flag coverage gate.
+Keep new taxonomy codes in the explicit keyed severity ladder, including rank
+zero for account preflight failures before fan-out. Migration output audit must
+require `deferred` and exercise nonempty declaration names in both machine modes
+without publishing their retained values.
+
+Native Windows browser guards launch only an owned executable through `BROWSER`.
+Record exact URL argv, check helper exit through an independent process handle,
+and join cleanup after failed assertions. Machine output must suppress handoff;
+an HTTP trap establishes that URL-only paths perform no Jira reads. Handoff is
+not GUI rendering or proof that a page loaded.
 
 PowerShell guards cover non-forwarded values resembling context flags, `--`,
 long/short inline CSV and present/absent caller exit status. Nonliteral-context
@@ -376,5 +416,151 @@ native modes before releasing the real editor, then verify exact restoration,
 process termination, literal argv and separation from result stdout. Cover failed
 exit, cancellation, launch failure and second-terminal capture refusal. Run
 `mise run test:editor:windows` on Windows; its nativeconsole-tagged gate fails
-explicitly on other hosts. This owner evidence does not complete public command
-acceptance or native macOS behavior.
+explicitly on other hosts. It also executes real `config edit` and `issue edit
+resume` commands with success, failed editor exits, invalid saved input and
+actual Control-C and Control-Break cancellation. Register the isolated driver for interrupts
+and make the editor ignore them before readiness; only the CLI supervisor may
+end the editor. Send the event from that fresh hidden console, never the caller's.
+Require exit 6 and `canceled`, restored modes, exact retained work, no candidate
+and termination before return, with a generous five-second return watchdog.
+Require exact configuration publication or rejected-work retention, unchanged
+native draft backup, preserved authored Markdown, zero extra Jira requests and
+the selected typed operation. Native macOS behavior remains separate acceptance.
+An externally selected standard production
+artifact must actually execute; disclose test-only binary selection and never
+count a refused executable or cross-compilation as a native pass.
+
+Core comparisons are untagged results; publish verification rows through
+envelope.VerifiedField at the shared CLI boundary. Both ordinary and terse
+--verify help describe later observation after acknowledgement.
+
+Requested-field verification belongs to core.CompareIssueWrite and the shared
+create/edit readback owner. Request authored fields/update IDs plus existing
+summary/status/updated once. The production adapter retains exact native field bytes separately from typed
+presentation and admits bounded complete authenticated JSON before comparison; malformed or unavailable readbacks retain
+acknowledged writes with verify_failed. Typed verified.fields rows preserve
+native observed absent/null/value and report matches/differs/unverified in sorted
+field order. Exact numeric spelling stays significant. Known identity/collection
+checks tolerate response metadata, including identified cascading-select children.
+Collection replacements require both requested
+and observed membership; add/remove updates may retain untouched members. Unsupported or
+ambiguous updates, absent fields and different ADF remain unverified, including
+custom-field documents admitted by the shared ADF parser. Derive
+warnings from typed Spec results in target order, never the concurrent global
+queue. A later difference neither proves a Jira drop nor supplies remote CAS.
+
+Only verified.fields.observed (and its keyed edit path) is native field
+passthrough. Keep verification row names under the ordinary output audit.
+
+Collection verification guards must reject leftover members after replacement or
+set plus add/remove, while preserving expanded identity and untouched-member
+acceptance for updates without set.
+
+Explicit create/edit --validate-remote checks requested field IDs and native
+operation names against complete context-bound metadata through shared discovery
+and preflight owners. Preserve request values and bytes; never convert, strip or
+infer fields. Bare previews stay local; unflagged live requests retain Jira value
+validation. Native create ID/name meaning must not be guessed: a display name
+that equals another type's ID still selects by name. Project/issuetype create
+identities retain their structural screen exemption. Publish only checked field
+IDs in envelope.IssueFieldPreflight, per key on edit; values, requiredness,
+permissions, top-level members and future write success are outside this check.
+Refused or malformed contexts send no write; ordered partial successes remain
+real and are never replayed. Cancellation cannot admit a completed metadata read.
+Metadata readers must validate the final successful HTTP reply against the client's
+authenticated API scope and exact credentials through the shared reply owner.
+Credential-free redirects cannot establish project, type, field or edit context.
+Keep raw API media redirects usable and preserve ordinary HTTP error classification.
+
+Preflight tests must contrast literal inputs with and without the explicit flag,
+exercise all metadata pages and distinct issue contexts, refuse missing fields
+and unsupported verbs before writes, and prove native payload identity. Include
+ID/name collisions, malformed alternate-client documents, cancellation and
+ordered partial previews/live writes. Fixtures must advertise actual required
+metadata facts rather than returning an empty successful catchall.
+
+Exercise foreign-origin and same-origin out-of-scope redirects for project, type,
+field and edit metadata. Prove refusal before a write, credential stripping, and
+continued acceptance of authenticated redirects within the configured scope.
+
+Native Windows command fixtures must bind USERPROFILE, APPDATA and LOCALAPPDATA
+to owned temporary paths. Do not inherit the user's stores. Record an explicit
+skip for filenames Windows cannot represent; retain the other path cases.
+
+Bare email lookup is opt-in for the assignee flag through command.AccountField.
+Use core.ResolveVisibleUser and ActiveUserSearchPage for the same authenticated
+visible-search policy as user discovery. Preserve privacy-hidden email; the sole
+visible query match is not a verified exact email address or assignability proof.
+An observed empty page establishes completion; short pages do not. Missing,
+ambiguous, repeated, invalid or capped results cannot authorize a write. Keep
+all bound account fields unchanged until every requested remote lookup succeeds, and
+check cancellation after reads. Bare previews retain email with an unresolved
+warning and open no client or cached preferences unless @me also needs them.
+Native payload account IDs are never interpreted as email lookup requests.
+
+Native Windows configuration contracts use representable filenames while retaining
+stored-value control and secrecy checks. Windows UTF-16 process arguments cannot
+carry invalid UTF-8 bytes: skip only those subprocess cases explicitly and retain
+raw-byte pre-I/O validation through in-process registered initialization handlers
+on every platform. Keep Unix filename and process coverage. An executable refused
+before test entry earns no native acceptance credit; record the exact artifact
+separately from other successfully executed artifacts and never change policy.
+
+Watcher add/remove accepts explicit --user-query name/email searches through
+command.AccountField.LookupQuery and the shared account resolver. --user stays
+literal IDs/@me; the flags conflict even when either was authored empty. Pure
+validation rejects blank query before I/O. Query text is never @me or cached
+identity, even when spelled @me. Search requires one complete visible active
+match and inherits the shared authenticated response, bounds and cancellation
+policy. Resolve once before keyed work; a match is not exact email/name proof or
+watcher permission. Bare previews retain user_query with account_query_unresolved
+and empty account_id, opening no client or preferences for that query. Live and
+explicit remote previews publish the resolved ID plus original query context.
+
+Explicit TUI deferral tests must exercise the actual command with and without
+`--defer-tui`, not only the mapper. Check typed deferred names without values,
+preview absence of directory/provider effects, exact source recovery, no inert
+TUI destination keys, and fresh recorded-policy rollback for distinct and same
+source/target paths. Preserve unknown-schema and malformed-shape refusal. Keep
+an independently delivered policy-8 fixture from the previous committed producer;
+only fixture paths and enclosing artifact hashes may be rehomed. Policies 1–8
+must retain strict TUI refusal. Future-version refusal uses an unsupported version,
+not the next version after the default producer when opt-in policies exist.
+
+The `defer-tui` matrix proof must execute both admission states and check that
+neither preview publishes settings or recovery. Human and compact previews must
+preserve the deferral boundary without exposing retained TUI values.
+
+Exact watcher account preflight must exercise both add/remove actual commands,
+read-only previews, explicitly validated live writes, and unchanged ordinary
+literal paths. Check one escaped accountId query before all writes, exact native
+reply binding, absent/null activity, inactive/deleted rejection and no partial
+field publication after late cancellation. Retain authenticated final scope and
+credential guards, bounded reply refusal, privacy-hidden email and native unknown
+bytes. Distinct query and exact-ID lookups never share a cached match. Live
+acceptance may change only verified self subscriptions on owned issues and must
+independently verify cleanup.
+
+Exact-account admission must reject duplicate decoded root members and case
+variants of accountId/active/deleted through the shared native object owner
+before typed decoding. Include overwritten inactive/deleted values and escaped
+duplicate key spellings in adapter and actual CLI no-write guards.
+
+Search protocol guards must exercise discovery, both watcher verbs and
+create/edit/clone assignee-email consumers against duplicate ID/activity/deletion
+members, case variants and escaped duplicate names. Require one refused search
+and zero issue requests. A valid first row followed by an invalid row must not
+publish any of the page. Keep genuine native unknown-member/nullable-email
+fidelity, paging and authenticated final-reply guards; compile named mutations
+that bypass admission and verify they fail.
+
+Current-user native admission guards must refuse duplicate/escaped identity,
+case variants, activity/email duplicates and repeated unknown root members.
+Exercise actual auth status with --show-token in every output mode, candidate
+login before provider/public settings publication, create/edit/clone and watcher
+@me writes, explicit remote previews and fresh whoami save/preview paths.
+Assert one identity read, no dependent requests or writes, no token disclosure
+and no created settings directory. Retain native privacy, interrupted body,
+configured-timeout/cancellation, HTTP and retry guards. Mutation credit requires
+compilation and a named guard failure; execute native Windows owner and CLI
+contracts separately from cross-compilation.

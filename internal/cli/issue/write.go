@@ -3,8 +3,10 @@ package issue
 import (
 	"context"
 	"encoding/json"
+	jsonv2 "encoding/json/v2"
 	"fmt"
 	"io"
+	"slices"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -96,7 +98,10 @@ func (f *issueWriteFlags) validate() error {
 	if err := f.routeConflict(); err != nil {
 		return err
 	}
-	return f.fields.Conflict()
+	if err := f.fields.Conflict(); err != nil {
+		return err
+	}
+	return command.ValidateAccountLookups(f.fields.AccountFields())
 }
 
 // resolvePayloadAliases uses the shared flag owner so canonical and hidden
@@ -273,7 +278,8 @@ func (f *issueWriteFlags) readPayload(ctx context.Context, stdin io.Reader, stdi
 	}
 	if err := json.Unmarshal(data, &req); err != nil {
 		e := cli.NewInputError(cli.CodeFlagValueInvalid, fmt.Sprintf(
-			"--%s: %s is not a valid issue payload: %v", command.FlagJSONInput, f.jsonInput, err))
+			"--%s: %s is not a valid issue payload: %v", command.FlagJSONInput, f.jsonInput, err,
+		))
 		e.Field = command.FlagJSONInput
 		return jira.IssueWriteRequest{}, e
 	}
@@ -288,12 +294,31 @@ func (f *issueWriteFlags) readPayload(ctx context.Context, stdin io.Reader, stdi
 // returns an identity, edit returns nothing), so unlike `comment add`
 // there is no free confirmation to publish unconditionally.
 //
-// It asks for three fields rather than the server's default set. A
-// verification does not need the issue's links, attachments or comment
-// count, and narrowing the request is the difference between a cheap
-// confirmation and a second full fetch.
-func verifyIssue(ctx context.Context, client core.JiraClient, key string) (*envelope.VerifiedIssue, error) {
-	read, err := client.GetIssue(ctx, key, []string{"summary", "status", "updated"})
+// Request the authored field IDs plus existing summary/status/time metadata;
+// never fetch unrelated collections or infer successful application from 2xx.
+func verifyIssue(ctx context.Context, client core.JiraClient, key string, request jira.IssueWriteRequest) (*envelope.VerifiedIssue, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	selectors := []string{"summary", "status", "updated"}
+	for _, field := range request.Keys() {
+		if !slices.Contains(selectors, field) {
+			selectors = append(selectors, field)
+		}
+	}
+	var read core.IssueRead
+	var err error
+	var nativeFields map[string]json.RawMessage
+	if strict, ok := client.(core.IssueVerificationReader); ok {
+		var source core.IssueVerificationRead
+		source, err = strict.GetIssueVerification(ctx, key, selectors)
+		read, nativeFields = source.Read, source.Fields
+		if err == nil && nativeFields == nil {
+			err = fmt.Errorf("issue write: missing native fields in verification readback")
+		}
+	} else {
+		read, err = client.GetIssue(ctx, key, selectors)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -306,10 +331,57 @@ func verifyIssue(ctx context.Context, client core.JiraClient, key string) (*enve
 		// of an issue that came back blank.
 		return nil, fmt.Errorf("issue write: empty readback for %q after a successful write", key)
 	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if !read.Issue.Fields.Set || read.Issue.Fields.Null {
+		return nil, fmt.Errorf("issue write: missing fields in readback for %q", key)
+	}
 	fields := read.Issue.Fields.Value
-	return &envelope.VerifiedIssue{
+	var compared []core.IssueFieldVerification
+	if nativeFields != nil {
+		compared, err = core.CompareNativeIssueWrite(request, nativeFields)
+	} else {
+		compared, err = core.CompareIssueWrite(request, fields)
+	}
+	if err != nil {
+		return nil, err
+	}
+	verified := &envelope.VerifiedIssue{
 		Summary: fields.Summary.Value,
 		Status:  fields.Status.Value.Name.Value,
 		Updated: fields.Updated.Value,
-	}, nil
+		Fields:  make([]envelope.VerifiedField, 0, len(compared)),
+	}
+	for _, field := range compared {
+		verified.Fields = append(verified.Fields, envelope.VerifiedField{
+			Field: field.Field, Outcome: field.Outcome, Reason: field.Reason, Observed: field.Observed,
+		})
+	}
+	if nativeFields != nil {
+		// The generated model is case-insensitive for compatibility. Read
+		// presentation metadata from exact native spellings too, so a future
+		// Name member cannot overwrite status.name in the confirmation.
+		raw, err := jira.MarshalNoEscape(map[string]json.RawMessage{
+			"summary": nativeFields["summary"], "status": nativeFields["status"], "updated": nativeFields["updated"],
+		})
+		if err != nil {
+			return nil, err
+		}
+		var metadata struct {
+			Summary string `json:"summary"`
+			Status  struct {
+				Name string `json:"name"`
+			} `json:"status"`
+			Updated string `json:"updated"`
+		}
+		if err := jsonv2.Unmarshal(raw, &metadata); err != nil {
+			return nil, err
+		}
+		verified.Summary, verified.Status, verified.Updated = metadata.Summary, metadata.Status.Name, metadata.Updated
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return verified, nil
 }
