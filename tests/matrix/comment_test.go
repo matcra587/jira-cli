@@ -107,6 +107,8 @@ const cwIssueJSON = `{"id":"10000","key":"KEY-123","self":"https://stub.invalid/
 
 // cwStubConfig parameterizes the one generic Jira stub.
 type cwStubConfig struct {
+	// userSearch is the first native user-query page; the next page is empty.
+	userSearch []string
 	// searchKeys is what POST /search/jql answers, whatever the query.
 	searchKeys []string
 	// comments is the thread GET .../comment pages through, one raw
@@ -152,6 +154,12 @@ func (s *cwStub) handle(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case p == "/rest/api/3/myself" && r.Method == http.MethodGet:
 		cwWriteJSON(w, http.StatusOK, `{"accountId":"`+cwAccountID+`","displayName":"Stub Account","active":true}`)
+	case p == "/rest/api/3/user/search" && r.Method == http.MethodGet:
+		users := s.cfg.userSearch
+		if r.URL.Query().Get("startAt") != "0" {
+			users = nil
+		}
+		cwWriteJSON(w, http.StatusOK, `[`+strings.Join(users, ",")+`]`)
 	case p == "/rest/api/3/search/jql" && r.Method == http.MethodPost:
 		issues := make([]string, 0, len(s.cfg.searchKeys))
 		for i, key := range s.cfg.searchKeys {

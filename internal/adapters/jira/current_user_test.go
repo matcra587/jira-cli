@@ -49,6 +49,43 @@ func TestCurrentUserPreservesNativeIdentityAndPrivacy(t *testing.T) {
 	}
 }
 
+func TestCurrentUserRejectsAmbiguousNativeIdentity(t *testing.T) {
+	t.Parallel()
+	for _, body := range []string{
+		`{"accountId":null,"accountId":"fixture"}`,
+		`{"accountId":"other","accountId":"fixture"}`,
+		`{"accountId":"other","account\u0049d":"fixture"}`,
+		`{"accountId":"fixture","ACCOUNTID":"other"}`,
+		`{"accountId":"fixture","active":false,"active":true}`,
+		`{"accountId":"fixture","Active":true}`,
+		`{"accountId":"fixture","emailAddress":null,"emailAddress":"other@example.invalid"}`,
+		`{"accountId":"fixture","EmailAddress":"other@example.invalid"}`,
+		`{"accountId":"fixture","future":null,"future":42}`,
+	} {
+		t.Run(body, func(t *testing.T) {
+			t.Parallel()
+			var calls atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				calls.Add(1)
+				email, token, ok := r.BasicAuth()
+				if r.Method != http.MethodGet || r.URL.Path != "/rest/api/3/myself" || r.URL.RawQuery != "" || !ok || email != "person@example.com" || token != "fixture" {
+					t.Error("identity request changed route or credential binding")
+				}
+				_, _ = io.WriteString(w, body)
+			}))
+			t.Cleanup(server.Close)
+			client, err := New(Config{BaseURL: server.URL, Email: "person@example.com", APIToken: "fixture", Retry: core.RetryPolicy{MaxAttempts: 3}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			out, err := client.CurrentUser(t.Context())
+			if !errors.Is(err, ErrCurrentUserResponseInvalid) || out.User != nil || calls.Load() != 1 {
+				t.Fatalf("ambiguous native identity published or replayed: %+v %v calls=%d", out, err, calls.Load())
+			}
+		})
+	}
+}
+
 func TestCurrentUserRetainsInterruptedBodyCauses(t *testing.T) {
 	t.Parallel()
 	for _, cause := range []error{context.Canceled, context.DeadlineExceeded, io.ErrUnexpectedEOF} {

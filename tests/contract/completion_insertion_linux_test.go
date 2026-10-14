@@ -22,6 +22,7 @@ import (
 
 	"github.com/matcra587/jira-cli/internal/adapters"
 	cachecmd "github.com/matcra587/jira-cli/internal/cli/cache"
+	"github.com/matcra587/jira-cli/internal/cli/completion/native"
 )
 
 func TestContextualPathCompletionInsertsLiteralArgvInNativeEditors(t *testing.T) {
@@ -143,10 +144,120 @@ func TestElvishContextualCompletionCanReloadGeneratedScript(t *testing.T) {
 	}
 }
 
+func TestElvishProfileCompletionInsertsIdentityWithoutDescription(t *testing.T) {
+	name := os.Getenv("JIRA_TEST_ELVISH_BINARY")
+	if name == "" {
+		name = "elvish"
+	}
+	executable, err := exec.LookPath(name)
+	if err != nil {
+		if os.Getenv("JIRA_TEST_ELVISH_BINARY") != "" {
+			t.Fatal("requested native Elvish unavailable", err)
+		}
+		t.Skip("native Elvish unavailable")
+	}
+	legacy := "default_profile='work'\n[[profiles]]\nname='work'\nbase_url='https://example.invalid'\nemail='fixture@example.invalid'\n[[profiles]]\nname='other'\nbase_url='https://other.invalid'\nemail='other@example.invalid'\n"
+	for _, inline := range []bool{false, true} {
+		t.Run(fmt.Sprint(inline), func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "legacy source.toml")
+			if err := os.WriteFile(path, []byte(legacy), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			line := "jira config migrate --source " + shell.Quote(path) + " --source-profile wo"
+			want := []string{"config", "migrate", "--source", path, "--source-profile", "work"}
+			if inline {
+				line = "jira config migrate --source " + shell.Quote(path) + " --source-profile=wo"
+				want = []string{"config", "migrate", "--source", path, "--source-profile=work"}
+			}
+			got := nativeCompletionEditorArgv(t, "elvish", executable, dir, line, nativeCompletionEditorOptions{})
+			if !slices.Equal(got, want) {
+				t.Fatal("native Elvish profile insertion changed identity or included its description", got, want)
+			}
+		})
+	}
+}
+
 type nativeCompletionEditorOptions struct {
 	reload       bool
 	env          []string
 	continuation string
+	generator    *native.Generator
+	predictor    []string
+}
+
+func TestElvishDynamicCSVCompletionInsertsDescribedAndBareValues(t *testing.T) {
+	name := os.Getenv("JIRA_TEST_ELVISH_BINARY")
+	if name == "" {
+		name = "elvish"
+	}
+	executable, err := exec.LookPath(name)
+	if err != nil {
+		if os.Getenv("JIRA_TEST_ELVISH_BINARY") != "" {
+			t.Fatal("requested native Elvish unavailable", err)
+		}
+		t.Skip("native Elvish unavailable")
+	}
+	generator := &native.Generator{AppName: "jira", Specs: []native.Spec{{LongFlag: "value", HasArg: true, CommaList: true, Dynamic: "choice"}}}
+	for _, described := range []bool{false, true} {
+		for _, inline := range []bool{false, true} {
+			t.Run(fmt.Sprintf("described=%t/inline=%t", described, inline), func(t *testing.T) {
+				rows := []string{"selected", "next"}
+				if described {
+					rows = []string{"selected\tSelected display", "next\tNext display"}
+				}
+				line := "jira --value selected,n"
+				want := []string{"--value", "selected,next"}
+				if inline {
+					line, want = "jira --value=selected,n", []string{"--value=selected,next"}
+				}
+				got := nativeCompletionEditorArgv(t, "elvish", executable, t.TempDir(), line, nativeCompletionEditorOptions{generator: generator, predictor: rows})
+				if !slices.Equal(got, want) {
+					t.Fatal("native Elvish dynamic CSV insertion changed identity or prefixes", got, want)
+				}
+			})
+		}
+	}
+}
+
+func TestElvishFieldCSVCompletionInsertsIdentitiesAndPrefixes(t *testing.T) {
+	name := os.Getenv("JIRA_TEST_ELVISH_BINARY")
+	if name == "" {
+		name = "elvish"
+	}
+	executable, err := exec.LookPath(name)
+	if err != nil {
+		if os.Getenv("JIRA_TEST_ELVISH_BINARY") != "" {
+			t.Fatal("requested native Elvish unavailable", err)
+		}
+		t.Skip("native Elvish unavailable")
+	}
+	for _, value := range []string{"customfield_10001", "customfield_10002"} {
+		for _, inline := range []bool{false, true} {
+			t.Run(value+"/"+fmt.Sprint(inline), func(t *testing.T) {
+				env, selected := prepareBinaryElvishFieldCompletion(t)
+				prefix := "jira --config " + shell.Quote(selected) + " issue view DEMO-1 "
+				seed := "earlier," + value[:len(value)-1]
+				line := prefix + "--fields " + seed
+				want := []string{"--config", selected, "issue", "view", "DEMO-1", "--fields", "earlier," + value}
+				if inline {
+					line = prefix + "--fields=" + seed
+					want = append(want[:len(want)-2], "--fields=earlier,"+value)
+				}
+				// Select the other field first: only the remaining identity is eligible.
+				other := "customfield_10001"
+				if value == other {
+					other = "customfield_10002"
+				}
+				line = strings.Replace(line, "earlier,", other+",", 1)
+				want[len(want)-1] = strings.Replace(want[len(want)-1], "earlier,", other+",", 1)
+				got := nativeCompletionEditorArgv(t, "elvish", executable, t.TempDir(), line, nativeCompletionEditorOptions{env: env})
+				if !slices.Equal(got, want) {
+					t.Fatal("native Elvish field CSV insertion changed identity or prefixes", got, want)
+				}
+			})
+		}
+	}
 }
 
 func TestContextualNativeCompletionPreservesNestedPathsAndPublicSelection(t *testing.T) {
@@ -241,9 +352,20 @@ func nativeCompletionEditorArgv(t *testing.T, name, executable, dir, line string
 	}
 	env := []string{"JIRA_KEYRING=true", "DBUS_SESSION_BUS_ADDRESS=/dev/null", "JIRA_API_TOKEN=", "JIRA_EMAIL=", "JIRA_BASE_URL=https://unreachable.example.invalid", "XDG_CONFIG_HOME=" + filepath.Join(dir, "config"), "XDG_CACHE_HOME=" + filepath.Join(dir, "cache")}
 	env = append(env, options.env...)
-	script, stderr, exit := runBinaryEnv(t, env, "completion", name)
-	if exit != 0 || stderr != "" {
-		t.Fatal("native generator failed", exit, stderr)
+	var script string
+	if options.generator != nil {
+		var err error
+		script, err = native.GenerateElvish(options.generator)
+		if err != nil {
+			t.Fatal("native model generator failed", err)
+		}
+	} else {
+		var stderr string
+		var exit int
+		script, stderr, exit = runBinaryEnv(t, env, "completion", name)
+		if exit != 0 || stderr != "" {
+			t.Fatal("native generator failed", exit, stderr)
+		}
 	}
 	if options.reload {
 		script += "\n" + script
@@ -257,6 +379,13 @@ func nativeCompletionEditorArgv(t *testing.T, name, executable, dir, line string
 		t.Fatal(err)
 	}
 	shim := "#!/bin/sh\ncase \"$1\" in --@complete=*|--@shell=*) exec " + shell.Quote(jiraBinary(t)) + " \"$@\";; esac\nexec " + shell.Quote(observer) + " -test.run '^TestNativeCompletionArgumentObserver$' -- \"$@\"\n"
+	if options.predictor != nil {
+		var values []string
+		for _, value := range options.predictor {
+			values = append(values, shell.Quote(value))
+		}
+		shim = "#!/bin/sh\ncase \"$1\" in --@complete=*) printf '%s\\n' " + strings.Join(values, " ") + "; exit 0;; esac\nexec " + shell.Quote(observer) + " -test.run '^TestNativeCompletionArgumentObserver$' -- \"$@\"\n"
+	}
 	if err := os.WriteFile(filepath.Join(fixture, "jira"), []byte(shim), 0o700); err != nil {
 		t.Fatal(err)
 	}

@@ -106,6 +106,10 @@ type JiraClient interface {
 	// presence of a stored token proves nothing once one is revoked.
 	CurrentUser(ctx context.Context) (UserRead, error)
 
+	// GetUser validates one exact active native account by its ID.
+	// It does not establish issue existence, watcher permission or assignability.
+	GetUser(ctx context.Context, accountID string) (UserRead, error)
+
 	// SearchUsers returns one offset page of filtered user matches. Jira's
 	// response is a bare array, with no total or final-page flag, and this
 	// endpoint exposes at most the first 1000 matches. The caller owns paging.

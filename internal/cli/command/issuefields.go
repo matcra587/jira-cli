@@ -191,7 +191,7 @@ func AddIssueFieldFlags(cmd *cobra.Command, f *IssueFieldFlags, verb IssueWriteV
 		"Priority, by name",
 		FlagOpts{Terse: "Priority", Placeholder: "name", Complete: "predictor=cachepriority"})
 	AddStringVar(cmd, &f.Assignee, FlagAssignee, "",
-		"Assignee, by Atlassian account id"+MeHelp,
+		"Assignee, by account id or bare email (unique visible search match; missing/ambiguous/incomplete results refuse)"+MeHelp,
 		FlagOpts{Terse: "Assignee", Placeholder: "account-id"})
 	AddStringVar(cmd, &f.Reporter, FlagReporter, "",
 		"Reporter, by Atlassian account id"+MeHelp,

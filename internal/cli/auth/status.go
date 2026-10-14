@@ -28,7 +28,8 @@ func newStatus(deps Deps) *cobra.Command {
 			"with exit 1 and auth_store_unavailable. That failure does not establish " +
 			"whether stored credentials exist; restore store access before replacing them.\n\n" +
 			"A successful HTTP reply must contain one complete account object " +
-			"with an account ID. A malformed reply fails with exit 5 and " +
+			"with an account ID and exact native member names. Duplicate members " +
+			"or case variants refuse before verification. A malformed reply fails with exit 5 and " +
 			"current_user_response_invalid; it does not confirm authentication.\n\n" +
 			"Scoped tokens use their bound cloud ID through the fixed Atlassian " +
 			"gateway. The reported site remains the browser identity; cloud_id " +

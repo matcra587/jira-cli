@@ -14,6 +14,7 @@ import (
 )
 
 const identityDescription = "Read the account Jira authenticates with the resolved credentials.\n\n" +
+	"Duplicate native members or case variants fail with current_user_response_invalid before identity saving. " +
 	"Machine output retains the complete native account in `data.user`, " +
 	"including privacy-hidden email, absent fields and additional Jira fields. " +
 	"Human output shows the returned account identity, type, time zone and activity. " +

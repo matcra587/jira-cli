@@ -17,7 +17,24 @@ import (
 // flagUser names the account a watcher verb acts on. Canonical and
 // unaliased (design §5) — acli spells it the same way, so there is no
 // foreign spelling for a hidden alias to accept.
-const flagUser = "user"
+const (
+	flagUser      = "user"
+	flagUserQuery = "user-query"
+)
+
+const watcherIDValidationHelp = "Explicit --validate-remote checks a literal --user through one read-only exact-account lookup before any issue request. " +
+	"The reply must name that account and be active, not deleted. Unknown activity, malformed replies or a different ID refuse. " +
+	"Surrounding input whitespace is trimmed for this check. One lookup serves every issue; it does not prove issue existence or watcher permission. " +
+	"Bare previews and ordinary literal writes perform no account lookup.\n\n"
+
+const watcherQueryHelp = "Use --user-query to look up an account by name or email instead of giving --user. " +
+	"The flags are mutually exclusive. Live execution and --validate-remote resolve one complete, " +
+	"unique visible active query match before any issue request. Missing, ambiguous, malformed or " +
+	"incomplete searches refuse. A match does not prove exact name/email identity or watcher permissions. " +
+	"One lookup is shared by every issue.\n\n" +
+	"Bare previews preserve data.user_query and warn that it is unresolved; data.account_id is empty. " +
+	"They open no Jira client or cached preferences for this query. Explicit remote previews resolve " +
+	"the query without writing or checking issue existence.\n\n"
 
 // Both watcher verbs live in one file, and their executor is shared,
 // which is a deliberate departure from the one-command-per-file shape
@@ -94,7 +111,7 @@ var (
 func newWatchersAdd(deps Deps) *cobra.Command {
 	var keyed command.KeyedFlags
 	var mut command.MutationFlags
-	var user string
+	var user, userQuery string
 	var cmd *cobra.Command
 
 	return command.MustNew(command.Spec[envelope.IssueWatchersAddOutput]{
@@ -109,6 +126,8 @@ func newWatchersAdd(deps Deps) *cobra.Command {
 			"accepts and what `jira issue watchers list` prints in its first " +
 			"column — that command is how you find the id, and how you check who " +
 			"a change is about to start notifying.\n\n" +
+			watcherIDValidationHelp +
+			watcherQueryHelp +
 			"Adding an account that already watches the issue SUCCEEDS rather " +
 			"than erroring. The verb names an end state, so re-running it leaves " +
 			"you in the state you asked for; it does not tell you which of the " +
@@ -131,7 +150,7 @@ func newWatchersAdd(deps Deps) *cobra.Command {
 			"A failed readback keeps the acknowledged write successful and " +
 			"reports `data.results[].data.readback_error`. Inspect watcher " +
 			"state rather than repeating the write to recover that read.\n\n" +
-			"`--dry-run` composes the request and stops. It never contacts Jira, " +
+			"Bare `--dry-run` composes the preview and stops. It never contacts Jira, " +
 			"so it reports the account that WOULD be added but cannot tell you " +
 			"whether the issues exist, whether the account does, or whether it is " +
 			"already watching.\n\n" +
@@ -145,6 +164,8 @@ func newWatchersAdd(deps Deps) *cobra.Command {
 			"$ jira issue watchers add KEY-123 --user @me\n\n" +
 			"# the same account on several issues\n" +
 			"$ jira issue watchers add KEY-123 KEY-124 KEY-125 --user 5b10a2844c20165700ede21g\n\n" +
+			"# resolve a watcher by visible name or email query\n" +
+			"$ jira issue watchers add KEY-123 --user-query=ada@example.com\n\n" +
 			"# preview the request without sending it\n" +
 			"$ jira issue watchers add KEY-123 --user 5b10a2844c20165700ede21g --dry-run\n\n" +
 			"# skip the readback, for one request per key instead of two\n" +
@@ -154,21 +175,22 @@ func newWatchersAdd(deps Deps) *cobra.Command {
 		Args: command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY", Predictor: "issuekey"}}},
 		Flags: func(c *cobra.Command) {
 			cmd = c
-			addWatcherWriteFlags(c, &keyed, &mut, &user)
+			addWatcherWriteFlags(c, &keyed, &mut, &user, &userQuery)
 		},
-		Validate:      func() error { return validateWatcherWrite(cmd, keyed, user) },
+		Validate:      func() error { return validateWatcherWrite(cmd, keyed, user, userQuery, mut.ValidateRemote) },
 		Human:         renderWatchersAdd,
 		RetainOnError: func(out envelope.IssueWatchersAddOutput) bool { return len(out.Results) > 0 },
 		Run: func(ctx context.Context, inv command.Invocation) (envelope.IssueWatchersAddOutput, error) {
 			// BEFORE the envelope is built, so data.account_id publishes what
 			// was actually sent rather than the sentinel that was typed.
-			client, err := resolveWatcherUser(ctx, deps, inv.DryRun, mut.ValidateRemote, &user)
+			client, err := resolveWatcherTarget(ctx, deps, inv.DryRun, mut.ValidateRemote, &user, userQuery)
 			if err != nil {
 				return envelope.IssueWatchersAddOutput{}, err
 			}
 			out := envelope.IssueWatchersAddOutput{
 				MutationState: envelope.MutationState{DryRun: inv.DryRun},
 				AccountID:     user,
+				UserQuery:     userQuery,
 			}
 			out.Results, err = runWatcherWrite(ctx, deps, inv, watcherAdd, watcherWriteOptions{
 				client:      client,
@@ -185,7 +207,7 @@ func newWatchersAdd(deps Deps) *cobra.Command {
 func newWatchersRemove(deps Deps) *cobra.Command {
 	var keyed command.KeyedFlags
 	var mut command.MutationFlags
-	var user string
+	var user, userQuery string
 	var cmd *cobra.Command
 
 	return command.MustNew(command.Spec[envelope.IssueWatchersRemoveOutput]{
@@ -205,6 +227,8 @@ func newWatchersRemove(deps Deps) *cobra.Command {
 			"verb. Live resolution reads the current user from Jira. A local " +
 			"preview uses matching cached account_id metadata with an unverified " +
 			"warning, or leaves @me unresolved. `--validate-remote` reads Jira instead.\n\n" +
+			watcherIDValidationHelp +
+			watcherQueryHelp +
 			"Removing an account that was not watching SUCCEEDS rather than " +
 			"erroring. The verb names an end state, so re-running it leaves you " +
 			"in the state you asked for.\n\n" +
@@ -228,13 +252,15 @@ func newWatchersRemove(deps Deps) *cobra.Command {
 			"A failed readback keeps the acknowledged write successful and " +
 			"reports `data.results[].data.readback_error`. Inspect watcher " +
 			"state rather than repeating the write to recover that read.\n\n" +
-			"`--dry-run` composes the request and stops. It never contacts Jira, " +
+			"Bare `--dry-run` composes the preview and stops. It never contacts Jira, " +
 			"so it reports the account that WOULD be removed but cannot tell you " +
 			"whether the issues exist or whether the account was watching.\n\n" +
 			"`--web` is refused here. It opens one page and this command writes " +
 			"to a list of keys.",
 		Example: "# stop an account watching one issue\n" +
 			"$ jira issue watchers remove KEY-123 --user 5b10a2844c20165700ede21g\n\n" +
+			"# resolve a watcher by visible name or email query\n" +
+			"$ jira issue watchers remove KEY-123 --user-query=ada@example.com\n\n" +
 			"# stop watching it yourself\n" +
 			"$ jira issue watchers remove KEY-123 --user @me\n\n" +
 			"# the same account across several issues\n" +
@@ -248,21 +274,22 @@ func newWatchersRemove(deps Deps) *cobra.Command {
 		Args: command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY", Predictor: "issuekey"}}},
 		Flags: func(c *cobra.Command) {
 			cmd = c
-			addWatcherWriteFlags(c, &keyed, &mut, &user)
+			addWatcherWriteFlags(c, &keyed, &mut, &user, &userQuery)
 		},
-		Validate:      func() error { return validateWatcherWrite(cmd, keyed, user) },
+		Validate:      func() error { return validateWatcherWrite(cmd, keyed, user, userQuery, mut.ValidateRemote) },
 		Human:         renderWatchersRemove,
 		RetainOnError: func(out envelope.IssueWatchersRemoveOutput) bool { return len(out.Results) > 0 },
 		Run: func(ctx context.Context, inv command.Invocation) (envelope.IssueWatchersRemoveOutput, error) {
 			// BEFORE the envelope is built, so data.account_id publishes what
 			// was actually sent rather than the sentinel that was typed.
-			client, err := resolveWatcherUser(ctx, deps, inv.DryRun, mut.ValidateRemote, &user)
+			client, err := resolveWatcherTarget(ctx, deps, inv.DryRun, mut.ValidateRemote, &user, userQuery)
 			if err != nil {
 				return envelope.IssueWatchersRemoveOutput{}, err
 			}
 			out := envelope.IssueWatchersRemoveOutput{
 				MutationState: envelope.MutationState{DryRun: inv.DryRun},
 				AccountID:     user,
+				UserQuery:     userQuery,
 			}
 			out.Results, err = runWatcherWrite(ctx, deps, inv, watcherRemove, watcherWriteOptions{
 				client:      client,
@@ -282,28 +309,40 @@ func newWatchersRemove(deps Deps) *cobra.Command {
 // --force has nothing destructive to confirm, and --verify would gate a
 // readback this command already does by default.
 //
-// --validate-remote is registered, and the reason it EARNS a place here
-// changed: an account id is opaque, so there was nothing to check against
-// the site and the flag would have been hollow. `@me` is not opaque — it
-// is a sentinel this CLI resolves through GET /myself — so the flag now
-// buys a real read, and it buys exactly the one thing a preview otherwise
-// cannot know (command.ResolveAccounts).
-func addWatcherWriteFlags(cmd *cobra.Command, keyed *command.KeyedFlags, mut *command.MutationFlags, user *string) {
+// --validate-remote permits shared @me/query lookup and opts literal IDs into
+// exact-account validation. No account lookup establishes watcher permissions
+// or issue existence. Bare previews and ordinary literal writes remain lazy.
+func addWatcherWriteFlags(cmd *cobra.Command, keyed *command.KeyedFlags, mut *command.MutationFlags, user, userQuery *string) {
 	command.AddKeyedFlags(cmd, keyed)
 	command.AddMutationFlags(cmd, mut, command.WithoutReadback(), command.WithValidateRemote())
 	command.AddStringVar(cmd, user, flagUser, "",
 		"The Atlassian account id to add or remove, as `watchers list` prints it"+command.MeHelp,
 		command.FlagOpts{Terse: "Account id", Placeholder: "account-id"})
+	command.AddStringVar(cmd, userQuery, flagUserQuery, "", "Resolve one visible active user by name or email query; conflicts with --user", command.FlagOpts{Terse: "User query", Placeholder: "query"})
 }
 
 // validateWatcherWrite runs the refusals both verbs share, before any
 // I/O happens.
-func validateWatcherWrite(cmd *cobra.Command, keyed command.KeyedFlags, user string) error {
+func validateWatcherWrite(cmd *cobra.Command, keyed command.KeyedFlags, user, userQuery string, validateRemote bool) error {
 	if err := keyed.Validate(); err != nil {
 		return err
 	}
-	if err := requireUser(user); err != nil {
+	if cmd.Flags().Changed(flagUser) && cmd.Flags().Changed(flagUserQuery) {
+		err := cli.NewInputError(cli.CodeFlagConflict, "--user and --user-query are mutually exclusive")
+		err.Field = flagUserQuery
 		return err
+	}
+	if cmd.Flags().Changed(flagUserQuery) {
+		if err := command.ValidateAccountLookups([]command.AccountField{{Flag: flagUserQuery, Value: &userQuery, LookupQuery: true}}); err != nil {
+			return err
+		}
+	} else {
+		if err := requireUser(user); err != nil {
+			return err
+		}
+		if err := command.ValidateAccountLookups([]command.AccountField{{Flag: flagUser, Value: &user, ValidateRemoteID: validateRemote}}); err != nil {
+			return err
+		}
 	}
 	return refuseWebOnKeyedWrite(cmd)
 }
@@ -328,8 +367,8 @@ func requireUser(user string) error {
 	return e
 }
 
-// resolveWatcherUser settles `@me` on --user before anything is composed
-// or sent.
+// resolveWatcherUser settles @me and explicit literal-ID preflight on --user
+// before anything is composed or sent.
 //
 // A named step rather than an inline call, for two reasons. Both verbs
 // need it identically, so naming it keeps them from drifting. And it is
@@ -350,7 +389,22 @@ func resolveWatcherUser(
 	user *string,
 ) (core.JiraClient, error) {
 	return command.ResolveAccounts(ctx, deps.JiraClient, deps.Preferences, dryRun, validateRemote,
-		[]command.AccountField{{Flag: flagUser, Value: user}})
+		[]command.AccountField{{Flag: flagUser, Value: user, ValidateRemoteID: true}})
+}
+
+// resolveWatcherTarget selects explicit query intent before entering the shared
+// account policy. Local unresolved queries carry no fabricated account ID.
+func resolveWatcherTarget(ctx context.Context, deps Deps, dryRun, validateRemote bool, user *string, query string) (core.JiraClient, error) {
+	if query == "" {
+		return resolveWatcherUser(ctx, deps, dryRun, validateRemote, user)
+	}
+	resolved := query
+	client, err := command.ResolveAccounts(ctx, deps.JiraClient, deps.Preferences, dryRun, validateRemote,
+		[]command.AccountField{{Flag: flagUserQuery, Value: &resolved, LookupQuery: true}})
+	if err == nil && (!dryRun || validateRemote) {
+		*user = resolved
+	}
+	return client, err
 }
 
 // watcherWriteOptions is what runWatcherWrite needs from the flag set,
@@ -358,8 +412,8 @@ func resolveWatcherUser(
 // parameter per flag — commentAddOptions' own reasoning. --dry-run is
 // absent for its reason too: it arrives on the Invocation.
 type watcherWriteOptions struct {
-	// client is the one ResolveAccounts built while settling `@me`, or nil
-	// when the run needed no lookup.
+	// client is the one ResolveAccounts built for @me, a query or exact-ID preflight,
+	// or nil when the run needed no lookup.
 	client      core.JiraClient
 	accountID   string
 	noReadback  bool
@@ -369,10 +423,12 @@ type watcherWriteOptions struct {
 // runWatcherWrite applies one verb to every key and assembles the keyed
 // payload, or previews it.
 //
-// **The preview builds no client**, which is runCommentAdd's property
+// **The executor builds no client for a preview**, which is runCommentAdd's property
 // unchanged and for its reason: a dry run returns before
 // deps.JiraClient() is ever called, so it cannot reach the network
-// because it never obtains the thing that could.
+// because it never obtains the thing that could. Explicit remote preflight
+// may already have supplied a client; this executor still performs no reads
+// or writes for a preview.
 //
 // It returns the results rather than a whole Output because the two
 // verbs' Output types differ (see envelope.IssueWatchersAddOutput for
@@ -388,7 +444,7 @@ func runWatcherWrite(
 	if inv.DryRun {
 		return watcherPreviewResults(inv.Args), nil
 	}
-	// client may already exist: resolving `@me` built one, and
+	// client may already exist: resolving @me or a query built one, and
 	// deps.JiraClient is a constructor rather than a singleton accessor, so
 	// calling it again would open a second and pay twice for credential
 	// resolution.
@@ -574,7 +630,7 @@ func renderWatchersAdd(v *output.View, env envelope.Envelope) error {
 	if !ok {
 		return fmt.Errorf("issue.watchers.add: human renderer received %T, want envelope.IssueWatchersAddOutput", env.Data)
 	}
-	renderWatcherWrite(v, watcherAdd, out.DryRun, out.AccountID, out.Results)
+	renderWatcherWrite(v, watcherAdd, out.DryRun, out.AccountID, out.UserQuery, out.Results)
 	return nil
 }
 
@@ -583,7 +639,7 @@ func renderWatchersRemove(v *output.View, env envelope.Envelope) error {
 	if !ok {
 		return fmt.Errorf("issue.watchers.remove: human renderer received %T, want envelope.IssueWatchersRemoveOutput", env.Data)
 	}
-	renderWatcherWrite(v, watcherRemove, out.DryRun, out.AccountID, out.Results)
+	renderWatcherWrite(v, watcherRemove, out.DryRun, out.AccountID, out.UserQuery, out.Results)
 	return nil
 }
 
@@ -597,11 +653,11 @@ func renderWatcherWrite(
 	v *output.View,
 	verb watcherVerb,
 	dryRun bool,
-	accountID string,
+	accountID, query string,
 	results []envelope.KeyedResult[envelope.IssueWatchersWriteData],
 ) {
 	if dryRun {
-		renderWatcherWritePreview(v, verb, accountID, results)
+		renderWatcherWritePreview(v, verb, accountID, query, results)
 		return
 	}
 	renderWatcherWriteResults(v, verb, results)
@@ -613,7 +669,7 @@ func renderWatcherWrite(
 func renderWatcherWritePreview(
 	v *output.View,
 	verb watcherVerb,
-	accountID string,
+	accountID, query string,
 	results []envelope.KeyedResult[envelope.IssueWatchersWriteData],
 ) {
 	// Each key is styled on its own — cli.Entity, one Render call per key
@@ -627,8 +683,13 @@ func renderWatcherWritePreview(
 	// verb.bare, not the gerund or the past form: "Would adding" and
 	// "Would added" are both wrong, which is why the infinitive is a
 	// spelled-out field rather than something derived at render time.
-	v.Line(fmt.Sprintf("Would %s %s as a watcher %s %s.",
-		verb.bare, cli.Entity(accountID), verb.preposition, joinKeys(keys)))
+	if accountID == "" && query != "" {
+		v.Line(fmt.Sprintf("Would %s the account matching %s as a watcher %s %s after resolution.",
+			verb.bare, cli.Text(fmt.Sprintf("%q", query)), verb.preposition, joinKeys(keys)))
+	} else {
+		v.Line(fmt.Sprintf("Would %s %s as a watcher %s %s.",
+			verb.bare, cli.Entity(accountID), verb.preposition, joinKeys(keys)))
+	}
 	v.Hint("Nothing was sent. Drop --dry-run to apply it.")
 }
 

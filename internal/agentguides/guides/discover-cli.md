@@ -233,6 +233,9 @@ offer issue keys. Comment and web-link ID slots do not offer issue keys.
 Regenerate and load the script after upgrading the CLI. Bash inserts candidate
 identities without their display descriptions, including comma-separated values.
 Literal choices and filenames retain spaces, quotes and glob characters.
+Elvish callbacks use the executing shell's portable null device on Windows and
+Unix. Dynamic candidate descriptions stay in the menu. Inserted values retain
+only their identities, including selected comma-list values and inline flags.
 Zsh retains dynamic suggestions on runnable commands that also have subcommands.
 Completion uses the selected local configuration for its offline suggestions.
 It does not authenticate or contact Jira. Cached suggestions are hints,

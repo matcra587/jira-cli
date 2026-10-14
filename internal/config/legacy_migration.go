@@ -67,11 +67,22 @@ type LegacyMigration struct {
 	candidate []byte
 	mapped    []string
 	unmapped  []string
+	deferred  []string
+	version   int
 }
 
 // Version 1 is the delivered preparation contract. Later mappings must retain
 // its exact candidate derivation so existing immutable recovery remains usable.
-const legacyMigrationVersion = 8
+const (
+	legacyMigrationVersion            = 8
+	legacyMigrationDeferredTUIVersion = 9
+)
+
+// LegacyMigrationOptions selects explicit retention of preferences outside the CLI runtime.
+// Deferred TUI declarations remain only in the original recovery bytes.
+type LegacyMigrationOptions struct {
+	DeferTUI bool
+}
 
 func (m *LegacyMigration) Selection() LegacySelection { return m.selection }
 func (m *LegacyMigration) Original() []byte           { return bytes.Clone(m.original) }
@@ -86,6 +97,10 @@ func (m *LegacyMigration) Candidate() ([]byte, error) {
 }
 func (m *LegacyMigration) Mapped() []string   { return slices.Clone(m.mapped) }
 func (m *LegacyMigration) Unmapped() []string { return slices.Clone(m.unmapped) }
+
+// Deferred returns names retained for a future TUI migration, without their values.
+func (m *LegacyMigration) Deferred() []string { return slices.Clone(m.deferred) }
+
 func (m *LegacyMigration) SourceSHA256() string {
 	digest := sha256.Sum256(m.original)
 	return hex.EncodeToString(digest[:])
@@ -117,14 +132,23 @@ func LegacyProfileNames(ctx context.Context, data []byte) ([]string, error) {
 // used only to retain the origin of a relative custom-theme declaration.
 // A blank profile selects the legacy default; no profiles are merged.
 func PrepareLegacyMigration(ctx context.Context, data []byte, sourcePath, profile string) (*LegacyMigration, error) {
-	return prepareLegacyMigration(ctx, data, sourcePath, profile, legacyMigrationVersion)
+	return PrepareLegacyMigrationWithOptions(ctx, data, sourcePath, profile, LegacyMigrationOptions{})
+}
+
+// PrepareLegacyMigrationWithOptions prepares the same CLI mappings with explicit TUI deferral.
+func PrepareLegacyMigrationWithOptions(ctx context.Context, data []byte, sourcePath, profile string, options LegacyMigrationOptions) (*LegacyMigration, error) {
+	version := legacyMigrationVersion
+	if options.DeferTUI {
+		version = legacyMigrationDeferredTUIVersion
+	}
+	return prepareLegacyMigration(ctx, data, sourcePath, profile, version)
 }
 
 func prepareLegacyMigration(ctx context.Context, data []byte, sourcePath, profile string, version int) (*LegacyMigration, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	if version < 1 || version > legacyMigrationVersion {
+	if version < 1 || version > legacyMigrationDeferredTUIVersion {
 		return nil, ErrLegacyConfig
 	}
 	legacy, fields, err := decodeLegacyMigration(data)
@@ -158,7 +182,7 @@ func prepareLegacyMigration(ctx context.Context, data []byte, sourcePath, profil
 			item = "jira-cli-" + host + "-" + profile
 		}
 	}
-	m := &LegacyMigration{original: bytes.Clone(data), selection: LegacySelection{
+	m := &LegacyMigration{version: version, original: bytes.Clone(data), selection: LegacySelection{
 		Name: profile, Site: credentials.NormalizeSite(p.BaseURL), Email: strings.TrimSpace(p.Email),
 		Backend: core.CredentialBackend(p.SecretBackend), Account: p.OnePasswordAccount,
 		Vault: p.Vault, Item: item, Host: host,
@@ -269,11 +293,16 @@ func prepareLegacyMigration(ctx context.Context, data []byte, sourcePath, profil
 	}
 	if tui, ok := fields["tui"].(map[string]any); ok {
 		for key := range tui {
-			m.unmapped = append(m.unmapped, "tui."+key)
+			if version >= legacyMigrationDeferredTUIVersion {
+				m.deferred = append(m.deferred, "tui."+key)
+			} else {
+				m.unmapped = append(m.unmapped, "tui."+key)
+			}
 		}
 	}
 	m.mapped = slices.Sorted(maps.Keys(next))
 	slices.Sort(m.unmapped)
+	slices.Sort(m.deferred)
 	m.candidate, err = koanftoml.Parser().Marshal(next)
 	if err != nil {
 		return nil, fmt.Errorf("%w: encode candidate", ErrLegacyConfig)

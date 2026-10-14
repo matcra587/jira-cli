@@ -48,6 +48,7 @@ func newCreate(deps Deps) *cobra.Command {
 		// snake_case rule stops at that boundary and the fidelity axis
 		// proves an unmodeled field survives composition.
 		Passthrough: true,
+		Warnings:    createVerificationWarnings,
 		Use:         "create",
 		Short:       "Create an issue",
 		Long: "Create one issue in a project.\n\n" +
@@ -101,8 +102,17 @@ func newCreate(deps Deps) *cobra.Command {
 			"also how you learn the payload shape: what it prints is valid " +
 			"input for `--json-input`, so a preview round-trips into a real " +
 			"run.\n\n" +
+			fieldPreflightHelp + "\n\n" +
+			"`--assignee` accepts an account ID or bare email. Email resolves the unique visible active search match before live writes or explicit remote previews; local previews retain it with an unresolved warning. Missing, ambiguous or incomplete searches refuse. Privacy can hide email, and resolution does not prove exact email equality or assignability. Native JSON account IDs stay literal.\n\n" +
 			"`--verify` reads the new issue back and reports its stored " +
-			"summary and status. It is a SECOND request, which is why it is a " +
+			"summary, status and comparisons for every requested field. " +
+			"Each comparison reports matches, differs or unverified and preserves " +
+			"the observed native value. Missing fields, unsupported operations and " +
+			"different ADF stay unverified; Jira can normalize ADF. Differences " +
+			"are later observations, not proof of a dropped value or concurrency " +
+			"protection. An acknowledged create stays successful even when readback " +
+			"fails or differs; inspect it before further changes. " +
+			"It is a SECOND request, which is why it is a " +
 			"flag: the creation response identifies the new issue rather than " +
 			"returning its stored fields. `data.receipt` preserves the native " +
 			"response, including optional transition and watcher outcomes. " +
@@ -111,8 +121,8 @@ func newCreate(deps Deps) *cobra.Command {
 			"only that followup, because repeating create makes another issue. " +
 			"Creation failures and interruption retain the attempted payload " +
 			"and any acknowledged identity in the full failure frame.\n\n" +
-			"`--assignee` and `--reporter` take an Atlassian account id, not a " +
-			"display name — or `@me`, which resolves to whoever your " +
+			"`--reporter` takes an Atlassian account ID; `--assignee` also " +
+			"accepts bare email as described above. Both accept `@me` for whoever your " +
 			"credentials authenticate as. Live runs read the current user from " +
 			"Jira. Local previews use a matching cached account_id with an " +
 			"unverified warning, or leave @me unresolved. `--validate-remote` " +
@@ -269,6 +279,18 @@ func runCreate(ctx context.Context, deps Deps, inv command.Invocation, in *issue
 	if err := requireCreateFields(composed.req); err != nil {
 		return zero, err
 	}
+	if opts.validateRemote {
+		if client == nil {
+			client, err = deps.JiraClient(ctx)
+			if err != nil {
+				return zero, err
+			}
+		}
+		out.FieldPreflight, err = createFieldPreflight(ctx, client, composed.req)
+		if err != nil {
+			return zero, err
+		}
+	}
 	if inv.DryRun {
 		return out, nil
 	}
@@ -313,7 +335,7 @@ func runCreate(ctx context.Context, deps Deps, inv command.Invocation, in *issue
 		// a SECOND issue, which is the exact duplicate CreateIssue's own
 		// doc comment warns about. The failure is published instead, as the
 		// outcome it is.
-		verified, err := verifyIssue(ctx, client, out.Issue.Key)
+		verified, err := verifyIssue(ctx, client, out.Issue.Key, composed.req)
 		out.Verified, out.VerifyFailed = verified, err != nil
 	}
 	return out, nil
@@ -374,6 +396,7 @@ func renderCreate(v *output.View, env envelope.Envelope) error {
 // question a preview is run to answer.
 func renderCreatePreview(v *output.View, out envelope.IssueCreateOutput) {
 	v.Line("Would create an issue from this request.")
+	renderFieldPreflight(v, out.FieldPreflight)
 	// Section rather than a bare Line for the heading: it goes through
 	// clog's Divider, which sets this preview apart from the JSON under
 	// it. The title is passed PLAIN and must stay that way — Divider
@@ -389,6 +412,7 @@ func renderCreatePreview(v *output.View, out envelope.IssueCreateOutput) {
 // renderCreateResult draws the live view: the new key, and the readback
 // when one was asked for.
 func renderCreateResult(v *output.View, out envelope.IssueCreateOutput) {
+	renderFieldPreflight(v, out.FieldPreflight)
 	if out.Issue == nil {
 		if out.Applied {
 			v.Line("Jira acknowledged creation, but returned no usable issue identity.")
@@ -408,6 +432,7 @@ func renderCreateResult(v *output.View, out envelope.IssueCreateOutput) {
 		// Jira-authored, so it goes through cli.Text before it can reach a
 		// terminal (axis H4).
 		v.Line(cli.Text(fmt.Sprintf("Reads back as %q, status %s.", out.Verified.Summary, out.Verified.Status)))
+		renderVerificationFields(v, out.Verified)
 	case out.VerifyFailed:
 		v.Hint("The issue was created, but reading it back failed — run `jira issue view " + out.Issue.Key + "` to check it.")
 	}

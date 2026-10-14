@@ -160,6 +160,17 @@ func runExecutableIOInDirStarted(t *testing.T, bin, workdir string, extraEnv []s
 		"NO_COLOR=1",
 		"TERM=dumb",
 	}
+	if runtime.GOOS == "windows" {
+		// Bind Windows configuration and cache discovery to the owned fixture,
+		// just as HOME does for Unix. Never inherit the user's profile stores.
+		cmd.Env = append(cmd.Env,
+			// PowerShell needs executable extensions even for a literal .exe path.
+			"PATHEXT="+os.Getenv("PATHEXT"),
+			"USERPROFILE="+workdir,
+			"APPDATA="+filepath.Join(workdir, "AppData", "Roaming"),
+			"LOCALAPPDATA="+filepath.Join(workdir, "AppData", "Local"),
+		)
+	}
 	cmd.Env = append(cmd.Env, extraEnv...)
 	cmd.Stdin = stdin
 	var outBuf, errBuf bytes.Buffer

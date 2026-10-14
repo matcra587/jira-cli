@@ -116,9 +116,8 @@ type IssueWatchersListData struct {
 //
 // EmailAddress is NOT published, though the wire may carry it. Jira
 // gates it behind the watcher's own privacy settings, so it is null for
-// most accounts on most tenants; a field that is usually absent invites
-// a caller to depend on the times it is not, and this CLI has no verb
-// that takes an email.
+// most accounts on most tenants. Explicit user-query lookup can match an
+// email but does not verify its equality; watcher identity remains the ID.
 type WatcherView struct {
 	// AccountID is the account's stable Atlassian id — the handle `issue
 	// watchers add` and `issue watchers remove` both take. First, for the
@@ -160,8 +159,11 @@ type IssueWatchersAddOutput struct {
 	// MutationState carries dry_run on both paths.
 	MutationState
 	// AccountID is the Atlassian account being added, echoed from
-	// --user. Request context, so it survives the preview.
+	// --user or resolved once from --user-query. Local query previews leave it
+	// empty; authored query intent is retained separately.
 	AccountID string `json:"account_id"`
+	// UserQuery preserves an authored lookup query; an unresolved local preview has an empty AccountID.
+	UserQuery string `json:"user_query,omitempty"`
 	// Results is one entry per key the caller named, in argv order.
 	KeyedResults[IssueWatchersWriteData]
 }
@@ -172,8 +174,10 @@ type IssueWatchersRemoveOutput struct {
 	// MutationState carries dry_run on both paths.
 	MutationState
 	// AccountID is the Atlassian account being removed, echoed from
-	// --user.
+	// --user or resolved once from --user-query. Local query previews leave it empty.
 	AccountID string `json:"account_id"`
+	// UserQuery preserves an authored lookup query; an unresolved local preview has an empty AccountID.
+	UserQuery string `json:"user_query,omitempty"`
 	// Results is one entry per key the caller named, in argv order.
 	KeyedResults[IssueWatchersWriteData]
 }
@@ -225,10 +229,13 @@ func init() {
 		"description": "The account added as a watcher on each named issue, with the resulting watcher set where one was read back.",
 		"properties": map[string]any{
 			"dry_run": map[string]any{
-				"description": "True when this was a preview. A preview composes the request and stops; it never contacts Jira, so it cannot report whether the issues exist or whether the account is already watching.",
+				"description": "True when this was a preview. Bare previews perform no Jira lookup; --validate-remote permits @me/query resolution and exact active literal-account validation without writing. A preview cannot report issue existence or watcher state.",
 			},
 			"account_id": map[string]any{
-				"description": "The Atlassian account id being added, echoed from --user. One account for the whole run, which is why it sits here rather than inside each result.",
+				"description": "The account being added, literal from --user or resolved once from --user-query/@me. Empty for an unresolved local query preview; unresolved @me retains its sentinel or unverified cached identity. Explicit --validate-remote checks literal IDs against one exact active native account; no lookup proves issue existence or watcher permission. One account applies to all results.",
+			},
+			"user_query": map[string]any{
+				"description": "Authored --user-query spelling, retained independently of the resolved account ID. A unique visible active query match does not verify exact name/email equality or watcher permission. Omitted for literal --user.",
 			},
 			"results": map[string]any{
 				"description": "One entry per key in input order. Total failure, cancellation and timeout retain joined outcomes and account context. Acknowledged writes stay successful when a post-write read fails; data.readback_error reports that failure without inventing watcher state. Previews and --no-readback omit both readback fields.",
@@ -240,10 +247,13 @@ func init() {
 		"description": "The account removed as a watcher from each named issue, with the resulting watcher set where one was read back.",
 		"properties": map[string]any{
 			"dry_run": map[string]any{
-				"description": "True when this was a preview. A preview composes the request and stops; it never contacts Jira, so it cannot report whether the issues exist or whether the account was watching.",
+				"description": "True when this was a preview. Bare previews perform no Jira lookup; --validate-remote permits @me/query resolution and exact active literal-account validation without writing. A preview cannot report issue existence or watcher state.",
 			},
 			"account_id": map[string]any{
-				"description": "The Atlassian account id being removed, echoed from --user. One account for the whole run, which is why it sits here rather than inside each result.",
+				"description": "The account being removed, literal from --user or resolved once from --user-query/@me. Empty for an unresolved local query preview; unresolved @me retains its sentinel or unverified cached identity. Explicit --validate-remote checks literal IDs against one exact active native account; no lookup proves issue existence or watcher permission. One account applies to all results.",
+			},
+			"user_query": map[string]any{
+				"description": "Authored --user-query spelling, retained independently of the resolved account ID. A unique visible active query match does not verify exact name/email equality or watcher permission. Omitted for literal --user.",
 			},
 			"results": map[string]any{
 				"description": "One entry per key in input order. Total failure, cancellation and timeout retain joined outcomes and account context. Acknowledged writes stay successful when a post-write read fails; data.readback_error reports that failure without inventing watcher state. Previews and --no-readback omit both readback fields.",

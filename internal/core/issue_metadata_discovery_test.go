@@ -31,6 +31,44 @@ func metadataTestRead(native string) IssueMetadataRead {
 	return IssueMetadataRead{Page: &IssueMetadataPage{Native: json.RawMessage(native)}}
 }
 
+func TestIssueMetadataPreflightNativeTypeIdentityDoesNotGuess(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, id, display, want string
+	}{
+		{"ID chooses ID", "10001", "", "10001"},
+		{"name equal to another ID", "", "10001", "10002"},
+		{"ID is not a display name", "Task", "", ""},
+		{"matching ID and name", "10001", "task", "10001"},
+		{"conflicting ID and name", "10001", "10001", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			fieldCalls := 0
+			client := metadataFixtureClient{
+				types: func(context.Context, string, int, int) (IssueMetadataRead, error) {
+					return metadataTestRead(`{"startAt":0,"maxResults":50,"total":2,"issueTypes":[{"id":"10001","name":"Task"},{"id":"10002","name":"10001"}]}`), nil
+				},
+				fields: func(_ context.Context, _, id string, _, _ int) (IssueMetadataRead, error) {
+					fieldCalls++
+					if id != tc.want {
+						t.Errorf("native type identity changed: got=%s want=%s", id, tc.want)
+					}
+					return metadataTestRead(`{"startAt":0,"maxResults":50,"total":0,"fields":[]}`), nil
+				},
+			}
+			result, err := DiscoverCreateIssueMetadataForIdentity(t.Context(), client, "ENG", tc.id, tc.display)
+			if tc.want != "" {
+				if err != nil || result == nil || result.IssueTypeID != tc.want || fieldCalls != 1 {
+					t.Fatalf("identity context lost: result=%+v error=%v reads=%d", result, err, fieldCalls)
+				}
+			} else if err == nil || result != nil || fieldCalls != 0 {
+				t.Fatalf("guessed native identity reached field reads: result=%+v error=%v reads=%d", result, err, fieldCalls)
+			}
+		})
+	}
+}
+
 func TestIssueMetadataDiscoveryWalksShortPagesAndResolvesNames(t *testing.T) {
 	t.Parallel()
 	var typeStarts, fieldStarts []int

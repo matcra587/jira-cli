@@ -24,6 +24,49 @@ func TestWatchersAddUserRidesBody(t *testing.T) {
 		`stub saw POST /issue/KEY-123/watchers whose whole body is the --user account id ("acc-42")`)
 }
 
+func TestWatchersUserQueryResolvesIdentityBeforeWrites(t *testing.T) {
+	const query = "Ada Lovelace"
+	const identity = "resolved@opaque"
+	for _, verb := range []string{"add", "remove"} {
+		t.Run(verb, func(t *testing.T) {
+			stub := newCWStub(t, cwStubConfig{userSearch: []string{`{"accountId":"resolved@opaque","active":true,"emailAddress":null}`}})
+			res := cwRun(t, stub, t.TempDir(), "issue", "watchers", verb, "KEY-123", "KEY-124",
+				"--user-query", query, "--no-readback", "--output=json")
+			env := cwRequireOK(t, res)
+			data := cwDataMap(t, env)
+			if data["account_id"] != identity || data["user_query"] != query {
+				t.Fatal("watcher query receipt lost native identity or authored intent", data)
+			}
+			requests := stub.requests()
+			if len(requests) != 4 {
+				t.Fatal("query should resolve once before two writes", requests)
+			}
+			for i, offset := range []string{"0", "1"} {
+				r := requests[i]
+				if r.Method != http.MethodGet || r.Path != "/rest/api/3/user/search" || r.Query.Get("query") != query || r.Query.Get("startAt") != offset || r.Query.Get("maxResults") != "50" {
+					t.Fatal("watcher query did not complete its native walk before writes", requests)
+				}
+			}
+			seen := map[string]bool{}
+			for _, r := range requests[2:] {
+				if seen[r.Path] || r.Path != "/rest/api/3/issue/KEY-123/watchers" && r.Path != "/rest/api/3/issue/KEY-124/watchers" {
+					t.Fatal("watcher query wrote an unexpected or repeated target", requests)
+				}
+				seen[r.Path] = true
+				if verb == "add" {
+					if r.Method != http.MethodPost || strings.TrimSpace(string(r.Body)) != `"resolved@opaque"` {
+						t.Fatal("watcher query add did not send the resolved native identity", r)
+					}
+				} else if r.Method != http.MethodDelete || r.Query.Get("accountId") != identity {
+					t.Fatal("watcher query remove did not send the resolved native identity", r)
+				}
+			}
+			Prove(t, "jira issue watchers "+verb, "user-query",
+				"one complete native user search precedes both keyed writes; the resolved opaque account ID and authored query are preserved")
+		})
+	}
+}
+
 func TestWatchersAddNoReadbackSkipsSecondRequest(t *testing.T) {
 	stub := newCWStub(t, cwStubConfig{})
 	res := cwRun(t, stub, t.TempDir(), "issue", "watchers", "add", "KEY-123",

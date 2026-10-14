@@ -1625,6 +1625,8 @@ func siblingModeCaptureFrom(captures map[string]Capture, cap Capture) (Capture, 
 // deliberate-extension gate the inventory pin applies to a new command.
 // A warning of an undeclared type still fails the axis.
 var successWarningTypes = map[string][]string{
+	"issue.create": {"field_value_differs", "field_verification_incomplete", "verification_failed"},
+	"issue.edit":   {"field_value_differs", "field_verification_incomplete", "verification_failed"},
 	// The comment could not ride the transition (the workflow has no
 	// screen), or could not be posted at all after one that had already
 	// landed. Both are facts about a run that SUCCEEDED — the status
@@ -1754,8 +1756,8 @@ var passthroughBoundary = map[string][]string{
 	// until a --remove-fix-version was added to the recipe. The boundary
 	// was always required; the capture simply had not exercised a
 	// camelCase field yet.
-	"issue.create": {"payload", "receipt"},
-	"issue.edit":   {"payload"},
+	"issue.create": {"payload", "receipt", "verified.fields.observed"},
+	"issue.edit":   {"payload", "results.data.verified.fields.observed"},
 	// Native creation receipts retain Jira's own nested vocabulary. Only the
 	// exact receipt subtree is exempt; the CLI's per-key fields stay checked.
 	"issue.clone": {"results.data.receipt"},

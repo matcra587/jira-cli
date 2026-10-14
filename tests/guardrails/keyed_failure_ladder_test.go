@@ -66,6 +66,8 @@ func TestKeyedFailureLadderOrdersTheClassesItClaimsTo(t *testing.T) {
 		{"jira_rate_limited", "jira_server_error"},
 		{"jira_server_error", "jira_not_found"},
 		{"jira_not_found", cli.CodeFlagValueInvalid},
+		{cli.CodeIssueFieldPreflightFailed, cli.CodeFlagValueInvalid},
+		{cli.CodeIssueMetadataResponseInvalid, cli.CodeIssueFieldPreflightFailed},
 	} {
 		if command.FailureSeverity(tc.higher) <= command.FailureSeverity(tc.lower) {
 			t.Errorf("FailureSeverity(%q)=%d does not outrank %q=%d — the ladder's numbers no longer say what its doc comment argues",

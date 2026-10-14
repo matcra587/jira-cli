@@ -9,10 +9,30 @@ order: 40
 
 ## Decide
 
-Choose the domain command and explicit targets. Start with `--dry-run` and
-inspect the prepared request. Local preview changes nothing and sends no Jira
-request. Where supported, `--validate-remote` opts a preview into metadata or
-account reads without submitting the mutation.
+Choose the domain command and explicit targets. For Jira resource mutations,
+start with `--dry-run` and inspect the prepared request. A bare mutation preview
+changes nothing and sends no Jira request. Where supported, `--validate-remote`
+opts a preview into metadata or account reads without submitting the mutation.
+Authentication previews differ: login and `auth whoami --save --dry-run` verify
+the account against Jira without saving credentials or settings.
+
+Before a live write, check the site, credentials and project requirements in
+Preconditions. Choose the workflow below, then keep its complete receipt.
+A successful command can contain failed targets. Save and Recover explain how
+to inspect them before retrying.
+
+### Select explicit issue targets
+
+### Resolve an assignee or the current account
+
+The `--assignee` flag also accepts a bare email. A live run or
+`--validate-remote` resolves the unique visible active user search match before
+composing the issue request. A local preview leaves the email unresolved and
+adds `account_email_unresolved`. Missing, multiple and incomplete searches refuse
+before a write. Privacy may hide the returned email. This lookup does not prove
+exact email equality or permission to assign. Use `jira user search` and an
+explicit account ID when choosing among candidates. Native JSON account IDs
+remain literal.
 
 An `@me` account flag resolves through the authenticated current-account read on
 a live run or with `--validate-remote`. Local previews use a matching configured
@@ -70,6 +90,40 @@ provide a missing acknowledgement. Jira read-only policy refuses remote writes
 even with `--force`.
 
 ### Check field readback and remote metadata
+
+Create/edit `--verify` makes one later read of every requested field plus
+summary/status/time metadata. Inspect `verified.fields` on create and
+`results[].data.verified.fields` on edit. Sorted rows report `matches`, `differs`
+or `unverified`, their comparison reason and the native `observed` value when
+returned. An absent `observed` remains different from explicit null.
+Known Jira identities, including cascading-select children, and unordered
+collections use identity/membership checks.
+Arbitrary native numbers retain their exact spelling. Known collection updates
+check final add/remove membership. Collection replacements also reject leftover
+members while accepting reordered, expanded identities.
+Unsupported operations, ambiguous member aliases and absent fields remain unverified.
+Different ADF also remains unverified, including custom rich-text documents.
+Jira can normalize ADF. Top-level request properties and followups are outside this field check.
+
+Create/edit `--validate-remote` also checks every requested field ID and
+operation against complete create or per-issue edit metadata. Bare previews stay
+local. Inspect `field_preflight.fields` on create and
+`results[].data.field_preflight.fields` on edit. Native values remain unchanged.
+Field types, required values, permissions and top-level request properties are
+outside this check. A missing field or unsupported operation refuses before that
+context's write. Different edit contexts retain ordered partial results. A
+metadata snapshot is neither permission nor protection against another writer.
+
+Field metadata checks admit only complete replies bound to the configured API
+scope and credentials. A redirected public response cannot authorize a write.
+
+Full JSON warnings expose `field_value_differs`,
+`field_verification_incomplete` and `verification_failed`. Compact success keeps
+the comparison in operation data. Inspect its rows even when no frame warnings
+are present. Readback failure or differences retain the acknowledged creation
+identity or successful edit. Inspect the later values before further changes.
+Repeating create makes another issue. A difference does not identify its cause,
+and matching values do not prevent a later concurrent write.
 
 ### Prepare an existing description without losing native data
 
@@ -310,11 +364,29 @@ automatically. The acknowledgement does not independently prove absence.
 
 Watcher add/remove resolves `--user @me` on live runs. Local previews use matching
 cached identity with an unverified warning, or leave it unresolved.
-`--validate-remote` permits the actual account lookup in a preview.
+`--validate-remote` permits the actual account lookup in a preview. For literal
+`--user` IDs it checks one exact active, undeleted native account before any
+issue request, also on live preflight. Malformed replies, unknown activity or a
+different account ID refuse. Surrounding input whitespace is trimmed for this
+check. One lookup serves every issue. It does not establish watcher permission
+or issue existence. Bare previews and ordinary literal live writes make no
+account lookup.
 `--no-readback` skips the post-write GET. A failed GET keeps the acknowledged
 write successful and publishes `data.results[].data.readback_error`. Inspect
 watcher state to recover that read instead of replaying the write. Watcher
 list/add/remove retains ordered outcomes on total failure or interruption.
+
+Use `--user-query` to select one visible active name/email search match instead
+of supplying `--user`. The flags conflict even when authored empty. Missing,
+ambiguous, malformed or incomplete searches refuse before issue requests.
+Duplicate native row members and case variants of accountId/active/deleted
+refuse before typed decoding, preventing overwritten identity or activity from
+authorizing a write. An invalid later row publishes none of that page. A
+match does not prove exact email/name identity or watcher permission. Bare
+previews retain `data.user_query` with an unresolved warning and empty
+`data.account_id`, without opening a client or preferences. Live and explicit
+remote previews resolve once for every key and retain the original query beside
+the native account ID. Query text `@me` is a search, not the current-user sentinel.
 
 Comment add retains the authored body and ordered outcomes when every target
 fails or the run is interrupted. Keep completed comment IDs. An add or edit

@@ -3,9 +3,7 @@ package jira
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -16,44 +14,49 @@ import (
 
 // ErrUserSearchResponseInvalid marks an upstream protocol failure, not bad
 // caller input or an empty search. The CLI taxonomy preserves that distinction.
-var ErrUserSearchResponseInvalid = errors.New("user search response invalid")
+var ErrUserSearchResponseInvalid = core.ErrUserSearchResponseInvalid
 
 // SearchUsers implements the pinned findUsers operation. Filtering precedes
 // paging on this endpoint (unlike assignable/picker search). Privacy controls
 // may omit email; the generated User preserves absence, null and extensions.
 func (c *Client) SearchUsers(ctx context.Context, query string, startAt, maxResults int) (core.UserSearchRead, error) {
+	if err := ctx.Err(); err != nil {
+		return core.UserSearchRead{}, err
+	}
 	params := url.Values{}
 	params.Set("query", query)
 	params.Set("startAt", strconv.Itoa(startAt))
 	params.Set("maxResults", strconv.Itoa(maxResults))
-	req, err := c.newRequest(ctx, http.MethodGet, []string{"rest", "api", "3", "user", "search"}, params, nil)
+	response, err := c.doAPI(ctx, core.APIRequest{Method: http.MethodGet, Endpoint: "/rest/api/3/user/search", Query: params, MaxResponseBytes: core.DefaultMaxAPIResponseBytes}, func(response *http.Response) error {
+		return c.requireAuthenticatedReply(response, ErrUserSearchResponseInvalid, "user search")
+	})
 	if err != nil {
 		return core.UserSearchRead{}, err
 	}
-	resp, info, err := c.doWithRetry(req)
-	if err != nil {
-		return core.UserSearchRead{}, fmt.Errorf("search users: %w", err)
+	if response == nil || response.StatusCode != http.StatusOK || response.Truncated {
+		return core.UserSearchRead{}, ErrUserSearchResponseInvalid
 	}
-	defer resp.Body.Close() //nolint:errcheck // read-only body; close failure loses no state
-	if resp.StatusCode != http.StatusOK {
-		return core.UserSearchRead{}, c.apiError(resp, info)
-	}
-	var users []*wire.User
-	decoder := json.NewDecoder(resp.Body)
-	if err := decoder.Decode(&users); err != nil {
+	var rows []json.RawMessage
+	if err := json.Unmarshal(response.Body, &rows); err != nil {
 		return core.UserSearchRead{}, fmt.Errorf("%w: decode array: %w", ErrUserSearchResponseInvalid, err)
 	}
-	var trailing json.RawMessage
-	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
-		return core.UserSearchRead{}, fmt.Errorf("%w: response contains trailing data", ErrUserSearchResponseInvalid)
+	if rows == nil || maxResults < 1 || maxResults > core.UserSearchLimit || len(rows) > maxResults {
+		return core.UserSearchRead{}, ErrUserSearchResponseInvalid
 	}
-	if users == nil || len(users) > maxResults {
-		return core.UserSearchRead{}, fmt.Errorf("%w: missing array or oversized page", ErrUserSearchResponseInvalid)
-	}
-	for _, user := range users {
-		if user == nil || !user.AccountID.Set || user.AccountID.Null || user.AccountID.Value == "" {
-			return core.UserSearchRead{}, fmt.Errorf("%w: match lacks an account identity", ErrUserSearchResponseInvalid)
+	users := make([]*wire.User, len(rows))
+	for index, raw := range rows {
+		if _, err := wire.DecodeNativeObject(raw, []string{"accountId", "active", "deleted"}); err != nil {
+			return core.UserSearchRead{}, fmt.Errorf("%w: native account: %w", ErrUserSearchResponseInvalid, err)
+		}
+		if err := json.Unmarshal(raw, &users[index]); err != nil {
+			return core.UserSearchRead{}, fmt.Errorf("%w: decode account: %w", ErrUserSearchResponseInvalid, err)
 		}
 	}
-	return core.UserSearchRead{Users: users, Retry: info}, nil
+	if _, err := core.ActiveUserSearchPage(users, maxResults, make(map[string]struct{})); err != nil {
+		return core.UserSearchRead{}, err
+	}
+	if err := ctx.Err(); err != nil {
+		return core.UserSearchRead{}, err
+	}
+	return core.UserSearchRead{Users: users, Retry: response.Retry}, nil
 }

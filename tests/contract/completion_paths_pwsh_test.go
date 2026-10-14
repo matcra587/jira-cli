@@ -111,17 +111,18 @@ func TestContextualPowerShellPathCompletionExecutesLiteralArgv(t *testing.T) {
 					if role == "directory" || role == "unicode directory" {
 						line = "jira issue attachment add KEY-1 candidate"
 						continuation = "lea"
+						want = []string{"issue", "attachment", "add", "KEY-1", filepath.Join("candidate,dir", "leaf.txt")}
 					}
 					if role == "unicode directory" {
 						if err := os.Rename(filepath.Join(dir, "candidate,dir"), filepath.Join(dir, "candidate café")); err != nil {
 							t.Fatal(err)
 						}
-						want = []string{"issue", "attachment", "add", "KEY-1", "candidate café/leaf.txt"}
+						want = []string{"issue", "attachment", "add", "KEY-1", filepath.Join("candidate café", "leaf.txt")}
 					}
 					if role == "csv directory" {
 						line = "jira issue attachment add KEY-1 --file candidate"
 						continuation = "lea"
-						want = []string{"issue", "attachment", "add", "KEY-1", "--file", `"candidate,dir/leaf.txt"`}
+						want = []string{"issue", "attachment", "add", "KEY-1", "--file", `"` + filepath.Join("candidate,dir", "leaf.txt") + `"`}
 					}
 				}
 				if role == "selected" || role == "files select issues" || strings.HasPrefix(role, "ordinary ") {

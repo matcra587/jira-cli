@@ -40,7 +40,7 @@ func (r *liveRun) checkWatcherMutation(keys, args []string) error {
 		}
 		seen[flag] = true
 		switch flag {
-		case "--user":
+		case "--user", "--user-query":
 			if !hasValue {
 				i++
 				if i == len(args) {
@@ -48,7 +48,11 @@ func (r *liveRun) checkWatcherMutation(keys, args []string) error {
 				}
 				value = args[i]
 			}
-			if value != "@me" && value != r.watcherAccountID {
+			if flag == "--user-query" {
+				if r.watcherQuery == "" || r.watcherQuery != r.account || value != r.watcherQuery {
+					return errors.New("watcher query requires the independently bound current-account query")
+				}
+			} else if value != "@me" && value != r.watcherAccountID {
 				return errors.New("watcher mutation cannot change another account's subscription")
 			}
 		case "--parallelism":
@@ -63,8 +67,8 @@ func (r *liveRun) checkWatcherMutation(keys, args []string) error {
 			return errors.New("watcher mutation contains an unauthored option")
 		}
 	}
-	if !seen["--user"] {
-		return errors.New("watcher mutation must name the current account")
+	if seen["--user"] == seen["--user-query"] {
+		return errors.New("watcher mutation must name exactly one current-account identifier")
 	}
 	return nil
 }

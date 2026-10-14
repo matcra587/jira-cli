@@ -103,8 +103,20 @@ type watcherReceiptFrame struct {
 
 func TestWatcherPublishedHelpExamplesExecute(t *testing.T) {
 	t.Parallel()
-	var reads, adds, removes, myself atomic.Int32
+	var reads, adds, removes, myself, searches atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.Method == http.MethodGet && req.URL.Path == "/rest/api/3/user/search" {
+			searches.Add(1)
+			if req.URL.Query().Get("query") != "ada@example.com" {
+				t.Error("published watcher query changed its explicit search")
+			}
+			if req.URL.Query().Get("startAt") == "0" {
+				_, _ = w.Write([]byte(`[{"accountId":"5b10a2844c20165700ede21g","active":true}]`))
+			} else {
+				_, _ = w.Write([]byte(`[]`))
+			}
+			return
+		}
 		if req.Method == http.MethodGet && req.URL.Path == "/rest/api/3/myself" {
 			myself.Add(1)
 			_, _ = w.Write([]byte(`{"accountId":"5b10a2844c20165700ede21g"}`))
@@ -160,8 +172,8 @@ func TestWatcherPublishedHelpExamplesExecute(t *testing.T) {
 			count++
 		}
 	}
-	if count != 15 || reads.Load() != 18 || adds.Load() != 8 || removes.Load() != 7 || myself.Load() != 2 {
-		t.Fatalf("watcher help coverage changed: examples=%d reads=%d adds=%d removes=%d myself=%d", count, reads.Load(), adds.Load(), removes.Load(), myself.Load())
+	if count != 17 || reads.Load() != 20 || adds.Load() != 9 || removes.Load() != 8 || myself.Load() != 2 || searches.Load() != 4 {
+		t.Fatalf("watcher help coverage changed: examples=%d reads=%d adds=%d removes=%d myself=%d searches=%d", count, reads.Load(), adds.Load(), removes.Load(), myself.Load(), searches.Load())
 	}
 }
 

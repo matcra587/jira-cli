@@ -1,8 +1,7 @@
 ---
 description: >
-  Architecture map and cross-cutting concerns: layers, key directories, the
-  command lifecycle, where each concern lives, and the development workflow
-  (mise, tests, docs generation).
+  Architecture map and cross-cutting concerns: shared owners, command lifecycle,
+  dependency construction, output, and development verification.
 paths:
   - "internal/**/*.go"
   - "cmd/**/*.go"
@@ -11,104 +10,114 @@ paths:
 
 # Project
 
-jira-cli is a Go/Cobra CLI for Jira Cloud, built agent-first. This file is
-the map; deep rules live in [commands.md](commands.md),
-[output.md](output.md), [config.md](config.md), [security.md](security.md),
-[style.md](style.md), and [go.md](go.md).
+jira-cli is a Go/Cobra CLI for Jira Cloud. This file maps the v0.16 owners;
+deep rules live in [commands.md](commands.md), [output.md](output.md),
+[config.md](config.md), [security.md](security.md), [style.md](style.md),
+[go.md](go.md), and [tests.md](tests.md).
 
-## Layers and import direction
-
-```text
-cmd/jira             entry point: root.Execute(ctx), owns process exit
-cmd/gen-docs         docs generation (reuses root.New — reference site
-                     cannot drift from the real command tree)
-   ↓
-internal/cli/*       cobra commands by domain (issue, epic, auth, config, …)
-internal/cli/command shared command helpers: flags, gates, envelope, fanout
-internal/cli/root    root wiring: PersistentPreRunE, help, completion
-internal/envelope    operation-owned Output structs and derived schema registry
-   ↓
-internal/jira        REST client + typed services (+ customfield registry)
-internal/adf         ADF parse/validate/render/markdown (+ node registry)
-internal/config      named profile documents, koanf resolution, credential selection
-internal/cache       per-profile metadata cache
-internal/pipeline    5-stage mutation validation (validate-and-encode)
-internal/{browser,editor,issuekey,jql,refresh,version}
-internal/tui/*       persistent dashboard
-```
-
-Every package lives under `internal/` — this module exports no public API.
-
-## Key directories
+## Shared owners
 
 | Path | Role |
 |------|------|
-| `cmd/jira/` | entry point |
-| `internal/agentguides/` | the `//go:embed` docent guide set (`jira agent guide` / `jira guide`); contract-tested via `docenttest.Validate` |
-| `internal/cli/agent/` | the `agent adf-matrix` / `agent fieldtypes` registry commands, mounted under docent's agent group |
-| `internal/cli/command/` | flags+metadata helpers, gates, envelope, fanout, keyed results, help sections |
-| `internal/envelope/` | one registered data shape per operation; concrete fixed members, reviewed Dynamic exceptions, derived JSON Schemas |
-| `internal/cli/registry.go`, `verbs.go`, `plain_*.go` | human-mode renderer registry and verb phrases |
-| `internal/cli/errors.go`, `json.go`, `detector.go` | error mapping, envelope machinery, output-mode detection |
-| `internal/jira/customfield/` | field-type registry (encoders/validators) — never branch on field-type strings |
-| `internal/adf/` | node registry drives parse/validate/render; golden fixtures |
-| `ruleguard/rules.go` | the two custom lint rules (see [style.md](style.md)) |
-| `tests/` | `contract`, `unit`, `integration`, `guardrails`; `tests/live/` is `live`-tagged, run via `mise run test:live` |
-| `.claude/worktrees/` | live git worktree checkouts — exclude (with `.cache/`, `dist/`) from searches; never edit inside |
+| `cmd/jira/` | signal context and process exit; calls `root.Run` |
+| `internal/cli/root/` | Conductor/Cobra composition, lazy injected factories, aliases, completion dispatch, output selection and failure boundary |
+| `internal/cli/command/` | typed `Spec`, invocation facts, validation, flag/argument metadata, variants, keyed work and envelope emission |
+| `internal/cli/` | stable error classification, detection, theme policy and pure value sinks |
+| `internal/cli/issue/` and other command domains | handlers and human layouts using injected capabilities |
+| `internal/core/` | consumer interfaces, operation types and shared domain policies |
+| `internal/adapters/` | concrete clock and site/account-scoped metadata cache implementations |
+| `internal/adapters/jira/` | Jira client satisfying core interfaces, authenticated response admission and retry policy |
+| `internal/adapters/keyring/`, `internal/adapters/onepassword/` | credential stores and provider-owned recovery |
+| `internal/jira/` | native wire models, nullable fields, JSON admission and request encoding |
+| `internal/config/` | named profiles, flat runtime settings, provenance, file publication and migration/recovery transactions |
+| `internal/credentials/` | shared credential records and binding |
+| `internal/adf/` | preservation, parsing, validation, rendering and anchored editing |
+| `internal/issueedit/` | durable local description drafts; no Jira writing capability |
+| `internal/envelope/` | registered operation data shapes and derived schemas |
+| `internal/output/` | envelope assembly, machine rendering, human View/table primitives and output failure tracking |
+| `internal/cli/completion/native/` | licensed generator backports registered at clib's model boundary |
+| `internal/agentguides/`, `internal/cli/discovery/` | embedded docent guides and discovery from the assembled command tree |
+| `internal/cli/agent/` | illustrative native field examples and ADF capability discovery |
+| `internal/selfupdate/`, `internal/cli/update/` | installation/release owners and the public update command |
+| `ruleguard/rules.go` | custom lint rules enforcing shared boundaries |
+| `tests/` | unit, contract, integration, guardrail, flag-matrix, output-audit and opt-in live acceptance |
+
+The module exports no public library API. Core declares consumer seams;
+adapters implement them. The composition root supplies lazy constructors to
+commands. Extend these owners rather than constructing clients, credential
+stores or output policies independently inside handlers.
 
 ## Command lifecycle
 
-1.  `cmd/jira/main.go` calls `root.Execute(ctx)`; main owns process exit and
-    maps `ErrCompletionHandled` → 0.
-2.  Startup preflight (`internal/cli/startup`, clib `Preflight()`) intercepts
-    completion directives **before** parsing — the `completion` command
-    deliberately bypasses `PersistentPreRunE`.
-3.  Root `PersistentPreRunE` (root/root.go) loads config, wires clog
-    (stderr, `SetEnvPrefix("JIRA")`, `--color`), resolves the output mode
-    (detector), and seeds the context logger.
-4.  The command's `RunE` acquires services via `command`
-    (`JiraClientForCommand`), gates dry-run/read-only/ADF-mode, does the
-    work behind a spinner, builds its registered `internal/envelope` Output,
-    and returns through `command.WriteEnvelope`. Stable context is shared by
-    dry/live and single/keyed paths; only server outcomes are conditional.
-    A command built through the construction path differs: its handler
-    returns data and the path writes the envelope. `version` takes that
-    route and constructs no client at all.
+1.  `cmd/jira/main.go` obtains Conductor's signal context and returns the exit
+    code from `root.Run(ctx, args)`.
+2.  Root assembles the real tree and runtime, registering native generators
+    before exposing completion. `root/complete.go` handles completion actions
+    before Cobra parsing; a handled callback returns without running a command.
+3.  Root seeds the failure output selector, expands configured aliases, applies
+    their final global flags, and resolves the theme. Command-path checks and
+    the shared failure sink cover errors before normal hooks can run.
+4.  `PersistentPreRunE` resolves color, output mode and optional jq filtering,
+    then publishes invocation context. Enabled hook traversal keeps child
+    hooks from silently bypassing this boundary. Configuration and credential
+    resolution for Jira remains in lazy factories.
+5.  `command.Spec` owns argument/flag declarations and pure validation. Its
+    handler receives invocation facts and injected capabilities, returns typed
+    data, and never owns the result writer. The shared path emits success or
+    retains an explicit failure receipt, including typed warnings and variants.
+6.  Output assembly/rendering uses `internal/output` and registered envelope
+    types. Human renderers use shared View primitives and value sinks. Root
+    classifies failures into the published exit codes 0–8 and preserves output
+    destination errors. See [output.md](output.md).
 
-5.  Errors map through `internal/cli/errors.go` to stable codes and exit
-    codes 0–8 (see [output.md](output.md)).
+Bare `jira` uses the same typed root spec: human mode renders framework help;
+machine modes return discovery of the assembled tree. Explicit selectors and
+agent detection follow the shared output rules. Completion scripts are a
+documented raw-output exception and emit identical bytes in every output mode.
 
-Bare `jira` is contract-aware: TTY → help, non-TTY/agent → JSON schema.
+## Cross-cutting concerns
 
-## Cross-cutting concerns (where each lives)
-
-*   **Output contract** — operation shapes and schemas in `internal/envelope`;
-    rendering rules in [output.md](output.md); user-facing spec in the embedded
-    guide.
-*   **Mutations** — the validate-and-encode pipeline (`internal/pipeline`);
-    `--dry-run` is local-only and never contacts Jira.
-*   **Errors** — typed errors + adapters in `internal/cli/errors.go` only.
-*   **Config** — [config.md](config.md).
-*   **Metadata caching** — `internal/cache`, surfaced by the `cache` command
-    family and the completion predictors.
-*   **Docs** — `docs/reference/` is generated from the command tree and
-    gitignored; never hand-edit. Behavior changes update the embedded agent
-    guide + schemas in the same PR — guide/schema drift is a bug class here
-    (an `init()` panic and guardrail tests defend parts of it).
-*   **TUI widgets** — `github.com/gechr/primer`; check it before adding
-    anything under `internal/tui/components/`.
-*   **Versioning** — build metadata lives in `internal/version`, injected by
-    the `mise run install` ldflags.
+*   **Mutations** use shared command flags, pure validation and core policies.
+    Every mutation spec must declare `--dry-run`. Bare previews remain local;
+    explicit `--validate-remote` may perform the documented remote reads. It
+    never authorizes a preview write. Verification observes later state after
+    acknowledgment; it does not provide server compare-and-swap.
+*   **Native input** preserves unknown members and absent/null/zero distinctions.
+    Requested-field preflight checks IDs and operations without converting
+    values. `agent fieldtypes` examples are not a tenant/plugin encoder registry.
+*   **Config and credentials** follow [config.md](config.md): one flat runtime
+    configuration resolved from the selected profile, separate public site/account identity and authenticated API scope,
+    lazy providers and recoverable migration preimages.
+*   **Metadata caching** uses core interfaces and adapters, scoped to public
+    site/account identity. The cache command family and offline completion
+    predictors share these owners; completion never resolves credentials.
+*   **Lossless editing** uses ADF preservation and bound sessions plus durable
+    issue drafts. A fresh read, merge or later verification is not evidence of
+    server-enforced lost-update protection.
+*   **Documentation** follows the real command tree and operation registry.
+    Behavior changes update help, embedded guides, schemas, applicable rules
+    and changie fragments together. Discovery is built at runtime; no
+    `cmd/gen-docs` owner exists in this layout.
+*   **TUI runtime** remains a separate milestone. Explicit migration deferral
+    retains original declarations without claiming active dashboard behavior.
+*   **Versioning** uses clive's injected version and Go's embedded VCS metadata,
+    exposed by `internal/cli/version/`. Build flags belong to
+    `.mise/tasks/lib/build-env.sh`.
 
 ## Workflow
 
-*   mise provisions the pinned toolchain. Build with `mise run install`
-    (sets the version ldflags a plain `go install` cannot).
-*   `mise run ci` is the merge gate (macOS/Linux/WSL only — it fails on
-    Windows). Tighter loops: `mise run check` / `test` /
-    `test:integration`; `mise run fix` auto-applies fmt/lint/rumdl fixes.
-*   PR titles are conventional commits (`feat(issue): …`) — PRs squash, so
-    the title becomes the commit on `main`. Commits are signed. Pre-commit
-    hooks via `hk install` (globs the working tree, not just staged files).
-*   Live verification targets the dedicated probe project configured via
-    `JIRA_LIVETEST_PROJECT` — never a real project's board.
+*   mise provisions the selected tools. `mise run build` creates the disposable
+    binary under `dist/` with version flags. `mise run install` replaces the
+    installed binary; use it only when installation is part of the task.
+*   `tasks.toml` defines `mise run check`, `test`, `test:race`, `test:matrix`,
+    `audit`, `test:live:guards`, and the wider `ci` gate. Native platform gates
+    have explicit host requirements. Cross-compilation does not prove native
+    behavior; record unavailable gates and failures without claiming acceptance.
+*   Make coherent Conventional Commits with normal hk hooks. `hk.pkl` defines
+    formatting, lint, Markdown and secret checks. Check scoped rules explicitly
+    when a tool's default exclusions omit them. Keep private evidence excluded.
+*   Live acceptance uses `JIRA_LIVE_ACCEPTANCE=1`, a selected
+    `JIRA_LIVE_BINARY`, and dedicated `JIRA_LIVE_BASE_URL`, `JIRA_LIVE_PROJECT`
+    and `JIRA_LIVE_ISSUE_TYPE` fixtures. Follow [tests.md](tests.md) for ownership,
+    manifests and independent cleanup checks. `test:live:guards` disables live
+    writes and runs the hermetic ownership/cleanup guards.

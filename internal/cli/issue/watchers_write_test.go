@@ -676,3 +676,25 @@ func TestResolveWatcherUserWithoutSentinelCostsNoLookup(t *testing.T) {
 		t.Errorf("user = %q, want it untouched", user)
 	}
 }
+
+type literalWatcherClient struct {
+	unusedJiraClient
+	lookups int
+}
+
+func (c *literalWatcherClient) GetUser(ctx context.Context, id string) (core.UserRead, error) {
+	c.lookups++
+	return core.UserRead{User: &jira.UserDetails{AccountID: jira.NullableOf(id), Active: jira.NullableOf(true)}}, nil
+}
+
+func TestResolveWatcherLiteralAdoptsSharedExactAccountPreflight(t *testing.T) {
+	t.Parallel()
+	fake := &literalWatcherClient{}
+	constructed := 0
+	deps := Deps{JiraClient: func(context.Context) (core.JiraClient, error) { constructed++; return fake, nil }}
+	user := "literal-account"
+	client, err := resolveWatcherUser(t.Context(), deps, true, true, &user)
+	if err != nil || client != fake || fake.lookups != 1 || constructed != 1 || user != "literal-account" {
+		t.Fatal("watcher literal bypassed shared exact-account preflight", err, fake.lookups, constructed, user)
+	}
+}

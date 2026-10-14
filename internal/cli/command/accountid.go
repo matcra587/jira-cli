@@ -3,6 +3,7 @@ package command
 import (
 	"context"
 	"fmt"
+	"net/mail"
 	"strings"
 
 	xslices "github.com/gechr/x/slices"
@@ -36,8 +37,13 @@ const MeSentinel = "@me"
 // writing it to the right field, which is exactly the per-command
 // bookkeeping this shared resolver exists to remove.
 type AccountField struct {
-	Flag  string
-	Value *string
+	Flag       string
+	Value      *string
+	AllowEmail bool
+	// LookupQuery searches this flag as a query rather than treating it as an ID or @me.
+	LookupQuery bool
+	// ValidateRemoteID opts literal IDs into exact-account validation under --validate-remote.
+	ValidateRemoteID bool
 }
 
 // AccountFields returns this bundle's account-id flags, whether or not
@@ -51,15 +57,73 @@ type AccountField struct {
 // *IssueFieldFlags.
 func (f *IssueFieldFlags) AccountFields() []AccountField {
 	return []AccountField{
-		{Flag: FlagAssignee, Value: &f.Assignee},
+		{Flag: FlagAssignee, Value: &f.Assignee, AllowEmail: true},
 		{Flag: FlagReporter, Value: &f.Reporter},
 	}
+}
+
+type pendingAccountLookup struct {
+	index     int
+	query     string
+	email     bool
+	accountID bool
+}
+
+type pendingAccountMatch struct {
+	value     string
+	accountID bool
+}
+
+func accountLookups(fields []AccountField, validateRemote bool) ([]pendingAccountLookup, error) {
+	pending := make([]pendingAccountLookup, 0)
+	for i, field := range fields {
+		value := *field.Value
+		if field.LookupQuery {
+			query := strings.TrimSpace(value)
+			if query == "" {
+				refusal := cli.NewInputError(cli.CodeFlagValueInvalid, "user query must not be blank")
+				refusal.Field = field.Flag
+				return nil, refusal
+			}
+			pending = append(pending, pendingAccountLookup{index: i, query: query})
+			continue
+		}
+		if field.ValidateRemoteID && validateRemote && value != MeSentinel {
+			id := strings.TrimSpace(value)
+			if id == "" {
+				refusal := cli.NewInputError(cli.CodeFlagValueInvalid, "account ID must not be blank")
+				refusal.Field = field.Flag
+				return nil, refusal
+			}
+			pending = append(pending, pendingAccountLookup{index: i, query: id, accountID: true})
+			continue
+		}
+		if !field.AllowEmail || value == MeSentinel || !strings.Contains(value, "@") {
+			continue
+		}
+		trimmed := strings.TrimSpace(value)
+		address, err := mail.ParseAddress(trimmed)
+		if err != nil || strings.ContainsAny(value, "\r\n") || address.Address != trimmed {
+			refusal := cli.NewInputError(cli.CodeFlagValueInvalid, "assignee email must be a bare valid address")
+			refusal.Field = field.Flag
+			return nil, refusal
+		}
+		pending = append(pending, pendingAccountLookup{index: i, query: address.Address, email: true})
+	}
+	return pending, nil
+}
+
+// ValidateAccountLookups checks explicit queries, opted-in email and exact-ID syntax without opening a client.
+// Mutation flag validation calls this before selector or payload reads.
+func ValidateAccountLookups(fields []AccountField) error {
+	_, err := accountLookups(fields, true)
+	return err
 }
 
 // MeFields narrows to the fields actually holding the sentinel, preserving
 // order so a message naming several reads the same on every run.
 func MeFields(fields []AccountField) []AccountField {
-	return xslices.Filter(fields, func(a AccountField) bool { return *a.Value == MeSentinel })
+	return xslices.Filter(fields, func(a AccountField) bool { return !a.LookupQuery && *a.Value == MeSentinel })
 }
 
 // ResolveMe rewrites every @me among fields to the authenticated account
@@ -88,6 +152,9 @@ func ResolveMe(ctx context.Context, client core.JiraClient, fields []AccountFiel
 	if err != nil {
 		return fmt.Errorf("resolving %s: %w", MeSentinel, err)
 	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if err := core.RequireCurrentUserIdentity(read.User); err != nil {
 		// CurrentUser's contract is a non-nil User alongside a nil error,
 		// and an account with no id is not a thing Jira has. Failing loudly
@@ -103,7 +170,7 @@ func ResolveMe(ctx context.Context, client core.JiraClient, fields []AccountFiel
 	return nil
 }
 
-// ResolveAccounts settles every `@me` for one run and decides — once, for
+// ResolveAccounts settles @me, queries, opted-in email and requested exact-ID checks once, for
 // every command that takes an account id — what a run that cannot resolve
 // it does instead.
 //
@@ -112,12 +179,12 @@ func ResolveMe(ctx context.Context, client core.JiraClient, fields []AccountFiel
 // that may read the site", and a second shape for the same question would
 // leave callers guessing which commands pay for a round trip.
 //
-//   - No sentinel anywhere: nothing happens and no client is built, so a
-//     command that never mentions @me pays nothing.
-//   - Local preview (--dry-run without --validate-remote): public preferences
-//     may supply a matching cached ID with an unverified warning. Otherwise
-//     @me stays and an unresolved warning says so. No client is constructed.
-//   - Live run, or a preview with --validate-remote: resolved for real.
+//   - No @me or requested lookup: no client or cached preferences are opened.
+//   - Local preview: queries and email remain unresolved with a warning. Matching public
+//     cached identity may resolve @me with its existing unverified warning.
+//   - Live or explicit remote preview: every requested lookup succeeds before
+//     any bound account flag changes. Each distinct query uses one complete visible search.
+//     Opted-in literal IDs use one exact-account read only under --validate-remote.
 //
 // **It takes the client CONSTRUCTOR, not a client**, which is what keeps
 // the first branch honest: a caller that handed over an already-built
@@ -139,7 +206,11 @@ func ResolveAccounts(
 	fields []AccountField,
 ) (core.JiraClient, error) {
 	pending := MeFields(fields)
-	if len(pending) == 0 {
+	lookups, err := accountLookups(fields, validateRemote)
+	if err != nil {
+		return nil, err
+	}
+	if len(pending) == 0 && len(lookups) == 0 {
 		// No account lookup needs a client. Live callers construct theirs
 		// only after payload validation and any confirmation have passed.
 		return nil, nil
@@ -149,7 +220,15 @@ func ResolveAccounts(
 	}
 
 	if dryRun && !validateRemote {
-		if preferences != nil {
+		for _, lookup := range lookups {
+			warning := envelope.Warning{Type: "account_query_unresolved", Message: fmt.Sprintf("--%s is unresolved in this local preview. Live execution or --validate-remote searches visible active users and refuses missing, ambiguous or incomplete results.", fields[lookup.index].Flag)}
+			if lookup.email {
+				warning.Type = "account_email_unresolved"
+				warning.Message = "Assignee email is unresolved in this local preview. Live execution or --validate-remote searches visible active users and refuses missing, ambiguous or incomplete results."
+			}
+			cli.AddWarning(warning)
+		}
+		if preferences != nil && len(pending) > 0 {
 			local, err := preferences()
 			if contextErr := ctx.Err(); contextErr != nil {
 				return nil, contextErr
@@ -175,7 +254,9 @@ func ResolveAccounts(
 		// unresolved sentinel is showing a payload that differs from the
 		// live one. cli.AddWarning is the route a Spec.Run handler has;
 		// its own doc comment records why.
-		cli.AddWarning(MeUnresolvedWarning(fields))
+		if len(pending) > 0 {
+			cli.AddWarning(MeUnresolvedWarning(fields))
+		}
 		return nil, nil
 	}
 
@@ -183,8 +264,38 @@ func ResolveAccounts(
 	if err != nil {
 		return nil, err
 	}
-	if err := ResolveMe(ctx, client, fields); err != nil {
+	// Keep original bound flags intact until every requested identity is ready.
+	resolved := make([]AccountField, len(fields))
+	for i, field := range fields {
+		value := *field.Value
+		resolved[i] = field
+		resolved[i].Value = &value
+	}
+	if err := ResolveMe(ctx, client, resolved); err != nil {
 		return nil, err
+	}
+	matches := make(map[pendingAccountMatch]string)
+	for _, lookup := range lookups {
+		key := pendingAccountMatch{value: lookup.query, accountID: lookup.accountID}
+		id, ready := matches[key]
+		if !ready {
+			if lookup.accountID {
+				id, err = Spin(ctx, "Validating account ID", func(ctx context.Context) (string, error) { return core.ResolveActiveAccount(ctx, client, lookup.query) })
+			} else {
+				id, err = Spin(ctx, "Resolving account query", func(ctx context.Context) (string, error) { return core.ResolveVisibleUser(ctx, client, lookup.query) })
+			}
+			if err != nil {
+				return nil, err
+			}
+			matches[key] = id
+		}
+		*resolved[lookup.index].Value = id
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	for i, field := range fields {
+		*field.Value = *resolved[i].Value
 	}
 	return client, nil
 }

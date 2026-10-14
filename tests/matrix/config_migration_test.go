@@ -5,6 +5,7 @@ package matrix
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/matcra587/jira-cli/internal/envelope"
@@ -68,4 +69,35 @@ func TestConfigRollbackFlagsSelectJournalAndGateBeforeReads(t *testing.T) {
 	Prove(t, "jira config rollback", "journal", "explicit invalid journal is read and classified; no default recovery is guessed")
 	Prove(t, "jira config rollback", "yes", "unconfirmed headless run refuses before journal reads; confirmation reaches the selected record")
 	Prove(t, "jira config rollback", "dry-run", "preview reaches local journal validation without confirmation or providers")
+}
+
+func TestConfigMigrationDeferredTUIFlagChangesAdmissionWithoutPublication(t *testing.T) {
+	t.Parallel()
+	fixture := legacyMatrixFixture + "[tui]\ndefault_tab='issues'\ntabs=['private-tab-marker']\n"
+	for _, deferTUI := range []bool{false, true} {
+		args := []string{"config", "migrate", "--source=old.toml", "--config=new.toml", "--recovery-dir=planned-recovery", "--dry-run", "--output=json"}
+		if deferTUI {
+			args = append(args, "--defer-tui")
+		}
+		run := mx4Run(t, mx4Opts{Files: map[string]string{"old.toml": fixture}}, args...)
+		var out envelope.ConfigMigrateOutput
+		mx4Data(t, mx4OK(t, run), &out)
+		names := []string{"tui.default_tab", "tui.tabs"}
+		if out.Ready != deferTUI || out.RecoveryPublished || out.Receipt != nil {
+			t.Fatal("explicit deferral did not control local admission")
+		}
+		if deferTUI {
+			if !slices.Equal(out.Deferred, names) || len(out.Unmapped) != 0 {
+				t.Fatal("opt-in declaration state missing")
+			}
+		} else if !slices.Equal(out.Unmapped, names) || len(out.Deferred) != 0 {
+			t.Fatal("ordinary migration silently deferred TUI")
+		}
+		for _, name := range []string{"new.toml", "planned-recovery"} {
+			if _, err := os.Stat(filepath.Join(run.Workdir, name)); !os.IsNotExist(err) {
+				t.Fatal("admission preview published state")
+			}
+		}
+	}
+	Prove(t, "jira config migrate", "defer-tui", "explicit opt-in changes recognized TUI declarations from unmapped to deferred and readiness to true without publishing settings or recovery")
 }

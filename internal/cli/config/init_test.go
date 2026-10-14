@@ -19,6 +19,38 @@ import (
 	"github.com/matcra587/jira-cli/internal/output"
 )
 
+func TestConfigInitRejectsInvalidUTF8BeforeFilesystemOnAllPlatforms(t *testing.T) {
+	for _, tc := range []struct {
+		name, site, email, field string
+	}{
+		{name: "email", site: "https://example.invalid", email: "\xff", field: "email"},
+		{name: "site", site: "https://example.invalid/\xff", email: "person@example.invalid", field: "base-url"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			parent := filepath.Join(t.TempDir(), "unstarted")
+			cfg.SetFlagLayer(cfg.FlagLayer{Path: filepath.Join(parent, "settings.toml")})
+			t.Cleanup(func() { cfg.SetFlagLayer(cfg.FlagLayer{}) })
+			created := false
+			cmd := newInitWithCreator(func(context.Context, *cfg.SettingsUpdate) (bool, error) {
+				created = true
+				return false, errors.New("invalid initialization reached publication")
+			})
+			if err := cmd.ParseFlags([]string{"--base-url=" + tc.site, "--email=" + tc.email}); err != nil {
+				t.Fatal(err)
+			}
+			cmd.SetContext(t.Context())
+			err := cmd.RunE(cmd, nil)
+			var input *cli.InputError
+			if created || !errors.As(err, &input) || input.Field != tc.field || cli.MapError(err).Code != cli.CodeArgValueInvalid {
+				t.Fatalf("invalid raw bytes lost pre-I/O refusal: creator=%v error=%v", created, err)
+			}
+			if _, err := os.Stat(parent); !errors.Is(err, os.ErrNotExist) {
+				t.Fatal("invalid raw bytes touched the destination", err)
+			}
+		})
+	}
+}
+
 func TestConfigInitPublicationErrorRetainsOnlyCompletedReceipt(t *testing.T) {
 	for _, publish := range []bool{false, true} {
 		path := filepath.Join(t.TempDir(), "settings.toml")

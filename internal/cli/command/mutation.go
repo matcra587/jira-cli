@@ -42,7 +42,7 @@ type MutationFlags struct {
 	// ValidateRemote asks for the extra reads that check a value against
 	// the live site before writing.
 	ValidateRemote bool
-	// Verify asks for a readback confirming the write landed.
+	// Verify asks for a later readback after an acknowledged write.
 	Verify bool
 	// NoReadback suppresses a readback the command would otherwise do.
 	NoReadback bool
@@ -149,13 +149,13 @@ func addForceAlias(cmd *cobra.Command, f *MutationFlags) {
 func WithValidateRemote() MutationOption {
 	return func(f *MutationFlags, cmd *cobra.Command) {
 		AddBoolVar(cmd, &f.ValidateRemote, FlagValidateRemote, false,
-			"Check values against the live site before writing",
+			"Run the command's live preflight checks before writing",
 			FlagOpts{Terse: "Check against site"})
 	}
 }
 
-// WithVerify registers --verify, asking for a readback that confirms the
-// write landed. 0.15 has it on two commands, create and edit.
+// WithVerify registers --verify, asking for a later readback after an
+// acknowledged write. The command owns the comparison and its uncertainty.
 //
 // It earns its place only where confirming costs an EXTRA request. A
 // write whose own response carries the created object — `comment add`,
@@ -165,8 +165,8 @@ func WithValidateRemote() MutationOption {
 func WithVerify() MutationOption {
 	return func(f *MutationFlags, cmd *cobra.Command) {
 		AddBoolVar(cmd, &f.Verify, FlagVerify, false,
-			"Read the resource back and confirm the write landed",
-			FlagOpts{Terse: "Confirm the write"})
+			"Read back observed state after an acknowledged write",
+			FlagOpts{Terse: "Read back after the write"})
 	}
 }
 

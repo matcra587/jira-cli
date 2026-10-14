@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -125,5 +127,91 @@ func TestSearchUsersRetriesSafeReads(t *testing.T) {
 	out, err := c.SearchUsers(t.Context(), "sam", 0, 50)
 	if err != nil || out.Users == nil || calls.Load() != 2 || out.Retry.Attempts != 2 {
 		t.Fatalf("safe user read lost retry policy/facts: %+v %v calls=%d", out, err, calls.Load())
+	}
+}
+
+func TestSearchUsersRequiresFinalAuthenticatedScope(t *testing.T) {
+	t.Parallel()
+	for _, scope := range []string{"foreign", "outside-base", "inside-base"} {
+		t.Run(scope, func(t *testing.T) {
+			t.Parallel()
+			var replies atomic.Int32
+			reply := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				replies.Add(1)
+				_, _, bound := r.BasicAuth()
+				if bound != (scope == "inside-base") {
+					t.Error("redirect authentication changed")
+				}
+				_, _ = io.WriteString(w, `[{"accountId":"fixture","active":true}]`)
+			})
+			foreign := httptest.NewServer(reply)
+			defer foreign.Close()
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if strings.HasSuffix(r.URL.Path, "/reply") {
+					reply.ServeHTTP(w, r)
+					return
+				}
+				target := foreign.URL + "/reply"
+				if scope == "outside-base" {
+					target = "/reply"
+				}
+				if scope == "inside-base" {
+					target = "/ex/jira/cloud/reply"
+				}
+				http.Redirect(w, r, target, http.StatusFound)
+			}))
+			defer server.Close()
+			client, err := New(Config{BaseURL: server.URL + "/ex/jira/cloud", Email: "fixture@example.com", APIToken: "fixture"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			page, err := client.SearchUsers(t.Context(), "fixture@example.com", 0, 50)
+			if scope == "inside-base" {
+				if err != nil || len(page.Users) != 1 {
+					t.Fatal("scoped authenticated search redirect refused", err)
+				}
+			} else if !errors.Is(err, ErrUserSearchResponseInvalid) || page.Users != nil {
+				t.Fatal("unbound search established identity", page, err)
+			}
+			if replies.Load() != 1 {
+				t.Fatal("redirect guard did not run")
+			}
+		})
+	}
+}
+
+func TestSearchUsersRejectsAmbiguousNativeRowsBeforePublishingPage(t *testing.T) {
+	t.Parallel()
+	for _, row := range []string{`{"accountId":"other","accountId":"literal","active":true}`, `{"accountId":"literal","active":false,"active":true}`, `{"accountId":"literal","active":true,"deleted":true,"deleted":false}`, `{"ACCOUNTID":"literal","active":true}`, `{"accountId":"literal","Active":true}`, `{"accountId":"literal","active":true,"Deleted":true}`, `{"accountId":"other","account\u0049d":"literal","active":true}`} {
+		t.Run(row, func(t *testing.T) {
+			t.Parallel()
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				_, _ = fmt.Fprint(w, `[{"accountId":"valid-first","active":true},`+row+`]`)
+			}))
+			defer server.Close()
+			client, err := New(Config{BaseURL: server.URL, Email: "fixture@example.invalid", APIToken: "fixture"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			out, err := client.SearchUsers(t.Context(), "fixture", 0, 50)
+			if !errors.Is(err, ErrUserSearchResponseInvalid) || out.Users != nil {
+				t.Fatal("ambiguous later row published an earlier valid identity", err)
+			}
+		})
+	}
+}
+
+func TestSearchUsersCanceledContextRefusesTransportEntry(t *testing.T) {
+	t.Parallel()
+	calls := 0
+	client := newTestClient(t, "https://example.invalid", &http.Client{Transport: redirectTransport(func(req *http.Request) (*http.Response, error) {
+		calls++
+		return nil, errors.New("unexpected transport entry")
+	})})
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	out, err := client.SearchUsers(ctx, "fixture", 0, 50)
+	if !errors.Is(err, context.Canceled) || out.Users != nil || calls != 0 {
+		t.Fatal("canceled search entered or published", err, calls)
 	}
 }

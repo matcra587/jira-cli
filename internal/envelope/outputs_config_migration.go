@@ -16,6 +16,7 @@ type ConfigMigrateOutput struct {
 	SourceSHA256      string                      `json:"source_sha256"`
 	Mapped            []string                    `json:"mapped"`
 	Unmapped          []string                    `json:"unmapped"`
+	Deferred          []string                    `json:"deferred"`
 	Ready             bool                        `json:"ready"`
 	Recovery          core.MigrationRecoveryPaths `json:"recovery"`
 	RecoveryPublished bool                        `json:"recovery_published"`
@@ -37,7 +38,8 @@ func init() {
 	Register("config.migrate", ConfigMigrateOutput{}, map[string]any{
 		"description": "Convert all legacy profiles or a flat configuration into named profiles with protected recovery and per-resource provider backups.",
 		"properties": map[string]any{
-			"ready":              map[string]any{"description": "Whether preparation has complete mappings; previews never verify credentials."},
+			"deferred":           map[string]any{"description": "Recognized TUI declaration names explicitly retained in original source/recovery bytes for later migration; values never enter runtime settings or output."},
+			"ready":              map[string]any{"description": "Whether every declaration is mapped or explicitly deferred; deferred preferences are not active and previews never verify credentials."},
 			"recovery_published": map[string]any{"description": "Whether the configuration recovery artifact was published, even if journal creation later failed."},
 			"receipt":            map[string]any{"description": "Public transaction evidence when a journal exists; null for preparation or artifact-only publication."},
 		},

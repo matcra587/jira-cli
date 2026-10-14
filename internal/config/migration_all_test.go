@@ -67,7 +67,7 @@ func newProfileMigrationTest(t *testing.T, fixture string, inPlace bool) *profil
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan, err := PrepareProfileTransaction(t.Context(), source, target, "", "old-service")
+	plan, err := PrepareProfileTransaction(t.Context(), source, target, "", "old-service", LegacyMigrationOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +85,7 @@ func newProfileMigrationTest(t *testing.T, fixture string, inPlace bool) *profil
 }
 
 func TestProfileMigrationRetainsEveryProfileAndDefault(t *testing.T) {
-	migration, err := PrepareProfileMigration(t.Context(), []byte(allProfilesFixture), filepath.Join(t.TempDir(), "old.toml"), "")
+	migration, err := PrepareProfileMigration(t.Context(), []byte(allProfilesFixture), filepath.Join(t.TempDir(), "old.toml"), "", LegacyMigrationOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -425,7 +425,7 @@ func TestProfileMigrationPreservesLegacyProfileNames(t *testing.T) {
 	for _, name := range []string{"_work", "-work", strings.Repeat("w", 80)} {
 		t.Run(name, func(t *testing.T) {
 			data := "default_profile='" + name + "'\n[[profiles]]\nname='" + name + "'\nsecret_backend='env'\n"
-			migration, err := PrepareProfileMigration(t.Context(), []byte(data), filepath.Join(t.TempDir(), "old.toml"), "")
+			migration, err := PrepareProfileMigration(t.Context(), []byte(data), filepath.Join(t.TempDir(), "old.toml"), "", LegacyMigrationOptions{})
 			if err != nil {
 				t.Fatal("previously valid name rejected", err)
 			}

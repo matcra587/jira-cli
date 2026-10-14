@@ -28,6 +28,8 @@ func GenerateElvish(g *Generator) (string, error) {
 	fmt.Fprintf(&sb, "# %s Elvish completion\n\n", g.AppName)
 	sb.WriteString("use str\n")
 	sb.WriteString("use re\n")
+	sb.WriteString("use path\n")
+	elvWriteCandidatesHelper(&sb, id)
 	if hasCurrentWordPredictor(g) {
 		elvWriteCurrentWordMatcher(&sb, id)
 	}
@@ -46,8 +48,8 @@ func GenerateElvish(g *Generator) (string, error) {
 	sb.WriteString("    var n = (count $words)\n")
 	sb.WriteString("    var cur = $words[-1]\n")
 	sb.WriteString("    var prior = $words[1..(- $n 1)]\n")
+	sb.WriteString("    var inlineflag = ''\n")
 	if hasCurrentWordPredictor(g) {
-		sb.WriteString("    var inlineflag = ''\n")
 		fmt.Fprintf(&sb, "    set _%s_word_matches = []\n    set _%s_word_seed = $cur\n    set _%s_word_command = $edit:current-command\n", id, id, id)
 	}
 
@@ -73,6 +75,21 @@ func GenerateElvish(g *Generator) (string, error) {
 	return sb.String(), nil
 }
 
+// Candidate descriptions belong to the menu, never to the inserted identity.
+func elvWriteCandidatesHelper(sb *strings.Builder, id string) {
+	fmt.Fprintf(sb, `
+fn _%[1]s_candidates {|&prefix=''|
+    each {|candidate|
+        var parts = [(str:split "\t" $candidate)]
+        var value = $prefix$parts[0]
+        if (> (count $parts) 1) {
+            edit:complex-candidate $value &display=$candidate
+        } else { put $value }
+    }
+}
+`, id)
+}
+
 // Elvish exposes one matcher for all argument completers. Preserve its selected
 // matcher and its complete input batch; admit root-matched replacement values
 // only for the exact current command and seed that produced those values.
@@ -93,13 +110,11 @@ set edit:completion:matcher[argument] = {|seed|
     }
 }
 fn _%[1]s_word_candidates {|&prefix=''|
-    each {|candidate|
-        var parts = [(str:split "\t" $candidate)]
-        var value = $prefix$parts[0]
+    _%[1]s_candidates &prefix=$prefix | each {|candidate|
+        var value = $candidate
+        if (not (eq (kind-of $candidate) string)) { set value = $candidate[stem] }
         set _%[1]s_word_matches = [$@_%[1]s_word_matches $value]
-        if (> (count $parts) 1) {
-            edit:complex-candidate $value &display=$candidate
-        } else { put $value }
+        put $candidate
     }
 }
 `, id)
@@ -284,7 +299,7 @@ func elvWriteArm(sb *strings.Builder, g *Generator, ctx elvContext, first bool) 
 
 	if len(valueFlags) > 0 {
 		for _, spec := range valueFlags {
-			if !CurrentWordPredictor(spec.Dynamic) {
+			if spec.Dynamic == "" {
 				continue
 			}
 			for _, flag := range []string{"--" + spec.LongFlag, "-" + spec.ShortFlag} {
@@ -336,8 +351,9 @@ func elvWriteValueClause(sb *strings.Builder, g *Generator, spec Spec, indent st
 	case spec.CommaList && spec.Dynamic != "":
 		elvWriteCommaPrefix(sb, indent)
 		fmt.Fprintf(sb, "%stry {\n", indent)
-		fmt.Fprintf(sb, "%s    %s | each {|v|\n", indent, elvDynamicPipe(g, spec.Dynamic))
-		fmt.Fprintf(sb, "%s        if (not (has-value $selected $v)) { put $prefix$v }\n", indent)
+		fmt.Fprintf(sb, "%s    %s | each {|v|\n", indent, elvDynamicValues(g, spec.Dynamic))
+		fmt.Fprintf(sb, "%s        var stem = [(str:split \"\\t\" $v)][0]\n", indent)
+		fmt.Fprintf(sb, "%s        if (not (has-value $selected $stem)) { put $v | _%s_candidates &prefix=$inlineflag$prefix }\n", indent, elvID(g.AppName))
 		fmt.Fprintf(sb, "%s    }\n", indent)
 		fmt.Fprintf(sb, "%s} catch _ { }\n", indent)
 	case spec.CommaList && len(spec.ValueDescs) > 0:
@@ -500,11 +516,13 @@ func elvWriteDynArgs(sb *strings.Builder, g *Generator, ctx elvContext, indent s
 	fmt.Fprintf(sb, "%s}\n", body)
 	pipe := ""
 	if hasCurrentWordPredictor(g) {
-		pipe = fmt.Sprintf(" | each {|candidate| if (str:has-prefix $kind 'word_') { put $candidate | _%s_word_candidates } else { put $candidate } }", id)
+		pipe = fmt.Sprintf(" | each {|candidate| if (str:has-prefix $kind 'word_') { put $candidate | _%s_word_candidates } else { put $candidate | _%s_candidates } }", id, id)
+	} else {
+		pipe = fmt.Sprintf(" | _%s_candidates", id)
 	}
 	fmt.Fprintf(
 		sb,
-		"%stry { (external %s) $@callargs 2>/dev/null | from-lines%s } catch _ { }\n",
+		"%stry { (external %s) $@callargs 2>$path:dev-null | from-lines%s } catch _ { }\n",
 		body,
 		elvQuote(g.AppName),
 		pipe,
@@ -523,8 +541,13 @@ func elvDynamicPipe(g *Generator, predictor string) string {
 		if forwardingActive(g) {
 			call += fmt.Sprintf(" (_%s_forwarded_flags $@prior)", elvID(g.AppName))
 		}
-		return call + fmt.Sprintf(" -- 2>/dev/null | from-lines | _%s_word_candidates &prefix=$inlineflag", elvID(g.AppName))
+		return call + fmt.Sprintf(" -- 2>$path:dev-null | from-lines | _%s_word_candidates &prefix=$inlineflag", elvID(g.AppName))
 	}
+	return elvDynamicValues(g, predictor) + fmt.Sprintf(" | _%s_candidates &prefix=$inlineflag", elvID(g.AppName))
+}
+
+// elvDynamicValues retains raw rows until callers assemble the final stem.
+func elvDynamicValues(g *Generator, predictor string) string {
 	call := fmt.Sprintf(
 		"(external %s) %s",
 		elvQuote(g.AppName),
@@ -533,7 +556,7 @@ func elvDynamicPipe(g *Generator, predictor string) string {
 	if forwardingActive(g) {
 		call += fmt.Sprintf(" -- (_%s_forwarded_flags $@prior)", elvID(g.AppName))
 	}
-	return call + " 2>/dev/null | from-lines"
+	return call + " 2>$path:dev-null | from-lines"
 }
 
 // elvValueFlagList renders the value-taking flags of specs as an Elvish list

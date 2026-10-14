@@ -99,7 +99,7 @@ func TestLegacyRecoveryRejectsIncompleteCorruptAndSecretBearingRecords(t *testin
 		"invalid UTF8":     []byte("{\"\xff\":0}"),
 	}
 	mutations := map[string]func(*legacyRecoveryRecord){
-		"version":        func(r *legacyRecoveryRecord) { r.Version++ },
+		"version":        func(r *legacyRecoveryRecord) { r.Version = legacyMigrationDeferredTUIVersion + 1 },
 		"source absence": func(r *legacyRecoveryRecord) { r.Source.Exists = false },
 		"relative path":  func(r *legacyRecoveryRecord) { r.Target.Requested = "relative.toml" },
 		"candidate hash": func(r *legacyRecoveryRecord) { r.CandidateSHA256 = "wrong" },

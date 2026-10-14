@@ -13,7 +13,7 @@ import (
 	"github.com/matcra587/jira-cli/internal/core"
 )
 
-// Named recovery has its own mapping policy. Existing policies 1–8 continue to
+// Named recovery has its own mapping policy. Existing policies 1–9 continue to
 // derive their original single-profile bytes, including during rollback.
 const namedMigrationVersion = 10
 
@@ -24,7 +24,7 @@ type ProfileMigration struct {
 	profiles                   []string
 	selections                 map[string]LegacySelection
 	ids                        map[string]string
-	mapped, unmapped           []string
+	mapped, unmapped, deferred []string
 	sourceKind, defaultProfile string
 	sourceSHA256               string
 	policy                     int
@@ -35,6 +35,7 @@ func (m *ProfileMigration) Profiles() []string     { return slices.Clone(m.profi
 func (m *ProfileMigration) DefaultProfile() string { return m.defaultProfile }
 func (m *ProfileMigration) Mapped() []string       { return slices.Clone(m.mapped) }
 func (m *ProfileMigration) Unmapped() []string     { return slices.Clone(m.unmapped) }
+func (m *ProfileMigration) Deferred() []string     { return slices.Clone(m.deferred) }
 func (m *ProfileMigration) Candidate() ([]byte, error) {
 	if m == nil || len(m.profiles) == 0 {
 		return nil, ErrLegacyConfig
@@ -48,8 +49,12 @@ func (m *ProfileMigration) Candidate() ([]byte, error) {
 // PrepareProfileMigration retains all legacy profiles by default. A source
 // selector explicitly limits legacy conversion; a flat source becomes default.
 // UUID assignment is public metadata and performs no provider/environment reads.
-func PrepareProfileMigration(ctx context.Context, data []byte, path, selected string) (*ProfileMigration, error) {
-	return prepareProfileMigration(ctx, data, path, selected, legacyMigrationVersion, nil)
+func PrepareProfileMigration(ctx context.Context, data []byte, path, selected string, options LegacyMigrationOptions) (*ProfileMigration, error) {
+	policy := legacyMigrationVersion
+	if options.DeferTUI {
+		policy = legacyMigrationDeferredTUIVersion
+	}
+	return prepareProfileMigration(ctx, data, path, selected, policy, nil)
 }
 
 func prepareProfileMigration(ctx context.Context, data []byte, path, selected string, policy int, ids map[string]string) (*ProfileMigration, error) {
@@ -127,6 +132,7 @@ func prepareProfileMigration(ctx context.Context, data []byte, path, selected st
 			m.profiles = append(m.profiles, name)
 			m.selections[name] = migration.Selection()
 			m.unmapped = append(m.unmapped, migration.Unmapped()...)
+			m.deferred = append(m.deferred, migration.Deferred()...)
 			m.mapped = append(m.mapped, migration.Mapped()...)
 			// Decode even an unmapped preparation so previews can report every field;
 			// Candidate still refuses publication until all mappings are resolved.
@@ -163,6 +169,8 @@ func prepareProfileMigration(ctx context.Context, data []byte, path, selected st
 	m.mapped = slices.Compact(m.mapped)
 	slices.Sort(m.unmapped)
 	m.unmapped = slices.Compact(m.unmapped)
+	slices.Sort(m.deferred)
+	m.deferred = slices.Compact(m.deferred)
 	return m, ctx.Err()
 }
 
@@ -184,11 +192,11 @@ type ProfileTransactionPlan struct {
 	service       string
 }
 
-func PrepareProfileTransaction(ctx context.Context, source, target *File, selected, service string) (*ProfileTransactionPlan, error) {
+func PrepareProfileTransaction(ctx context.Context, source, target *File, selected, service string, options LegacyMigrationOptions) (*ProfileTransactionPlan, error) {
 	if source == nil || target == nil || !source.exists {
 		return nil, ErrLegacyRecovery
 	}
-	migration, err := PrepareProfileMigration(ctx, source.original, source.path, selected)
+	migration, err := PrepareProfileMigration(ctx, source.original, source.path, selected, options)
 	if err != nil {
 		return nil, err
 	}

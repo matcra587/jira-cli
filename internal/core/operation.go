@@ -62,14 +62,14 @@ type IssueRead struct {
 	Retry RetryInfo
 }
 
-// UserRead is the result of reading the authenticated account.
+// UserRead retains a native current-account or exact-account reply and retry facts.
 type UserRead struct {
 	User  *jira.UserDetails
 	Retry RetryInfo
 }
 
 // UserSearchRead retains the endpoint's array and safe-read retry facts.
-// User is the schema of /user/search; CurrentUser uses UserDetails instead.
+// User is the schema of /user/search; CurrentUser and GetUser use UserDetails instead.
 type UserSearchRead struct {
 	Users []*jira.User
 	Retry RetryInfo

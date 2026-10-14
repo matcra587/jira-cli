@@ -57,7 +57,12 @@ func (p *LegacyTransactionPlan) CredentialLocations() (core.CredentialLocation, 
 // blank means jira-cli. Environment references require only configuration
 // publication; their externally managed values are never inspected or copied.
 func PrepareLegacyTransaction(ctx context.Context, source, target *File, profile, service string) (*LegacyTransactionPlan, error) {
-	plan, err := PrepareLegacyRecovery(ctx, source, target, profile)
+	return PrepareLegacyTransactionWithOptions(ctx, source, target, profile, service, LegacyMigrationOptions{})
+}
+
+// PrepareLegacyTransactionWithOptions retains explicit TUI deferral in immutable recovery.
+func PrepareLegacyTransactionWithOptions(ctx context.Context, source, target *File, profile, service string, options LegacyMigrationOptions) (*LegacyTransactionPlan, error) {
+	plan, err := PrepareLegacyRecoveryWithOptions(ctx, source, target, profile, options)
 	if err != nil {
 		return nil, err
 	}

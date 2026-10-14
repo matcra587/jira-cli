@@ -2,12 +2,11 @@ package user
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"maps"
 
 	"github.com/gechr/primer/table"
 	"github.com/gechr/x/shell"
+	xslices "github.com/gechr/x/slices"
 	xstrings "github.com/gechr/x/strings"
 	"github.com/spf13/cobra"
 
@@ -53,7 +52,7 @@ func newSearch(deps Deps) *cobra.Command {
 		Op: "user.search", Identity: true,
 		Use: "search QUERY", Short: "Find active users by name or email prefix",
 		Long: "Find visible active accounts by display-name or email prefix. " +
-			"Every candidate is returned; even an email query does not automatically choose an account.\n\n" +
+			"Every candidate is returned; even an email query does not automatically choose an account. Duplicate native row members or noncanonical identity/activity/deletion keys refuse the page before publication.\n\n" +
 			"`--start` and `--limit` select a server page. `--all` walks pages from zero and conflicts with either explicit paging flag. " +
 			"Jira exposes only the first 1,000 matching accounts. Reaching that ceiling reports `truncated: true`; narrow the query.\n\n" +
 			"The API provides no total or final-page flag. A short page does not prove completion: `pagination.next_start` permits a further probe. " +
@@ -159,39 +158,13 @@ func runSearch(ctx context.Context, deps Deps, query string, start, limit int, a
 // duplicate identities includes skipped rows: a repeated page must not masquerade
 // as progress just because every row was inactive. No total is inferred.
 func projectPage(users []*jira.User, maxResults int, seen map[string]struct{}) ([]envelope.UserSearchMatch, error) {
-	invalid := func() error {
-		return cli.NewCodedError(cli.CodeUserSearchResponseInvalid, "user search returned an invalid or repeated page")
+	active, err := core.ActiveUserSearchPage(users, maxResults, seen)
+	if err != nil {
+		return nil, err
 	}
-	if users == nil || len(users) > maxResults {
-		return nil, invalid()
-	}
-	pageIDs := make(map[string]struct{}, len(users))
-	matches := make([]envelope.UserSearchMatch, 0, len(users))
-	for _, user := range users {
-		if user == nil || !user.AccountID.Set || user.AccountID.Null || user.AccountID.Value == "" {
-			return nil, invalid()
-		}
-		id := user.AccountID.Value
-		if _, duplicate := seen[id]; duplicate {
-			return nil, invalid()
-		}
-		if _, duplicate := pageIDs[id]; duplicate {
-			return nil, invalid()
-		}
-		pageIDs[id] = struct{}{}
-		var deleted jira.Nullable[bool]
-		if raw, present := user.Extra["deleted"]; present {
-			if err := json.Unmarshal(raw, &deleted); err != nil {
-				return nil, invalid()
-			}
-		}
-		if !user.Active.Set || user.Active.Null || !user.Active.Value || (deleted.Set && !deleted.Null && deleted.Value) {
-			continue
-		}
-		matches = append(matches, envelope.UserSearchMatch{AccountID: id, DisplayName: user.DisplayName.Value, EmailAddress: user.EmailAddress})
-	}
-	maps.Copy(seen, pageIDs)
-	return matches, nil
+	return xslices.Map(active, func(user *jira.User) envelope.UserSearchMatch {
+		return envelope.UserSearchMatch{AccountID: user.AccountID.Value, DisplayName: user.DisplayName.Value, EmailAddress: user.EmailAddress}
+	}), nil
 }
 
 func renderSearch(v *output.View, env envelope.Envelope) error {

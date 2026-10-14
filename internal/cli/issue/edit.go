@@ -44,6 +44,7 @@ func newEdit(deps Deps) *cobra.Command {
 		// snake_case rule stops at that boundary and the fidelity axis
 		// proves an unmodeled field survives composition.
 		Passthrough: true,
+		Warnings:    editVerificationWarnings,
 		Keyed:       true,
 		Use:         "edit ISSUE_KEY...",
 		Short:       "Change fields on an issue",
@@ -73,8 +74,9 @@ func newEdit(deps Deps) *cobra.Command {
 			"applied last. Replacing a list wholesale is the one thing no flag " +
 			"does: that goes through `--json-input`, which reaches every " +
 			"field and every verb.\n\n" +
-			"`--assignee` and `--reporter` take an Atlassian account id, or " +
-			"`@me` for whoever your credentials authenticate as. Resolving " +
+			"`--reporter` takes an Atlassian account ID; `--assignee` also " +
+			"accepts bare email. Both accept `@me` for " +
+			"whoever your credentials authenticate as. Resolving " +
 			"`@me` reads the current user from Jira on live runs. Local previews " +
 			"use a matching cached account_id with an unverified warning, or " +
 			"leave the sentinel unresolved. `--validate-remote` reads Jira instead.\n\n" +
@@ -111,6 +113,15 @@ func newEdit(deps Deps) *cobra.Command {
 			"whether the issues exist or whether the values are valid on them. " +
 			"What it prints is valid input for `--json-input`, so a preview " +
 			"round-trips into a real run.\n\n" +
+			fieldPreflightHelp + "\n\n" +
+			"`--assignee` accepts an account ID or bare email. Email resolves the unique visible active search match before live writes or explicit remote previews; local previews retain it with an unresolved warning. Missing, ambiguous or incomplete searches refuse. Privacy can hide email, and resolution does not prove exact email equality or assignability. Native JSON account IDs stay literal.\n\n" +
+			"`--verify` reads every requested field once after each acknowledged " +
+			"edit. `verified.fields` reports matches, differs or unverified with " +
+			"native observed values; absent and null remain distinct. Known collection " +
+			"add/remove checks use final membership. Unsupported operations, missing " +
+			"fields and different ADF remain unverified. Readback failure or differences " +
+			"retain the successful edit and emit warnings; inspect before further " +
+			"changes. This later observation does not protect against another writer.\n\n" +
 			"`--project` is absent. On an existing issue, changing the project " +
 			"is a MOVE rather than a field write, and it needs Jira's bulk-move " +
 			"endpoint rather than this one.\n\n" +
@@ -170,10 +181,9 @@ func newEdit(deps Deps) *cobra.Command {
 			command.AddKeyedFlags(c, &keyed)
 			in.register(c, command.EditIssueVerb)
 			registerInputDiscovery(c)
-			// --validate-remote joins --verify for create's reason: resolving
-			// `@me` in a preview is a real read against the site. It now
-			// covers a second such read — resolving a selector — and --force
-			// arrives with the selectors, which are what give this command a
+			// --validate-remote opts previews into selector/account resolution
+			// and complete per-issue field metadata. --force arrives with the
+			// selectors, which are what give this command a
 			// confirmation to skip. An edit that names its keys still prompts
 			// for nothing.
 			command.AddMutationFlags(c, &mut, command.WithVerify(), command.WithValidateRemote(), command.WithForce(), command.WithNotify())
@@ -268,9 +278,8 @@ type editOptions struct {
 // **A BARE preview builds no client.** With no `@me` to resolve and no
 // --validate-remote, a dry run returns before deps.JiraClient() is called,
 // so it cannot reach the network because it never obtains the thing that
-// could. resolveAccounts owns the one explicit exception, and it is
-// create's too — the decision is made once for both verbs rather than
-// twice.
+// could. Explicit remote checks cover selector/account resolution and field
+// metadata. Their shared owners reuse the same lazily constructed client.
 //
 // **Account resolution happens BEFORE composition**, because compose bakes
 // the value into the payload — and here that matters doubly: one payload
@@ -333,11 +342,19 @@ func runEdit(ctx context.Context, deps Deps, inv command.Invocation, in *issueWr
 		e.Field = command.FlagSummary
 		return zero, e
 	}
-	if inv.DryRun {
+	if inv.DryRun && !opts.validateRemote {
 		// Empty exactly when the selector went unresolved; the warning
 		// ResolveTargets raised says why.
 		out.Results = previewEditResults(targets.Keys)
 		return out, nil
+	}
+	if inv.DryRun {
+		client, err := newClient(ctx)
+		if err != nil {
+			return zero, err
+		}
+		out.Results, err = editFanOut(ctx, client, targets.Keys, composed.req, opts, true)
+		return out, err
 	}
 	if opts.fieldMove {
 		if err := confirmFieldMove(ctx, deps, inv, targets.Keys, opts.force); err != nil {
@@ -366,7 +383,7 @@ func runEdit(ctx context.Context, deps Deps, inv command.Invocation, in *issueWr
 	if err != nil {
 		return zero, err
 	}
-	results, err := editFanOut(ctx, client, targets.Keys, composed.req, opts)
+	results, err := editFanOut(ctx, client, targets.Keys, composed.req, opts, false)
 	out.Results = results
 	return out, err
 }
@@ -409,12 +426,17 @@ func editFanOut(
 	keys []string,
 	req jira.IssueWriteRequest,
 	opts editOptions,
+	dryRun bool,
 ) ([]envelope.KeyedResult[envelope.IssueEditData], error) {
 	outcomes := make([]editOutcome, len(keys))
 	// ONE spinner around the whole fan-out, never one per key: a spinner
 	// owns the terminal's live region and several drawing at once
 	// interleave into corruption.
-	_, err := command.Spin(ctx, editSpinnerLabel(keys), func(ctx context.Context) (struct{}, error) {
+	label := editSpinnerLabel(keys)
+	if dryRun {
+		label = "Checking issue field metadata"
+	}
+	_, err := command.Spin(ctx, label, func(ctx context.Context) (struct{}, error) {
 		// Every key runs regardless of another's failure, which is what
 		// makes a bad key a partial result. Parallel writes outcomes[i]
 		// from the goroutine handling key i and needs no lock: x/sync
@@ -422,7 +444,26 @@ func editFanOut(
 		// front. Order therefore comes from the ARGV, never from which PUT
 		// finished first.
 		xsync.Parallel(opts.parallelism, len(keys), func(i int) {
+			var preflight *envelope.IssueFieldPreflight
+			if opts.validateRemote {
+				var err error
+				preflight, err = editFieldPreflight(ctx, client, keys[i], req)
+				if err != nil {
+					outcomes[i] = failedEditResult(keys[i], err)
+					return
+				}
+			}
+			if dryRun {
+				outcomes[i].result = envelope.KeyedResult[envelope.IssueEditData]{
+					Issue: envelope.IssueRef{Key: keys[i]}, OK: true,
+					Data: &envelope.IssueEditData{FieldPreflight: preflight},
+				}
+				return
+			}
 			outcomes[i] = editOne(ctx, client, keys[i], req, opts.verify, opts.notify)
+			if outcomes[i].result.Data != nil {
+				outcomes[i].result.Data.FieldPreflight = preflight
+			}
 		})
 		return struct{}{}, nil
 	})
@@ -451,9 +492,8 @@ type editOutcome struct {
 	err error
 }
 
-// editSpinnerLabel is the fan-out's one spinner label. Present tense, and
-// correctly so: this function is only reached on the live path, because
-// runEdit returns before the fan-out on any local run.
+// editSpinnerLabel names the live write fan-out. Remote previews use a separate
+// metadata-check label, keeping the two operation tenses distinct.
 func editSpinnerLabel(keys []string) string {
 	if len(keys) == 1 {
 		return "Editing " + keys[0]
@@ -477,7 +517,7 @@ func editOne(ctx context.Context, client core.JiraClient, key string, req jira.I
 	}
 	data := &envelope.IssueEditData{}
 	if verify {
-		verified, err := verifyIssue(ctx, client, key)
+		verified, err := verifyIssue(ctx, client, key, req)
 		data.Verified, data.VerifyFailed = verified, err != nil
 	}
 	return editOutcome{result: envelope.KeyedResult[envelope.IssueEditData]{
@@ -535,10 +575,22 @@ func renderEditPreview(v *output.View, out envelope.IssueEditOutput) {
 	// spans on one line, never nested: each carries its own reset and the
 	// next opens a fresh style, which is the shape H5 requires.
 	keys := make([]string, 0, len(out.Results))
+	refused := false
 	for _, r := range out.Results {
+		if !r.OK {
+			refused = true
+			v.Line(cli.Entity(r.Issue.Key) + cli.Text(": "+r.Err.Message))
+			v.Hint(r.Err.Hint)
+			continue
+		}
 		keys = append(keys, cli.Entity(r.Issue.Key))
+		if r.Data != nil {
+			renderFieldPreflight(v, r.Data.FieldPreflight)
+		}
 	}
-	v.Line(fmt.Sprintf("Would send this payload to %s.", joinKeys(keys)))
+	if len(keys) != 0 {
+		v.Line(fmt.Sprintf("Would send this payload to %s.", joinKeys(keys)))
+	}
 	// Section for renderCreatePreview's reason, and with the same
 	// constraint: the title is passed PLAIN, because clog's Divider styles
 	// what it is handed and a pre-styled string would strand a reset
@@ -547,7 +599,11 @@ func renderEditPreview(v *output.View, out envelope.IssueEditOutput) {
 	v.Block(cli.Text(string(out.Payload)))
 	// The local preview can be reused as native input. Live --generate-json
 	// separately discovers each issue's editable fields and operations.
-	v.Hint("Nothing was sent. Drop --dry-run to apply it, or save this payload and pass it back with --json-input.")
+	if refused {
+		v.Hint("Nothing was sent. Repair the refused contexts before further changes.")
+	} else {
+		v.Hint("Nothing was sent. Drop --dry-run to apply it, or save this payload and pass it back with --json-input.")
+	}
 }
 
 // renderEditResults draws the live view: one line per key, in argv order,
@@ -564,10 +620,12 @@ func renderEditResults(v *output.View, out envelope.IssueEditOutput) {
 			v.Hint(r.Err.Hint)
 			continue
 		}
+		renderFieldPreflight(v, r.Data.FieldPreflight)
 		switch {
 		case r.Data.Verified != nil:
 			v.Line(key + cli.Text(fmt.Sprintf(": updated — reads back as %q, status %s.",
 				r.Data.Verified.Summary, r.Data.Verified.Status)))
+			renderVerificationFields(v, r.Data.Verified)
 		case r.Data.VerifyFailed:
 			v.Line(key + cli.Text(": updated, but reading it back failed."))
 		default:
