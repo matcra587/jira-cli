@@ -9,6 +9,15 @@ paths:
 
 # Commands
 
+`issue input prepare` is explicit local authoring through `command.Spec`, not
+a mutation modifier. Use `core.PrepareIssueInput`, validated native metadata,
+shared bounded/cancelable input and typed payload/handling/diagnostic output.
+No Jira/provider capability or passive release I/O belongs on this path.
+Known scalar identities have fixed meanings; never infer IDs from digits or
+marketplace plugin suffixes. Refuse malformed known values and legacy wrapper
+collisions atomically. Unknown plugins, clearing and native update values stay
+unverified; native mutation input keeps its original lossless semantics.
+
 Typed boolean alternatives stay inside `command.Spec`: `Read` uses
 `WhenBoolRead`, and `LocalWrite` uses `WhenBoolLocalWrite`. Each selects its own
 registered output, validation, renderer, argument bounds and operation class.

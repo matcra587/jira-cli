@@ -3,7 +3,7 @@ slug: safe-mutation
 title: Preview and verify a Jira change
 description: Inspect a local mutation preview, submit deliberately and verify the outcome.
 when_to_use: Before creating, editing, transitioning, cloning, deleting an issue or recording effort.
-commands: [jira issue create, jira issue edit, jira issue edit prepare, jira issue edit draft, jira issue edit inspect, jira issue edit resume, jira issue transition, jira issue clone, jira issue delete, jira issue move, jira issue move status, jira issue move fields, jira epic add, jira epic remove, jira worklog add, jira worklog list, jira issue attachment add, jira issue link create, jira issue link list, jira issue link delete, jira issue weblink add, jira issue weblink list, jira issue weblink delete, jira cache clear]
+commands: [jira issue create, jira issue edit, jira issue input prepare, jira issue edit prepare, jira issue edit draft, jira issue edit inspect, jira issue edit resume, jira issue transition, jira issue clone, jira issue delete, jira issue move, jira issue move status, jira issue move fields, jira epic add, jira epic remove, jira worklog add, jira worklog list, jira issue attachment add, jira issue link create, jira issue link list, jira issue link delete, jira issue weblink add, jira issue weblink list, jira issue weblink delete, jira cache clear]
 order: 40
 ---
 
@@ -188,6 +188,57 @@ registered. Keep local composition previews separate from live metadata reads.
 while `issue_metadata_unavailable` reports missing client capability. Retry or
 inspect discovery before constructing input. Metadata remains a snapshot and
 does not guarantee a later write will be accepted.
+
+### Prepare shorthand values locally
+
+Use explicit local input preparation when deliberately authoring shorthand
+values against a selected metadata snapshot:
+
+Save `data.results[0].data.metadata` from JSON edit discovery as `editmeta.json`,
+and author the whole fields/update request in `authored.json`.
+
+```sh
+jira issue input prepare --input authored.json --metadata editmeta.json --output=json
+```
+
+Inspect the result and save only `data.payload` as `prepared.json` before preview:
+
+```sh
+jira issue edit KEY-123 --json-input prepared.json --dry-run --output=json
+```
+
+Preparation opens no credentials, makes no remote requests and writes no files.
+Each input file or stream is capped at 1 MiB.
+At most one can use `-` for piped stdin. For create,
+extract `{fields: .data.fields}` from explicit create discovery and add `--create`
+to preparation for structural project/issuetype screen exemptions.
+
+Known select labels become `value` objects. User IDs become `accountId` objects.
+Group/version names become `name` objects. Project/parent keys become `key` objects. A numeric-looking label or name never becomes an ID.
+Numeric strings in known number fields become number tokens with their exact
+numeric spelling, without float conversion. Already-native numbers stay intact.
+Known malformed shapes refuse the whole candidate.
+The legacy `fields.custom_fields` wrapper is flattened only here.
+Conflicting fields refuse instead of choosing a winner.
+Already-native values, unknown plugin values, extensions, explicit nulls and
+unchanged numeric spelling remain intact. Native update values are not coerced.
+
+Inspect `fields[].handling`: `encoded` reports changed authoring, `validated`
+reports a known local shape, and `unverified` retains an unknown or unchecked
+value. Native update values, clearing and preserved native ADF remain unverified.
+The ADF preservation parser does not establish node-schema validity. Snapshot field/verb
+checking still applies. A field absent from metadata refuses. These checks do
+not establish requiredness, option validity, permissions, freshness, later
+submission success or protection from another writer.
+
+Textarea Markdown uses the shared ADF converter and retains diagnostics in
+operation data, including source/field context. Dropped content refuses. Use
+`adf convert` to inspect and explicitly accept loss before supplying the native
+document. Existing native ADF retains future content. Extract `data.payload` in
+JSON or `payload` in compact mode before submitting it. Ordinary mutation
+`--json-input` remains the lossless native route and does not convert scalar values.
+
+### Delete issues and account for subtasks
 
 `issue delete` requires `--force` in scripts and retains ordered outcomes after
 total failure or interruption. Jira refuses parents with subtasks unless

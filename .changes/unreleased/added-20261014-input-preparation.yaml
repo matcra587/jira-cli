@@ -1,0 +1,3 @@
+kind: added
+body: "Add local `issue input prepare` using explicit create/edit metadata. Convert supported scalar authoring into known native shapes with fixed identity meanings; refuse malformed known values, duplicate/wrapper collisions and partial candidates. Recognize exact built-in plugin identities rather than marketplace suffixes or digits. Preserve unsupported plugins, clears, update operations and unchecked values as native data with unverified provenance. Ordinary mutation input remains lossless and performs no implicit coercion."
+time: 2026-10-14T05:10:31.175300111-04:00

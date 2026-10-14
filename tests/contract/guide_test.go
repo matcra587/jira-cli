@@ -262,6 +262,9 @@ func TestEmbeddedGuideRunRecipesExecute(t *testing.T) {
 	moveFile := apiInput(t, []byte(`{"sendBulkNotification":false,"targetToSourcesMapping":{"10000,10001":{"issueIdsOrKeys":["KEY-123"],"inferClassificationDefaults":true,"inferFieldDefaults":true,"inferStatusDefaults":true,"inferSubtaskTypeDefault":true}}}`))
 	markdownFile := apiInput(t, []byte("**Review**"))
 	fieldsFile := apiInput(t, []byte(`{"fields":{"issuetype":{"id":"10001"}}}`))
+	preparationInput := apiInput(t, []byte(`{"fields":{"customfield_1":"123"}}`))
+	preparationMetadata := apiInput(t, []byte(preparationScreen))
+	preparedInput := apiInput(t, []byte(`{"fields":{"customfield_1":{"value":"123"}}}`))
 	transitionFile := apiInput(t, []byte(`{"transition":{"name":"Done"},"fields":{},"update":{},"historyMetadata":{"type":"guide"}}`))
 	adfFile := apiInput(t, []byte(`{"type":"doc","version":1,"content":[{"type":"paragraph","content":[{"type":"text","text":"Review"}]}]}`))
 	aliasContent := "[aliases]\nmine='version'\n"
@@ -371,7 +374,7 @@ func TestEmbeddedGuideRunRecipesExecute(t *testing.T) {
 	if err := os.WriteFile(legacySource, []byte("default_profile='work'\n[[profiles]]\nname='work'\nbase_url='https://example.invalid'\nemail='work@example.invalid'\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	managedBinary := filepath.Join(managedWork, "mise", "installs", "github-jira", "owned", "bin", "jira")
+	managedBinary := filepath.Join(managedWork, "mise", "installs", "github-jira", "owned", "bin", filepath.Base(jiraBinary(t)))
 	if err := os.MkdirAll(filepath.Dir(managedBinary), 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -404,6 +407,12 @@ func TestEmbeddedGuideRunRecipesExecute(t *testing.T) {
 					args[i] = moveFile
 				case "fields.json":
 					args[i] = fieldsFile
+				case "authored.json":
+					args[i] = preparationInput
+				case "editmeta.json":
+					args[i] = preparationMetadata
+				case "prepared.json":
+					args[i] = preparedInput
 				case "transition.json":
 					args[i] = transitionFile
 				case "notes.md":
@@ -428,6 +437,14 @@ func TestEmbeddedGuideRunRecipesExecute(t *testing.T) {
 			}
 			if exit != 0 || stderr != "" || stdout == "" {
 				t.Fatalf("guide %s recipe failed: %q exit=%d stderr=%q", g.Slug, line, exit, stderr)
+			}
+			if strings.HasPrefix(line, "jira issue input prepare ") {
+				var result struct {
+					Data envelope.IssueInputPreparationOutput `json:"data"`
+				}
+				if json.Unmarshal([]byte(stdout), &result) != nil || string(result.Data.Payload) != `{"fields":{"customfield_1":{"value":"123"}}}` || len(result.Data.Fields) != 1 || result.Data.Fields[0].Handling != "encoded" {
+					t.Fatal("published preparation recipe lost its typed candidate or scalar encoding")
+				}
 			}
 			if slices.Contains(args, "--dry-run") {
 				var f frame
@@ -465,7 +482,7 @@ func TestEmbeddedGuideRunRecipesExecute(t *testing.T) {
 	if _, err := os.Stat(filepath.Dir(newSettings)); !os.IsNotExist(err) {
 		t.Fatal("published initialization preview created settings or its parent")
 	}
-	if count != 100 || identityReads.Load() != 1 || inputMetadataReads.Load() != 4 || reads.Load() != 2 || searches.Load() != 1 || userSearches.Load() != 3 || boardReads.Load() != 3 || projectReads.Load() != 3 || worklogReads.Load() != 1 || taskReads.Load() != 1 || jqlParses.Load() != 3 || jqlReferences.Load() != 1 || transitionReads.Load() != 1 {
+	if count != 102 || identityReads.Load() != 1 || inputMetadataReads.Load() != 4 || reads.Load() != 2 || searches.Load() != 1 || userSearches.Load() != 3 || boardReads.Load() != 3 || projectReads.Load() != 3 || worklogReads.Load() != 1 || taskReads.Load() != 1 || jqlParses.Load() != 3 || jqlReferences.Load() != 1 || transitionReads.Load() != 1 {
 		t.Fatalf("guide recipe coverage changed: recipes=%d GET=%d search=%d user-search=%d boards=%d projects=%d worklogs=%d", count, reads.Load(), searches.Load(), userSearches.Load(), boardReads.Load(), projectReads.Load(), worklogReads.Load())
 	}
 }

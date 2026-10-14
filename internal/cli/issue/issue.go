@@ -85,5 +85,6 @@ func New(deps Deps) *cobra.Command {
 	edit.AddCommand(newEditDraft(deps), newEditInspect(deps), newEditResume(deps))
 	cmd.AddCommand(edit)
 	cmd.AddCommand(newMove(deps))
+	cmd.AddCommand(newInput())
 	return cmd
 }

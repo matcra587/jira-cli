@@ -43,7 +43,7 @@ func notificationOptions(deps *Deps, sink *failureSink) []notify.Option {
 }
 
 // guardNotifications runs before Conductor's notify hook. Previews and local
-// cache inspection must not write notification storage or check releases;
+// local inspection/authoring must not write notification storage or check releases;
 // explicit headless and agent runs also suppress the entire check. Clive
 // otherwise deliberately refreshes even with non-TTY
 // stderr, while its printer and the comparator above gate the hint itself.
@@ -65,7 +65,8 @@ func guardNotifications(program *cobra.Program) {
 		}
 		// Conductor's NotifySkip matches only the leading verb, so a nested
 		// local inspection needs its canonical command path checked here.
-		localInspection := cmd.CommandPath() == cmd.Root().Name()+" cache inspect"
+		path := cmd.CommandPath()
+		localInspection := path == cmd.Root().Name()+" cache inspect" || path == cmd.Root().Name()+" issue input prepare"
 		if dryRun || noInput || agent.Is() || localInspection {
 			program.Runtime.App.Updater = nil
 		} else {

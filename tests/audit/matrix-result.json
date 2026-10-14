@@ -13172,6 +13172,160 @@
       "status": "pass"
     },
     {
+      "op": "issue.input.prepare",
+      "category": "failure",
+      "mode": "compact",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "issue.input.prepare",
+      "category": "failure",
+      "mode": "json",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "issue.input.prepare",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M10",
+      "status": "pass"
+    },
+    {
+      "op": "issue.input.prepare",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "issue.input.prepare",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "issue.input.prepare",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "issue.input.prepare",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "issue.input.prepare",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "issue.input.prepare",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M7",
+      "status": "pass"
+    },
+    {
+      "op": "issue.input.prepare",
+      "category": "success",
+      "mode": "compact",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
+      "op": "issue.input.prepare",
+      "category": "success",
+      "mode": "human_color",
+      "axis": "H5",
+      "status": "pass"
+    },
+    {
+      "op": "issue.input.prepare",
+      "category": "success",
+      "mode": "human",
+      "axis": "H1",
+      "status": "pass"
+    },
+    {
+      "op": "issue.input.prepare",
+      "category": "success",
+      "mode": "human",
+      "axis": "H3",
+      "status": "pass"
+    },
+    {
+      "op": "issue.input.prepare",
+      "category": "success",
+      "mode": "human",
+      "axis": "H4",
+      "status": "pass"
+    },
+    {
+      "op": "issue.input.prepare",
+      "category": "success",
+      "mode": "json",
+      "axis": "M10",
+      "status": "pass"
+    },
+    {
+      "op": "issue.input.prepare",
+      "category": "success",
+      "mode": "json",
+      "axis": "M12",
+      "status": "pass"
+    },
+    {
+      "op": "issue.input.prepare",
+      "category": "success",
+      "mode": "json",
+      "axis": "M2",
+      "status": "pass"
+    },
+    {
+      "op": "issue.input.prepare",
+      "category": "success",
+      "mode": "json",
+      "axis": "M4",
+      "status": "pass"
+    },
+    {
+      "op": "issue.input.prepare",
+      "category": "success",
+      "mode": "json",
+      "axis": "M5",
+      "status": "pass"
+    },
+    {
+      "op": "issue.input.prepare",
+      "category": "success",
+      "mode": "json",
+      "axis": "M6",
+      "status": "pass"
+    },
+    {
+      "op": "issue.input.prepare",
+      "category": "success",
+      "mode": "json",
+      "axis": "M7",
+      "status": "pass"
+    },
+    {
+      "op": "issue.input.prepare",
+      "category": "success",
+      "mode": "json",
+      "axis": "M8",
+      "status": "pass"
+    },
+    {
       "op": "issue.link.create",
       "category": "dry_run",
       "mode": "compact",
