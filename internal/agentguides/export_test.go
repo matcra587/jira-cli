@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -36,14 +37,21 @@ func TestExportPlanAndPublication(t *testing.T) {
 				if err != nil || !slices.Equal(body, artifact.Content) {
 					t.Fatal("published artifact differs from the rendered plan")
 				}
-				info, err := os.Stat(file)
-				if err != nil || info.Mode().Perm() != 0o600 {
-					t.Fatal("exported artifact did not retain private file permissions")
-				}
 				if strings.Contains(string(body), "when_to_use:") != (format == "claude-skill") || !strings.Contains(string(body), "name: jira-"+artifact.Slug+"\n") {
 					t.Fatal("export frontmatter lost its selected format or qualified name")
 				}
 			}
+			t.Run("posix-permissions", func(t *testing.T) {
+				if runtime.GOOS == "windows" {
+					t.Skip("Windows file modes do not establish POSIX permissions or ACL protection")
+				}
+				for _, artifact := range artifacts {
+					info, err := os.Stat(filepath.Join(directory, filepath.FromSlash(artifact.Path)))
+					if err != nil || info.Mode().Perm() != 0o600 {
+						t.Fatal("exported artifact did not retain private file permissions")
+					}
+				}
+			})
 			collision, err := WriteExport(t.Context(), directory, artifacts, false)
 			if !errors.Is(err, os.ErrExist) || len(collision.Written) != 0 || collision.Attempted != artifacts[0].Path {
 				t.Fatal("unacknowledged existing corpus was overwritten")
@@ -123,6 +131,9 @@ func TestExportForceReplacesLinksWithoutChangingTargets(t *testing.T) {
 				link = os.Link
 			}
 			if err := link(outside, filepath.Join(parent, "SKILL.md")); err != nil {
+				if !hard && exportSymlinkPrivilegeUnavailable(err) {
+					t.Skip("native symbolic-link creation requires an enabled Windows privilege")
+				}
 				t.Fatal(err)
 			}
 			receipt, err := WriteExport(t.Context(), directory, []ExportArtifact{{Path: "jira-guide/SKILL.md", Content: []byte("replacement")}}, true)
@@ -139,6 +150,12 @@ func TestExportForceReplacesLinksWithoutChangingTargets(t *testing.T) {
 
 func TestExportRejectsEscapesBeforePublication(t *testing.T) {
 	t.Parallel()
+	t.Run("invalid-paths", testExportInvalidPaths)
+	t.Run("parent-symlink", testExportParentSymlink)
+}
+
+func testExportInvalidPaths(t *testing.T) {
+	t.Helper()
 	for _, path := range []string{"../outside", "/outside", ""} {
 		directory := filepath.Join(t.TempDir(), "not-created")
 		_, err := WriteExport(t.Context(), directory, []ExportArtifact{{Path: path}}, false)
@@ -149,9 +166,16 @@ func TestExportRejectsEscapesBeforePublication(t *testing.T) {
 			t.Fatal("invalid export path caused directory creation")
 		}
 	}
+}
+
+func testExportParentSymlink(t *testing.T) {
+	t.Helper()
 	directory := t.TempDir()
 	outside := t.TempDir()
 	if err := os.Symlink(outside, filepath.Join(directory, "jira-guide")); err != nil {
+		if exportSymlinkPrivilegeUnavailable(err) {
+			t.Skip("native symbolic-link creation requires an enabled Windows privilege")
+		}
 		t.Fatal(err)
 	}
 	receipt, err := WriteExport(t.Context(), directory, []ExportArtifact{{Path: "jira-guide/SKILL.md", Content: []byte("must not escape")}}, true)

@@ -34,7 +34,7 @@ func TestExpiredPasswordContextRendersNothing(t *testing.T) {
 			}
 			defer cancel()
 			var value string
-			field := prompt.WithPasswordContext(ctx, huh.NewInput().EchoMode(huh.EchoModePassword).Value(&value))
+			field := prompt.WithPasswordContext(ctx, huh.NewInput().EchoMode(huh.EchoModePassword), huh.NewPointerAccessor(&value))
 			var screen bytes.Buffer
 			if err := field.RunAccessible(&screen, strings.NewReader("synthetic-password\n")); !errors.Is(err, want) || !errors.Is(field.Err(), want) {
 				t.Fatalf("expired password context: error=%v, saved=%v", err, field.Err())
@@ -48,7 +48,7 @@ func TestExpiredPasswordContextRendersNothing(t *testing.T) {
 
 func TestPasswordFieldPreservesAccessibleReadError(t *testing.T) {
 	var value string
-	field := prompt.WithPasswordContext(t.Context(), huh.NewInput().EchoMode(huh.EchoModePassword).Value(&value))
+	field := prompt.WithPasswordContext(t.Context(), huh.NewInput().EchoMode(huh.EchoModePassword), huh.NewPointerAccessor(&value))
 	var screen bytes.Buffer
 	form := huh.NewForm(huh.NewGroup(field)).WithAccessible(true).WithInput(strings.NewReader("synthetic-password\n")).WithOutput(&screen)
 	if err := prompt.RunForm(t.Context(), form); err != nil {

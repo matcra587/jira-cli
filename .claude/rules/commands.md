@@ -248,6 +248,11 @@ only in the change that registers its kind.
 *   **Enum flags self-complete** from `Enum`/`EnumTerse` — never wire a predictor
     for one. `FlagOpts.Hint` (`file`/`dir`/`user`/`host`/`url`/…) gives
     OS-level completion — `user`/`host` mean the OS's, not Jira's.
+    Attachment download `--to` declares `Hint: "dir"` at the shared flag owner.
+    Zsh generators declare empty completion actions for unpredicted positional
+    slots, respecting known bounds and otherwise the unbounded model. Zsh must
+    recognize preceding opaque IDs before completing a later flag value. Empty
+    actions offer no guessed file or account values.
 *   `issuekey` reads recent issue history from the site/account-scoped cache
     through `cache.RecentIssueKeys`. Mixed attachment and transition grammars use
     their contextual predictors, not a whole-command filesystem fallback. Empty
@@ -449,6 +454,15 @@ PowerShell requires quoting the whole CSV argument for whitespace-bearing member
 Forwarding must consume values of non-forwarded flags in the evolving command
 scope. Honor `--` before interpreting flag values. Preserve the caller's
 `LASTEXITCODE` and avoid recording errors for an absent exit-status variable.
+Models with native callbacks decode their UTF-8 output within the completer's
+owned scope. Restore the caller's output encoding and fallbacks in `finally`,
+and retain exit-status restoration even if encoding restoration fails. Preserve
+native process supervision and the caller's stdin encoding; never persist a
+profile or host default to repair callback decoding. Static-only models need no
+encoding boundary.
+Serialize encoding scopes across generated applications and runspaces before
+reading the caller's encoding. Release the shared boundary even if restoration
+fails, and keep admission responsive to pipeline cancellation.
 Bare short inline CSV is a PowerShell parse error; omit unrepairable suggestions
 and support quoted whole values instead.
 
@@ -692,3 +706,12 @@ HTTP taxonomy, safe-read retry receipt, opaque IDs and native unknown bytes.
 Current-user authentication does not require active=true; absent/false activity
 and privacy-hidden nullable values retain their existing semantics. Keep the
 injected-client identity guard independent of transport admission.
+
+Attachment filename operations use the shared nativepath rooted file owner.
+Keep literal Windows trailing-dot/space leaves and reopenable extended paths;
+never let Win32 cleanup select an ordinary sibling. Retain exclusive creation,
+exact collision checks, staging and incomplete-stream cleanup through the same
+root handle. Literal reparse traversal refuses; ordinary rooted paths retain
+their existing semantics. Native tests cover authored and metadata names,
+ordinary/extended directories, failed streams and sibling preservation. Windows
+delete-sharing refusal is directory identity evidence, not an executed rename.

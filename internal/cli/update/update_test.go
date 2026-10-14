@@ -153,6 +153,10 @@ func TestArchiveUpdateRetainsPublicationAndFrozenRelease(t *testing.T) {
 	if _, err := file.WriteString("verified candidate"); err != nil {
 		t.Fatal(err)
 	}
+	var first [1]byte
+	if n, err := file.ReadAt(first[:], 0); err != nil || n != 1 || first[0] != 'v' {
+		t.Fatalf("candidate descriptor was not readable before publication: n=%d byte=%q err=%v", n, first, err)
+	}
 	release := selfupdate.Release{ID: 37, Version: "v1.1.0"}
 	source := &fakeSource{release: release, download: func(_ context.Context, observed selfupdate.Release, goos, arch string) (*selfupdate.Candidate, error) {
 		if observed.ID != release.ID || observed.Version != release.Version || goos != runtime.GOOS || arch != runtime.GOARCH {
@@ -174,8 +178,8 @@ func TestArchiveUpdateRetainsPublicationAndFrozenRelease(t *testing.T) {
 	if !errors.Is(err, context.DeadlineExceeded) || cli.MapError(err).Code != "timeout" || !out.Attempted || !out.Updated || out.Publication == nil || !out.Publication.Published || out.Publication.Durable || !target.closed {
 		t.Fatalf("published timeout receipt = %+v, %v", out, err)
 	}
-	if _, err := file.Stat(); !errors.Is(err, os.ErrClosed) {
-		t.Fatalf("candidate descriptor leaked: %v", err)
+	if n, err := file.ReadAt(first[:], 0); n != 0 || !errors.Is(err, os.ErrClosed) {
+		t.Fatalf("candidate descriptor leaked: n=%d err=%v", n, err)
 	}
 }
 

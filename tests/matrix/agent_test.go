@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -90,15 +91,21 @@ func TestGuideExportFlagEffects(t *testing.T) {
 		t.Fatal("--format did not change the rendered artifact bytes")
 	}
 	Prove(t, "jira agent export", "format", "portable and Claude previews have different rendered content digests")
-	project := fwParse(t, fwExec(t, "", nil, "", "agent", "export", "--scope=project", "--harness=codex", "--dry-run"))
+	project := fwSuccess(t, fwExec(t, "", nil, "", "agent", "export", "--scope=project", "--harness=codex", "--dry-run"))
 	home := t.TempDir()
-	user := fwParse(t, fwExecEnv(t, "", nil, "", []string{"HOME=" + home}, "agent", "export", "--scope=user", "--harness=codex", "--dry-run"))
+	env := []string{"HOME=" + home}
+	if runtime.GOOS == "windows" {
+		env = append(env, "USERPROFILE="+home,
+			"APPDATA="+filepath.Join(home, "AppData", "Roaming"),
+			"LOCALAPPDATA="+filepath.Join(home, "AppData", "Local"))
+	}
+	user := fwSuccess(t, fwExecEnv(t, "", nil, "", env, "agent", "export", "--scope=user", "--harness=codex", "--dry-run"))
 	if project.Data["scope"] != "project" || user.Data["scope"] != "user" || user.Data["directory"] != filepath.Join(home, ".agents", "skills") || project.Data["directory"] == user.Data["directory"] {
 		t.Fatal("--scope did not select working-directory versus home installation")
 	}
 	Prove(t, "jira agent export", "scope", "project and user scopes resolve distinct directories and retain their source scope")
-	native := fwParse(t, fwExec(t, "", nil, "", "agent", "export", "--scope=project", "--harness=claude-code", "--dry-run"))
-	if project.Data["harness"] != "codex" || native.Data["harness"] != "claude-code" || native.Data["format"] != "claude-skill" || !strings.HasSuffix(native.Data["directory"].(string), ".claude/skills") {
+	native := fwSuccess(t, fwExec(t, "", nil, "", "agent", "export", "--scope=project", "--harness=claude-code", "--dry-run"))
+	if project.Data["harness"] != "codex" || native.Data["harness"] != "claude-code" || native.Data["format"] != "claude-skill" || !strings.HasSuffix(native.Data["directory"].(string), filepath.Join(".claude", "skills")) {
 		t.Fatal("--harness did not select native format and directory")
 	}
 	Prove(t, "jira agent export", "harness", "selected harness changes native format and skills directory")

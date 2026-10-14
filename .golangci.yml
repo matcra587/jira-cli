@@ -60,6 +60,7 @@ linters:
           list-mode: strict
           files:
             - "$all"
+            - "!**/tests/integration/keyring_windows_test.go"
           allow:
             - $gostd
             # depguard chooses the nearest sorted prefix. The YAML domain
@@ -145,8 +146,9 @@ linters:
             # interrupt native pipe reads without closing borrowed descriptors.
             # gechr/x 0.6.0 has no descriptor duplication primitive.
             - golang.org/x/sys/unix
-            # Native-only editor acceptance independently observes console
-            # modes and process termination in fresh hidden Windows consoles.
+            # Owned Windows input pipe duplicates preserve borrowed handles
+            # during cancellation; gechr/x 0.6.0 has no duplication primitive.
+            # Native acceptance also independently observes console modes.
             - golang.org/x/sys/windows
             # Test-only leak proof for the attachment multipart producer;
             # refused and interrupted uploads must release their goroutines.
@@ -158,6 +160,26 @@ linters:
             # validation/order. clive 0.4.9 uses natural prerelease sorting
             # and development-build rules instead of these semantics.
             - golang.org/x/mod/semver
+          deny:
+            - pkg: "log"
+              desc: "use github.com/gechr/clog instead of the standard log package"
+            - pkg: "log/slog"
+              desc: "use github.com/gechr/clog instead of log/slog"
+            - pkg: "io/ioutil"
+              desc: "deprecated since Go 1.16; use io and os packages"
+
+        # The existing native credential fixture reads its random synthetic
+        # records independently of the production keyring wrapper. Keep WinCred
+        # confined to that test rather than admitting a new production adapter.
+        native-keyring-fixture:
+          list-mode: strict
+          files:
+            - "**/tests/integration/keyring_windows_test.go"
+          allow:
+            - "$gostd"
+            - github.com/matcra587/jira-cli
+            - github.com/danieljoos/wincred
+            - github.com/google/uuid
           deny:
             - pkg: "log"
               desc: "use github.com/gechr/clog instead of the standard log package"

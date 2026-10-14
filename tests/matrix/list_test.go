@@ -84,7 +84,7 @@ func mx3Binary(t *testing.T) string {
 // HOME/XDG alone do not isolate this CLI, and every run must aim at an
 // explicit loopback stub.
 func mx3Env(workdir, baseURL string) []string {
-	return []string{
+	env := []string{
 		"PATH=" + os.Getenv("PATH"),
 		"HOME=" + workdir,
 		"TMPDIR=" + workdir,
@@ -103,6 +103,13 @@ func mx3Env(workdir, baseURL string) []string {
 		"JIRA_API_TOKEN=matrix-token",
 		"JIRA_BASE_URL=" + baseURL,
 	}
+	if runtime.GOOS == "windows" {
+		env = append(env,
+			"PATHEXT="+os.Getenv("PATHEXT"), "USERPROFILE="+workdir,
+			"APPDATA="+filepath.Join(workdir, "AppData", "Roaming"),
+			"LOCALAPPDATA="+filepath.Join(workdir, "AppData", "Local"))
+	}
+	return env
 }
 
 // mx3Result is one invocation's outcome.

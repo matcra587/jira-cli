@@ -263,7 +263,8 @@ offer no further topic names. These suggestions use the local command tree.
 ### Quote CSV completion values in PowerShell
 
 PowerShell preserves quoted configuration paths and literal inserted values.
-completion descriptions remain tooltips. For CSV values containing spaces or
+Unicode names remain exact, including directory paths continued with another Tab.
+Completion descriptions remain tooltips. For CSV values containing spaces or
 commas, quote the whole argument, for example `--label 'first,space name'`.
 Completions retain CSV field quoting and selected members. Quote short inline
 CSV values too (`-f='one,two'`). Bare short inline CSV is invalid PowerShell

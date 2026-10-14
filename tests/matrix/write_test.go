@@ -28,6 +28,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -79,6 +80,9 @@ func fwBinary(t *testing.T) string {
 			return
 		}
 		fwBinPath = filepath.Join(dir, "jira")
+		if runtime.GOOS == "windows" {
+			fwBinPath += ".exe"
+		}
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
 		cmd := exec.CommandContext(ctx, "go", "build", "-buildvcs=false", "-o", fwBinPath, "./cmd/jira")
@@ -270,6 +274,12 @@ func fwExecEnv(t *testing.T, baseURL string, files map[string]string, stdin stri
 		"JIRA_EMAIL=" + fwEmail,
 		"JIRA_API_TOKEN=" + fwToken,
 		"JIRA_BASE_URL=" + baseURL,
+	}
+	if runtime.GOOS == "windows" {
+		cmd.Env = append(cmd.Env,
+			"PATHEXT="+os.Getenv("PATHEXT"), "USERPROFILE="+workdir,
+			"APPDATA="+filepath.Join(workdir, "AppData", "Roaming"),
+			"LOCALAPPDATA="+filepath.Join(workdir, "AppData", "Local"))
 	}
 	cmd.Env = append(cmd.Env, extraEnv...)
 	if stdin != "" {

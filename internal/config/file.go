@@ -50,7 +50,7 @@ func OpenFile(ctx context.Context, path string) (*File, error) {
 	if err != nil {
 		return nil, err
 	}
-	requested, err = filepath.Abs(requested)
+	requested, err = absoluteConfigurationPath(requested)
 	if err != nil {
 		return nil, fmt.Errorf("resolve config path: %w", err)
 	}

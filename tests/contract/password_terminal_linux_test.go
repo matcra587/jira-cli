@@ -64,7 +64,7 @@ func TestAccessiblePasswordTerminalContext(t *testing.T) {
 					}
 					defer cancel()
 					var value string
-					field := prompt.WithPasswordContext(ctx, huh.NewInput().Title("Synthetic password").EchoMode(huh.EchoModePassword).Value(&value))
+					field := prompt.WithPasswordContext(ctx, huh.NewInput().Title("Synthetic password").EchoMode(huh.EchoModePassword), huh.NewPointerAccessor(&value))
 					output := io.Discard
 					if tc.startup {
 						output = passwordCancelWriter{cancel: cancel}
@@ -157,7 +157,7 @@ func TestPasswordTerminalRestorationFailureRetainsCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	var value string
-	field := prompt.WithPasswordContext(ctx, huh.NewInput().Title("Synthetic password").EchoMode(huh.EchoModePassword).Value(&value).Validate(func(string) error {
+	field := prompt.WithPasswordContext(ctx, huh.NewInput().Title("Synthetic password").EchoMode(huh.EchoModePassword).Validate(func(string) error {
 		// Native masking has already restored its own modes at validation.
 		// Closing this test-owned descriptor injects a failure into the
 		// adapter's final restoration without mocking its system calls.
@@ -167,7 +167,7 @@ func TestPasswordTerminalRestorationFailureRetainsCancellation(t *testing.T) {
 			t.Error("closed password fixture unexpectedly retained a valid descriptor")
 		})
 		return closeErr
-	}))
+	}), huh.NewPointerAccessor(&value))
 	finished := make(chan error, 1)
 	go func() { finished <- field.RunAccessible(io.Discard, slave) }()
 	waited := false
@@ -243,7 +243,7 @@ func TestAccessiblePasswordDescriptorOwnership(t *testing.T) {
 				_, slave, _ := passwordDescriptorPTY(t, descriptor)
 				ctx, cancel := context.WithCancel(t.Context())
 				defer cancel()
-				field := prompt.WithPasswordContext(ctx, huh.NewInput().Title("Synthetic password").EchoMode(huh.EchoModePassword))
+				field := prompt.WithPasswordContext(ctx, huh.NewInput().Title("Synthetic password").EchoMode(huh.EchoModePassword), &huh.EmbeddedAccessor[string]{})
 				if err := field.RunAccessible(passwordCancelWriter{cancel: cancel}, slave); !errors.Is(err, context.Canceled) {
 					t.Fatalf("password lifecycle lost cancellation: %v", err)
 				}
@@ -262,7 +262,7 @@ func TestPasswordBorrowedReadDeadline(t *testing.T) {
 			master, slave, _ := passwordDescriptorPTY(t, descriptor)
 			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
-			field := prompt.WithPasswordContext(ctx, huh.NewInput().Title("Synthetic password").EchoMode(huh.EchoModePassword))
+			field := prompt.WithPasswordContext(ctx, huh.NewInput().Title("Synthetic password").EchoMode(huh.EchoModePassword), &huh.EmbeddedAccessor[string]{})
 			if err := field.RunAccessible(passwordCancelWriter{cancel: cancel}, slave); !errors.Is(err, context.Canceled) {
 				t.Fatalf("password lifecycle lost cancellation: %v", err)
 			}
@@ -328,13 +328,13 @@ func TestAccessiblePasswordDescriptorValidation(t *testing.T) {
 			defer cancel()
 			var value string
 			validated := make(chan string, 2)
-			field := prompt.WithPasswordContext(ctx, huh.NewInput().Title("Synthetic password").EchoMode(huh.EchoModePassword).Value(&value).Validate(func(candidate string) error {
+			field := prompt.WithPasswordContext(ctx, huh.NewInput().Title("Synthetic password").EchoMode(huh.EchoModePassword).Validate(func(candidate string) error {
 				validated <- candidate
 				if candidate != "synthetic-password" {
 					return errors.New("fixture password rejected")
 				}
 				return nil
-			}))
+			}), huh.NewPointerAccessor(&value))
 			finished := make(chan error, 1)
 			go func() { finished <- field.RunAccessible(io.Discard, slave) }()
 			waited := false

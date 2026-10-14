@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/matcra587/jira-cli/internal/envelope"
@@ -13,7 +14,10 @@ import (
 
 func TestUpdateAcknowledgementAndPreviewFlags(t *testing.T) {
 	t.Parallel()
-	const executable = "Cellar/jira/owned/bin/jira"
+	executable := filepath.Join("Cellar", "jira", "owned", "bin", "jira")
+	if runtime.GOOS == "windows" {
+		executable += ".exe"
+	}
 	for _, tc := range []struct {
 		name, flag, code string
 		exit             int

@@ -362,6 +362,12 @@ func mx4Run(t *testing.T, o mx4Opts, args ...string) mx4Result {
 		"JIRA_KEYRING":             "false",
 		"DBUS_SESSION_BUS_ADDRESS": "/dev/null",
 	}
+	if runtime.GOOS == "windows" {
+		env["PATHEXT"] = os.Getenv("PATHEXT")
+		env["USERPROFILE"] = work
+		env["APPDATA"] = filepath.Join(work, "AppData", "Roaming")
+		env["LOCALAPPDATA"] = filepath.Join(work, "AppData", "Local")
+	}
 	if o.Stub != nil {
 		env["JIRA_BASE_URL"] = o.Stub.URL()
 		env["JIRA_EMAIL"] = mx4Email

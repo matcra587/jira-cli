@@ -12,6 +12,7 @@ import (
 	xos "github.com/gechr/x/os"
 
 	"github.com/matcra587/jira-cli/internal/core"
+	"github.com/matcra587/jira-cli/internal/nativepath"
 )
 
 const (
@@ -39,7 +40,7 @@ func draftState(path string) core.IssueEditDraftState {
 }
 
 // PrepareTarget refuses existing names and missing/non-directory parents before
-// a caller opens credentials. Paths are literal; parent symlinks are resolved.
+// a caller opens credentials. Paths are literal; parent links are resolved.
 func PrepareTarget(ctx context.Context, path string) (*Target, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -47,11 +48,11 @@ func PrepareTarget(ctx context.Context, path string) (*Target, error) {
 	if path == "" {
 		return nil, core.ErrIssueEditDraftInvalid
 	}
-	abs, err := filepath.Abs(path)
+	abs, err := nativepath.Abs(path)
 	if err != nil {
 		return nil, draftIO("resolve target", err)
 	}
-	parentPath, err := filepath.EvalSymlinks(filepath.Dir(abs))
+	parentPath, err := nativepath.ResolveExisting(filepath.Dir(abs))
 	if err != nil {
 		return nil, draftIO("resolve existing parent", err)
 	}
@@ -60,7 +61,8 @@ func PrepareTarget(ctx context.Context, path string) (*Target, error) {
 		return nil, draftIO("open existing parent", err)
 	}
 	name := filepath.Base(abs)
-	if _, err := parent.Lstat(name); !errors.Is(err, os.ErrNotExist) {
+	selected := nativepath.JoinLeaf(parentPath, abs)
+	if _, err := draftEntry(parent, name, selected); !errors.Is(err, os.ErrNotExist) {
 		closeErr := parent.Close()
 		if err == nil {
 			err = core.ErrIssueEditDraftChanged
@@ -70,7 +72,7 @@ func PrepareTarget(ctx context.Context, path string) (*Target, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, errors.Join(err, parent.Close())
 	}
-	return &Target{parent: parent, name: name, state: draftState(filepath.Join(parentPath, name))}, nil
+	return &Target{parent: parent, name: name, state: draftState(selected)}, nil
 }
 
 func (t *Target) State() core.IssueEditDraftState { return t.state }

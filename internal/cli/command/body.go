@@ -501,7 +501,7 @@ func toEnvelopeWarnings(lossy []adf.Warning) []envelope.Warning {
 
 // ReadInputFileContext reads one flag's file, or standard input for StdinPath,
 // under the shared size cap and terminal refusal. Cancellation closes an owned
-// Unix pipe duplicate or another closable stream to interrupt blocked reads.
+// Unix/Windows pipe duplicate or another closable stream to interrupt blocked reads.
 // Borrowed file descriptors remain open; Unix pipe flags are restored afterwards.
 // Other file reads, non-closable readers and file opening retain OS semantics.
 func ReadInputFileContext(ctx context.Context, flag, path string, stdin io.Reader, stdinIsTerminal bool) ([]byte, error) {
@@ -551,7 +551,7 @@ func readCappedContext(ctx context.Context, field, label, source string, reader 
 // ReadStdinContext reads at most limit bytes under the shared input cancellation
 // and ownership policy. Callers retain terminal refusal and domain validation,
 // and can read one extra byte to detect oversized input without truncating it.
-// Cancellation interrupts closable streams and owned Unix pipe duplicates;
+// Cancellation interrupts closable streams and owned Unix/Windows pipe duplicates;
 // other file reads and non-closable readers retain OS semantics. Borrowed file
 // descriptors remain open. Unix pipe flags are restored only after the
 // cancellation callback has finished.

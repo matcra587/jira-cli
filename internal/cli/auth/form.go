@@ -41,14 +41,14 @@ func askForLogin(ctx context.Context, prefill, pinned identity) (identity, strin
 		fields = append(fields, prompt.WithAccessibleDefault(huh.NewInput().
 			Title("Jira site").
 			Placeholder("https://your-site.atlassian.net").
-			Value(&got.site),
+			Accessor(prompt.WithContextAccessor(ctx, huh.NewPointerAccessor(&got.site))),
 			func(s string) error { return config.ValidateBaseURL(strings.TrimSpace(s)) }))
 	}
 	if pinned.email == "" {
 		fields = append(fields, prompt.WithAccessibleDefault(huh.NewInput().
 			Title("Email").
 			Placeholder("you@example.com").
-			Value(&got.email),
+			Accessor(prompt.WithContextAccessor(ctx, huh.NewPointerAccessor(&got.email))),
 			notBlank("email")))
 	}
 	tokenInput := prompt.WithPasswordContext(ctx, huh.NewInput().
@@ -56,8 +56,7 @@ func askForLogin(ctx context.Context, prefill, pinned identity) (identity, strin
 		// Never echoed: a token on screen is a token in the scrollback,
 		// and in whatever recorded the session.
 		EchoMode(huh.EchoModePassword).
-		Value(&token).
-		Validate(notBlank("API token")))
+		Validate(notBlank("API token")), huh.NewPointerAccessor(&token))
 	fields = append(fields, tokenInput)
 
 	// Huh's accessible mode defaults to stdout independently of its normal

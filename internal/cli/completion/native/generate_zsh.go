@@ -183,6 +183,14 @@ func zshWriteArguments(
 		if !hasMaxPositionalArgs {
 			fmt.Fprintf(sb, "%s'*: :->dyn_rest' \\\n", specIndent)
 		}
+	case hasMaxPositionalArgs:
+		// Even without a predictor, Zsh needs positional grammar before it
+		// can parse later option values. Empty actions offer no guessed values.
+		for i := range maxPositionalArgs {
+			fmt.Fprintf(sb, "%s'%d: :()' \\\n", specIndent, i+1)
+		}
+	default:
+		fmt.Fprintf(sb, "%s'*: :()' \\\n", specIndent)
 	}
 
 	fmt.Fprintf(sb, "%s&& ret=0\n", indent)

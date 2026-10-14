@@ -274,12 +274,13 @@ func rejectEdit(path string, contents []byte, cause error) error {
 
 // writeScratch puts contents in a temp file for the editor to open.
 //
-// The file goes in a private 0700 directory of its own, not loose in the
-// shared temp directory. Creating it at 0600 is not enough on its own:
+// On POSIX hosts the file goes in a private 0700 directory of its own, not loose
+// in the shared temp directory. Creating it at 0600 is not enough on its own:
 // an editor that saves by writing a new file and renaming it over the
 // target chooses its OWN mode — commonly 0644 — and the result would sit
 // world-readable in a directory every user can list. A private parent
-// means the mode of the file inside stops mattering.
+// means the mode of the file inside stops mattering. These modes do not establish
+// Windows ACL protection.
 //
 // The path is made absolute because it is handed to another program as
 // an argument: a relative TMPDIR could produce one starting with "-",

@@ -1,5 +1,44 @@
 # jira-cli
 
+Bash fixtures transport literal completion words through a quoted environment
+value so MSYS startup cannot glob native caller argv. Preserve generated-script
+execution, caller state and literal candidates. The Windows WSL launcher supplies
+no native Bash evidence; explicit selection of it fails. Keep only unsupported
+filename cases as named skips, retaining Windows space-path checks and Unix cases.
+
+Update cleanup guards prove an owned candidate is readable before publication
+and refuses a nonempty positioned read after return. Keep the closed-file error
+assertion portable; Windows handle-stat errors do not establish os.ErrClosed.
+Verify the guard catches an actually compiled omitted-close mutation.
+
+Config-editor fixtures use the executing owned binary and shared shell quoting,
+with literal argument markers to distinguish selection precedence. Preserve saved
+work, context outcomes and regular-file checks on every host. POSIX permission
+checks use named child subtests; Windows modes supply no ACL evidence and cannot
+skip parent recovery checks.
+
+Guide-export acceptance checks exact content, collisions and hard-link target
+preservation on every host. Keep POSIX mode checks in named platform-specific
+subtests; Windows modes do not prove ACL protection. Attempt native symbolic links
+and skip only the unavailable Windows privilege, separately from invalid-path
+validation. A skipped link case supplies no symbolic-link acceptance evidence.
+
+Linux and Darwin audit terminals share a bounded, cancelable diagnostic collector
+over their native PTY allocators. Retain independent stdout bytes, join the command
+and collector, and refuse an unfinished drain after five seconds. Native diagnostic
+capture is limited to one MiB. Verify retained writers, active cancellation, launch
+failure and invisible diagnostics through owned helpers. Darwin compile checks are
+preparation only; actual macOS execution remains a separate acceptance requirement.
+
+Native Windows amd64 output-audit terminals use the shared invocation owner,
+parent-owned job admission and the selected Go-image write observer. Admit silence
+only after complete writer, loader, process and collector evidence. Keep exact
+stdout separate; console presentation cannot establish empty diagnostics. Native
+console setup precedes CLI admission and its accounting baseline. Job keepers are
+never inherited, and cancellation before assignment still kills the waiting helper.
+Preserve every required audit case and the named native guards described in
+`.claude/rules/tests.md`. Other hosts require their own native acceptance evidence.
+
 Explicit local `issue input prepare` uses core's pure preparation owner and
 native screen metadata, then emits typed output through `command.Spec`. Keep
 default mutation JSON lossless. Recognize exact built-in plugin identities,
@@ -90,6 +129,25 @@ and the relevant `.claude/rules/` owner documentation when a capability changes.
     for a stream itself is a defect. If the path cannot express a
     command, fix the path — do not go around it.
 
+## Go development
+
+Compiler security updates keep the minimum Go patch, mise pin and generated
+platform artifact locks aligned. Follow `.claude/rules/go.md`; prove the actual
+security gate and distinguish new-toolchain acceptance from older binaries.
+
+Native Windows compile-once command and startup-benchmark fixtures keep `.exe`
+and bind public profile directories while retaining `PATHEXT`. Execute ordinary
+native Go build helpers before crediting their acceptance; follow `.claude/rules/tests.md`.
+Editor-preview fixtures use owned executables, and user-home overrides retain
+Windows profile bindings.
+
+Native PowerShell callbacks decode UTF-8 within the registered generator's
+owned scope, restoring caller encoding/fallbacks and exit state on every path.
+Retain native process supervision. Verify real Unicode metadata and directory
+continuation; read independent observer receipts without a host-codepage round trip.
+Serialize encoding ownership across applications and runspaces before taking the
+snapshot; keep waiting cancellation responsive and release after exceptions.
+
 ## Git
 
 *   Signed conventional commits, curated linear history.
@@ -123,6 +181,20 @@ before crediting completion results; follow `.claude/rules/tests.md`.
 Native browser acceptance uses an owned helper with exact URL argv and joined
 termination. Keep machine-mode suppression and URL-only no-request assertions;
 process handoff does not prove GUI rendering or page loading.
+Browser-gating unit fixtures select an owned BROWSER value; default-launcher
+guards assert the platform executable and every literal argument independently.
+A download directory-swap fixture blocked by native Windows delete sharing must
+prove original identity, denied rename, preserved stream failure and partial-file
+cleanup. Keep actual redirected-directory proof separate; never count a failed
+fixture rename as a successful replacement.
+Capture the pre-fault Windows file ID through an opened handle, then close it
+before exercising the writer; pathname Stat loads identity lazily.
+Native Windows paging acceptance uses fresh hidden consoles, literal pager argv
+and independently captured stdin. Verify navigation, cancellation, borrowed modes
+and original-screen restoration. Console-cell display is not original write-byte
+evidence; retain separate exact-byte contracts and all required matrix pairs.
+Assign native paging helpers to an owned job before admitting descendants. Prove
+parent cancellation joins the actual CLI and leaves no active job processes.
 Elvish callback emission uses `$path:dev-null` from the executing shell, never
 a hardcoded Unix path. Separate candidate identity from display descriptions
 for every dynamic callback; exercise real matching and editor insertion.
@@ -457,7 +529,10 @@ transitions in the guard; do not replace them with a fixed offset or skip missin
 fixture data. Do not add timezone data to the release CLI merely to repair a test.
 
 Externally selected native update tests keep a renamed installed basename while
-preserving `.exe` on Windows. Confirm the original and candidate version commands
+preserving `.exe` on Windows, including disposable flag-matrix installation copies.
+Version/formatter fixture expectations and selectors use the executing runtime
+OS and architecture; retain exact output quoting, delimiters and field order.
+Confirm the original and candidate version commands
 actually execute before interpreting publication/download results. Test only
 disposable installation copies; preserve selected artifacts and retained backups.
 
@@ -606,3 +681,74 @@ uses actual Control-C and Control-Break in the isolated console with an interrup
 editor: require exit 6, `canceled`, prompt termination, restored modes and exact
 recoverable saved work. Send no event to the caller's console. Server-enforced
 writes and native macOS acceptance remain separate requirements.
+
+Native Windows pipe input uses `internal/cli/input` non-inheritable duplicates.
+Require the native pipe discriminator because FILE_TYPE_PIPE also covers sockets.
+Join cancellation and cleanup, retain borrowed handle flags and pipe modes, and
+prove a later pending read through the original overlapped handle. Keep regular
+files, consoles and nonselected readers borrowed; never add detached read workers.
+Registered stdin commands and accessible text/confirmation forms share this owner.
+Native cancellation/deadline guards withhold EOF and observe actual consumption.
+Use overlapped pipe fixtures for PeekNamedPipe observation; querying a synchronous
+pipe while its duplicate reads may block the observer itself.
+
+Native Windows console input uses the shared input.RunTerminalContext owner.
+Pin the reading thread, join native cancellation before exact mode restoration
+and release its handle before unlocking, including panic exits. After native
+input-console admission, open an independent non-inherited CONIN$ handle. Join
+cancellation and close that owned handle before restoring borrowed modes; a
+duplicate shares the canceled read lifetime and cannot replace this owner.
+Keep the caller's file and handle borrowed. Restore modes through the original
+file's SyscallConn.Control lifetime; a closed numeric handle can already belong
+to a different object. Retain restoration refusal as a cleanup failure.
+Normalize only single EOF/abort causes in an expired
+console scope; retain independent joined failures and typed cleanup outcomes.
+Use prompt.WithContextAccessor with native Huh accessors for bound text and
+confirmation fields; WithPasswordContext requires its explicit native accessor
+and uses the same cancellation publication guard. Preserve native rendering
+and masking. Run actual hidden-console cancellation, success, retries, repeated
+fields, original-handle reuse and thread-reuse guards with test:input:windows.
+Cross-compilation and an entered prompt alone earn no native acceptance credit.
+
+Windows configuration paths resolve existing objects through owned native
+metadata handles before appending missing descendants. Directory junctions are
+not ModeSymlink under the selected Go rules; EvalSymlinks alone cannot bind
+their targets. Keep full read/write/delete sharing, join handle-close errors,
+preserve required extended DOS/UNC naming syntax and refuse native resolution
+failures. Retain literal trailing dots/spaces during absolute-path selection and
+recursive parent composition; ordinary Windows full-path normalization changes
+those names. Recheck the requested path before publication so retargeted junctions
+cannot authorize a different destination. Keep this at the shared configuration
+snapshot owner; command handlers must not add independent path workarounds.
+
+Configuration and drafts share `internal/nativepath` for literal path identity.
+Only its initial-open `ErrMissing` permits configuration's missing-descendant
+policy; late metadata/close failures retain their outcome. Draft parents remain
+strict. Literal Windows draft directories use owned handle-relative exclusive
+creation and verify the reopened root against the retained created handle before
+publishing members. Preserve acknowledged directories after late failure.
+Junction ancestors are supported; redirected draft roots and members refuse.
+Run native `test:draft:windows` and real editor acceptance. Console fixtures must
+finish setup before measuring the modes borrowed by the editor.
+
+Attachment download paths use shared literal absolute selection while retaining
+rooted streaming and staged overwrite. Declare `--to` directory completion through
+shared flag metadata. Zsh unpredicted positional slots need bounded empty actions
+(or an unbounded empty action) so later option values remain completable without
+inventing filenames. Native shell providers retain their own directory spelling;
+verify literal identity and actual insertion, not an assumed trailing separator.
+
+Attachment filename operations use the shared nativepath rooted file owner.
+Keep literal Windows trailing-dot/space leaves and reopenable extended paths;
+never let Win32 cleanup select an ordinary sibling. Retain exclusive creation,
+exact collision checks, staging and incomplete-stream cleanup through the same
+root handle. Literal reparse traversal refuses; ordinary rooted paths retain
+their existing semantics. Native tests cover authored and metadata names,
+ordinary/extended directories, failed streams and sibling preservation. Windows
+delete-sharing refusal is directory identity evidence, not an executed rename.
+
+Output-audit editor recipes use the owned test-executable fixture, never an
+installed editor or Unix no-op command. Require a fresh receipt with literal
+argv and an input digest after live entry, and no receipt after previews or
+terminal refusal. Keep Windows temporary/profile paths owned. Fixture execution
+does not establish native terminal allocation or faithful diagnostic capture.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"runtime"
+	"slices"
 	"testing"
 
 	"github.com/matcra587/jira-cli/internal/cli"
@@ -89,6 +90,7 @@ func TestOpenInBrowserFallsBackToPlatformDefaultWhenUnset(t *testing.T) {
 		t.Fatalf("opener called %d times, want 1: %+v", len(calls), calls)
 	}
 
+	wantArgs := []string{"https://example.atlassian.net/browse/ABC-123"}
 	var wantName string
 	switch runtime.GOOS {
 	case "linux":
@@ -97,11 +99,15 @@ func TestOpenInBrowserFallsBackToPlatformDefaultWhenUnset(t *testing.T) {
 		wantName = "open"
 	case "windows":
 		wantName = "rundll32"
+		wantArgs = append([]string{"url.dll,FileProtocolHandler"}, wantArgs...)
 	default:
 		t.Skipf("no platform-default expectation pinned for GOOS %q", runtime.GOOS)
 	}
 	if calls[0].name != wantName {
 		t.Errorf("opener name = %q, want %q for GOOS %q", calls[0].name, wantName, runtime.GOOS)
+	}
+	if !slices.Equal(calls[0].args, wantArgs) {
+		t.Errorf("opener args = %q, want %q for GOOS %q", calls[0].args, wantArgs, runtime.GOOS)
 	}
 }
 
@@ -188,6 +194,7 @@ func TestOpenForHumanOnlyActsForHumanFormat(t *testing.T) {
 // above: a resolved human format DOES call the opener, with targetURL as
 // its sole argument.
 func TestOpenForHumanOpensForHumanFormat(t *testing.T) {
+	t.Setenv("BROWSER", "owned-browser-fixture")
 	defer cli.TakeWarnings() // drain whatever this test adds, so it cannot leak into another
 
 	var calls []recordedOpen
@@ -196,8 +203,8 @@ func TestOpenForHumanOpensForHumanFormat(t *testing.T) {
 	if len(calls) != 1 {
 		t.Fatalf("opener called %d times, want 1: %+v", len(calls), calls)
 	}
-	if len(calls[0].args) != 1 || calls[0].args[0] != "https://example.atlassian.net/browse/ABC-123" {
-		t.Errorf("opener args = %v, want [targetURL]", calls[0].args)
+	if calls[0].name != "owned-browser-fixture" || !slices.Equal(calls[0].args, []string{"https://example.atlassian.net/browse/ABC-123"}) {
+		t.Errorf("opener = %+v, want the selected browser with one literal URL", calls[0])
 	}
 }
 

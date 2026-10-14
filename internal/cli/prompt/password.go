@@ -34,10 +34,14 @@ type PasswordInput struct {
 }
 
 // WithPasswordContext gives a native password field the command's context.
-// Linux accessible reads interrupt on cancellation and restore the borrowed
-// terminal. Other platforms currently check context before and after input.
+// The explicit accessor retains native Huh binding while preventing a canceled
+// read from publishing a partial password: native terminal cancellation can
+// appear as EOF, which Huh's password reader otherwise accepts after some bytes.
+// Linux and Windows accessible reads interrupt cancellation and restore the
+// borrowed terminal. Other platforms check context before and after input.
 // The form must exclusively own the terminal throughout the password read.
-func WithPasswordContext(ctx context.Context, input *huh.Input) *PasswordInput {
+func WithPasswordContext(ctx context.Context, input *huh.Input, accessor huh.Accessor[string]) *PasswordInput {
+	input.Accessor(WithContextAccessor(ctx, accessor))
 	return &PasswordInput{Input: input, ctx: ctx}
 }
 

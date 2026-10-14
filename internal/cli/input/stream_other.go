@@ -1,4 +1,4 @@
-//go:build !unix
+//go:build !unix && !windows
 
 package input
 
@@ -7,8 +7,8 @@ import (
 	"os"
 )
 
-// PrepareStream preserves native non-Unix readers. Active interruption of
-// borrowed non-Unix files still requires a native implementation and proof.
+// PrepareStream preserves native readers on platforms without a stream owner.
+// Active interruption of borrowed files requires a native implementation.
 func PrepareStream(reader io.Reader, _ os.FileMode) (io.Reader, func() error, error) {
 	return reader, nil, nil
 }

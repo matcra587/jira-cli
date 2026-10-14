@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gechr/x/shell"
+
 	"github.com/matcra587/jira-cli/internal/cli"
 	cfg "github.com/matcra587/jira-cli/internal/config"
 )
@@ -194,13 +196,13 @@ func TestEditPreviewUsesSelectedConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("JIRA_EDITOR", editor)
+	t.Setenv("JIRA_EDITOR", shell.Quote(editor))
 	out, err := runEdit(t.Context(), true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if out.Path != selected || !out.DryRun {
-		t.Fatalf("preview = %#v, want selected path %q and dry-run", out, selected)
+	if out.Path != selected || !out.DryRun || len(out.Editor) != 1 || out.Editor[0] != editor {
+		t.Fatalf("preview = %#v, want selected path %q, literal editor %q and dry-run", out, selected, editor)
 	}
 	if _, err := os.Stat(selected); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("preview touched selected file: %v", err)
@@ -332,9 +334,10 @@ func TestEditPreservesSharedDirectoryPermissions(t *testing.T) {
 				}
 			}
 			after, err := os.Stat(dir)
-			if err != nil || before.Mode().Perm() != after.Mode().Perm() {
-				t.Fatalf("shared directory permissions changed: before=%v, after=%v, err=%v", before, after, err)
+			if err != nil || !after.IsDir() {
+				t.Fatalf("shared directory was not retained: %v, %v", after, err)
 			}
+			assertEditPOSIXPermissions(t, after.Mode().Perm(), before.Mode().Perm())
 		})
 	}
 }
@@ -369,9 +372,10 @@ func assertRejectedEdit(t *testing.T, path, contents string) {
 		t.Fatalf("edited work lost: %q, %v", after, err)
 	}
 	info, err := os.Stat(path + ".rejected")
-	if err != nil || info.Mode().Perm() != 0o600 {
-		t.Fatalf("rejected file not private: %v, %v", info, err)
+	if err != nil || !info.Mode().IsRegular() {
+		t.Fatalf("rejected work is not a regular file: %v, %v", info, err)
 	}
+	assertEditPOSIXPermissions(t, info.Mode().Perm(), 0o600)
 }
 
 func editErrorCode(err error) string {

@@ -9,6 +9,16 @@ paths:
 
 # Go conventions
 
+The minimum compiler patch and mise development pin include standard-library
+security fixes. Update them together and regenerate Go's artifact locks through
+`mise lock go`, retaining every supported platform. Verify locked checksums
+against the official release manifest and run the actual `go tool govulncheck`
+gate with the selected compiler; JSON scan output alone does not establish a
+clean security gate. Keep application dependency updates separate.
+Check the pinned linter against the selected compiler's export data. When a
+compatible release is required, align its mise and CI pins and regenerate its
+platform locks; do not disable checks to accommodate an incompatible linter.
+
 IMPORTANT: before writing any helper, check whether a gechr library already
 provides it. This repo does not hand-roll what its libraries provide: `x`
 below, `clog`/`clib` for output and flags (see [output.md](output.md)),
@@ -180,6 +190,20 @@ successful syncs claim `synced`; other platforms report `platform_unconfirmed`.
 Reopening observes readiness and reports `not_checked` durability, without
 claiming publication effects from the current invocation.
 
+Literal Windows directory creation uses handle-relative `NtCreateFile` only when
+`os.Root` would normalize the selected trailing dot/space. Require `FILE_CREATE`,
+directory-only admission and non-inherited handles. Keep the parent handle alive
+through `SyscallConn.Control` and the created handle until a read-only reopened
+root has the same native identity. Only then publish rooted members. Retain an
+acknowledged directory on later cancellation or cleanup failure. The required
+`OBJECT_ATTRIBUTES.Length` uses compile-time `unsafe.Sizeof` for the selected
+architecture's ABI; this narrow exception permits no unsafe pointer conversion.
+
+Attachment download absolute selection uses `nativepath.Abs`, preserving literal
+Windows destination names without changing caller-authored junction spelling.
+Keep streaming, exclusive creation, collision checks and staged overwrite inside
+the retained `os.Root`; path selection does not authorize a new pathname writer.
+
 Filesystem completion enumerates only names in one explicitly selected literal
 directory through the bounded local owner. It reads no file contents, opens no
 credentials and never uses a glob to interpret authored metacharacters. Failed,
@@ -249,3 +273,30 @@ HTTP taxonomy, safe-read retry receipt, opaque IDs and native unknown bytes.
 Current-user authentication does not require active=true; absent/false activity
 and privacy-hidden nullable values retain their existing semantics. Keep the
 injected-client identity guard independent of transport admission.
+
+Native Windows console input uses the shared input.RunTerminalContext owner.
+Pin the reading thread, join native cancellation before exact mode restoration
+and release its handle before unlocking, including panic exits. After native
+input-console admission, open an independent non-inherited CONIN$ handle. Join
+cancellation and close that owned handle before restoring borrowed modes; a
+duplicate shares the canceled read lifetime and cannot replace this owner.
+Keep the caller's file and handle borrowed. Restore modes through the original
+file's SyscallConn.Control lifetime; a closed numeric handle can already belong
+to a different object. Retain restoration refusal as a cleanup failure.
+Normalize only single EOF/abort causes in an expired
+console scope; retain independent joined failures and typed cleanup outcomes.
+Use prompt.WithContextAccessor with native Huh accessors for bound text and
+confirmation fields; WithPasswordContext requires its explicit native accessor
+and uses the same cancellation publication guard. Preserve native rendering
+and masking. Run actual hidden-console cancellation, success, retries, repeated
+fields, original-handle reuse and thread-reuse guards with test:input:windows.
+Cross-compilation and an entered prompt alone earn no native acceptance credit.
+
+Attachment filename operations use the shared nativepath rooted file owner.
+Keep literal Windows trailing-dot/space leaves and reopenable extended paths;
+never let Win32 cleanup select an ordinary sibling. Retain exclusive creation,
+exact collision checks, staging and incomplete-stream cleanup through the same
+root handle. Literal reparse traversal refuses; ordinary rooted paths retain
+their existing semantics. Native tests cover authored and metadata names,
+ordinary/extended directories, failed streams and sibling preservation. Windows
+delete-sharing refusal is directory identity evidence, not an executed rename.

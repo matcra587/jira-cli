@@ -208,6 +208,9 @@ func runScenario(bin string, s Scenario, mode Mode, baseURL string) (Capture, er
 			return Capture{}, fmt.Errorf("scenario %q executable must stay inside its owned directory", s.ID)
 		}
 		copyPath := filepath.Join(workdir, s.Executable)
+		if runtime.GOOS == "windows" && !strings.EqualFold(filepath.Ext(copyPath), ".exe") {
+			copyPath += ".exe"
+		}
 		if err := os.MkdirAll(filepath.Dir(copyPath), 0o700); err != nil {
 			return Capture{}, err
 		}
@@ -219,22 +222,23 @@ func runScenario(bin string, s Scenario, mode Mode, baseURL string) (Capture, er
 	cmd := exec.CommandContext(ctx, bin, args...)
 	cmd.Dir = workdir
 	cmd.Env = scenarioEnv(workdir, s, baseURL, mode)
+	var editorReceipt string
+	if s.Editor {
+		var editor string
+		editor, editorReceipt, err = auditEditor(workdir)
+		if err != nil {
+			return Capture{}, fmt.Errorf("scenario %q editor fixture: %w", s.ID, err)
+		}
+		cmd.Env = append(cmd.Env, "JIRA_EDITOR="+editor, auditEditorReceiptEnv+"="+editorReceipt)
+	}
 	if s.Stdin != "" {
 		cmd.Stdin = strings.NewReader(s.Stdin)
 	}
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	var finishTerminal func() error
-	if s.Terminal {
-		if s.Stdin != "" {
-			return Capture{}, fmt.Errorf("scenario %q cannot combine terminal and piped input", s.ID)
-		}
-		finishTerminal, err = attachAuditTerminal(cmd, &stderr)
-		if err != nil {
-			return Capture{}, fmt.Errorf("scenario %q terminal invocation is unrun: %w", s.ID, err)
-		}
-		defer func() { _ = finishTerminal() }() //nolint:errcheck // closes admission failures; completed runs check the first close outcome below
+	if s.Terminal && s.Stdin != "" {
+		return Capture{}, fmt.Errorf("scenario %q cannot combine terminal and piped input", s.ID)
 	}
 
 	// Seed the recipe's input files BEFORE the fingerprint below, not
@@ -270,17 +274,13 @@ func runScenario(bin string, s Scenario, mode Mode, baseURL string) (Capture, er
 		return Capture{}, err
 	}
 
-	code := 0
-	if err := cmd.Run(); err != nil {
-		var exit *exec.ExitError
-		if !errors.As(err, &exit) {
-			return Capture{}, fmt.Errorf("scenario %q mode %s: %w", s.ID, mode, err)
-		}
-		code = exit.ExitCode()
+	code, err := runAuditCommand(ctx, cmd, s.Terminal, &stderr)
+	if err != nil {
+		return Capture{}, fmt.Errorf("scenario %q mode %s capture failed: %w", s.ID, mode, err)
 	}
-	if finishTerminal != nil {
-		if err := finishTerminal(); err != nil {
-			return Capture{}, fmt.Errorf("scenario %q terminal capture failed: %w", s.ID, err)
+	if s.Editor {
+		if err := checkAuditEditorReceipt(editorReceipt, s.Terminal && s.Category == CategorySuccess && code == 0); err != nil {
+			return Capture{}, fmt.Errorf("scenario %q editor observation: %w", s.ID, err)
 		}
 	}
 	after, err := fingerprint(workdir)
@@ -430,6 +430,13 @@ func scenarioEnv(workdir string, s Scenario, baseURL string, mode Mode) []string
 		// human_color included.
 		"COLUMNS=100",
 		"TERM=dumb",
+	}
+	if runtime.GOOS == "windows" {
+		env = append(env,
+			"TEMP="+workdir, "TMP="+workdir,
+			"PATHEXT="+os.Getenv("PATHEXT"), "USERPROFILE="+workdir,
+			"APPDATA="+filepath.Join(workdir, "AppData", "Roaming"),
+			"LOCALAPPDATA="+filepath.Join(workdir, "AppData", "Local"))
 	}
 	if mode != ModeHumanColor {
 		env = append(env, "NO_COLOR=1")

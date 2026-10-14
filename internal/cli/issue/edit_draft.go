@@ -18,6 +18,9 @@ import (
 
 const flagDraftDirectory = "directory"
 
+const draftPathHelp = "Windows junction ancestors and extended literal directory names are supported. " +
+	"The draft directory itself and its members must not be redirected."
+
 func draftFlags(c *cobra.Command, directory *string, mutation bool) {
 	command.AddStringVar(c, directory, flagDraftDirectory, "", "Use this explicit draft directory; creation requires an unused name and an existing parent", command.FlagOpts{Terse: "Draft directory", Placeholder: "DIR", Hint: "dir"})
 	if mutation {
@@ -55,7 +58,8 @@ func newEditDraft(deps Deps) *cobra.Command {
 			"bound native backup is saved at `source.json`, anchored text at `description.md`, " +
 			"and readiness at `manifest.json`. Native source and manifest are read-only where " +
 			"supported. No existing name is replaced, and partial creation is retained. " +
-			"Directory-sync support varies by platform; inspect the actual durability receipt.\n\n" +
+			"Directory-sync support varies by platform; inspect the actual durability receipt. " +
+			draftPathHelp + "\n\n" +
 			"`--edit` opens only the Markdown through the configured shared editor. " +
 			"Failures and cancellation retain source and authored work. Headless, agent and " +
 			"`--no-input` invocations refuse editor launch before reading Jira or creating files. " +
@@ -97,7 +101,8 @@ func newEditInspect(deps Deps) *cobra.Command {
 			"No configuration, credentials or Jira client are needed for ordinary inspection. " +
 			"Changed compares candidate bytes with the original source. Invalid, changed or " +
 			"redirected artifacts refuse without replacing files. Protected regions remain " +
-			"unchanged and present once; failed validation retains saved Markdown for repair.\n\n" +
+			"unchanged and present once; failed validation retains saved Markdown for repair. " +
+			draftPathHelp + "\n\n" +
 			"`--refresh` first validates the entire local edit, then constructs one client " +
 			"with the original site/account/API scope and reads by immutable issue ID. " +
 			"Nonconflicting remote changes are retained; conflicts return no candidate. " +
@@ -132,7 +137,8 @@ func newEditResume(deps Deps) *cobra.Command {
 			"be repaired. The original files are checked again after the editor exits. " +
 			"Failed or canceled editors retain the native backup and saved work, and " +
 			"the typed failure receipt reports recovery paths and actual attempted effects. " +
-			"Editor cancellation does not prove that no Markdown was saved.\n\n" +
+			"Editor cancellation does not prove that no Markdown was saved. " +
+			draftPathHelp + "\n\n" +
 			"A terminal is required, and agents or `--no-input` refuse before launch. " +
 			"`--dry-run` validates the draft and chosen executable, needs no terminal and " +
 			"changes nothing. The editor selection uses JIRA_EDITOR, stored editor, VISUAL, " +

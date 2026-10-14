@@ -71,12 +71,24 @@ func runAccessibleField(ctx context.Context, field huh.Field, w io.Writer, r io.
 			}
 		}()
 	}
-	line := &accessibleLineReader{reader: reader}
-	err = field.RunAccessible(w, line)
-	if readErr := line.err; readErr != nil {
-		if ctx.Err() == nil || !errors.Is(readErr, os.ErrClosed) {
+	var line *accessibleLineReader
+	err, terminalCleanupErr := input.RunTerminalContext(ctx, reader, func(prepared io.Reader) error {
+		line = &accessibleLineReader{reader: prepared}
+		return field.RunAccessible(w, line)
+	})
+	if line == nil && err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
+		err = &InputReadError{Err: err}
+	}
+	if line != nil && line.err != nil {
+		readErr := line.err
+		// Expected console cancellation is the exact sentinel. A joined
+		// failure may match that sentinel while retaining a real read error.
+		if ctx.Err() == nil || (!errors.Is(readErr, os.ErrClosed) && readErr != ctx.Err()) { //nolint:errorlint // Preserve independent failures joined with cancellation.
 			err = errors.Join(err, &InputReadError{Err: readErr})
 		}
+	}
+	if terminalCleanupErr != nil {
+		err = errors.Join(err, &InputCleanupError{Err: terminalCleanupErr})
 	}
 	return errors.Join(err, ctx.Err())
 }

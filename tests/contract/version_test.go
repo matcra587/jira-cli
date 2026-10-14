@@ -65,6 +65,9 @@ func contractBinary(t *testing.T, once *sync.Once, path *string, buildErr *error
 			return
 		}
 		*path = filepath.Join(dir, "jira")
+		if runtime.GOOS == "windows" {
+			*path += ".exe"
+		}
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
 		cmd := exec.CommandContext(ctx, "go", "build",
@@ -148,6 +151,12 @@ func runBinaryIOInDirStarted(t *testing.T, workdir string, extraEnv []string, st
 // installation-dependent contracts can select a path without rebuilding it.
 func runExecutableIOInDirStarted(t *testing.T, bin, workdir string, extraEnv []string, stdin io.Reader, terminalStderr *os.File, onStart func(*os.Process), args ...string) (stdout, stderr string, exit int) {
 	t.Helper()
+	return runExecutableConfiguredIOInDirStarted(t, bin, workdir, extraEnv, stdin, terminalStderr, onStart, nil, args...)
+}
+
+// configure applies platform process ownership before starting a fixture.
+func runExecutableConfiguredIOInDirStarted(t *testing.T, bin, workdir string, extraEnv []string, stdin io.Reader, terminalStderr *os.File, onStart func(*os.Process), configure func(*exec.Cmd), args ...string) (stdout, stderr string, exit int) {
+	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, bin, args...)
@@ -178,6 +187,9 @@ func runExecutableIOInDirStarted(t *testing.T, bin, workdir string, extraEnv []s
 	cmd.Stderr = &errBuf
 	if terminalStderr != nil {
 		cmd.Stderr = terminalStderr
+	}
+	if configure != nil {
+		configure(cmd)
 	}
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("start %v: %v", args, err)

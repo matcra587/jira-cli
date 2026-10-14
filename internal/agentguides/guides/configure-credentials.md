@@ -195,6 +195,16 @@ reads and logout never create it.
 
 ## Preconditions
 
+### Interactive and headless login
+
+Interactive login validates form input and masks the token. Caller
+cancellation or deadline refuses publication of the collected values. Linux and
+Windows interrupt active accessible password reads and restore the borrowed
+terminal modes. Windows accessible text and confirmation reads use the same
+console cancellation handling. Other platforms check the context before and
+after native password input. A failed read or restoration remains an error.
+Use the explicit headless flags when no person can answer the form.
+
 ### Check which operations open credentials
 
 Local help, schemas, stored `config get`, `config set` and completion never

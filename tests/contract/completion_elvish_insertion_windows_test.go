@@ -25,7 +25,7 @@ func TestNativeWindowsElvishInsertion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, mode := range []string{"profile", "profile-inline", "positional", "csv", "inline", "reload", "fields-described", "fields-second", "fields-described-inline", "fields-second-inline"} {
+	for _, mode := range []string{"profile", "profile-inline", "positional", "csv", "inline", "reload", "fields-described", "fields-second", "fields-described-inline", "fields-second-inline", "download-directory", "download-nested-directory"} {
 		t.Run(mode, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(t.Context(), 45*time.Second)
 			defer cancel()
@@ -48,7 +48,7 @@ func TestWindowsElvishInsertionConsoleProcess(t *testing.T) {
 	if mode == "" {
 		return
 	}
-	if !slices.Contains([]string{"profile", "profile-inline", "positional", "csv", "inline", "reload", "fields-described", "fields-second", "fields-described-inline", "fields-second-inline"}, mode) {
+	if !slices.Contains([]string{"profile", "profile-inline", "positional", "csv", "inline", "reload", "fields-described", "fields-second", "fields-described-inline", "fields-second-inline", "download-directory", "download-nested-directory"}, mode) {
 		t.Fatal("invalid owned Elvish insertion role")
 	}
 	dir := t.TempDir()
@@ -103,6 +103,22 @@ func TestWindowsElvishInsertionConsoleProcess(t *testing.T) {
 		if mode == "profile-inline" {
 			line = strings.TrimSuffix(line, "--source-profile wo") + "--source-profile=wo"
 			want = append(want[:len(want)-2], "--source-profile=work")
+		}
+	} else if strings.HasPrefix(mode, "download-") {
+		const directory = "candidate café $HOME;literal'quote,comma"
+		if err := os.MkdirAll(filepath.Join(dir, directory, "nested directory"), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		for _, path := range []string{"candidate file.txt", filepath.Join(directory, "nested file.txt")} {
+			if err := os.WriteFile(filepath.Join(dir, path), []byte("not a directory"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		line = "jira --config " + quote(settings) + " issue attachment download 10042 --to candidate"
+		want = []string{"--config", settings, "issue", "attachment", "download", "10042", "--to", directory}
+		if mode == "download-nested-directory" {
+			line = "jira --config " + quote(settings) + " issue attachment download 10042 --to " + quote(filepath.Join(directory, "ne"))
+			want[7] = filepath.Join(directory, "nested directory")
 		}
 	} else {
 		if err := os.WriteFile(filepath.Join(dir, filename), nil, 0o600); err != nil {
@@ -175,7 +191,16 @@ func TestWindowsElvishInsertionConsoleProcess(t *testing.T) {
 		t.Fatal(err)
 	}
 	var got []string
-	if json.Unmarshal(data, &got) != nil || !slices.Equal(got, want) {
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatal("native Elvish observer did not produce argv", err)
+	}
+	if strings.HasPrefix(mode, "download-") {
+		// Native directory hints may supply a relative prefix or separator.
+		// Keep every selected component literal, including its metacharacters.
+		if len(got) != len(want) || !slices.Equal(got[:7], want[:7]) || strings.TrimSuffix(strings.TrimPrefix(filepath.ToSlash(got[7]), "./"), "/") != filepath.ToSlash(want[7]) {
+			t.Fatal("native Elvish directory hint changed literal argv", got, want)
+		}
+	} else if !slices.Equal(got, want) {
 		t.Fatal("native Elvish Tab changed literal argv", string(data), want)
 	}
 	fmt.Println("elvish-insertion-verified")

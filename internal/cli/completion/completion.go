@@ -35,6 +35,8 @@ func New(generator func() *complete.Generator) *cobra.Command {
 		Long: "Print the completion script for a shell to stdout. Source it from " +
 			"the shell's config, or write it to the shell's completions " +
 			"directory, to get tab completion for commands, flags, and values.\n\n" +
+			"Regenerate and load the script after upgrading. PowerShell preserves " +
+			"Unicode suggestions, including continued directory paths.\n\n" +
 			"The script is the output, so `--output` has no effect here: every " +
 			"mode prints the same bytes. Nothing else may reach stdout during a " +
 			"completion callback, which is why this command emits no envelope.",

@@ -118,3 +118,28 @@ source/profile/destination or retained journal identity. Require `--yes` before
 headless live work; `--no-input` overrides a terminal. Dry runs never confirm,
 create recovery, or open providers. Preserve context cancellation and distinguish
 user abortion from an unrelated prompt failure.
+
+Accessible text and confirmation reads use the shared `internal/cli/input`
+owner. Unix selected streams and native Windows pipes acquire owned duplicates;
+join cancellation before cleanup and retain the caller's descriptor/handle.
+Windows pipe selection must reject sockets, which also have FILE_TYPE_PIPE.
+Do not change pipe modes or add detached read workers. Native Windows console
+reads use RunTerminalContext: confirm an input console, pin its reading thread,
+join synchronous cancellation, close the independent owned CONIN$ handle,
+restore exact borrowed modes, then release the thread handle and unlock. Preserve
+this order on panic exits. Restore modes through the original file's
+SyscallConn.Control lifetime, never its cached numeric handle after closure.
+Retain closed-file restoration refusal as a cleanup failure.
+Open CONIN$ only after confirming the selected native
+input console; other readers retain their own routes. A duplicate can leave a
+canceled read lifetime attached to the caller's handle. Neither duplicate closure
+nor detached read workers replace the native interruption and joined cleanup.
+Only a single EOF/abort cause in an expired console scope becomes the context
+sentinel. Independent joined read and cleanup failures remain visible.
+
+Use WithContextAccessor with Huh's native pointer/embedded accessor for bound
+text and confirmation values. WithPasswordContext requires its explicit native
+accessor and applies the same publication guard. Huh can return a rejected text
+answer or a partial password after EOF; cancellation must refuse that setter.
+Keep native Huh rendering, validation and masking. Linux and Windows password
+owners interrupt active native reads; other platforms retain before/after checks.

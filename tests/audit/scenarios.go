@@ -57,6 +57,9 @@ type Scenario struct {
 	// Terminal supplies real stdin/stderr terminals for an editor recipe.
 	// Unsupported native allocation fails rather than fabricating success.
 	Terminal bool
+	// Editor selects the owned no-op editor fixture. Its receipt proves live
+	// entry; refusal and preview recipes must leave that receipt absent.
+	Editor bool
 	// Executable copies the cached CLI to this relative owned fixture path.
 	// Installation detection depends on the running executable, not environment
 	// hints; managed-channel recipes therefore need a real isolated copy.
@@ -1261,11 +1264,10 @@ var scenarios = []Scenario{
 		// here would block forever on input that cannot arrive, and a
 		// command that hangs is worse than one that fails.
 		//
-		// EDITOR is set deliberately: the editor is resolved BEFORE the
-		// terminal check, so without it this recipe reaches
-		// editor_missing and silently tests the wrong refusal.
+		// Select an owned executable so editor validation cannot replace the
+		// intended terminal refusal with a missing-program error.
 		Args:       []string{"config", "edit"},
-		Env:        []string{"EDITOR=nano"},
+		Editor:     true,
 		ExpectExit: 3,
 		ExpectCode: "terminal_required",
 	},
@@ -1280,7 +1282,7 @@ var scenarios = []Scenario{
 		// A configured editor is the normal state, and the preview has to
 		// report which one it would open; with none set the command
 		// correctly refuses instead, which is a different scenario.
-		Env:        []string{"EDITOR=nano"},
+		Editor:     true,
 		ExpectExit: 0,
 	},
 	{

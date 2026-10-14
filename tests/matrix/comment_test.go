@@ -283,6 +283,12 @@ func cwRun(t *testing.T, stub *cwStub, dir string, args ...string) cwResult {
 		"JIRA_API_TOKEN=flagmatrix-token",
 		"JIRA_BASE_URL=" + stub.srv.URL,
 	}
+	if runtime.GOOS == "windows" {
+		cmd.Env = append(cmd.Env,
+			"PATHEXT="+os.Getenv("PATHEXT"), "USERPROFILE="+dir,
+			"APPDATA="+filepath.Join(dir, "AppData", "Roaming"),
+			"LOCALAPPDATA="+filepath.Join(dir, "AppData", "Local"))
+	}
 	var stdout, stderr strings.Builder
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

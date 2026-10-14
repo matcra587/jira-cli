@@ -675,29 +675,64 @@ func TestDownloadFailureCleanupRetainsOriginalDirectory(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	identity, err := os.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Handle Stat captures the Windows file ID immediately. Close before the
+	// writer starts so the fixture cannot supply its own delete-sharing lock.
+	original, statErr := identity.Stat()
+	if err := errors.Join(statErr, identity.Close()); err != nil {
+		t.Fatal(err)
+	}
 	foreign := filepath.Join(replacement, "report.bin")
 	if err := os.WriteFile(foreign, []byte("another writer's contents"), 0o640); err != nil {
 		t.Fatal(err)
 	}
+	cleanupDirectory := held
+	hookCalls := 0
+	renameBlocked := false
 	// Swapping the directory is deterministic fault injection, not a timing race.
 	hook := func() {
+		hookCalls++
+		partial, err := os.ReadFile(filepath.Join(dir, "report.bin"))
+		if err != nil || string(partial) != "partial bytes" {
+			t.Fatal("stream did not create the partial file before fault injection", err)
+		}
 		if err := os.Rename(dir, held); err != nil {
-			t.Fatal(err)
+			if !downloadDirectoryRenameLocked(err) {
+				t.Fatal(err)
+			}
+			renameBlocked = true
+			cleanupDirectory = dir
+			return
 		}
 		if err := os.Symlink(replacement, dir); err != nil {
 			t.Fatal(err)
 		}
 	}
-	client := downloadContentHookClient{body: io.NopCloser(downloadEOFHookReader{Reader: strings.NewReader("partial bytes"), hook: hook, err: errors.New("stream reset")})}
-	if _, _, err := writeAttachment(t.Context(), client, "10042", dir, "report.bin", false); err == nil {
-		t.Fatal("failed stream reported success")
+	refused := errors.New("stream refused")
+	client := downloadContentHookClient{body: io.NopCloser(downloadEOFHookReader{Reader: strings.NewReader("partial bytes"), hook: hook, err: refused})}
+	written, overwrote, err := writeAttachment(t.Context(), client, "10042", dir, "report.bin", false)
+	if !errors.Is(err, refused) || written != 0 || overwrote || hookCalls != 1 {
+		t.Fatalf("failed stream lost its cause or fixture entry: bytes=%d overwritten=%t hooks=%d error=%v", written, overwrote, hookCalls, err)
+	}
+	if renameBlocked {
+		current, err := os.Stat(dir)
+		if err != nil || !os.SameFile(original, current) {
+			t.Fatal("refused directory move changed the original identity", err)
+		}
+		if _, err := os.Lstat(held); !errors.Is(err, os.ErrNotExist) {
+			t.Fatal("refused directory move published another name", err)
+		}
+		t.Log("native directory lock refused replacement; this branch proves cleanup in the original directory, not redirected-directory cleanup")
 	}
 	data, err := os.ReadFile(foreign)
 	if err != nil || string(data) != "another writer's contents" {
 		t.Fatal("failed download removed a file in a replaced directory")
 	}
-	if _, err := os.Lstat(filepath.Join(held, "report.bin")); !os.IsNotExist(err) {
-		t.Fatal("failed download left its original partial file")
+	if _, err := os.Lstat(filepath.Join(cleanupDirectory, "report.bin")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("failed download left its original partial file", err)
 	}
 }
 

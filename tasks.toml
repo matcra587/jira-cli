@@ -275,3 +275,23 @@ run = "go test -v -tags=nativekeyring -count=1 -timeout=3m ./tests/integration"
 ["test:editor:windows"]
 description = "Verify the supervisor and public editors in isolated native Windows consoles"
 run = "go test -v -tags=nativeconsole -count=1 -timeout=3m -run='^(TestNativeWindowsEditorConsole|TestNativePublicWindowsEditors)$' ./internal/cli/command ./tests/contract"
+
+["test:input:windows"]
+description = "Verify native accessible console input and shared ownership in isolated Windows consoles"
+run = "go test -v -tags=nativeconsole -count=1 -timeout=6m -run='^(TestNativeWindowsAccessibleConsole|TestNativeWindowsConsoleOwner|TestNativePublicWindowsInput|TestWindowsConsoleReadOutcomePreservesIndependentFailures|TestWindowsTerminalContextKeepsOrdinaryReaders|TestWindowsConsoleCancellationRetainsNativeThreadFailure)$' ./internal/cli/input ./internal/cli/prompt ./tests/contract"
+
+["test:config:windows"]
+description = "Verify native junction snapshots and public configuration recovery on Windows"
+run = "go test -v -tags=nativefilesystem -count=1 -timeout=3m -run='^(TestNativeWindowsConfigurationJunctions|TestNativePublicWindowsConfigurationJunctions|TestWindowsPathSpellingPreservesIdentity|TestNativeConfigurationPathOnlyAdmitsInitialAbsence)$' ./internal/nativepath ./internal/config ./tests/contract"
+
+["test:draft:windows"]
+description = "Verify native draft paths, junction refusal and public draft workflows on Windows"
+run = "go test -v -tags=nativefilesystem -count=1 -timeout=3m -run='^(TestNativeWindowsDraftPaths|TestNativePublicWindowsDraftPaths)$' ./internal/issueedit ./tests/contract"
+
+["test:attachment:windows"]
+description = "Verify literal Windows attachment destinations and native directory completion"
+run = [
+    "go test -v -tags=nativefilesystem -count=1 -timeout=3m -run='^TestLiteralFile' ./internal/nativepath",
+    "go test -v -tags=nativefilesystem -count=1 -timeout=3m -run='^TestNativePublicWindowsAttachment(Directories|Filenames|LiteralOverwriteDoesNotReplaceSibling|MetadataFilenames)$' ./tests/contract",
+    "go test -v -tags=nativeconsole -count=1 -timeout=3m -run='^(TestContextualPowerShellPathCompletionExecutesLiteralArgv|TestNativeWindowsElvishInsertion)$/^download' ./tests/contract",
+]

@@ -242,8 +242,9 @@ Use the owner; never hardcode those paths in command handlers.
     refuse without waiting for a writer. This does not impose a file-size limit
     or interrupt arbitrary regular-file filesystem I/O.
 *   `File.Save` validates the candidate before atomic replacement through the
-    pinned `x/os.AtomicWrite`. Changed files have mode `0600`; newly created
-    directories are private and existing parent permissions are retained.
+    pinned `x/os.AtomicWrite`. Changed files request mode `0600`; on POSIX hosts
+    newly created directories are private and existing parent permissions are
+    retained. Windows mode bits do not establish ACL protection.
     Unchanged bytes leave file metadata untouched.
 *   Save checks the original bytes, existence and resolved link target.
     A detected conflict is `ErrFileChanged`. These checks are not a filesystem
@@ -551,3 +552,20 @@ bytes; never publish inert TUI settings or claim they became active. Ordinary
 conversion remains strict policy 8. Policies 1–8 preserve their exact derivation
 and TUI refusal; rederivation uses the recorded policy. Unknown declarations and
 malformed shapes still refuse. TUI runtime remains a separate milestone.
+
+Windows configuration paths resolve existing objects through owned native
+metadata handles before appending missing descendants. Directory junctions are
+not ModeSymlink under the selected Go rules; EvalSymlinks alone cannot bind
+their targets. Keep full read/write/delete sharing, join handle-close errors,
+preserve required extended DOS/UNC naming syntax and refuse native resolution
+failures. Retain literal trailing dots/spaces during absolute-path selection and
+recursive parent composition; ordinary Windows full-path normalization changes
+those names. Recheck the requested path before publication so retargeted junctions
+cannot authorize a different destination. Keep this at the shared configuration
+snapshot owner; command handlers must not add independent path workarounds.
+
+Reuse `internal/nativepath` for absolute selection, strict existing-object
+resolution and literal leaf composition. Only `nativepath.ErrMissing` from the
+initial native open permits configuration's missing-descendant policy. A later
+missing-shaped metadata or close error retains its actual outcome; never admit
+all `os.ErrNotExist` errors as absence. Draft parents use strict resolution.

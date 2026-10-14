@@ -16,6 +16,27 @@ import (
 // cell set, and holding that against the full expected product would
 // report gaps that never existed.
 func TestMain(m *testing.M) {
+	if len(os.Args) > 1 && os.Args[1] == "--audit-terminal-fixture" {
+		if err := runAuditTerminalFixture(os.Args[2:]); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+	if len(os.Args) > 1 && os.Args[1] == "--audit-terminal" {
+		if err := runAuditTerminalProcess(os.Args[2:]); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+	if len(os.Args) > 1 && os.Args[1] == "--audit-editor" {
+		if err := runAuditEditor(os.Args[2:]); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
 	flag.Parse()
 	code := m.Run()
 	cleanupBinary()
