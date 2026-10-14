@@ -1934,6 +1934,8 @@ func checkSuccessSchemaTruth(cap Capture, m command.Meta) (bool, string) {
 	// Per-op depth. The flat table above can say a key is present; only
 	// these can say what is inside it.
 	switch m.Op {
+	case "issue.input.prepare":
+		return checkPreparedIssueInput(data)
 	case "issue.create.input":
 		return checkIssueInputFields(data, true)
 	case "issue.edit.input":

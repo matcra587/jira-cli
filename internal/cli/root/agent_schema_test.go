@@ -103,6 +103,8 @@ func TestAgentCommandsNeverConstructJiraAdapters(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, args := range [][]string{
+		{"issue", "input", "prepare", "--help"},
+		{"agent", "schema", "--path=issue input prepare", "--output=json"},
 		{"issue", "edit", "draft", "--help"},
 		{"issue", "edit", "inspect", "--help"},
 		{"issue", "edit", "resume", "--help"},

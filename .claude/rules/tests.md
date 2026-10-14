@@ -51,20 +51,27 @@ Contract tests execute the real binary (`runJira(t, args...)`-style helpers
 returning stdout/stderr/exit code) against `httptest.NewServer` Jira stubs,
 then unmarshal stdout as the envelope:
 
-*   Route command execution through the compile-once `buildJiraBinary` helper
-    (`tests/contract/binary_test.go`), never `go run`/`go build` the CLI per
-    test — a per-test compile dominates suite wall time. Enforced by
-    `tests/guardrails/contract_compiles_once_test.go`.
+*   Route command execution through the compile-once `jiraBinary` helper
+    (`tests/contract/version_test.go`), never `go run`/`go build` the CLI per
+    test — a per-test compile dominates suite wall time.
 *   Assert envelope fields **structurally** — unmarshal into a target and
     check fields; never string-match whole JSON blobs.
 *   Error paths assert the error envelope arrives on **stdout** with the
-    right code and exit code — shared helpers live in
-    `tests/contract/envelope_invariants_test.go`.
-*   The command inventory test (`command_inventory_test.go`) reads the live
-    `agent schema` output — a new command surfaces there automatically; keep
-    it green, don't edit around it.
+    right code and exit code — use the shared binary and envelope helpers in
+    `tests/contract/`.
+*   The exact command inventory (`tests/audit/inventory_test.go`) reads the live
+    command metadata — a new command surfaces there automatically; register its
+    real recipes and required cells, then keep the inventory green.
 *   Never contact a real Jira from contract/integration tests — `httptest`
     stubs only. Real-tenant coverage belongs in `tests/live/`.
+
+Explicit issue preparation contracts author independent known-family fixtures,
+then pass the actual typed preparation payload to the native issue writer. Check
+exact received field tokens, large integers, numeric-string spelling and unknown
+plugin bytes. Preview and malformed-value refusal must send no requests; each
+successful write has one native acknowledgement. Do not derive expected values
+from the production codec or example registry. Native Windows fixtures preserve
+the selected executable basename, including `.exe`.
 
 ## Flag matrix
 

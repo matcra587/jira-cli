@@ -100,6 +100,30 @@ func TestPassiveUpdateSkipsDiscoveryAndPreview(t *testing.T) {
 	}
 }
 
+func TestPassiveUpdateSkipsIssueInputPreparation(t *testing.T) {
+	tool := &notificationTool{}
+	program, sink, cacheDir := notificationProgram(t, tool)
+	fixture := t.TempDir()
+	input := filepath.Join(fixture, "input.json")
+	metadata := filepath.Join(fixture, "metadata.json")
+	if err := os.WriteFile(input, []byte(`{"fields":{"project":"KEY","issuetype":"Task"}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(metadata, []byte(`{"fields":{}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if exit := execute(t.Context(), program, sink, []string{"issue", "input", "prepare", "--create", "--input", input, "--metadata", metadata, "--output=human"}); exit != 0 {
+		t.Fatalf("local authoring failed: exit=%d", exit)
+	}
+	if !notify.AwaitRefresh(time.Second) {
+		t.Fatal("local authoring left a release refresh running")
+	}
+	entries, err := os.ReadDir(cacheDir)
+	if err != nil || len(entries) != 0 || tool.calls.Load() != 0 {
+		t.Fatalf("local authoring performed release I/O: calls=%d entries=%v error=%v", tool.calls.Load(), entries, err)
+	}
+}
+
 func TestPassiveUpdateKillSwitchAndAgentSkipRefresh(t *testing.T) {
 	for _, variable := range []string{"JIRA_NO_UPDATE_CHECK", "AGENT"} {
 		t.Run(variable, func(t *testing.T) {

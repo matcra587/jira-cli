@@ -55,6 +55,7 @@ func TestInventoryReconcilesCleanAndExact(t *testing.T) {
 		"jira issue comment add|", "jira issue comment delete|", "jira issue comment edit|",
 		"jira issue comment list|",
 		"jira issue create|", "jira issue create|--generate-json", "jira issue delete|", "jira issue edit draft|", "jira issue edit inspect|", "jira issue edit prepare|", "jira issue edit resume|", "jira issue edit|", "jira issue edit|--generate-json",
+		"jira issue input prepare|",
 		"jira issue link create|", "jira issue link delete|", "jira issue link list|",
 		"jira issue link types|",
 		"jira issue list|", "jira issue mine|", "jira issue move fields|", "jira issue move status|", "jira issue move|", "jira issue rank|", "jira issue transition list|", "jira issue transition|", "jira issue view|",

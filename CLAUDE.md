@@ -1,5 +1,16 @@
 # jira-cli
 
+Explicit local `issue input prepare` uses core's pure preparation owner and
+native screen metadata, then emits typed output through `command.Spec`. Keep
+default mutation JSON lossless. Recognize exact built-in plugin identities,
+never marketplace suffixes; fix scalar identity meanings instead of guessing
+IDs from digits. Refuse malformed known values and wrapper collisions without
+partial output. Preserve unchecked values and report them as unverified.
+Reuse shared ADF warnings, bounded/cancelable input and notification suppression.
+Verify prepared known-family values through the actual native writer with independent
+fixtures, exact wire tokens and preview/refusal no-request checks. Do not derive
+expected values from the production codecs or examples.
+
 Scoped tokens use the shared cloud-ID validation and fixed gateway owners, keeping
 site/browser/cache identity separate from the authenticated API route. Credential
 record version 2 binds cloud scope; version 1 remains classic. Authored scope

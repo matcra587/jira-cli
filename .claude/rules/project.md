@@ -85,6 +85,8 @@ documented raw-output exception and emit identical bytes in every output mode.
 *   **Native input** preserves unknown members and absent/null/zero distinctions.
     Requested-field preflight checks IDs and operations without converting
     values. `agent fieldtypes` examples are not a tenant/plugin encoder registry.
+    Explicit local `issue input prepare` uses core's authoring codecs with a
+    supplied metadata snapshot; it never changes the default mutation route.
 *   **Config and credentials** follow [config.md](config.md): one flat runtime
     configuration resolved from the selected profile, separate public site/account identity and authenticated API scope,
     lazy providers and recoverable migration preimages.

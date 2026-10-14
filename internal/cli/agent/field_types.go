@@ -25,6 +25,8 @@ func newFieldTypes() *cobra.Command {
 			"Unknown types, numeric tokens, explicit nulls, empty arrays and unknown object members are preserved. " +
 			"Omitted fields stay omitted. Jira decides whether a value, clearing request or operation is valid. " +
 			"A dry run proves composition, not field availability or server acceptance.\n\n" +
+			"Use issue input prepare with an authored payload and an explicit native screen metadata file for deliberate scalar lifting and known-shape validation. " +
+			"It is local authoring, preserves unknown plugins and native values, and does not change the mutation JSON route.\n\n" +
 			"Read metadata with jira api get: /rest/api/3/field lists field IDs and schemas; " +
 			"/rest/api/3/issue/KEY-123/editmeta describes an issue's editable fields and operations; " +
 			"/rest/api/3/issue/createmeta/PROJECT/issuetypes/TYPE_ID lists paginated create fields. " +
