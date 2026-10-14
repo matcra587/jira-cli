@@ -54,8 +54,8 @@ func (f *Form) WithAccessible(accessible bool) *Form {
 }
 
 // RunWithContext runs the native form and retains each accessible read outcome.
-// Unix text readers use owned pollable duplicates; other files retain native
-// before/after context checks until their active interruption is implemented.
+// Selected Unix streams and Windows pipes use owned duplicates. Windows
+// consoles use the shared terminal owner; other files retain native checks.
 func (f *Form) RunWithContext(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err

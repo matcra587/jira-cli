@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -23,15 +24,25 @@ import (
 // It handles fixture modes before Go interprets the completion flags.
 func TestMain(m *testing.M) {
 	if os.Getenv("JIRA_TEST_PWSH_CAPTURE") == "1" {
+		if path := os.Getenv("JIRA_TEST_PWSH_CAPTURE_FILE"); path != "" {
+			raw, err := json.Marshal(os.Args[1:])
+			if err != nil || os.WriteFile(path, raw, 0o600) != nil {
+				os.Exit(20)
+			}
+			os.Exit(0)
+		}
 		if err := json.NewEncoder(os.Stdout).Encode(os.Args[1:]); err != nil {
 			os.Exit(20)
 		}
 		os.Exit(0)
 	}
-	if os.Getenv("JIRA_TEST_PWSH_CALLBACK") == "1" && len(os.Args) > 1 && strings.HasPrefix(os.Args[1], "--@complete=") {
+	if os.Getenv("JIRA_TEST_PWSH_CALLBACK") == "1" && slices.ContainsFunc(os.Args[1:], func(arg string) bool { return strings.HasPrefix(arg, "--@complete=") }) {
 		raw, err := json.Marshal(os.Args[1:])
 		if err != nil || os.WriteFile(os.Getenv("JIRA_TEST_PWSH_LOG"), raw, 0o600) != nil {
 			os.Exit(21)
+		}
+		if os.Getenv("JIRA_TEST_PWSH_FAIL_CALLBACK") == "true" {
+			os.Exit(29)
 		}
 		if _, err := fmt.Fprint(os.Stdout, os.Getenv("JIRA_TEST_PWSH_CANDIDATES")); err != nil {
 			os.Exit(22)
@@ -57,7 +68,10 @@ func testPowerShell(t *testing.T) string {
 	}
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
-	version, err := exec.CommandContext(ctx, path, "-NoProfile", "-NonInteractive", "-Command", "$PSVersionTable.PSVersion.ToString()").CombinedOutput()
+	process := exec.CommandContext(ctx, path, "-NoProfile", "-NonInteractive", "-Command", "$PSVersionTable.PSVersion.ToString()")
+	process.Dir = t.TempDir()
+	process.Env = pwshFixtureEnvironment(process.Dir)
+	version, err := process.CombinedOutput()
 	if err != nil || !strings.HasPrefix(string(version), "7.") {
 		t.Fatalf("requested executable is not PowerShell 7: err=%v output=%q", err, version)
 	}
@@ -95,7 +109,33 @@ function Test-FixtureLiteralCommand {
 }
 `
 
+type pwshReplyOptions struct {
+	codePage      int
+	failCallback  bool
+	throwCallback bool
+}
+
+func pwshFixtureEnvironment(dir string) []string {
+	return append(os.Environ(), shellFixtureDirectories(dir)...)
+}
+
+func shellFixtureDirectories(dir string) []string {
+	return []string{
+		"HOME=" + dir, "USERPROFILE=" + dir,
+		"APPDATA=" + filepath.Join(dir, "AppData", "Roaming"),
+		"LOCALAPPDATA=" + filepath.Join(dir, "AppData", "Local"),
+		"XDG_CONFIG_HOME=" + filepath.Join(dir, ".fixture", "config"),
+		"XDG_CACHE_HOME=" + filepath.Join(dir, ".fixture", "cache"),
+		"XDG_DATA_HOME=" + filepath.Join(dir, ".fixture", "data"),
+	}
+}
+
 func pwshReplies(t *testing.T, generator *complete.Generator, line, cursorPrefix, candidates string) ([]pwshMatch, []string) {
+	t.Helper()
+	return pwshRepliesWithOptions(t, generator, line, cursorPrefix, candidates, pwshReplyOptions{})
+}
+
+func pwshRepliesWithOptions(t *testing.T, generator *complete.Generator, line, cursorPrefix, candidates string, options pwshReplyOptions) ([]pwshMatch, []string) {
 	t.Helper()
 	executable := testPowerShell(t)
 	native.Register()
@@ -122,7 +162,21 @@ func pwshReplies(t *testing.T, generator *complete.Generator, line, cursorPrefix
 		t.Fatal(err)
 	}
 	const driver = pwshLiteralCommandGuard + `$ErrorActionPreference = 'Stop'
+$initialEncoding = [Console]::OutputEncoding
 try {
+    if ($env:JIRA_TEST_PWSH_CODE_PAGE -ne '0') {
+        [Console]::OutputEncoding = [Text.Encoding]::GetEncoding([int]$env:JIRA_TEST_PWSH_CODE_PAGE, [Text.EncoderReplacementFallback]::new('encode-fallback'), [Text.DecoderReplacementFallback]::new('decode-fallback'))
+    }
+    $callerEncoding = [Console]::OutputEncoding
+    $callerOutputEncoding = $OutputEncoding
+    if ($env:JIRA_TEST_PWSH_THROW_CALLBACK -eq 'true') {
+        $script:registerCommand = Get-Command Register-ArgumentCompleter -CommandType Cmdlet
+        function Register-ArgumentCompleter {
+            param([switch]$Native, [string]$CommandName, [scriptblock]$ScriptBlock)
+            $script:ownedCompleter = $ScriptBlock
+            & $script:registerCommand -Native -CommandName $CommandName -ScriptBlock $ScriptBlock
+        }
+    }
     . $env:JIRA_TEST_PWSH_SCRIPT
     $line = $env:JIRA_TEST_PWSH_LINE
     $cursor = $line.Length
@@ -131,14 +185,31 @@ try {
     if ($env:JIRA_TEST_PWSH_UNSET_EXIT -eq '1') { Remove-Variable LASTEXITCODE -Scope Global -ErrorAction Ignore } else { $global:LASTEXITCODE = 97 }
     $errorCount = $Error.Count
     $before = ConvertTo-Json -InputObject @($value, $prefix, $parts, $tokens, $i, $command) -Compress
-    $result = TabExpansion2 -inputScript $line -cursorColumn $cursor
-    if ($Error.Count -ne $errorCount) { throw 'Completion changed caller errors' }
+    if ($env:JIRA_TEST_PWSH_THROW_CALLBACK -eq 'true') {
+        function fixture { throw 'owned callback exception' }
+        $parseTokens = $null; $parseErrors = $null
+        $ast = [System.Management.Automation.Language.Parser]::ParseInput($line, [ref]$parseTokens, [ref]$parseErrors)
+        $commandAst = $ast.Find({param($node) $node -is [System.Management.Automation.Language.CommandAst]}, $false)
+        $caught = $false
+        try { & $script:ownedCompleter 'ca' $commandAst $cursor } catch {
+            if (-not $_.Exception.Message.Contains('owned callback exception')) { throw }
+            $caught = $true
+        }
+        if (-not $caught) { throw 'Controlled callback exception did not enter' }
+        $result = [pscustomobject]@{CompletionMatches=@()}
+    } else {
+        $result = TabExpansion2 -inputScript $line -cursorColumn $cursor
+        if ($Error.Count -ne $errorCount) { throw 'Completion changed caller errors' }
+    }
+    if (-not [Console]::OutputEncoding.Equals($callerEncoding) -or [BitConverter]::ToString([Console]::OutputEncoding.GetPreamble()) -cne [BitConverter]::ToString($callerEncoding.GetPreamble())) { throw 'Completion changed caller output encoding' }
+    if (-not [object]::ReferenceEquals($OutputEncoding, $callerOutputEncoding)) { throw 'Completion changed caller stdin encoding' }
     if ($env:JIRA_TEST_PWSH_UNSET_EXIT -eq '1') {
         if ($null -ne (Get-Variable LASTEXITCODE -Scope Global -ErrorAction Ignore)) { throw 'Completion created LASTEXITCODE' }
     } elseif ($global:LASTEXITCODE -ne 97) { throw 'Completion changed LASTEXITCODE' }
     $after = ConvertTo-Json -InputObject @($value, $prefix, $parts, $tokens, $i, $command) -Compress
     if ($before -ne $after) { throw 'Completion changed caller variables' }
     $observed = @()
+    $env:JIRA_TEST_PWSH_CAPTURE_FILE = Join-Path (Split-Path -Parent $env:JIRA_TEST_PWSH_LOG) 'captured-argv.json'
     foreach ($match in $result.CompletionMatches) {
         $tokens = $null; $errors = $null
         $ast = [System.Management.Automation.Language.Parser]::ParseInput(('fixture ' + $match.CompletionText), [ref]$tokens, [ref]$errors)
@@ -149,8 +220,9 @@ try {
             $invocation = "& '" + $env:JIRA_TEST_PWSH_FIXTURE.Replace("'", "''") + "' " + $match.CompletionText
             $env:JIRA_TEST_PWSH_CAPTURE = '1'
             try {
-                $captured = @(([scriptblock]::Create($invocation).Invoke()) | ConvertFrom-Json)
+                $null = [scriptblock]::Create($invocation).Invoke()
                 if ($LASTEXITCODE -ne 0) { throw 'Native argument capture failed' }
+                $captured = @([IO.File]::ReadAllText($env:JIRA_TEST_PWSH_CAPTURE_FILE, [Text.Encoding]::UTF8) | ConvertFrom-Json)
             } finally { Remove-Item Env:JIRA_TEST_PWSH_CAPTURE }
         }
         $completed = $line.Remove($result.ReplacementIndex, $result.ReplacementLength).Insert($result.ReplacementIndex, $match.CompletionText)
@@ -164,29 +236,35 @@ try {
                 $native = "& '" + $env:JIRA_TEST_PWSH_FIXTURE.Replace("'", "''") + "'" + $completed.Substring($completedCommand.CommandElements[0].Extent.EndOffset)
                 $env:JIRA_TEST_PWSH_CAPTURE = '1'
                 try {
-                    $completedArgs = @(([scriptblock]::Create($native).Invoke()) | ConvertFrom-Json)
+                    $null = [scriptblock]::Create($native).Invoke()
                     if ($LASTEXITCODE -ne 0) { throw 'Completed native argument capture failed' }
+                    $completedArgs = @([IO.File]::ReadAllText($env:JIRA_TEST_PWSH_CAPTURE_FILE, [Text.Encoding]::UTF8) | ConvertFrom-Json)
                 } finally { Remove-Item Env:JIRA_TEST_PWSH_CAPTURE }
             }
         }
         $observed += @{text=$match.CompletionText; tooltip=$match.ToolTip; literal=$literal; args=$captured; completed_args=$completedArgs}
     }
-    ConvertTo-Json -InputObject $observed -Depth 5 -Compress
+    ConvertTo-Json -InputObject $observed -Depth 5 -Compress -EscapeHandling EscapeNonAscii
 } catch { Write-Error $_; exit 23 }
+finally { [Console]::OutputEncoding = $initialEncoding }
 `
 	driverPath := filepath.Join(dir, "driver.ps1")
 	if err := os.WriteFile(driverPath, []byte(driver), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	logPath := filepath.Join(dir, "callback.json")
+	logPath := filepath.Join(dir, "native-callback.json")
 	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
 	defer cancel()
 	process := exec.CommandContext(ctx, executable, "-NoProfile", "-NonInteractive", "-File", driverPath)
+	pwshOwnedConsole(process)
 	process.Dir = dir
-	process.Env = append(os.Environ(), "PATH="+dir+string(os.PathListSeparator)+os.Getenv("PATH"),
+	process.Env = append(pwshFixtureEnvironment(dir), "PATH="+dir+string(os.PathListSeparator)+os.Getenv("PATH"),
 		"JIRA_TEST_PWSH_CALLBACK=1", "JIRA_TEST_PWSH_LOG="+logPath, "JIRA_TEST_PWSH_CANDIDATES="+candidates,
 		"JIRA_TEST_PWSH_SCRIPT="+scriptPath, "JIRA_TEST_PWSH_FIXTURE="+fixture,
-		"JIRA_TEST_PWSH_LINE="+line, "JIRA_TEST_PWSH_CURSOR_PREFIX="+cursorPrefix)
+		"JIRA_TEST_PWSH_LINE="+line, "JIRA_TEST_PWSH_CURSOR_PREFIX="+cursorPrefix,
+		"JIRA_TEST_PWSH_CODE_PAGE="+strconv.Itoa(options.codePage),
+		"JIRA_TEST_PWSH_FAIL_CALLBACK="+strconv.FormatBool(options.failCallback),
+		"JIRA_TEST_PWSH_THROW_CALLBACK="+strconv.FormatBool(options.throwCallback))
 	var stdout, stderr bytes.Buffer
 	process.Stdout, process.Stderr = &stdout, &stderr
 	if err := process.Run(); err != nil || stderr.Len() != 0 {

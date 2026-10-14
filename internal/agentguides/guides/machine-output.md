@@ -275,17 +275,22 @@ also interrupts active masked reads and preserves terminal modes, descriptor
 flags and the borrowed input's Go read deadlines. Interrupted
 login and logout return before verification or credential changes. Incomplete
 answers at EOF and input cleanup failures return errors. They cannot authorize
-a confirmation. Accessible text input on non-Unix platforms and password input
-outside Linux currently check context before and after input but cannot interrupt
-a blocked read. The HTTP `--timeout` flag bounds requests; it does not set a form
-deadline.
+a confirmation. On Windows, accessible text and confirmation input interrupts
+active pipe reads while preserving the borrowed handle and pipe modes. Windows
+console text, confirmation and password input also interrupt active reads and
+restore borrowed console modes. Accessible text on other non-Unix platforms and
+password input outside Linux and Windows check context before and after input
+but cannot interrupt a blocked read. The HTTP `--timeout` flag bounds requests.
+It does not set a form deadline.
 
-`auth login --with-token` interrupts piped standard input on Unix when the
+`auth login --with-token` interrupts piped standard input on Unix and Windows when the
 command context expires. Cancellation and deadlines return the same typed errors
 before verification or credential storage. The read retains the 8 KiB token
 limit and leaves borrowed file descriptors open, restoring Unix pipe flags.
-Other native file reads, including non-Unix standard input, currently check the
-context before and after reading but cannot interrupt a blocked read. The HTTP
+Body and native JSON input use the same owned pipe cancellation policy, retaining
+their 1 MiB input limit. Other native file reads and standard input on other
+non-Unix platforms check context before and after reading but cannot interrupt
+a blocked read. The HTTP
 `--timeout` flag does not set an input deadline.
 Follow each error's hint and executable suggestions. Successful partial batches
 can exit `0` while individual results failed.

@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"testing"
 	"time"
@@ -29,13 +30,42 @@ func testBash(t *testing.T) string {
 		}
 		t.Skip("native Bash completion requires bash")
 	}
+	if runtime.GOOS == "windows" && os.Getenv("SystemRoot") != "" {
+		selected, selectedErr := os.Stat(bash)
+		launcher, launcherErr := os.Stat(filepath.Join(os.Getenv("SystemRoot"), "System32", "bash.exe"))
+		if selectedErr == nil && launcherErr == nil && os.SameFile(selected, launcher) {
+			if explicit {
+				t.Fatal("requested Bash executable is the WSL launcher, not native Windows Bash")
+			}
+			t.Skip("default Bash is the WSL launcher; native Windows acceptance requires JIRA_TEST_BASH_BINARY")
+		}
+	}
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
-	version, err := exec.CommandContext(ctx, bash, "--version").CombinedOutput()
+	process := exec.CommandContext(ctx, bash, "--version")
+	process.Dir = t.TempDir()
+	process.Env = bashFixtureEnvironment(process.Dir, "")
+	version, err := process.CombinedOutput()
 	if err != nil || !bytes.HasPrefix(version, []byte("GNU bash, version ")) {
 		t.Fatalf("requested executable is not Bash: err=%v output=%q", err, version)
 	}
 	return bash
+}
+
+func bashFixtureEnvironment(dir, prefix string) []string {
+	return append([]string{
+		"PATH=" + os.Getenv("PATH"), "PATHEXT=" + os.Getenv("PATHEXT"),
+		"TEMP=" + dir, "TMP=" + dir, "TMPDIR=" + dir,
+		"JIRA_TEST_COMPLETION_PREFIX=" + prefix,
+	}, shellFixtureDirectories(dir)...)
+}
+
+func assertBashPrefix(t *testing.T, dir, prefix string) {
+	t.Helper()
+	observed, err := os.ReadFile(filepath.Join(dir, "admitted-prefix"))
+	if err != nil || !bytes.Equal(observed, append([]byte(prefix), 0)) {
+		t.Fatalf("native Bash did not admit its literal current word: got=%q want=%q err=%v", observed, prefix, err)
+	}
 }
 
 func bashStaticReplies(t *testing.T, values []string, comma, described bool, prefix string) []string {
@@ -62,15 +92,16 @@ func bashStaticReplies(t *testing.T, values []string, comma, described bool, pre
 	if err := os.WriteFile(filepath.Join(dir, "glob-target"), nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	driver := `source "$1" || exit
+	driver := `printf '%s\0' "$JIRA_TEST_COMPLETION_PREFIX" > admitted-prefix || exit
+source "$1" || exit
 if (( BASH_VERSINFO[0] >= 4 )); then compopt() { :; }; fi
 val=global-value
 sel=global-selection
 selected=(global-selected)
 found=global-found
-COMP_WORDS=(fixture --value "$2")
+COMP_WORDS=(fixture --value "$JIRA_TEST_COMPLETION_PREFIX")
 COMP_CWORD=2
-_fixture fixture "$2" --value || exit
+_fixture fixture "$JIRA_TEST_COMPLETION_PREFIX" --value || exit
 if [[ "$val" != global-value || "$sel" != global-selection || "${selected[*]}" != global-selected || "$found" != global-found ]]; then
     printf 'completion changed caller variables\n' >&2
     exit 90
@@ -79,14 +110,17 @@ if (( ${#COMPREPLY[@]} )); then printf '%s\0' "${COMPREPLY[@]}"; fi
 `
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
-	process := exec.CommandContext(ctx, bash, "--noprofile", "--norc", "-c", driver, "fixture-driver", path, prefix)
+	process := exec.CommandContext(ctx, bash, "--noprofile", "--norc", "-c", driver, "fixture-driver", path)
 	process.Dir = dir
-	process.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + dir}
+	// MSYS startup can glob argv from a native Windows caller before Bash runs.
+	// The environment carries the literal current word into the quoted driver.
+	process.Env = bashFixtureEnvironment(dir, prefix)
 	var output, diagnostics bytes.Buffer
 	process.Stdout, process.Stderr = &output, &diagnostics
 	if err := process.Run(); err != nil || diagnostics.Len() != 0 {
 		t.Fatalf("native Bash execution err=%v stderr=%q", err, diagnostics.String())
 	}
+	assertBashPrefix(t, dir, prefix)
 	if _, err := os.Stat(filepath.Join(dir, "unexpected-command")); !os.IsNotExist(err) {
 		t.Fatalf("literal completion value executed a command: %v", err)
 	}
@@ -124,7 +158,8 @@ printf '%s\n' "${COMPREPLY[@]}"
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
 	process := exec.CommandContext(ctx, bash, "--noprofile", "--norc", "-c", script.String()+driver)
-	process.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + t.TempDir()}
+	process.Dir = t.TempDir()
+	process.Env = bashFixtureEnvironment(process.Dir, "")
 	output, err := process.CombinedOutput()
 	if err != nil || string(output) != "candidate\n" {
 		t.Fatalf("positional completion err=%v output=%q", err, output)
@@ -150,6 +185,9 @@ func TestBashFileCompletionKeepsCallerStateAndLiteralPaths(t *testing.T) {
 			}
 			dir := t.TempDir()
 			for _, name := range []string{"two words.txt", "*.txt", `back\slash.txt`, "plain.txt"} {
+				if runtime.GOOS == "windows" && (name == "*.txt" || name == `back\slash.txt`) {
+					continue // Their named cases below retain explicit unsupported-filename skips.
+				}
 				if err := os.WriteFile(filepath.Join(dir, name), nil, 0o600); err != nil {
 					t.Fatal(err)
 				}
@@ -157,12 +195,16 @@ func TestBashFileCompletionKeepsCallerStateAndLiteralPaths(t *testing.T) {
 			for _, callerIFS := range []string{"unset", "custom"} {
 				for _, prefix := range []string{"two", "*", `back\`} {
 					t.Run(callerIFS+"/"+prefix, func(t *testing.T) {
+						if runtime.GOOS == "windows" && (prefix == "*" || prefix == `back\`) {
+							t.Skip("Windows cannot represent the literal star or backslash filename")
+						}
 						driver := `
+printf '%s\0' "$JIRA_TEST_COMPLETION_PREFIX" > admitted-prefix || exit
 if (( BASH_VERSINFO[0] >= 4 )); then compopt() { :; }; fi
 if [[ "$1" == unset ]]; then unset IFS; else IFS=':|'; fi
-COMP_WORDS=(fixture --file "$2")
+COMP_WORDS=(fixture --file "$JIRA_TEST_COMPLETION_PREFIX")
 COMP_CWORD=2
-_fixture fixture "$2" --file || exit
+_fixture fixture "$JIRA_TEST_COMPLETION_PREFIX" --file || exit
 if [[ "$1" == unset ]]; then
     [[ -z "${IFS+x}" ]] || { printf 'completion set caller IFS\n' >&2; exit 90; }
 else
@@ -172,10 +214,13 @@ printf '%s\n' "${COMPREPLY[@]}"
 `
 						ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 						defer cancel()
-						process := exec.CommandContext(ctx, bash, "--noprofile", "--norc", "-c", script.String()+driver, "file-driver", callerIFS, prefix)
+						process := exec.CommandContext(ctx, bash, "--noprofile", "--norc", "-c", script.String()+driver, "file-driver", callerIFS)
 						process.Dir = dir
-						process.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + dir}
+						process.Env = bashFixtureEnvironment(dir, prefix)
 						output, err := process.CombinedOutput()
+						if err == nil {
+							assertBashPrefix(t, dir, prefix)
+						}
 						want := map[string]string{"two": "two words.txt\n", "*": "*.txt\n", `back\`: "back\\slash.txt\n"}[prefix]
 						if err != nil || string(output) != want {
 							t.Fatalf("file completion err=%v output=%q want=%q", err, output, want)

@@ -5,12 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	xos "github.com/gechr/x/os"
 
 	"github.com/matcra587/jira-cli/internal/cli"
 	"github.com/matcra587/jira-cli/internal/core"
+	"github.com/matcra587/jira-cli/internal/nativepath"
 	"github.com/matcra587/jira-cli/internal/output"
 )
 
@@ -24,7 +24,7 @@ func writeAttachmentOverwrite(ctx context.Context, client core.JiraClient, id, d
 		return 0, false, createInDirError(dir, name, true, err)
 	}
 	defer root.Close() //nolint:errcheck // root owns path resolution, not buffered file contents
-	info, err := root.Stat(name)
+	info, err := nativepath.Stat(root, name)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return 0, false, createInDirError(dir, name, true, err)
 	}
@@ -39,7 +39,7 @@ func writeAttachmentOverwrite(ctx context.Context, client core.JiraClient, id, d
 	}
 	defer root.Remove(stage) //nolint:errcheck // removes only staging; after rename this name is absent
 	defer file.Close()       //nolint:errcheck // successful close is checked before publication
-	path := filepath.Join(dir, name)
+	path := nativepath.FilePath(dir, name)
 	written, err := copyAttachment(ctx, client, id, file, path)
 	if err != nil {
 		return 0, false, err
@@ -50,7 +50,7 @@ func writeAttachmentOverwrite(ctx context.Context, client core.JiraClient, id, d
 	if err := ctx.Err(); err != nil {
 		return 0, false, err
 	}
-	if err := root.Rename(stage, name); err != nil {
+	if err := nativepath.Rename(root, stage, name); err != nil {
 		return 0, false, createInDirError(dir, name, true, err)
 	}
 	// Match x/os.AtomicWrite's Unix durability policy through the same root.

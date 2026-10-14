@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 
-	xfilepath "github.com/gechr/x/filepath"
 	xos "github.com/gechr/x/os"
 )
 
@@ -22,7 +21,7 @@ func OpenNewFile(ctx context.Context, path string) (*File, error) {
 	if err != nil {
 		return nil, err
 	}
-	requested, err = filepath.Abs(requested)
+	requested, err = absoluteConfigurationPath(requested)
 	if err != nil {
 		return nil, fmt.Errorf("resolve config path: %w", err)
 	}
@@ -142,11 +141,11 @@ func (f *File) checkCreationTarget(resolve func(string) (string, error)) error {
 	return nil
 }
 
-// ResolveLenient only resolves the immediate parent when the target is absent.
-// Walking missing parents retains the canonical existing ancestor before a
-// snapshot is taken, so creating children cannot change that snapshot's path.
+// Walk missing parents back to their resolved existing ancestor before taking
+// a snapshot. Platform resolution preserves junction targets and native naming
+// syntax so creating children cannot change the snapshot's destination.
 func resolveCreationPath(path string) (string, error) {
-	resolved, err := xfilepath.ResolveLenient(path)
+	resolved, err := resolveConfigurationPath(path)
 	if err != nil {
 		return resolved, err
 	}
@@ -165,7 +164,7 @@ func resolveCreationPath(path string) (string, error) {
 	if err == nil && !info.IsDir() {
 		return "", errors.New("configuration ancestor is not a directory")
 	}
-	return filepath.Join(resolvedParent, filepath.Base(resolved)), nil
+	return joinConfigurationPath(resolvedParent, resolved), nil
 }
 
 func syncCreationDirectory(dir string) error {

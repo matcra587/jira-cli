@@ -24,6 +24,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/gechr/x/shell"
 )
 
 const rootPath = "jira"
@@ -613,7 +615,8 @@ func TestAuthStatusShowToken(t *testing.T) {
 }
 
 func TestConfigEditDryRun(t *testing.T) {
-	res := mx4Run(t, mx4Opts{Env: map[string]string{"JIRA_EDITOR": "true"}},
+	editor := mx4Binary(t)
+	res := mx4Run(t, mx4Opts{Env: map[string]string{"JIRA_EDITOR": shell.Quote(editor) + " --version"}},
 		"config", "edit", "--dry-run", "--output=json")
 	env := mx4OK(t, res)
 	var out struct {
@@ -622,7 +625,7 @@ func TestConfigEditDryRun(t *testing.T) {
 		Editor []string `json:"editor"`
 	}
 	mx4Data(t, env, &out)
-	if !out.DryRun || len(out.Editor) == 0 || !strings.HasSuffix(out.Editor[0], "true") {
+	if !out.DryRun || len(out.Editor) != 2 || out.Editor[0] != editor || out.Editor[1] != "--version" {
 		t.Fatalf("preview should resolve the editor and report dry_run=true, got %+v", out)
 	}
 	if _, err := os.Stat(out.Path); !os.IsNotExist(err) {

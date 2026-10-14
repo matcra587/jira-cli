@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/gechr/clog"
@@ -29,6 +30,9 @@ func BenchmarkNewProgram(b *testing.B) {
 func BenchmarkVersionStartup(b *testing.B) {
 	dir := b.TempDir()
 	binary := filepath.Join(dir, "jira")
+	if runtime.GOOS == "windows" {
+		binary += ".exe"
+	}
 	build := exec.CommandContext(b.Context(), "go", "build",
 		"-mod=readonly", "-trimpath", "-buildvcs=false", "-ldflags", "-s -w",
 		"-o", binary, "../../../cmd/jira")
@@ -42,6 +46,12 @@ func BenchmarkVersionStartup(b *testing.B) {
 	for b.Loop() {
 		cmd := exec.CommandContext(b.Context(), binary, "--config", config, "version", "--output=json")
 		cmd.Env = []string{"HOME=" + dir, "PATH=" + os.Getenv("PATH"), "TERM=dumb", "NO_COLOR=1", "JIRA_KEYRING=false"}
+		if runtime.GOOS == "windows" {
+			cmd.Env = append(cmd.Env,
+				"PATHEXT="+os.Getenv("PATHEXT"), "USERPROFILE="+dir,
+				"APPDATA="+filepath.Join(dir, "AppData", "Roaming"),
+				"LOCALAPPDATA="+filepath.Join(dir, "AppData", "Local"))
+		}
 		var stderr bytes.Buffer
 		cmd.Stderr = &stderr
 		data, err := cmd.Output()

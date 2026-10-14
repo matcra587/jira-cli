@@ -84,6 +84,14 @@ Bare short inline CSV, such as `-f=one,two`, is a PowerShell parse error;
 quote its whole value (`-f='one,two'`) or use the long flag.
 Forwarding consumes every valued flag in its command scope. The completer honors
 `--` and restores the caller's native exit status without adding errors.
+Models with dynamic callbacks borrow UTF-8 output decoding for the duration of
+the completer and restore the caller's encoding, including custom fallbacks,
+through failure and exception paths. This prevents OEM console code pages from
+changing Unicode candidate identities or breaking continued directory paths.
+The native invocation remains PowerShell-owned; no profile setting is persisted.
+The process-shared Console type coordinates encoding scopes across applications
+and runspaces. Bounded admission waits retain PowerShell pipeline cancellation;
+restoration and lock release run through separate cleanup boundaries.
 The guards inspect TabExpansion2's actual replacement and execute independently
 validated literal arguments through a controlled native fixture.
 

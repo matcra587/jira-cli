@@ -25,12 +25,13 @@ import (
 	"golang.org/x/term"
 
 	"github.com/matcra587/jira-cli/internal/envelope"
+	"github.com/matcra587/jira-cli/internal/testfixture"
 )
 
 // The outer test allocates a fresh hidden native console for each real public
 // command, retaining redirected stdout as the envelope observation boundary.
 func TestNativePublicWindowsEditors(t *testing.T) {
-	for _, domain := range []string{"config", "draft"} {
+	for _, domain := range []string{"config", "draft", "draft-junction", "draft-dot", "draft-space"} {
 		for _, mode := range []string{"success", "failure", "invalid", "canceled", "canceled_interrupt"} {
 			name := domain + "/" + mode
 			t.Run(name, func(t *testing.T) {
@@ -84,11 +85,11 @@ func TestPublicWindowsConsoleProcess(t *testing.T) {
 	if !ok {
 		t.Fatal("invalid owned console case")
 	}
+	draftDomain := domain == "draft" || strings.HasPrefix(domain, "draft-")
 	interrupts := make(chan os.Signal, 1)
 	signal.Notify(interrupts, os.Interrupt)
 	defer signal.Stop(interrupts)
 	input, diagnostics := publicWindowsConsole(t, "CONIN$"), publicWindowsConsole(t, "CONOUT$")
-	beforeInput, beforeOutput := publicWindowsConsoleMode(t, input), publicWindowsConsoleMode(t, diagnostics)
 	dir := t.TempDir()
 	marker, release, replacement := filepath.Join(dir, "ready.json"), filepath.Join(dir, "release"), filepath.Join(dir, "replacement")
 	executable, err := os.Executable()
@@ -108,9 +109,10 @@ func TestPublicWindowsConsoleProcess(t *testing.T) {
 	saved := []byte("# editor saved work\nread_only=true\n")
 	var source []byte
 	var directory string
+	verifyPath := func() {}
 	var reads, writes, requests func() int32
 	args := []string{"config", "edit", "--config", path, "--output=json"}
-	if domain == "draft" {
+	if draftDomain {
 		server, observedReads, observedWrites, _ := binaryDraftServer(t)
 		var calls atomic.Int32
 		observed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -119,7 +121,41 @@ func TestPublicWindowsConsoleProcess(t *testing.T) {
 		}))
 		t.Cleanup(observed.Close)
 		directory = filepath.Join(dir, "draft 古い $")
-		stdout, stderr, exit := runBinaryEnv(t, binaryDraftEnv(t, observed.URL), "issue", "edit", "draft", "KEY-1", "--directory", directory, "--output=json")
+		selected := directory
+		switch domain {
+		case "draft-junction":
+			actual, link := filepath.Join(dir, "actual '古い"), filepath.Join(dir, "selected 'é")
+			if err := os.MkdirAll(filepath.Join(actual, "nested"), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			before := testfixture.Junction(t, link, actual)
+			selected = filepath.Join(link, "nested", "draft")
+			directory = filepath.Join(actual, "nested", "draft")
+			verifyPath = func() { testfixture.SameJunction(t, link, actual, before) }
+		case "draft-dot", "draft-space":
+			ordinary := directory
+			if err := os.Mkdir(ordinary, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			suffix := "."
+			if domain == "draft-space" {
+				suffix = " "
+			}
+			directory = `\\?\` + directory + suffix
+			selected = directory
+			t.Cleanup(func() {
+				if err := os.RemoveAll(directory); err != nil {
+					t.Error(err)
+				}
+			})
+			verifyPath = func() {
+				entries, err := os.ReadDir(ordinary)
+				if err != nil || len(entries) != 0 {
+					t.Fatalf("editor changed the ordinary sibling: %v %v", entries, err)
+				}
+			}
+		}
+		stdout, stderr, exit := runBinaryEnv(t, binaryDraftEnv(t, observed.URL), "issue", "edit", "draft", "KEY-1", "--directory", selected, "--output=json")
 		if exit != 0 || observedReads.Load() != 1 || observedWrites.Load() != 0 || calls.Load() != 1 {
 			t.Fatal("draft preparation unrun", exit, stdout, stderr)
 		}
@@ -140,7 +176,7 @@ func TestPublicWindowsConsoleProcess(t *testing.T) {
 		// reaches the observed endpoint, including requests whose errors are ignored.
 		env = append(env, "JIRA_BASE_URL="+observed.URL, "JIRA_EMAIL=reader@example.test", "JIRA_API_TOKEN=synthetic-token", "JIRA_SECRET_BACKEND=env")
 		reads, writes, requests = observedReads.Load, observedWrites.Load, calls.Load
-		args = []string{"issue", "edit", "resume", "--directory", directory, "--output=json"}
+		args = []string{"issue", "edit", "resume", "--directory", selected, "--output=json"}
 	} else if err := os.WriteFile(path, []byte(original), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -150,6 +186,9 @@ func TestPublicWindowsConsoleProcess(t *testing.T) {
 	if err := os.WriteFile(replacement, saved, 0o600); err != nil {
 		t.Fatal(err)
 	}
+	// Fixture subprocesses can change the shared console. Capture the modes
+	// borrowed by the editor only after all fixture preparation has completed.
+	beforeInput, beforeOutput := publicWindowsConsoleMode(t, input), publicWindowsConsoleMode(t, diagnostics)
 	var cancellationTime time.Time
 	var editorProcess windows.Handle
 	defer func() {
@@ -175,7 +214,7 @@ func TestPublicWindowsConsoleProcess(t *testing.T) {
 		if len(observation.Args) != 6 || !slices.Equal(observation.Args[:5], []string{mode, marker, release, replacement, literal}) || observation.Args[5] == "" {
 			t.Fatalf("literal editor argv changed: %q", observation.Args)
 		}
-		if domain == "draft" && observation.Args[len(observation.Args)-1] != path {
+		if draftDomain && observation.Args[len(observation.Args)-1] != path {
 			t.Fatal("resume edited wrong saved member")
 		}
 		if publicWindowsConsoleMode(t, input) == beforeInput || publicWindowsConsoleMode(t, diagnostics) == beforeOutput {
@@ -223,7 +262,7 @@ func TestPublicWindowsConsoleProcess(t *testing.T) {
 	case "canceled", "canceled_interrupt":
 		code = "canceled"
 	case "invalid":
-		if domain == "draft" {
+		if draftDomain {
 			code = "issue_edit_draft_invalid"
 		} else {
 			code = "config_invalid"
@@ -237,7 +276,7 @@ func TestPublicWindowsConsoleProcess(t *testing.T) {
 		wantExit = 6
 	}
 	wantCommand := "config.edit"
-	if domain == "draft" {
+	if draftDomain {
 		wantCommand = "issue.edit.resume"
 	}
 	if exit != wantExit || frame.Meta.Command != wantCommand || frame.OK != (code == "") || code == "" && len(frame.Errors) != 0 || code != "" && (len(frame.Errors) != 1 || frame.Errors[0].Code != code) {
@@ -250,7 +289,7 @@ func TestPublicWindowsConsoleProcess(t *testing.T) {
 	if err != nil || state != windows.WAIT_OBJECT_0 {
 		t.Fatalf("CLI returned before editor exited: %d %v", state, err)
 	}
-	if domain == "draft" {
+	if draftDomain {
 		var receipt envelope.IssueEditDraftOutput
 		if json.Unmarshal(frame.Data, &receipt) != nil || receipt.Source == nil || string(receipt.Source.DescriptionBytes) != binaryDraftNative || !receipt.Draft.Ready || !receipt.Draft.EditorAttempted || receipt.Draft.Directory != directory || reads() != 1 || writes() != 0 || requests() != 1 {
 			t.Fatal("resume lost recovery or reopened Jira", stdout)
@@ -272,6 +311,7 @@ func TestPublicWindowsConsoleProcess(t *testing.T) {
 		if err != nil || !bytes.Equal(after, saved) {
 			t.Fatal("resume lost saved Markdown", err)
 		}
+		verifyPath()
 	} else {
 		want := []byte(original)
 		if mode == "success" {

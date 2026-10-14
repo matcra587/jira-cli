@@ -149,6 +149,24 @@ Windows child environments must retain `PATHEXT`: PowerShell uses it to execute
 native callbacks and literal `.exe` observer paths. Keep profile/config/cache
 directories owned by the fixture. Check actual child exits and receipts before
 interpreting empty completion output as a product defect.
+Compile-once contract, flag-matrix and startup-benchmark outputs keep `.exe` on
+Windows before invoking `go build -o`. Their child environments bind
+`USERPROFILE`, `APPDATA` and `LOCALAPPDATA` to owned paths and retain `PATHEXT`.
+Native Go acceptance exercises the ordinary build helper; record external-binary
+selection separately. Use a source filesystem supporting Go's module file locks.
+Editor previews select an owned executable with literal arguments, never an
+assumed Unix utility. Home overrides also bind Windows profile directories;
+assert the selected user destination independently of the project destination.
+Exercise UTF-8 callbacks under OEM and Latin-1 host encodings, including custom
+fallbacks, native failures, empty replies, refused context and exceptions. Keep
+these Windows fixtures in owned hidden consoles so they cannot change the user's
+console code page. Read native observer UTF-8 receipts directly; a PowerShell
+stdout round trip can corrupt correct observed argv under a non-UTF-8 host.
+Verify Unicode metadata and two-step directory continuation through actual
+generated dispatch and literal executed argv.
+Use independent generated applications in concurrent runspaces with callback
+barriers. Verify ordered ownership, exception release and cancellation of a
+waiting completer while another callback remains active; then admit fresh work.
 Directory continuations use the platform's path separator when the shell
 supplies it; keep authored slash prefixes and non-path values exact. Do not
 normalize all observed argv to hide unrelated identity changes.
@@ -190,6 +208,30 @@ Record exact URL argv, check helper exit through an independent process handle,
 and join cleanup after failed assertions. Machine output must suppress handoff;
 an HTTP trap establishes that URL-only paths perform no Jira reads. Handoff is
 not GUI rendering or proof that a page loaded.
+Browser-gating unit fixtures select an owned BROWSER value; default-launcher
+guards assert the platform executable and every literal argument independently.
+A download directory-swap fixture blocked by native Windows delete sharing must
+prove original identity, denied rename, preserved stream failure and partial-file
+cleanup. Keep actual redirected-directory proof separate; never count a failed
+fixture rename as a successful replacement.
+Capture the pre-fault Windows file ID through an opened handle, then close it
+before exercising the writer; pathname Stat loads identity lazily.
+
+Native Windows release-note paging guards use fresh hidden consoles with explicit
+CONIN$/CONOUT$ handles, an independent pager stdin/argv receipt and owned key
+events. Verify built-in navigation, Control-C/Control-Break, exact mode restoration
+and return to the original screen. Read bounded CHAR_INFO rectangles and verify
+the complete copied region; character counts differ for wide diagnostic glyphs.
+Console cells establish display fidelity, including their explicit padding
+projection; they do not establish original write bytes. Keep exact Markdown
+stdin and piped-byte contracts separate. The native flag matrix must prove
+release-notes --no-pager rather than dropping the required pair.
+Assign the console helper to an owned kill-on-close job before admitting CLI
+construction. Parent cancellation must terminate and join the actual descendant
+and leave zero active job processes; killing only the helper is insufficient.
+Configured-pager receipts must record deliberate changes to both borrowed modes
+before the CLI restores them. Normal built-in quit restores exact original cells,
+attributes and cursor; cancellation may add its diagnostic but no pager residue.
 
 PowerShell guards cover non-forwarded values resembling context flags, `--`,
 long/short inline CSV and present/absent caller exit status. Nonliteral-context
@@ -221,6 +263,36 @@ D-Bus session with synthetic entries and independent `secret-tool` inspection.
 Verify exact preimages, historical namespace retention, binding, provider backup
 retention and rollback scope across JSON, compact and human output. Native mocks
 and cross-compilation do not prove actual SDK or Windows/macOS keychain behavior.
+
+Bash generated-script fixtures carry literal prefixes through a quoted environment
+value. Native MSYS startup can expand a caller's argv before the Bash driver runs;
+verify input admission before attributing a completion failure. Recognize the
+Windows System32 WSL launcher by file identity: default discovery skips it and
+explicit selection fails. Actual Windows Bash acceptance selects a native shell.
+Keep unsupported star/backslash filenames as named Windows skips; preserve space
+filenames, caller IFS, all static literal values and the complete Unix inventory.
+
+Update candidate cleanup guards prove a nonempty positioned read succeeds before
+publication and returns `os.ErrClosed` after the owner returns. `File.Stat` on
+Windows reports the native invalid handle after close; do not mistake that error
+for an open descriptor or accept every error as evidence of closure. An omitted
+close mutation must compile, enter and fail the named cleanup guard.
+
+Config-editor selection fixtures use the executing owned binary and shared
+shell quoting. Distinguish winners through literal argv markers, preserving
+complete Windows executable paths without Unix utility dependencies. Keep saved
+and rejected bytes, outcome/context and regular-file assertions on every host.
+Only POSIX mode assertions live in named child subtests skipped on Windows;
+a permission skip must not skip its parent's recovery checks. Windows file modes
+do not establish ACL protection.
+
+Guide-export tests retain exact rendered bytes, qualified paths, collision refusal,
+hard-link target preservation and cancellation receipts on every platform. Put
+POSIX mode checks in named subtests: Windows regular-file modes do not establish
+POSIX permissions or ACL protection. Attempt actual symbolic links and skip only
+the native Windows unavailable-privilege error, keeping every other error fatal.
+Keep invalid-path validation separate so a link skip cannot hide its assertions.
+Neither skipped link cases nor hard-link passes prove symbolic-link acceptance.
 
 Published migration guide recipes use the separately cached output-audit binary
 and owned source/destination/recovery fixtures. The ordinary contract binary stays
@@ -326,11 +398,11 @@ and restoration of both borrowed terminals. Mocked editor calls alone do not
 establish process behavior. Local inspection must work without credentials or
 network access; refreshed inspection binds the immutable issue ID and public scope.
 
-The output audit now captures editor success through real Linux PTYs, including
-`config edit`; its former success exemptions no longer apply. Unsupported native
-terminal allocation fails explicitly as unrun evidence. Cross-compilation and
-Linux PTY receipts do not establish Windows/macOS terminal acceptance. Preserve
-all existing passing matrix cells when deliberately updating the baseline.
+The output audit captures editor success through real Linux PTYs and owned
+Windows amd64 consoles, including `config edit`; its former success exemptions
+do not apply. Unsupported native terminal allocation fails explicitly as unrun
+evidence. Cross-compilation and Linux PTY receipts do not establish Windows/macOS
+terminal acceptance. Preserve all required matrix cells.
 
 Native Windows Go OpenRoot currently prevents renaming its directory through a
 handle without delete sharing. The directory-move guard must verify the exact
@@ -402,7 +474,12 @@ transitions in the guard; do not replace them with a fixed offset or skip missin
 fixture data. Do not add timezone data to the release CLI merely to repair a test.
 
 Externally selected native update tests keep a renamed installed basename while
-preserving `.exe` on Windows. Confirm the original and candidate version commands
+preserving `.exe` on Windows, including disposable flag-matrix and audit
+installation copies. Managed-update audit recipes must actually execute their
+owned copies in every output mode and retain the installation-owner result.
+Version/formatter fixture expectations and selectors use the executing runtime
+OS and architecture; retain exact output quoting, delimiters and field order.
+Confirm the original and candidate version commands
 actually execute before interpreting publication/download results. Test only
 disposable installation copies; preserve selected artifacts and retained backups.
 
@@ -436,6 +513,11 @@ the selected typed operation. Native macOS behavior remains separate acceptance.
 An externally selected standard production
 artifact must actually execute; disclose test-only binary selection and never
 count a refused executable or cross-compilation as a native pass.
+
+Complete owned console fixture preparation before capturing the modes borrowed
+by the editor. Fixture subprocesses can change that shared console. Require both
+actual editor mode changes and exact restoration to this invocation boundary;
+never weaken the postcondition to accommodate stale fixture measurements.
 
 Core comparisons are untagged results; publish verification rows through
 envelope.VerifiedField at the shared CLI boundary. Both ordinary and terse
@@ -571,3 +653,139 @@ and no created settings directory. Retain native privacy, interrupted body,
 configured-timeout/cancellation, HTTP and retry guards. Mutation credit requires
 compilation and a named guard failure; execute native Windows owner and CLI
 contracts separately from cross-compilation.
+
+Native Windows pipe guards exercise anonymous, synchronous named and already
+Go-wrapped overlapped pipes. Verify non-inherited duplicates, unchanged original
+handle flags and pipe modes, repeated cleanup, EOF and closed-handle refusal.
+A later original read must actually wait before data arrives; prebuffered reuse
+cannot prove its IOCP association survived. Exercise real sockets under Windows
+FILE_TYPE_PIPE classification and preserve other borrowed readers. Registered
+stdin and accessible text/confirmation guards must observe consumed input,
+withhold writer closure, retain canceled/timeout outcomes and reuse the original.
+Use an overlapped fixture for native PeekNamedPipe observation; a synchronous
+probe may block behind the pending read. Preserve native probe errors instead
+of treating every failure as socket exclusion. Restricted readable pipe guards
+must prove both data access and the genuine information-query failure.
+
+Native Windows console guards allocate fresh hidden consoles and inject only
+owned INPUT_RECORD events with the verified native layout and matching ASCII
+virtual key codes. Observe actual consumed text or masked password prefixes,
+withhold successful completion, then cancel or expire the caller context.
+Assert ordinary canceled/timeout classification, no bound-value publication,
+exact original modes and a later pending read through the borrowed handle.
+Require an independent non-inherited native console handle and its closure;
+a duplicate-only mutant must fail the original pending-read reuse guard.
+Include Unicode success, validation retry, repeated fields, cancellation before
+kernel entry, panic cleanup and native restoration failure. Keep thread reuse
+on the same pinned thread after the owner returns. Run test:input:windows on
+Windows; its nativeconsole-tagged guard fails explicitly on other hosts.
+Retain helper-entry receipts and failed/refused invocations. An execution policy
+refusal or a timed-out reuse assertion never earns native success credit.
+
+Native Windows configuration filesystem acceptance uses owned directory
+junctions with independently verified IO_REPARSE_TAG_MOUNT_POINT metadata.
+Exercise missing and long target paths, literal trailing-dot/space names with
+untouched ordinary siblings, retargeting refusal, exact recovery,
+default/explicit initialization and real migration/rollback commands. Preserve
+JSON/compact/human output checks and preview no-publication guarantees. Use
+NoProfile/NonInteractive PowerShell only to construct literal owned fixtures;
+join its exit and remove junctions without deleting target contents.
+Run test:config:windows on Windows; nativefilesystem-tagged gates fail explicitly
+on other hosts. Junction acceptance does not waive symbolic-link privilege or
+macOS requirements, and refused executables earn no execution credit.
+
+Native draft path acceptance uses the same verified junction fixtures. Exercise
+literal trailing-dot/space directory creation with untouched ordinary siblings,
+exclusive creation races, reopened-identity mismatch, late cancellation receipts
+and refusal of junctions at the draft root or each member. Actual draft, inspect
+and resume previews cover every output mode, exact native bytes, protected ADF
+and no extra requests. Real resume editors cover junction ancestors and literal
+names through success, failed/invalid saves and Control-C/Control-Break. Run
+`test:draft:windows` and `test:editor:windows` on Windows; wrong-host gates fail
+explicitly. A compiled mutant earns credit only when its named guard actually
+executes and fails; native policy refusals earn none.
+
+Native attachment directory guards use owned junctions and literal extended
+trailing-dot/space targets with untouched ordinary siblings. Verify exact binary
+contents, collision/no-request previews, exclusive creation and staged overwrite
+through actual commands in every output mode. Native directory completion must
+exclude competing regular files and retain literal argv, including metacharacters
+and nested paths. Zsh guards cover zero/one/two/unbounded unpredicted positions
+and prove that empty actions do not invent filesystem candidates. PowerShell
+provider results may omit a final separator; assert `ProviderContainer` and exact
+relative identity while admitting only optional `./` and separator spelling.
+Run `test:attachment:windows` for actual Windows filesystem and shell acceptance.
+Keep native refusal receipts uncredited and separate from Linux PowerShell tests.
+
+Attachment filename operations use the shared nativepath rooted file owner.
+Keep literal Windows trailing-dot/space leaves and reopenable extended paths;
+never let Win32 cleanup select an ordinary sibling. Retain exclusive creation,
+exact collision checks, staging and incomplete-stream cleanup through the same
+root handle. Literal reparse traversal refuses; ordinary rooted paths retain
+their existing semantics. Native tests cover authored and metadata names,
+ordinary/extended directories, failed streams and sibling preservation. Windows
+delete-sharing refusal is directory identity evidence, not an executed rename.
+
+Output-audit editor recipes use the owned test-executable fixture, never an
+installed editor or Unix no-op command. Require a fresh receipt with literal
+argv and an input digest after live entry, and no receipt after previews or
+terminal refusal. Keep Windows temporary/profile paths owned. Fixture execution
+does not establish native terminal allocation or faithful diagnostic capture.
+
+Linux and Darwin audit invocations share their diagnostic collector over native
+PTY allocators. Keep the master nonblocking and owned until its reader joins.
+Preserve exact independent stdout and bounded diagnostic bytes; invisible escape
+sequences must remain observable. Only Linux's final-slave `EIO` is an ordinary
+end of stream. Refuse more than one MiB of diagnostics and terminate/join the owned
+command on collector failure. Closing the parent slave does not prove every writer
+closed: honor caller cancellation and cap the subsequent drain at five seconds.
+Join before closing the master, retain custom cancellation causes and test actual
+helpers, failed launches and independently retained writer descriptors.
+
+Darwin PTY allocation uses the selected native grant/unlock/name operations and
+the fixed 128-byte name ABI. Keep opaque native buffer calls escape-safe.
+The selected `x/sys` version has no typed PTY-name getter: the test-only query
+uses its raw ioctl ABI with a narrow deprecation exception. It is not linked into
+the release CLI and still requires actual macOS acceptance. Neither
+cross-compilation nor Linux execution proves macOS native allocation, EOF behavior
+or editor operation; retain actual macOS acceptance as a separate requirement.
+
+Windows amd64 audit capture uses `tests/internal/nativeaudit` and the shared
+`tests/internal/nativejob` owner. The coordinator starts a hidden console helper,
+assigns its job, waits for native console setup and records that accounting
+baseline before admitting the CLI. The helper cannot construct a CLI before
+admission. Its environment is an explicit clone, never a process-wide overlay.
+Only the parent retains the outer job handle; cancellation before assignment
+must also terminate the waiting helper. Verify abrupt owner death against actual
+live descendants, joined native handles and the absence of a normal release.
+Native job buffer calls preserve the Go pointer escape contract across opaque
+`uintptr` wrappers; keep limits and accounting storage off movable stacks.
+
+The observer admits only the selected owned Go build images with matching
+toolchains, explicit `CGO_ENABLED=0` build metadata and native file identities.
+It follows their threads from startup,
+binds the selected system-module entry points and preserves its debug registers
+across `NtContinue`. Native structure reads are limited to entry prefixes and the
+fixed thread context; never read write payloads or patch executable code. Nonzero
+console writes, unclassified handles and unmatched pipes refuse silence. Disk
+writes and exact aliases of the retained stdout pipe are distinct. Retain that
+pipe's identity through observation, then release every producer before joining
+its bounded reader. An unknown writer-release outcome cancels the reader.
+
+Keep a failed debug continuation pending until it succeeds or bounded cleanup
+fails. Close every image/DLL event file even on lookup failure, and refuse an
+invalidated module binding. A validated receipt must prove the actual selected
+CLI exit, complete process/loader admission, balanced event handles and joined
+processes/readers. Native console setup and CLI observations have separate
+accounting scopes; the parent job must finish empty. A helper exit alone is a
+capture failure, never the CLI result. Verify exact stdout bytes independently
+and reject noisy or incomplete captures without inventing empty stderr.
+
+Exercise actual `config edit` and `issue edit resume` in every output mode, both
+visible and invisible diagnostics, missing admission, bounded control streams
+and parent cancellation that terminates the actual supervisor and CLI. Cancellation
+during stdout publication retains both the cancellation cause and acknowledged
+bytes; recheck cancellation before publication and after joined cleanup. Keep
+supervisor restoration after forced termination separate from cooperative CLI
+restoration. Native macOS behavior and unsupported architectures remain separate
+acceptance requirements.

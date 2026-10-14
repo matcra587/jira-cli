@@ -18,6 +18,8 @@ func GeneratePwsh(g *Generator) (string, error) {
 	if err := ValidateGenerator(g); err != nil {
 		return "", err
 	}
+	utf8Callbacks := hasDynamicArgs(g) || anySpecInTree(g.Specs, g.Subs,
+		func(spec Spec) bool { return spec.Dynamic != "" }, nil)
 
 	var sb strings.Builder
 	id := pwshID(g.AppName)
@@ -43,7 +45,22 @@ func GeneratePwsh(g *Generator) (string, error) {
 	)
 	sb.WriteString("    param($wordToComplete, $commandAst, $cursorPosition)\n\n")
 	fmt.Fprintf(&sb, "    if (-not (__%s_ContextIsLiteral $commandAst $wordToComplete $cursorPosition)) { return }\n", id)
-	sb.WriteString("    $savedExitCode = Get-Variable LASTEXITCODE -Scope Global -ErrorAction Ignore\n    $exitCodeValue = if ($null -ne $savedExitCode) { $savedExitCode.Value } else { $null }\n    try {\n    $inlineFlag = ''; $inlineText = ''; $inlineReplacement = $false; $filterWord = $null\n")
+	sb.WriteString("    $savedExitCode = Get-Variable LASTEXITCODE -Scope Global -ErrorAction Ignore\n    $exitCodeValue = if ($null -ne $savedExitCode) { $savedExitCode.Value } else { $null }\n")
+	if utf8Callbacks {
+		sb.WriteString("    $encodingLockTaken = $false\n")
+	}
+	sb.WriteString("    try {\n")
+	if utf8Callbacks {
+		// Native-command output decoding follows Console.OutputEncoding, even
+		// though the callback always writes UTF-8. The Console type is shared
+		// across generated applications and runspaces, unlike script variables.
+		// Bound each wait so PowerShell can stop a waiting pipeline. Keep native
+		// invocation and its process supervision inside the encoding boundary.
+		sb.WriteString("    while (-not $encodingLockTaken) { [Threading.Monitor]::TryEnter([Console], 50, [ref]$encodingLockTaken) }\n")
+		sb.WriteString("    $savedOutputEncoding = [Console]::OutputEncoding\n    try {\n")
+		sb.WriteString("    [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)\n")
+	}
+	sb.WriteString("    $inlineFlag = ''; $inlineText = ''; $inlineReplacement = $false; $filterWord = $null\n")
 	fmt.Fprintf(&sb, "    $command = '%s'\n", g.AppName)
 
 	pwshWriteValueFlagScopes(&sb, g)
@@ -97,7 +114,18 @@ func GeneratePwsh(g *Generator) (string, error) {
 			"    $completions | Where-Object { $prefix = if ($_.ResultType -eq [CompletionResultType]::ParameterName) { $flagPrefix } else { $filterWord }; $_.ListItemText.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase) } |\n",
 	)
 	sb.WriteString("        Sort-Object -Property ListItemText | ForEach-Object { __" + id + "_InlineResult $_ $(if ($inlineReplacement) { $inlineFlag } else { '' }) }\n")
-	sb.WriteString("    } finally {\n        if ($null -ne $savedExitCode) { Set-Variable LASTEXITCODE -Scope Global -Value $exitCodeValue } else { Remove-Variable LASTEXITCODE -Scope Global -ErrorAction Ignore }\n    }\n}\n")
+	if utf8Callbacks {
+		sb.WriteString("    } finally {\n        [Console]::OutputEncoding = $savedOutputEncoding\n    }\n")
+	}
+	sb.WriteString("    } finally {\n")
+	if utf8Callbacks {
+		sb.WriteString("        try { if ($encodingLockTaken) { [Threading.Monitor]::Exit([Console]) } } finally {\n")
+	}
+	sb.WriteString("        if ($null -ne $savedExitCode) { Set-Variable LASTEXITCODE -Scope Global -Value $exitCodeValue } else { Remove-Variable LASTEXITCODE -Scope Global -ErrorAction Ignore }\n")
+	if utf8Callbacks {
+		sb.WriteString("        }\n")
+	}
+	sb.WriteString("    }\n}\n")
 
 	return sb.String(), nil
 }

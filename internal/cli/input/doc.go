@@ -1,2 +1,2 @@
-// Package input owns pollable duplicates of borrowed command input streams.
+// Package input owns cancelable duplicates of borrowed command input streams.
 package input

@@ -404,6 +404,24 @@ After uploads begin, total failures and cancellation retain authored
 input metadata and ordered per-key outcomes in the full failure frame. Keep
 completed attachment IDs and inspect uncertain failed targets before retrying.
 
+### Download attachments to local files
+
+Attachment downloads write only local files. `--to` chooses an existing literal
+directory and offers native directory completion. Windows extended paths retain
+trailing dots and spaces. `--as` chooses a plain filename without reading Jira
+metadata. A resolved preview checks collisions but publishes nothing. An
+unresolved bare preview reads no metadata. Creation refuses existing names, and
+`--overwrite` replaces an entry only after the complete stream is saved. Inspect
+the reported destination and retained error before retrying a failed download.
+
+Windows attachment filenames ending in a dot or space keep that literal name.
+Download results include extended path syntax when needed to reopen the file.
+Preview and overwrite checks select the same entry. An ordinary sibling stays
+untouched, and failed overwrite streams retain the old literal file. Links at
+these literal filenames are refused during overwrite checks.
+
+### Delete an attachment
+
 Attachment deletion requires `--force` outside an interactive terminal. A local
 preview contacts no Jira service. Only a validated HTTP 204 acknowledges
 deletion. That receipt survives cancellation or timeout in the full failure
@@ -642,6 +660,12 @@ Pass the same `DIR` to inspect or resume the saved draft. It contains
 `description.md` with editable text and protected anchors, and `manifest.json`
 with corruption checks. Treat every file as private issue content. Preserve the
 source and manifest. Edit only the Markdown outside its protected anchors.
+
+On Windows, junctions in ancestor directories and extended literal directory
+names, including trailing dots or spaces, retain their selected identity. The
+draft directory itself and its members must not be redirected. Inspect the
+reported canonical paths. An ordinary sibling with a similar name is a different
+directory. Existing names remain untouched.
 
 Add `--edit` to open the configured editor after publication. The editor uses
 `JIRA_EDITOR`, stored editor, `VISUAL`, then `EDITOR`, with literal arguments.

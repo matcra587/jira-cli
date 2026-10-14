@@ -74,7 +74,7 @@ func Run(ctx context.Context, c Confirm) (bool, error) {
 			Description(description).
 			Affirmative(c.Affirmative).
 			Negative(c.Negative).
-			Value(&answer), caveat: description},
+			Accessor(WithContextAccessor(ctx, huh.NewPointerAccessor(&answer))), caveat: description},
 		// ThemeFunc ignores the isDark huh offers: huh learns it from a
 		// Bubble Tea background-color message, which arrives only if
 		// the terminal answers, and the resolved theme already knows.

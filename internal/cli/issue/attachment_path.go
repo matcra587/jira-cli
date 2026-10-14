@@ -1,11 +1,13 @@
 package issue
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/matcra587/jira-cli/internal/cli"
+	"github.com/matcra587/jira-cli/internal/nativepath"
 )
 
 // THE ONLY TRUST BOUNDARY IN THIS CLI WHERE A REMOTE VALUE CHOOSES A
@@ -117,16 +119,12 @@ func createInDir(dir, name string, overwrite bool) (*os.File, string, *os.Root, 
 		))
 	}
 
-	flags := os.O_WRONLY | os.O_CREATE | os.O_EXCL
-	if overwrite {
-		flags = os.O_WRONLY | os.O_CREATE | os.O_TRUNC
-	}
-	file, err := root.OpenFile(name, flags, 0o600)
+	file, err := nativepath.CreateFile(root, name, overwrite, 0o600)
 	if err != nil {
 		root.Close() //nolint:errcheck // no file was created
 		return nil, "", nil, createInDirError(dir, name, overwrite, err)
 	}
-	return file, filepath.Join(dir, name), root, nil
+	return file, nativepath.FilePath(dir, name), root, nil
 }
 
 // createInDirError turns a create failure into the caller's own error,
@@ -138,8 +136,8 @@ func createInDir(dir, name string, overwrite bool) (*os.File, string, *os.Root, 
 // carries the underlying reason, since there is no single remedy to
 // suggest.
 func createInDirError(dir, name string, overwrite bool, err error) error {
-	target := filepath.Join(dir, name)
-	if !overwrite && os.IsExist(err) {
+	target := nativepath.FilePath(dir, name)
+	if !overwrite && errors.Is(err, os.ErrExist) {
 		return cli.NewCodedError(cli.CodeLocalIO, fmt.Sprintf(
 			"%s already exists — pass --%s to replace it, or --%s to write under a different name",
 			target, flagOverwrite, flagAs,
@@ -157,12 +155,12 @@ func previewDownloadDestination(dir, name string, overwrite bool) error {
 		return createInDirError(dir, name, overwrite, err)
 	}
 	defer root.Close() //nolint:errcheck // this read-only check has no buffered contents
-	stat := root.Lstat
+	stat := nativepath.Lstat
 	if overwrite {
-		stat = root.Stat
+		stat = nativepath.Stat
 	}
-	info, err := stat(name)
-	if os.IsNotExist(err) {
+	info, err := stat(root, name)
+	if errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
 	if err != nil {
@@ -188,7 +186,7 @@ func resolveDir(to string) (string, error) {
 	if to == "" {
 		to = "."
 	}
-	abs, err := filepath.Abs(to)
+	abs, err := nativepath.Abs(to)
 	if err != nil {
 		return "", cli.NewCodedError(cli.CodePathInvalid, fmt.Sprintf(
 			"--%s: cannot resolve %s: %v", flagTo, to, err,

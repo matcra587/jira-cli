@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/matcra587/jira-cli/internal/cli/command"
 	"github.com/matcra587/jira-cli/internal/core"
 	"github.com/matcra587/jira-cli/internal/envelope"
+	"github.com/matcra587/jira-cli/internal/nativepath"
 	"github.com/matcra587/jira-cli/internal/output"
 )
 
@@ -75,7 +75,12 @@ func newAttachmentDownload(deps Deps) *cobra.Command {
 			"identify a file is refused. The file is written through a sandbox on " +
 			"`--to`, so nothing can be written outside that directory even if a " +
 			"symlink inside it points elsewhere. Use `--as` to choose a plain " +
-			"filename yourself; caller-supplied directories are refused.\n\n" +
+			"filename yourself; caller-supplied directories are refused. " +
+			"Directory paths are literal. Windows extended directory paths retain " +
+			"trailing dots and spaces; `--to` shell completion suggests directories. " +
+			"Windows filename suffixes are also literal. Results include extended " +
+			"path syntax when needed to reopen them. Links at those literal " +
+			"filenames are refused during overwrite checks.\n\n" +
 			"An existing file is never replaced silently: the command stops and " +
 			"names the file, and `--overwrite` is the explicit opt-in. That is a " +
 			"separate flag from `--force`, which everywhere else in this CLI " +
@@ -110,7 +115,7 @@ func newAttachmentDownload(deps Deps) *cobra.Command {
 			command.AddMutationFlags(c, &mut, command.WithValidateRemote())
 			command.AddStringVar(c, &to, flagTo, ".",
 				"The directory to write into; it must already exist",
-				command.FlagOpts{Terse: "Output directory", Placeholder: "dir"})
+				command.FlagOpts{Terse: "Output directory", Placeholder: "dir", Hint: "dir"})
 			command.AddStringVar(c, &as, flagAs, "",
 				"Write under this name instead of the attachment's own",
 				command.FlagOpts{Terse: "Output name", Placeholder: "name"})
@@ -215,7 +220,7 @@ func runAttachmentDownload(ctx context.Context, deps Deps, inv command.Invocatio
 		}
 		out.FilenameResolved = true
 		out.Filename = name
-		out.Path = filepath.Join(dir, name)
+		out.Path = nativepath.FilePath(dir, name)
 	}
 
 	// The preview's three cases, in the order that keeps a client out of
@@ -244,7 +249,7 @@ func runAttachmentDownload(ctx context.Context, deps Deps, inv command.Invocatio
 		}
 		out.FilenameResolved = true
 		out.Filename = name
-		out.Path = filepath.Join(dir, name)
+		out.Path = nativepath.FilePath(dir, name)
 	}
 	if inv.DryRun {
 		// The remote preview stops here: it has answered the question it
@@ -324,12 +329,12 @@ func writeAttachment(ctx context.Context, client core.JiraClient, id, dir, name 
 
 	written, err = copyAttachment(ctx, client, id, file, path)
 	if err != nil {
-		file.Close()      //nolint:errcheck // preserve the stream failure; release before removal
-		root.Remove(name) //nolint:errcheck // best-effort removal of this download's partial entry
+		file.Close()                  //nolint:errcheck // preserve the stream failure; release before removal
+		nativepath.Remove(root, name) //nolint:errcheck // best-effort removal of this download's partial entry
 		return 0, false, err
 	}
 	if err := file.Close(); err != nil {
-		root.Remove(name) //nolint:errcheck // best-effort cleanup of an incomplete publication
+		nativepath.Remove(root, name) //nolint:errcheck // best-effort cleanup of an incomplete publication
 		return 0, false, cli.NewCodedError(cli.CodeLocalIO, fmt.Sprintf("closing download for %s: %v", path, err))
 	}
 	return written, false, nil

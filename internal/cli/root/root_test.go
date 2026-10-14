@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -667,8 +668,8 @@ func TestFilterSupportsFormatters(t *testing.T) {
 		expr string
 		want string
 	}{
-		{name: "tsv gives ordered columns", expr: "[.data.platform.os, .data.platform.arch] | @tsv", want: "linux\tamd64\n"},
-		{name: "json re-escapes a raw string", expr: ".data.platform.os | @json", want: "\"linux\"\n"},
+		{name: "tsv gives ordered columns", expr: "[.data.platform.os, .data.platform.arch] | @tsv", want: runtime.GOOS + "\t" + runtime.GOARCH + "\n"},
+		{name: "json re-escapes a raw string", expr: ".data.platform.os | @json", want: "\"" + runtime.GOOS + "\"\n"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -720,7 +721,7 @@ func TestFilterVariablesArePassedAsData(t *testing.T) {
 		},
 		{
 			name: "bound value drives a select",
-			args: []string{"--jq", "select(.data.platform.os == $os) | .meta.command", "--jq-arg", "os=linux"},
+			args: []string{"--jq", "select(.data.platform.os == $os) | .meta.command", "--jq-arg", "os=" + runtime.GOOS},
 			want: "version\n",
 		},
 	}

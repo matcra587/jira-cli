@@ -4,8 +4,12 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
+	"slices"
 	"strings"
 	"testing"
+
+	"github.com/gechr/x/shell"
 
 	"github.com/matcra587/jira-cli/internal/cli"
 	"github.com/matcra587/jira-cli/internal/cli/command"
@@ -184,9 +188,8 @@ func TestEditLeavesAnUnchangedFileUntouched(t *testing.T) {
 	}
 }
 
-// TestEditKeepsTheFilePrivate pins the mode. The file is not secret
-// today, but it is the file a token would end up in if this ever relaxed,
-// and a permission is far easier to set now than to tighten later.
+// TestEditKeepsTheFilePrivate checks POSIX mode without treating Windows file
+// attributes as evidence of ACL protection.
 func TestEditKeepsTheFilePrivate(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.toml")
 	if _, err := editFile(t.Context(), path, replaceWith(t, "read_only = true\n")); err != nil {
@@ -196,9 +199,19 @@ func TestEditKeepsTheFilePrivate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if perm := info.Mode().Perm(); perm != 0o600 {
-		t.Errorf("mode = %#o, want 0600 — group and other must not read it", perm)
-	}
+	assertEditPOSIXPermissions(t, info.Mode().Perm(), 0o600)
+}
+
+func assertEditPOSIXPermissions(t *testing.T, got, want os.FileMode) {
+	t.Helper()
+	t.Run("posix-permissions", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("Windows file modes do not establish POSIX permissions or ACL protection")
+		}
+		if got != want {
+			t.Fatalf("POSIX mode = %#o, want %#o", got, want)
+		}
+	})
 }
 
 // editorVars name environment overrides and fallbacks for the editor.
@@ -217,26 +230,35 @@ var editorVars = []string{"JIRA_EDITOR", "VISUAL", "EDITOR"}
 // name that cannot run is not an editor, and the test has to exercise
 // the same rule the command does.
 func TestResolveEditorPrefersTheToolSpecificVariable(t *testing.T) {
+	executable, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, tt := range []struct {
 		name string
 		env  map[string]string
 		want string
 	}{
-		{name: "tool-specific wins", env: map[string]string{"JIRA_EDITOR": "true", "VISUAL": "false", "EDITOR": "env"}, want: "true"},
-		{name: "VISUAL beats EDITOR", env: map[string]string{"VISUAL": "false", "EDITOR": "env"}, want: "false"},
-		{name: "EDITOR is the last resort", env: map[string]string{"EDITOR": "env"}, want: "env"},
-		{name: "an empty value is not a choice", env: map[string]string{"JIRA_EDITOR": "", "EDITOR": "env"}, want: "env"},
+		{name: "tool-specific wins", env: map[string]string{"JIRA_EDITOR": "tool", "VISUAL": "visual", "EDITOR": "editor"}, want: "tool"},
+		{name: "VISUAL beats EDITOR", env: map[string]string{"VISUAL": "visual", "EDITOR": "editor"}, want: "visual"},
+		{name: "EDITOR is the last resort", env: map[string]string{"EDITOR": "editor"}, want: "editor"},
+		{name: "an empty value is not a choice", env: map[string]string{"JIRA_EDITOR": "", "EDITOR": "editor"}, want: "editor"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			for _, name := range editorVars {
-				t.Setenv(name, tt.env[name])
+				choice := tt.env[name]
+				if choice != "" {
+					choice = shell.Quote(executable) + " --editor-choice=" + choice
+				}
+				t.Setenv(name, choice)
 			}
 			got, err := command.ResolveEditor("")
 			if err != nil {
 				t.Fatalf("resolveEditor: %v", err)
 			}
-			if filepath.Base(got[0]) != tt.want {
-				t.Errorf("editor = %q, want %q", got[0], tt.want)
+			want := []string{executable, "--editor-choice=" + tt.want}
+			if !slices.Equal(got, want) {
+				t.Errorf("editor = %q, want %q", got, want)
 			}
 		})
 	}
@@ -246,17 +268,22 @@ func TestResolveEditorPrefersTheToolSpecificVariable(t *testing.T) {
 // which is how most people configure one — is not treated as a single
 // executable with spaces in its name.
 func TestResolveEditorSplitsArguments(t *testing.T) {
+	executable, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, name := range editorVars {
 		t.Setenv(name, "")
 	}
-	t.Setenv("JIRA_EDITOR", `true --wait`)
+	t.Setenv("JIRA_EDITOR", shell.Quote(executable)+` --wait '$HOME' '$(must-not-run)'`)
 
 	got, err := command.ResolveEditor("")
 	if err != nil {
 		t.Fatalf("resolveEditor: %v", err)
 	}
-	if len(got) != 2 || filepath.Base(got[0]) != "true" || got[1] != "--wait" {
-		t.Errorf("editor = %q, want [true --wait]", got)
+	want := []string{executable, "--wait", "$HOME", "$(must-not-run)"}
+	if !slices.Equal(got, want) {
+		t.Errorf("editor = %q, want %q", got, want)
 	}
 }
 

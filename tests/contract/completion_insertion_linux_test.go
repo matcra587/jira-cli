@@ -355,7 +355,14 @@ func nativeCompletionEditorArgv(t *testing.T, name, executable, dir, line string
 	var script string
 	if options.generator != nil {
 		var err error
-		script, err = native.GenerateElvish(options.generator)
+		switch name {
+		case "elvish":
+			script, err = native.GenerateElvish(options.generator)
+		case "zsh":
+			script, err = native.GenerateZsh(options.generator)
+		default:
+			t.Fatal("native model fixture does not support shell", name)
+		}
 		if err != nil {
 			t.Fatal("native model generator failed", err)
 		}
@@ -576,6 +583,96 @@ func TestBashNativeFileAndDirectoryHintsInsertLiteralArgv(t *testing.T) {
 			got := nativeCompletionEditorArgv(t, "bash", executable, dir, line)
 			if !slices.Equal(got, want) {
 				t.Fatal("native path hint changed literal argv", got, want)
+			}
+		})
+	}
+}
+
+func TestAttachmentDownloadDirectoryCompletionInNativeEditors(t *testing.T) {
+	for _, name := range []string{"bash", "fish", "zsh", "elvish"} {
+		t.Run(name, func(t *testing.T) {
+			binary := name
+			if name == "bash" && os.Getenv("JIRA_TEST_BASH_BINARY") != "" {
+				binary = os.Getenv("JIRA_TEST_BASH_BINARY")
+			}
+			if name == "elvish" && os.Getenv("JIRA_TEST_ELVISH_BINARY") != "" {
+				binary = os.Getenv("JIRA_TEST_ELVISH_BINARY")
+			}
+			executable, err := exec.LookPath(binary)
+			if err != nil {
+				if binary != name {
+					t.Fatal("requested native shell unavailable", err)
+				}
+				t.Skip("native shell unavailable: " + name)
+			}
+			dir := t.TempDir()
+			const directory = "candidate dir, $value"
+			if err := os.Mkdir(filepath.Join(dir, directory), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(dir, "candidate file.txt"), []byte("not a directory"), 0o000); err != nil {
+				t.Fatal(err)
+			}
+			line := "jira issue attachment download 10042 --to candidate"
+			want := []string{"issue", "attachment", "download", "10042", "--to", directory + "/"}
+			if name == "zsh" {
+				// Zsh removes its automatically inserted directory separator
+				// when Enter accepts the complete argument.
+				want[5] = directory
+			}
+			if got := nativeCompletionEditorArgv(t, name, executable, dir, line); !slices.Equal(got, want) {
+				t.Fatal("download directory completion changed literal argv or offered a file", got, want)
+			}
+		})
+	}
+}
+
+func TestZshUnpredictedPositionalsKeepNativeFlagCompletion(t *testing.T) {
+	executable, err := exec.LookPath("zsh")
+	if err != nil {
+		t.Skip("native Zsh unavailable")
+	}
+	for _, tc := range []struct {
+		name       string
+		hasMax     bool
+		max        int
+		positional []string
+	}{
+		{"zero", true, 0, nil},
+		{"one", true, 1, []string{"literal"}},
+		{"two", true, 2, []string{"first", "second"}},
+		{"unbounded", false, 0, []string{"first", "second", "third"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			generator := &native.Generator{
+				AppName: "jira", HasMaxPositionalArgs: tc.hasMax, MaxPositionalArgs: tc.max,
+				Specs: []native.Spec{{LongFlag: "to", HasArg: true, ValueHint: native.HintDir}},
+			}
+			dir := t.TempDir()
+			const directory = "candidate dir, $value"
+			if err := os.Mkdir(filepath.Join(dir, directory), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(dir, "candidate file.txt"), []byte("not a directory"), 0o000); err != nil {
+				t.Fatal(err)
+			}
+			prefix := append([]string{"jira"}, tc.positional...)
+			line := strings.Join(prefix, " ") + " --to candidate"
+			want := append(slices.Clone(tc.positional), "--to", directory)
+			if got := nativeCompletionEditorArgv(t, "zsh", executable, dir, line, nativeCompletionEditorOptions{generator: generator}); !slices.Equal(got, want) {
+				t.Fatal("unpredicted positional blocked native directory completion", got, want)
+			}
+		})
+	}
+	for _, bounded := range []bool{true, false} {
+		t.Run(fmt.Sprintf("no invented values/bounded=%t", bounded), func(t *testing.T) {
+			generator := &native.Generator{AppName: "jira", HasMaxPositionalArgs: bounded, MaxPositionalArgs: 1}
+			dir := t.TempDir()
+			if err := os.WriteFile(filepath.Join(dir, "candidate.txt"), nil, 0o000); err != nil {
+				t.Fatal(err)
+			}
+			if got := nativeCompletionEditorArgv(t, "zsh", executable, dir, "jira candidate", nativeCompletionEditorOptions{generator: generator}); !slices.Equal(got, []string{"candidate"}) {
+				t.Fatal("unpredicted positional invented a filesystem value", got)
 			}
 		})
 	}

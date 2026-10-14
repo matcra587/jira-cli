@@ -139,6 +139,11 @@ configuration only. `credential_inspection_required=true` means a real rollback
 must still open the provider and compare its current contents with the recorded
 migration result or original state. Changed contents block restoration; an
 already-restored state needs no credential write.
+On Windows, directory junction targets are resolved before configuration
+snapshots are taken. A changed selected junction blocks publication. Rollback
+uses its recorded canonical destination. Missing descendant directories are
+created only by live publication, never by a preview.
+
 These checks do not supply filesystem or remote compare-and-swap.
 
 ## Recover

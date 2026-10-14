@@ -15,6 +15,7 @@ import (
 
 	"github.com/matcra587/jira-cli/internal/core"
 	wire "github.com/matcra587/jira-cli/internal/jira"
+	"github.com/matcra587/jira-cli/internal/nativepath"
 )
 
 type manifest struct {
@@ -57,16 +58,13 @@ func (t *Target) create(ctx context.Context, snapshot core.IssueDescriptionSnaps
 	if err := ctx.Err(); err != nil {
 		return state, err
 	}
-	if err := t.parent.Mkdir(t.name, 0o700); err != nil {
+	root, created, err := createDraftDirectory(ctx, t.parent, t.name, state.Directory)
+	state.DirectoryCreated = created
+	if err != nil {
 		if errors.Is(err, os.ErrExist) {
 			return state, core.ErrIssueEditDraftChanged
 		}
-		return state, draftIO("create unused draft directory", err)
-	}
-	state.DirectoryCreated = true
-	root, err := t.parent.OpenRoot(t.name)
-	if err != nil {
-		return state, draftIO("open created directory", err)
+		return state, draftIO("create and open unused draft directory", err)
 	}
 	defer func() { err = errors.Join(err, root.Close()) }()
 	if err := checkDirectory(root, state.Directory); err != nil {
@@ -123,15 +121,15 @@ func Open(ctx context.Context, path string) (*Draft, error) {
 	if path == "" {
 		return nil, core.ErrIssueEditDraftInvalid
 	}
-	abs, err := filepath.Abs(path)
+	abs, err := nativepath.Abs(path)
 	if err != nil {
 		return nil, draftIO("resolve draft directory", err)
 	}
-	parent, err := filepath.EvalSymlinks(filepath.Dir(abs))
+	parent, err := nativepath.ResolveExisting(filepath.Dir(abs))
 	if err != nil {
 		return nil, draftIO("resolve draft parent", err)
 	}
-	path = filepath.Join(parent, filepath.Base(abs))
+	path = nativepath.JoinLeaf(parent, abs)
 	root, err := os.OpenRoot(path)
 	if err != nil {
 		return nil, draftIO("open draft directory", err)

@@ -33,6 +33,7 @@ deep rules live in [commands.md](commands.md), [output.md](output.md),
 | `internal/credentials/` | shared credential records and binding |
 | `internal/adf/` | preservation, parsing, validation, rendering and anchored editing |
 | `internal/issueedit/` | durable local description drafts; no Jira writing capability |
+| `internal/nativepath/` | literal absolute paths and existing-object identity; callers own existence and publication policy |
 | `internal/envelope/` | registered operation data shapes and derived schemas |
 | `internal/output/` | envelope assembly, machine rendering, human View/table primitives and output failure tracking |
 | `internal/cli/completion/native/` | licensed generator backports registered at clib's model boundary |
