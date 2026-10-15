@@ -457,6 +457,14 @@ previews retain `data.user_query` with an unresolved warning and empty
 remote previews resolve once for every key and retain the original query beside
 the native account ID. Query text `@me` is a search, not the current-user sentinel.
 
+### Set comment visibility and retain outcomes
+
+Comment visibility names must be nonblank. `--visibility-group` and
+`--visibility-role` are mutually exclusive, including explicitly empty values.
+Neither can accompany `--clear-visibility`. Omitting both preserves an edit's
+existing restriction. Only `--clear-visibility` removes it. Nonblank names are
+sent literally, without trimming.
+
 Comment add retains the authored body and ordered outcomes when every target
 fails or the run is interrupted. Keep completed comment IDs. An add or edit
 with an unusable acknowledgement reports `comment_response_invalid`. Inspect

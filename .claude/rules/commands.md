@@ -9,6 +9,17 @@ paths:
 
 # Commands
 
+After an acknowledged transition, a failed separate comment retains its original
+permission, cancellation or transport classification. A missing receipt is an
+error only when the comment call otherwise succeeds. Preserve any usable comment
+identity alongside an error; retain the status acknowledgement and safe inspection
+guidance instead of inviting a repeated transition.
+
+Comment visibility validation uses parsed flag presence, including explicit
+empty values. Refuse blank group/role names and conflicting setters or clear
+before client construction. Preserve nonblank names literally; omission keeps
+an edit restriction and only `--clear-visibility` removes it.
+
 `issue input prepare` is explicit local authoring through `command.Spec`, not
 a mutation modifier. Use `core.PrepareIssueInput`, validated native metadata,
 shared bounded/cancelable input and typed payload/handling/diagnostic output.

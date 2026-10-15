@@ -395,7 +395,7 @@ func TestCommentAddOmitsVisibilityWhenUnset(t *testing.T) {
 }
 
 func TestVisibilityConflictRefusesBothFlags(t *testing.T) {
-	err := visibilityConflict("developers", "Administrators")
+	err := visibilityConflict(true, true)
 	if err == nil {
 		t.Fatal("both visibility flags together must be refused; Jira allows one restriction")
 	}
@@ -415,7 +415,7 @@ func TestVisibilityConflictRefusesBothFlags(t *testing.T) {
 
 func TestVisibilityConflictAllowsEitherAlone(t *testing.T) {
 	for _, tc := range [][2]string{{"developers", ""}, {"", "Administrators"}, {"", ""}} {
-		if err := visibilityConflict(tc[0], tc[1]); err != nil {
+		if err := visibilityConflict(tc[0] != "", tc[1] != ""); err != nil {
 			t.Errorf("visibilityConflict(%q, %q) = %v, want nil", tc[0], tc[1], err)
 		}
 	}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	xstrings "github.com/gechr/x/strings"
 	xsync "github.com/gechr/x/sync"
 	"github.com/spf13/cobra"
 
@@ -132,10 +133,10 @@ func newCommentAdd(deps Deps) *cobra.Command {
 			command.AddMutationFlags(c, &mut, command.WithForce(), command.WithValidateRemote())
 			command.AddSelectorFlags(c, &sel)
 			command.AddStringVar(c, &visGroup, flagVisibilityGroup, "",
-				"Restrict the comment to members of this group",
+				"Restrict the comment to members of this group; requires a nonblank name",
 				command.FlagOpts{Terse: "Group-only", Placeholder: "name"})
 			command.AddStringVar(c, &visRole, flagVisibilityRole, "",
-				"Restrict the comment to holders of this project role",
+				"Restrict the comment to holders of this project role; requires a nonblank name",
 				command.FlagOpts{Terse: "Role-only", Placeholder: "name"})
 		},
 		Validate: func() error {
@@ -154,7 +155,7 @@ func newCommentAdd(deps Deps) *cobra.Command {
 			if err := body.RequireBody("a comment"); err != nil {
 				return err
 			}
-			if err := visibilityConflict(visGroup, visRole); err != nil {
+			if err := validateCommentVisibility(cmd, visGroup, visRole, false); err != nil {
 				return err
 			}
 			// Every positional here is a key, so the count goes through
@@ -215,14 +216,42 @@ func visibilityFor(group, role string) *jira.CommentVisibility {
 	return nil
 }
 
+// validateCommentVisibility distinguishes omission from an authored empty value.
+// Conflicts are checked by parser presence before blank names are refused, so an
+// empty restriction cannot silently permit a request to clear visibility.
+func validateCommentVisibility(cmd *cobra.Command, group, role string, clear bool) error {
+	groupSet := cmd.Flags().Changed(flagVisibilityGroup)
+	roleSet := cmd.Flags().Changed(flagVisibilityRole)
+	if err := visibilityConflict(groupSet, roleSet); err != nil {
+		return err
+	}
+	if err := clearVisibilityConflict(clear, groupSet, roleSet); err != nil {
+		return err
+	}
+	for _, flag := range []struct {
+		name, value string
+		set         bool
+	}{
+		{flagVisibilityGroup, group, groupSet},
+		{flagVisibilityRole, role, roleSet},
+	} {
+		if flag.set && xstrings.IsBlank(flag.value) {
+			e := cli.NewInputError(cli.CodeFlagValueInvalid, "--"+flag.name+" requires a non-empty name")
+			e.Field = flag.name
+			return e
+		}
+	}
+	return nil
+}
+
 // visibilityConflict refuses both visibility flags at once.
 //
 // Jira's visibility object holds ONE {type, value} pair, so there is no
 // payload that means "this group and that role" — a CLI accepting both
 // would have to silently drop one, and the caller would find out by
 // discovering who could read their comment.
-func visibilityConflict(group, role string) error {
-	if group == "" || role == "" {
+func visibilityConflict(groupSet, roleSet bool) error {
+	if !groupSet || !roleSet {
 		return nil
 	}
 	e := cli.NewInputError(cli.CodeFlagConflict, fmt.Sprintf(

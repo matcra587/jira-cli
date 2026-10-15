@@ -1,0 +1,43 @@
+{
+  "native": [
+    {
+      "id": "10001",
+      "key": "PAIR-1",
+      "self": "https://native.invalid/issue/10001",
+      "fields": {
+        "summary": "Owned <&> café",
+        "status": {"id": "10", "name": "To Do", "future": false},
+        "customfield_10001": {"opaque": 900719925474099312345}
+      },
+      "expand": "names",
+      "future": {"root": null}
+    },
+    {
+      "id": "10002",
+      "key": "PAIR-2",
+      "fields": {"summary": null, "status": null, "customfield_10002": []}
+    }
+  ],
+  "before": [
+    {"key": "PAIR-1", "summary": "Owned <&> café", "status": "To Do"},
+    {"key": "PAIR-2", "summary": "", "status": ""}
+  ],
+  "after": [
+    {
+      "id": "10001",
+      "key": "PAIR-1",
+      "self": "https://native.invalid/issue/10001",
+      "fields": {
+        "summary": "Owned <&> café",
+        "status": {"id": "10", "name": "To Do", "future": false},
+        "customfield_10001": {"opaque": 900719925474099312345}
+      },
+      "details": {"expand": "names", "future": {"root": null}}
+    },
+    {
+      "id": "10002",
+      "key": "PAIR-2",
+      "fields": {"summary": null, "status": null, "customfield_10002": []}
+    }
+  ]
+}

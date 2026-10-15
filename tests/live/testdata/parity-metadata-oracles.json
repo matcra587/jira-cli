@@ -1,0 +1,257 @@
+[
+  {
+    "id": "C034",
+    "name": "labels",
+    "ttl": 60,
+    "endpoint": "/rest/api/3/label",
+    "before_page_size": 1000,
+    "paged": true,
+    "native": [
+      "Owned <&> café",
+      "second"
+    ],
+    "before": [
+      "Owned <&> café",
+      "second"
+    ]
+  },
+  {
+    "id": "C037",
+    "name": "projects",
+    "ttl": 10080,
+    "endpoint": "/rest/api/3/project/search",
+    "before_page_size": 50,
+    "paged": true,
+    "native": [
+      {
+        "id": "100",
+        "key": "PAIR",
+        "name": "Owned <&> café",
+        "projectTypeKey": "software",
+        "lead": {
+          "displayName": "Lead",
+          "accountId": "native-account"
+        },
+        "future": 900719925474099312345
+      },
+      {
+        "id": "200",
+        "key": "OTHER",
+        "name": "Other",
+        "projectTypeKey": null,
+        "lead": null
+      }
+    ],
+    "before": [
+      {
+        "id": "100",
+        "key": "PAIR",
+        "name": "Owned <&> café",
+        "project_type": "software",
+        "lead": "Lead"
+      },
+      {
+        "id": "200",
+        "key": "OTHER",
+        "name": "Other"
+      }
+    ]
+  },
+  {
+    "id": "C031",
+    "name": "fields",
+    "ttl": 20160,
+    "endpoint": "/rest/api/3/field",
+    "native": [
+      {
+        "id": "customfield_10001",
+        "name": "Owned <&> café",
+        "schema": {
+          "type": "string",
+          "custom": "exact-native-plugin"
+        },
+        "future": 900719925474099312345
+      },
+      {
+        "id": "summary",
+        "name": "Summary",
+        "schema": null,
+        "description": null
+      }
+    ],
+    "before": [
+      {
+        "id": "customfield_10001",
+        "name": "Owned <&> café",
+        "type": "string"
+      },
+      {
+        "id": "summary",
+        "name": "Summary"
+      }
+    ]
+  },
+  {
+    "id": "C033",
+    "name": "issuetypes",
+    "ttl": 43200,
+    "endpoint": "/rest/api/3/issuetype",
+    "native": [
+      {
+        "id": "1",
+        "name": "Owned <&> café",
+        "subtask": false,
+        "future": 900719925474099312345
+      },
+      {
+        "id": "2",
+        "name": "Subtask",
+        "subtask": true,
+        "description": null
+      }
+    ],
+    "before": [
+      {
+        "id": "1",
+        "name": "Owned <&> café",
+        "subtask": false
+      },
+      {
+        "id": "2",
+        "name": "Subtask",
+        "subtask": true
+      }
+    ]
+  },
+  {
+    "id": "C035",
+    "name": "linktypes",
+    "ttl": 129600,
+    "endpoint": "/rest/api/3/issueLinkType",
+    "native": [
+      {
+        "id": "1",
+        "name": "Owned <&> café",
+        "inward": "is owned by",
+        "outward": "owns",
+        "self": "https://example.invalid/type/1",
+        "future": 900719925474099312345
+      },
+      {
+        "id": "2",
+        "name": "Related",
+        "inward": "relates to",
+        "outward": "relates to",
+        "description": null
+      }
+    ],
+    "before": [
+      {
+        "id": "1",
+        "name": "Owned <&> café",
+        "inward": "is owned by",
+        "outward": "owns",
+        "self": "https://example.invalid/type/1"
+      },
+      {
+        "id": "2",
+        "name": "Related",
+        "inward": "relates to",
+        "outward": "relates to"
+      }
+    ]
+  },
+  {
+    "id": "C040",
+    "name": "statuses",
+    "ttl": 43200,
+    "endpoint": "/rest/api/3/status",
+    "native": [
+      {
+        "id": "1",
+        "name": "Owned <&> café",
+        "statusCategory": {
+          "key": "done",
+          "id": 3
+        },
+        "future": 900719925474099312345
+      },
+      {
+        "id": "2",
+        "name": "Other",
+        "statusCategory": null
+      }
+    ],
+    "before": [
+      {
+        "id": "1",
+        "name": "Owned <&> café",
+        "status_category": "done"
+      },
+      {
+        "id": "2",
+        "name": "Other"
+      }
+    ]
+  },
+  {
+    "id": "C036",
+    "name": "priorities",
+    "ttl": 129600,
+    "endpoint": "/rest/api/3/priority/search",
+    "before_endpoint": "/rest/api/3/priority",
+    "paged": true,
+    "native": [
+      {
+        "id": "1",
+        "name": "Owned <&> café",
+        "future": 900719925474099312345
+      },
+      {
+        "id": "2",
+        "name": "Other",
+        "description": null
+      }
+    ],
+    "before": [
+      {
+        "id": "1",
+        "name": "Owned <&> café"
+      },
+      {
+        "id": "2",
+        "name": "Other"
+      }
+    ]
+  },
+  {
+    "id": "C039",
+    "name": "resolutions",
+    "ttl": 129600,
+    "endpoint": "/rest/api/3/resolution/search",
+    "before_endpoint": "/rest/api/3/resolution",
+    "paged": true,
+    "native": [
+      {
+        "id": "1",
+        "name": "Owned <&> café",
+        "future": 900719925474099312345
+      },
+      {
+        "id": "2",
+        "name": "Other",
+        "description": null
+      }
+    ],
+    "before": [
+      {
+        "id": "1",
+        "name": "Owned <&> café"
+      },
+      {
+        "id": "2",
+        "name": "Other"
+      }
+    ]
+  }
+]

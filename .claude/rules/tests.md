@@ -9,6 +9,194 @@ paths:
 
 # Tests
 
+Board primer acceptance inspects the selected native disk payload and public
+receipt separately. Legacy read time and wrapper publication time may differ;
+current cached read time remains inside its native snapshot. Bind null/absent
+type meanings, legacy self metadata, complete associated projects and exact
+fixture ordering. Exercise the actual boards-list consumer after changed forced
+priming with zero HTTP requests and unchanged files. Live membership normalization
+must retain complete stored/output values, presence, ordering and numeric tokens.
+Partial enrichment, collection caps,
+previews, cancellation and human output need separate evidence.
+
+Epic primer acceptance uses literal native, current-view and legacy summary
+fixtures. Preserve absent/null values, unknown native fields and root details.
+Bind enhanced-search POST bytes and token walks independently: legacy primes one
+page, while current priming drains explicit continuation tokens. Validate stored
+values and a subsequent zero-request reuse after changed forced collection.
+Native search comparisons bind duplicate-free membership and exact stored/output
+order. Collection caps, malformed/canceled pages and human output remain separate.
+
+Batch refresh collection binds independent native values, exact authenticated
+requests and owned disk snapshots before admitting row success. Exercise
+changed forced data and zero-request cached reuse, including empty values and
+repeated names. Preserve legacy history pollution as an explicit effect;
+current batches must retain unrelated files. Standalone field primers reuse the
+same live membership and stored-order owner. Jira may reorder equivalent field
+rows between adjacent reads. Live comparisons bind complete independent
+membership and exact persisted/output order; authored fixtures retain exact
+order guards. Reject changed values and duplicate identities. Live Jira cached
+receipts alone do not establish absence of HTTP entry. Partial failures,
+cancellation, collection caps and every-resource batches require separate
+evidence.
+
+Native-backed history acceptance binds an independent Jira ID/key to the actual
+view producer, then verifies its owned persisted scope and credential-disabled
+local consumers. Ordinary issue view is flat in both lanes; keyed attachment
+and watcher adapters must not define its shape. Compare only owned cache roots
+for history reads and preview/clear/no-op effects; harness receipts must remain
+free to change. Producer identity and history effects do not establish complete
+view-field parity or server-enforced Jira write protection.
+
+Batch refresh preview acceptance compares resource order and repeated selections
+through actual binaries. Legacy keyed output records uppercased resource names
+as issue history even on dry runs; retain that observed local write explicitly.
+Current previews deduplicate first occurrences, publish typed plans and leave
+the entire owned file tree unchanged. Run without an API token and trap all
+HTTP entry. Live refresh, cached batches, partial failures and cancellation need
+separate evidence; a preview does not credit collection or persistence.
+
+Local cache acceptance uses owned literal storage fixtures and no API token.
+Bind history order and malformed-state differences without reading Jira. Clear
+previews and refusals preserve the full file tree; live acknowledgements match
+exact removals and retain foreign scopes. Keep legacy removal of unrelated files
+when clearing a whole scope separate from current classified-entry removal. Legacy preview
+removed counts are plans, not acknowledgements. Bind refusal reasons as well as
+codes. Empty inspection checks native null TTL and meaningful human receipts;
+it does not establish populated inspection, concurrency or partial-failure parity.
+
+Paired metadata primer acceptance uses independently authored native fixtures
+and explicit legacy reduced projections. Bind authenticated endpoint, page-size,
+offset and body differences; preserve current unknown fields and numeric tokens.
+Validate owned disk wrappers and native snapshots before crediting saved output.
+Bind legacy profile/schema/path independently. Fresh current timestamps follow
+publication; cached timestamps equal the stored write time. Keep refreshed
+expectations in independent raw buffers and guard immutable fixture preimages.
+Changed forced reads must survive a subsequent zero-request cached invocation;
+fresh reuse preserves owned files. Compare empty arrays explicitly. Current force
+maps legacy refresh without pretending their cache-source state is identical.
+Live acceptance reads native resources independently and changes only owned local
+caches. TTL overrides, previews, human rendering, caps and failed reads remain
+separate requirements until exercised.
+
+Paired board discovery binds numeric board order, native type presence and
+independently fetched associated projects; location metadata cannot supply the
+relation. Exercise real sparse-page requests, local output windows, cache reuse
+and refresh with owned directories. Cached reads preserve the original timestamp
+and files and send no Jira request. Legacy compact pagination is an explicit
+adapter, not an ordinary-envelope relaxation. Keep legacy negative-limit refusal
+separate from the current documented nonpositive default. Independent bounded live Jira
+walks establish membership; fixed fixtures pin natural project order. Fetch caps,
+malformed pages, partial enrichment and human presentation need separate evidence.
+
+Paired identity inspection binds `me` and ordinary `auth whoami` to independent
+native account reads. Preserve complete current user metadata, exact numbers and
+public site alongside the explicitly reduced legacy summaries. Malformed native
+IDs must retain their lane-specific outcome; current refusal publishes no partial
+account. Bind root `me` operation attribution independently of following flags.
+Unchanged owned-file snapshots prove inspection did not save settings. Keep saving,
+human presentation and credential-provider selection as separate acceptance.
+
+Paired user discovery compares independently read native active/deleted rows and
+privacy-preserved email presence. Keep legacy flattened strings separate from
+current absent/null/value and fetched-row continuation metadata. A short page
+does not prove directory completion. Exercise the literal query through argv and
+an exact authenticated GET with an empty body. Human acceptance binds meaningful
+empty receipts, visible names/identities and each lane's actual summary contract;
+nonblank output alone supplies no acceptance. Live Jira positive fixtures must include
+the independently admitted active, nondeleted account. Empty visibility proves
+neither account absence nor assignment permission.
+
+Paired export acceptance uses independent artifact paths, lengths and digests
+from the admitted raw guide sources. Bind the complete prepared/published
+receipt to observed files and ordered written paths. Separate owned home and
+working directories so project and user scope cannot accidentally coincide.
+Verify explicit format and harness precedence, detected harnesses, existing-file
+refusal, acknowledged replacement, linked-target effects and unchanged previews.
+Keep platform-specific permission checks in named subtests. Exported examples
+remain content; local publication supplies no Jira workflow execution credit.
+
+Paired guide acceptance freezes independently extracted source metadata and exact
+content hashes from the admitted revisions. Execute every canonical runbook
+through both guide doors and every output mode, then check index/all, all six
+section selectors, resolution variants, aliases and refusals. Compare complete
+current typed data, including omitted optional members; validate original refusal
+JSON before decoding. Retain allowed failure stderr separately. Embedded workflow
+examples are content, never execution or Jira acceptance evidence.
+
+Local catalog acceptance pins field families and native ADF identities against
+independent raw schemas. Compare legacy collapsed membership separately from
+current context definitions and their bounds. Legacy human catalog output is a
+JSON envelope; admit its array data only for the two exact catalog operations.
+Keep ordinary object-envelope checks strict and test every output mode without
+credentials or HTTP. Catalog capability declarations are metadata, not evidence
+that authoring, rendering or writes work.
+
+Paired discovery checks adapt legacy raw schema artifacts and current typed
+wrappers explicitly. Freeze independently admitted source-registration path
+sets; counts alone cannot detect
+substituted commands. Bind single-token names and parent paths. Check every
+declared version property type and required field, including platform members,
+and resolve every marked main output shape against the extracted artifact when
+testing `--shapes`. Never use production schema builders for expected values.
+
+Pure navigation groups need actual bare/long-help/short-help execution in every
+output mode. Bind the selected Usage command line and independently listed child
+rows; examples or a shared path prefix cannot establish the selected command.
+Keep navigation acceptance separate from runnable-child behavior and current-only
+groups separate from paired counts. Synthetic processes use their owned home as
+cwd, including project-scoped exports, and compare owned file content/mode
+snapshots when no local publication is expected.
+
+Paired parser acceptance prefixes owned runtime controls before caller argv so
+`--` retains literal dash-prefixed queries. Verify exactly one validation query
+parameter and a complete bounded POST object, retaining authored query order,
+duplicates and text separately from Jira's normalized replies. Preserve current
+native diagnostics, null/absent/empty arrays and full syntax trees. Legacy
+read-only mode refuses this POST; current parsing is a read. Exercise this
+difference separately from ordinary successful parsing, with independent live Jira
+observations; parser success does not prove matching issues or write permission.
+
+Paired JQL reference discovery executes the authenticated native GET separately
+from local composition. Compare legacy string summaries explicitly and preserve
+current optional members, full native metadata and exact numbers. Fixed fixtures
+require exact array order; independent live Jira reads alone may tolerate reserved-word
+and operator reordering. Current summaries must retain their own native order.
+Keep synthetic remote checks separate from both zero-HTTP and live Jira counts.
+
+Paired local JQL/ADF/version acceptance requires independent literal JQL, native
+documents and Markdown. Validate original JSON for duplicate names before any
+projection; retain exact numbers, stdin bytes and both process output streams.
+Distinguish legacy compact omissions and explicit current diagnostics. Invalid
+ADF roots and strict-loss policies have deliberate lane-specific outcomes;
+current refusals must not leak a partial projection. Version expectations come
+from the independently admitted artifact via
+`JIRA_PARITY_BEFORE_VERSION_DATA` and `JIRA_PARITY_AFTER_VERSION_DATA`, never a
+fresh invocation under test. JQL reference is remote discovery, not local build.
+
+Paired local alias acceptance uses disposable per-lane public settings, disabled
+credentials and a deny-all HTTP fixture. Preserve exact preview/refusal bytes,
+literal alias values and unrelated authored settings. Every delete spelling
+must remove an existing alias; test missing-name behavior separately. Validate
+current path/change receipts and exact non-null import skip maps. Keep legacy
+public preference representations separate from current flat settings. Local
+paired checks do not count as live Jira execution.
+
+Legacy targetless `issue transition KEY` is a read that maps to current
+`issue transition list KEY`. Compare legacy ID/name/screen output explicitly;
+the current lane must preserve the complete native workflow, including fields,
+destinations and unknown members. Keep argv/outcome-based operation attribution
+and actual-binary fixtures; a shared reduced projection would conceal data loss.
+
+Paired comment-and-close acceptance discovers an available terminal destination
+and compares native transition identities across lanes before writing. Preserve
+the specific legacy screenless refusal and current separate-comment improvement.
+Verify stored status, exactly one complete comment and unrelated native fields;
+never replay uncertain writes. Actual-binary fixtures cover screened atomic and
+screenless separate delivery, local/validated previews, atomic-only refusal,
+failed status writes and failed comments after acknowledged status changes.
+Require bound receipts, original error classification and safe inspection hints.
+
 Successful resolver previews publish to the process-wide warning queue. Tests
 that produce those warnings must run serially, inspect them and drain the queue
 before leaving; mutex protection alone does not isolate concurrent invocations.
@@ -789,3 +977,55 @@ bytes; recheck cancellation before publication and after joined cleanup. Keep
 supervisor restoration after forced termination separate from cooperative CLI
 restoration. Native macOS behavior and unsupported architectures remain separate
 acceptance requirements.
+
+Before/after CLI acceptance lives in `tests/live/parity_*.go`. Bind both selected
+binary digests and each invocation without replacing the cleanup binary. Pin
+the explicit legacy profile and remove inherited legacy routing/token/test-store
+overlays before admission. Verify the selected public site, provider and native
+account. Creation intent is not established process or provider entry; retain
+returned identities before assertions and bind exact run markers through an
+independent native read before ownership registration. Never replay an unknown
+creation. Keep legacy receipt omissions distinct from the current acknowledgement
+contract. Actual-binary fixtures must prove requests/effects and no-request
+previews; compare rich native ADF and unrelated fields, not flattened text.
+Missing domain fields must fail from a fresh decode. A passing tracer supplies
+only its named scenario evidence, never full command/editor/platform parity.
+
+Paired read adapters select declared legacy/current layouts explicitly. Bind
+each result key and establish native resource preimages independently. Missing
+arrays, null data and absent keyed rows are not evidence of an empty collection;
+keep populated-resource, pagination and partial-failure variants separately pending.
+Use owned per-lane cache roots while preserving admitted keyring transport.
+Prove warm cached provenance and complete inventory with zero requests, then
+change the native inventory and require one actual forced-refresh request.
+
+Paired watcher writes retain strict shared ownership while translating only
+authored legacy shortcuts and current-account identifiers. Bind corresponding
+complete native preimages across lanes. Actual-binary fixtures assert the entire
+HTTP sequence, exact account bodies/queries and lane-specific preview/refusal,
+readback and no-readback receipts. Extra opposite writes must fail even when the
+final state matches. Stop dependent mutations after any failed step; deliberately
+repeated acknowledged idempotent operations are not retries of unknown writes.
+
+Paired field preparation compares the legacy implicit scalar workflow with the
+explicit local preparation and native writer. Admit only the verified current
+account on a registered owned issue, with exact input bytes bound to that target.
+Use fresh native edit metadata and equivalent native preimages. Independent
+fixtures must assert the complete accountId payload and HTTP sequence, including
+zero requests for preparation, preview and read-only refusal. Preserve unrelated
+native fields and rich ADF. One assignee recipe does not establish every field
+family, legacy create alias or editor workflow.
+
+Paired comment tests translate the exact legacy bare add invocation before
+shared ownership checks. Bind native body bytes to the active issue/comment,
+retain add intent and returned identities before assertions, and never replay
+uncertain writes. Restriction tests use a freshly verified current-account role.
+Check omission, replacement and explicit null through actual native writers;
+preview/refusal paths send no requests. Read comparisons map legacy oldest-first
+ordering and final-page metadata to explicit current ordering and whole-walk
+metadata. Current `--all` owns its page size and refuses an authored `--limit`.
+Native reads must preserve the complete rich body and unrelated comments.
+Single-comment native checks must not require a singleton thread when other
+registered comments exist. Keep exact native ID/body/visibility checks shared,
+then compare the full owned inventory separately. Retain failed fixture attempts
+and rerun corrected scenarios with fresh resources instead of replaying writes.
