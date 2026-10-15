@@ -1,5 +1,94 @@
 # jira-cli
 
+Board primer acceptance binds scoped native storage and the actual list consumer.
+Keep native read timestamps separate from wrapper/publication acknowledgements;
+verify changed forced values survive zero-request consumer reuse.
+
+Epic cache acceptance preserves native fields/details and explicit legacy summaries.
+Bind token walks to authenticated enhanced-search requests, then inspect stored
+values and cached reuse. Never infer a complete legacy walk from its first page.
+
+Batch collection acceptance binds native values and stored snapshots per resource,
+then verifies forced changes, cached reuse, request order and explicit history effects.
+Partial failures and cancellation remain separate evidence requirements.
+
+Native cache acceptance binds an independent Jira issue identity, the actual
+producer and owned scoped storage before testing local consumers. Keep ordinary
+view's flat identity separate from keyed attachment/watcher read adapters.
+
+Batch metadata previews bind resource order, deduplication and exact local file
+effects. Retain legacy issue-history pollution as an observed difference; current
+previews must leave storage unchanged and never claim a new collection or write.
+
+Local cache acceptance binds complete owned file effects, foreign-scope retention
+and exact refusal reasons. Keep preview plans separate from live removals and
+retain explicit legacy history/classification differences.
+
+Standalone field primers reuse the live duplicate-free membership and stored-order
+owner used by batch collection. Keep fixed fixtures strict about authored order.
+
+Metadata acceptance binds exact native reads and persisted owned snapshots,
+retaining explicit legacy projections and current collection/publication facts.
+Require changed forced data to survive cache reuse; keep untested variants open.
+
+Board acceptance binds native identities and associated projects through actual
+page requests and owned cache effects. Separate output windows from server walks,
+retain type presence and timestamps, and never substitute location metadata.
+
+Identity inspection acceptance binds independent native accounts and public
+scope, preserves unknown fields and refuses partial current identities. Read
+acceptance does not establish identity saving or provider selection.
+
+User discovery acceptance preserves native email presence and fetched-row
+continuation. Bind meaningful human receipts and independent visible identity;
+empty results and short pages never prove directory completeness or permission.
+
+Export acceptance distinguishes owned home and project directories, compares
+exact artifacts and binds receipts to observed publication. Retain legacy
+overwrite effects separately from current collision refusal and replacement.
+
+Guide acceptance binds exact content and source metadata through both doors.
+Preserve optional-member absence and strict original refusal JSON. Reading an
+embedded workflow never proves its commands were executed.
+
+Catalog acceptance uses independent native identities and context bounds.
+Legacy catalog arrays have an exact-operation adapter; ordinary envelopes stay
+strict. Metadata declarations do not establish rendering or write behavior.
+
+Schema acceptance compares independent canonical path sets and complete version
+field types. Legacy raw artifacts and current typed wrappers remain distinct;
+resolve pooled shapes against the extracted artifact, never its envelope.
+
+Synthetic acceptance runs in an owned working directory. Navigation checks bind
+the exact Usage command and child rows; their help never proves child execution.
+
+Paired JQL parsing keeps literal argv ahead of independent native diagnostics.
+Runtime controls precede `--`. Retain the legacy method-based read-only refusal
+separately from current read admission; require complete bounded request bodies.
+
+JQL reference acceptance separates exact synthetic transport from independent
+live Jira observations. Preserve complete current native metadata and each lane's
+summary presence contract; do not normalize fixed-response array order.
+
+Paired local authoring keeps independent literal expectations, strict original
+JSON validation and complete process receipts. JQL reference remains remote;
+local build/conversion/version checks cannot earn live Jira execution credit.
+
+Local alias parity uses owned public fixtures and no credentials or Jira calls.
+Bind receipts to the actual file and verify exact changes and skipped outcomes;
+retain local acceptance separately from paired live Jira evidence.
+
+Legacy targetless transition discovery maps to explicit transition list. Preserve
+complete current native metadata; declare the legacy reduced projection separately.
+
+Paired compound transitions must compare discovered terminal destinations and
+independently verify both status and complete comment storage. Follow
+`.claude/rules/tests.md`; one CLI invocation can require two non-atomic requests.
+
+Separate transition comments preserve the actual failed-call classification;
+missing receipts cannot fabricate a comment acknowledgement. Retain the successful
+status change and any usable comment ID, and never recommend repeating that change.
+
 Bash fixtures transport literal completion words through a quoted environment
 value so MSYS startup cannot glob native caller argv. Preserve generated-script
 execution, caller state and literal candidates. The Windows WSL launcher supplies
@@ -752,3 +841,28 @@ installed editor or Unix no-op command. Require a fresh receipt with literal
 argv and an input digest after live entry, and no receipt after previews or
 terminal refusal. Keep Windows temporary/profile paths owned. Fixture execution
 does not establish native terminal allocation or faithful diagnostic capture.
+
+Differential CLI acceptance uses `tests/live/parity_*.go` and the shared live
+process/ownership owners. Pin both digests, isolate the selected legacy profile,
+verify public scope and native identity, and retain uncertain creation receipts
+without replay. Preserve current acknowledgement checks and independent rich
+native-field oracles. Follow `.claude/rules/tests.md`; tracer evidence is scoped
+to its named scenarios and does not complete broader parity acceptance.
+Read comparisons select explicit lane layouts and bind each result key; missing
+arrays or keyed rows cannot establish an empty native collection. Pin owned
+cache roots per lane and prove warm hits/forced refresh with actual requests.
+
+Watcher parity translations derive canonical ownership from the exact legacy
+argv, including shortcut targets and the verified current account. Preserve
+legacy/current receipt differences and compare corresponding native preimages.
+A failed step stops dependent writes; idempotence never authorizes replay.
+
+Comment visibility validation uses parsed flag presence, including explicit
+empty values. Refuse blank group/role names and conflicting setters or clear
+before client construction. Preserve nonblank names literally; omission keeps
+an edit restriction and only `--clear-visibility` removes it.
+
+Paired comment acceptance binds authored bodies and returned resources to owned
+parents, preserves legacy bare-add intent and independently verifies visibility
+and native deletion. Follow `.claude/rules/tests.md` for per-lane ordering,
+pagination and no-request acceptance; passing cases do not establish full parity.

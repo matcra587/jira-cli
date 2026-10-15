@@ -127,10 +127,10 @@ func newCommentEdit(deps Deps) *cobra.Command {
 			command.AddBodyFlags(c, &body)
 			command.AddMutationFlags(c, &mut, command.WithNotify())
 			command.AddStringVar(c, &visGroup, flagVisibilityGroup, "",
-				"Restrict the comment to members of this group",
+				"Restrict the comment to members of this group; requires a nonblank name",
 				command.FlagOpts{Terse: "Group-only", Placeholder: "name"})
 			command.AddStringVar(c, &visRole, flagVisibilityRole, "",
-				"Restrict the comment to holders of this project role",
+				"Restrict the comment to holders of this project role; requires a nonblank name",
 				command.FlagOpts{Terse: "Role-only", Placeholder: "name"})
 			command.AddBoolVar(c, &clearVisibility, flagClearVisibility, false,
 				"Remove the comment's read restriction",
@@ -154,10 +154,7 @@ func newCommentEdit(deps Deps) *cobra.Command {
 			if err := body.RequireBody("an edited comment"); err != nil {
 				return err
 			}
-			if err := visibilityConflict(visGroup, visRole); err != nil {
-				return err
-			}
-			if err := clearVisibilityConflict(clearVisibility, visGroup, visRole); err != nil {
+			if err := validateCommentVisibility(cmd, visGroup, visRole, clearVisibility); err != nil {
 				return err
 			}
 			return refuseWebOnSingleWrite(cmd)
@@ -199,12 +196,12 @@ type commentEditOptions struct {
 // argument, and it lands harder here: the two failure modes are
 // "restricted when you asked for public" and its inverse, and one of
 // them leaks.
-func clearVisibilityConflict(clear bool, group, role string) error {
-	if !clear || (group == "" && role == "") {
+func clearVisibilityConflict(clear, groupSet, roleSet bool) error {
+	if !clear || (!groupSet && !roleSet) {
 		return nil
 	}
 	set := flagVisibilityGroup
-	if group == "" {
+	if !groupSet {
 		set = flagVisibilityRole
 	}
 	e := cli.NewInputError(cli.CodeFlagConflict, fmt.Sprintf(

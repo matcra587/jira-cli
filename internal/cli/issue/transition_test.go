@@ -383,6 +383,9 @@ func TestTransitionCommentFailureIsASuccessfulKey(t *testing.T) {
 	if r.Data.CommentError == "" {
 		t.Error("comment_error is empty; a caller needs to know WHY the comment did not land")
 	}
+	if r.Data.CommentErrorCode != "jira_forbidden" || strings.Contains(r.Data.CommentError, "acknowledged the write") {
+		t.Error("a refused comment lost its permission classification or fabricated a comment acknowledgement")
+	}
 	warnings := drainWarnings(t)
 	if len(warnings) != 1 || warnings[0].Type != envelope.WarningCommentFailed {
 		t.Fatalf("warnings = %+v, want exactly one %q", warnings, envelope.WarningCommentFailed)

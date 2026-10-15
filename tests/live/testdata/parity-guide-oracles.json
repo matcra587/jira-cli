@@ -1,0 +1,544 @@
+{
+  "before": {
+    "contract_version": "3.2.0",
+    "index_sha256": "e1ebab4500b11c3df1873706cc088645b25368830428f23239efd220bbf29d80",
+    "all_sha256": "64725bde4cd9abecc1649832818f0500038b9d95d0b64f4eb2f847e5b879b519",
+    "all_human_sha256": "c3ef710a89ba71eeec67b4c0659008968a160a09b638697d281c2a0fc2f22de7",
+    "guides": [
+      {
+        "slug": "core-contract",
+        "title": "Read every jira-cli response the same way",
+        "description": "The output contract \u2014 envelope shape, output modes, exit codes, and the global gates every invocation obeys.",
+        "when_to_use": "Parsing any jira-cli output, choosing --output, handling a nonzero exit, or scripting the CLI headlessly.",
+        "commands": [],
+        "order": 1,
+        "aliases": [],
+        "source_sha256": "e542733761ff29f413b020904f90156e213532332c7558cee996d944ef37e416",
+        "runbook_sha256": "ebaaaeb8769e1f0088530e9d1ea8c7eb0d669a1a6d33518b0e0fed126ba275b0",
+        "sections": {
+          "Decide": "9622af38949befb15d4c502b1414b793cf37c773122c4ed327d95cc399e68b18",
+          "Run": "9e74b5d7ea2cfac96390dc6ba7f278c552116be5b36f60c5be432178ca089d8d",
+          "Save": "f36082056f715c9b0334a9f3a3e1f0ada54a7738e96e524d8ec48edb57b0eeb8",
+          "Preconditions": "72d32f0e40122b341eb0a083a24d7d72e18e9fc556c044fa186179003dbcaf93",
+          "Recover": "8c3078a80a3c40937db34e62317521e15fa6be0881d2d0df8ac55ca93cb57023",
+          "Next": "0d202a23422518bdfab7460280d2f499e6c2f6336415a965d4369a328d41a246"
+        }
+      },
+      {
+        "slug": "bootstrap",
+        "title": "Go from a fresh machine to a working profile",
+        "description": "Configure authentication, verify the identity, and set the default project so later commands need no targeting flags.",
+        "when_to_use": "First run on a machine, auth or profile errors (exit 1), or switching tenants or accounts.",
+        "commands": [
+          "jira auth login",
+          "jira auth status",
+          "jira auth whoami",
+          "jira me",
+          "jira config set",
+          "jira alias set"
+        ],
+        "order": 2,
+        "aliases": [],
+        "source_sha256": "07aa25009c4a2adc98709e800ef892a931aea362473107b77a2bdf4eb68dd70d",
+        "runbook_sha256": "4781c4f5952c55b3789617e2db2d81b3f3d1e527fbf72d762dfe5b40ae5f5b31",
+        "sections": {
+          "Decide": "6ba671bbdc336713292bf39f1cbff76e9a0bfc81489347ebb6af06adf91743a1",
+          "Run": "5dbe62bdd52692db0b2f7b4eb23ad0c615597ad5e58928406e6f945818b5a3f5",
+          "Save": "f6837647d53cd3a605453fe5d2d9cd6c354469221fb3b6370b2c5a1aed4eea6f",
+          "Preconditions": "e336058e00d33948f86b74fb63a66366f098b324735570c42910301f0648499e",
+          "Recover": "e0d9a3fff4c667d6a372dd0566f9ce1cce9eace30258c237ffdd826b9884984d",
+          "Next": "ff0e5b397e359a6b8ff31c70df00165cb9b5e74bac7b6b9f80383f3dcc87bfb3"
+        }
+      },
+      {
+        "slug": "discover",
+        "title": "Learn the tenant's shape before acting",
+        "description": "Discover commands and flags from the schema, and the tenant's projects, issue types, fields, and boards from the metadata cache.",
+        "when_to_use": "Before a first mutation in an unfamiliar project, when a name (type, field, status, board) must be exact, or when deciding cache versus live reads.",
+        "commands": [
+          "jira cache refresh",
+          "jira cache fields",
+          "jira cache issuetypes",
+          "jira boards list",
+          "jira user search"
+        ],
+        "order": 3,
+        "aliases": [],
+        "source_sha256": "9ff5b31517cdd67c4d84362b64e005b59be55974d7f82127480be945d8232f64",
+        "runbook_sha256": "ba9213193222d9026e50ea6517714a8b4e56049ff29f29465402d1b92d2b37fa",
+        "sections": {
+          "Decide": "43c29726e864de2594416590630034499efc32ab22639f4d5c5fc6d4608315ef",
+          "Run": "1444da94f956baff3fda043f5873b7b1183ce4869ff6592f18eb7d1681e11067",
+          "Save": "3753c265c2b55d09b8fe241e0f30abf2a037f99fd2ebea9e4a69661637bb268f",
+          "Preconditions": "55bbfa448f11c6d83e241b87b787b01eeaf0f2a17ca7374032d1cc824c68c17b",
+          "Recover": "f3bb6bb5e2d18f0997a042d975009a6d4eca24c42d998458e257ccc2b22f75b2",
+          "Next": "3fb11aa885f6fca1176400667e37d58f9663b95fd8328dfbfc6445ac453bc046"
+        }
+      },
+      {
+        "slug": "find-issues",
+        "title": "Locate and read work",
+        "description": "Read one issue, list and filter issues, build and preview JQL locally, and page through search results.",
+        "when_to_use": "Any read \u2014 inspecting an issue, finding work by filter, running JQL, counting matches, or resuming a paginated search.",
+        "commands": [
+          "jira issue view",
+          "jira issue list",
+          "jira issue mine",
+          "jira search jql",
+          "jira search saved",
+          "jira jql build",
+          "jira jql validate"
+        ],
+        "order": 4,
+        "aliases": [],
+        "source_sha256": "ffa7adabce58ffb1df351a8f05e8524b3c92b4c06efc101478ad3e682ea88371",
+        "runbook_sha256": "9fe122d9da790f9852dda30b01520c7bfd231ec799fad31576ff6476adf2845b",
+        "sections": {
+          "Decide": "d4f73c66c13a356c114ae276e7496ac2b0365ed5ce0bdbc604f27c6ca797def1",
+          "Run": "abcdaa6ed443fb802495f07ecee3b230298172f5bdef20cb40a6e8a0cf91fcdd",
+          "Save": "837977e29e5b105fc7c9569190d204fd0c6816cc0ce1f2a8590276a6d7514b77",
+          "Preconditions": "8d291855db691ad066f7a212087848612fce950737a2a6af9de16e92edeb8202",
+          "Recover": "96bab4cf5935f0eae1802e0e77c2840e05968082e3bf1b85817ffad26e80e977",
+          "Next": "c23cd8b4a44301f58b3e145262fdbcca43737d8e89ecc8fa98e3f2d029b12456"
+        }
+      },
+      {
+        "slug": "safe-mutation",
+        "title": "Preview every write before sending it",
+        "description": "The write discipline \u2014 dry-run first, gate flags for headless runs, then verify what the server actually applied.",
+        "when_to_use": "Before any create, edit, transition, delete, or other mutation, and when a write is refused by a gate.",
+        "commands": [],
+        "order": 5,
+        "aliases": [],
+        "source_sha256": "2cf976d1426058786fce92bdecad8ed591341fac4532403fb85fda52a320f964",
+        "runbook_sha256": "b71f9bf8e078ac97801776ba0cc044225d472ba008ed2dc6e3785eddbadb1548",
+        "sections": {
+          "Decide": "f4f738817910e797bfc081a4c698052f9d713a4b20df9c53dad8ba3fddc66bd1",
+          "Run": "6882d89fcf26b51df6ca2f6aa7bcd75f5ed3dbdd8a5f3c432ec7e5f6f69acf7f",
+          "Save": "fff07d3284e445a6f71b1f847623cf2ce3726fe2021603149fdc9dce9a033ddf",
+          "Preconditions": "2706bf797775a23f2b4158c52d2fb1446183c286815392fc4b37481bf0ce9817",
+          "Recover": "4ba43d732cfa6821ba397da3f0265120bd3e5e2045de6c7390a9155d60b39383",
+          "Next": "8a8512cb30fa774a3d53f6a31ab267b47b68f93e77076e2f1f8b2e8a6d37b321"
+        }
+      },
+      {
+        "slug": "shape-issues",
+        "title": "Create and update issues",
+        "description": "Create issues and subtasks, edit fields, and transition status \u2014 choosing the right body source each time.",
+        "when_to_use": "Creating an issue or subtask, changing summary, description, assignee or custom fields, or moving an issue to a new status.",
+        "commands": [
+          "jira issue create",
+          "jira issue edit",
+          "jira issue transition"
+        ],
+        "order": 6,
+        "aliases": [],
+        "source_sha256": "4eb840db3f9b6d4f8e186a023d18a49a9404eaec210626fef632814cbeca76cc",
+        "runbook_sha256": "746a5c563f4d5676fdd40aec8269400a5633460ed8a395d1aca98ac8cce04e93",
+        "sections": {
+          "Decide": "97d676f580bf54b176f71365567cdc5b76f41986fbe2bf017e946adaddffb273",
+          "Run": "54fbc533c05f1d0fa49c94c4089f8d7b07fd52b3fc23be198fcd4c40c36efe8b",
+          "Save": "5b6669d96d84c5975aa5abb5901766b5b10591498ea4cd7387801e5d4abb9378",
+          "Preconditions": "35fa7419209082ed6670b061e366bf4501a446d6ebf3ee7300f776883280eba3",
+          "Recover": "ab052918f4a61b35cc4d6e1bdb5496fd4a2daede5727e34a81fb8c2ed0fe1bd7",
+          "Next": "4598aab232717d0c1c9743bb06fcd69d1d430dfc10777741cd31b3cc3d0edcaa"
+        }
+      },
+      {
+        "slug": "annotate-issues",
+        "title": "Add context to an issue",
+        "description": "Comments, attachments, web links, watchers, issue links, and worklogs \u2014 what each records and how its direction works.",
+        "when_to_use": "Commenting on an issue, attaching files or URLs, linking two issues, managing watchers, or logging time.",
+        "commands": [
+          "jira issue comment add",
+          "jira issue attachment add",
+          "jira issue weblink",
+          "jira issue watchers add",
+          "jira issue link",
+          "jira worklog add"
+        ],
+        "order": 7,
+        "aliases": [],
+        "source_sha256": "f703f5889d9aef22d411cdacb9db54d9aae118a45b84d3eba11a12a10eaa373c",
+        "runbook_sha256": "ef167a712148896697af6479229f4f34f91761f4a675fbafe96e527ba1456888",
+        "sections": {
+          "Decide": "a90ee89664b2d98af5b496f5a495b8cd845e6067b026d364c698e44ade8b284a",
+          "Run": "4941527f2155bfaabaece317c001b61e9bce688d6e741bb2ccdc2be3a7b1da62",
+          "Save": "61a7cb600992e99f8672dc8e3833499618501d9f81302ad76a02560341e9c6e7",
+          "Preconditions": "f39dd5cee80be6451c58463ba28b04a66459c60f371a103922fc55c9e8a8bc56",
+          "Recover": "00a91e78eee09ac95ccbffca98ec3a3e96bb22059f2a8f0ebc8e2aea2fff2f63",
+          "Next": "833237e27915d4e2060fcf2047ac773ed9ec3f0ec1e2195112df7971d2b7aac3"
+        }
+      },
+      {
+        "slug": "restructure-issues",
+        "title": "Clone, move, rank, and delete issues",
+        "description": "The structural operations \u2014 duplicating an issue, moving it between projects, reordering a backlog, and deleting.",
+        "when_to_use": "Duplicating an issue as a template, moving work to another project, reordering a backlog, or removing an issue for good.",
+        "commands": [
+          "jira issue clone",
+          "jira issue move",
+          "jira issue rank",
+          "jira issue delete"
+        ],
+        "order": 8,
+        "aliases": [],
+        "source_sha256": "2c8136d380da23f097b67949617c19b8511fc233ff20fd3f8c0bb364dc2ad25e",
+        "runbook_sha256": "d0abc53be0723afaf901496b618930bf8a15af77c29f14410709ada9ade6ac12",
+        "sections": {
+          "Decide": "3bfa40cbc17dcfa3e4806ff483b2164047a09b07c57738532dd5006dbccdca80",
+          "Run": "0d5234759f5b72137ebd179fb1e3cfca76c3e7e018938489f01619bbc8ce230f",
+          "Save": "9ac4d2a247f8f9659f3e006b26c524d6b0206faca43519058d8b5d247be231b1",
+          "Preconditions": "40ac9aebdd9f437be7d3df8c1b339c47e28ab42d1f0e0078c757131c04899320",
+          "Recover": "d67091bef26b4d11569841bc9a55a78d207074ca6656bc75d3de8eee83d32a9f",
+          "Next": "f9398057e457689c3d0583d7d0438c8af7bd9600daa0978bb8cd2ad879db8c4f"
+        }
+      },
+      {
+        "slug": "write-rich-text",
+        "title": "Author rich text without losing content",
+        "description": "Markdown-to-ADF conversion, the strict and best-effort modes, and when to write native ADF JSON instead.",
+        "when_to_use": "Writing a description, comment, or worklog body with formatting, or when a conversion warns about lossy content.",
+        "commands": [
+          "jira adf convert",
+          "jira adf render"
+        ],
+        "order": 9,
+        "aliases": [],
+        "source_sha256": "b12846ab8013c100f51f59cc46b2560f528b132e7616e2d1dbb4a82071feb8f3",
+        "runbook_sha256": "1f728c7fa09fbf0a95b3c436d6d4a7c12c458d1ea733cce47dc9351c7c259ceb",
+        "sections": {
+          "Decide": "32efd8b6853f92d7554c63a5a1c65db576a4d18f4f7ae4ab69a2a214d1dceae7",
+          "Run": "7f39d27d3dc50414a2d5f36d14324768f95c1bb3f60a2fbb4c1eee4566d59457",
+          "Save": "53cf30301f7f391f256ec07eb70464f512a5325272dbc10e085ffa3fea9c8a86",
+          "Preconditions": "2eb92dc0de49be5a662ff4314ddfaa4fbe1c317a3164ea3a526830bdd5c80c78",
+          "Recover": "d6d14f64a9b0dd07ca0e205be31d659a200db4898a20bd2599dc96fd5a726c67",
+          "Next": "ddc946a8c5b90d125be4b961ed7b15b52c72a009508d0c6e4dc7a7ef336f8a9b"
+        }
+      }
+    ]
+  },
+  "after": {
+    "contract_version": "1",
+    "index_sha256": "2ca21292572414856ad590161d81e7560c33debe5f9b6ae39e3bd5af525caefd",
+    "all_sha256": "32dc801e8e0be13408f401990247ecf559f7c4d996419616a31dcbd1248b3728",
+    "all_human_sha256": "87f4706fad7d68d8e52124b27f3bdd6486413249d50108980714c5da74325233",
+    "guides": [
+      {
+        "slug": "discover-cli",
+        "title": "Discover commands before acting",
+        "description": "Read the installed CLI's guides, canonical command tree, flags and output shapes.",
+        "when_to_use": "When starting a Jira CLI task or recovering from an unfamiliar command or flag.",
+        "commands": [
+          "jira",
+          "jira agent guide",
+          "jira agent schema",
+          "jira alias",
+          "jira config",
+          "jira auth whoami",
+          "jira me",
+          "jira open",
+          "jira issue attachment",
+          "jira release-notes",
+          "jira update"
+        ],
+        "order": 10,
+        "aliases": [],
+        "source_sha256": "f6102001e6517ef9341906aea7bb5e5fff6ac57b9ccea3af6fa2a5361b400474",
+        "runbook_sha256": "502d8f111db53fcc4f023ffa986087d8becd300b3c1a4ec332a781e26ee181eb",
+        "sections": {
+          "Decide": "4817a714987d0df57df28dd2173db9c8ca3ce3fe888541ada699e27453b177a2",
+          "Run": "74f2138289ebaf2d3c8352e536c4a1f0ee3cc7d6be1ce75ff00ce6257ae83a98",
+          "Save": "b0c4ca70cb34c3af8cf281c6af8ec016fdc1ddcf5f91262e9723f51bea72483a",
+          "Preconditions": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "Recover": "bb154314f62d33775ecf4c64593d8be265e9374c5958fd948a3904d2531627fe",
+          "Next": "bc2419c2b916a976f7ca5fabc6e75dce07240f95f313b66b08eede2f79fd92b8"
+        }
+      },
+      {
+        "slug": "machine-output",
+        "title": "Select and inspect machine output",
+        "description": "Choose stable output modes, extract data and preserve failure receipts.",
+        "when_to_use": "When scripting Jira CLI commands, using jq, or interpreting errors and partial outcomes.",
+        "commands": [
+          "jira issue view",
+          "jira issue list",
+          "jira issue mine",
+          "jira adf convert",
+          "jira adf render",
+          "jira agent adf-matrix",
+          "jira agent fieldtypes",
+          "jira user search",
+          "jira boards list",
+          "jira issue delete",
+          "jira issue attachment list",
+          "jira issue attachment delete"
+        ],
+        "aliases": [
+          "output-contract"
+        ],
+        "order": 20,
+        "source_sha256": "9e5fb34263c9ce4ebfc22df1e71798381aac2d1e930668d913d0a478dd5267e2",
+        "runbook_sha256": "fbafb92c81aec6af6d2a7289491d16632af7fdc2aaf3a2a5150559eab91cabe5",
+        "sections": {
+          "Decide": "4c86866b952be5a5d038fd09c5160c7b0baad5a27ed230beba7ec5e1c8cf117d",
+          "Run": "e1c264871bc84e6802aee22ecc1edaa96dafbc646b6da234dfbd1e784abf861f",
+          "Save": "84788f93d067aefa59719f758ba7d56b9369aeb44175396f4d0ec5ad4a318d88",
+          "Preconditions": "e12ba62ee385b068d640d4f3b7d13520bd1e9598c252aed276d4b13f167fe403",
+          "Recover": "1a38938b8764c8bdb67369ec9b78f638b30bd8dda4f5c50ebbc7b6650cdbf867",
+          "Next": "948b67db87082990ada2aba77e5db0668530f5d59f5bda0be3c1e7286a8e25ba"
+        }
+      },
+      {
+        "slug": "raw-api",
+        "title": "Send an explicit scoped Jira API request",
+        "description": "Use native platform or Agile requests when a domain command cannot express the task.",
+        "when_to_use": "When inspecting an unsupported endpoint, sending an exact native body, or recovering an HTTP receipt.",
+        "commands": [
+          "jira api get",
+          "jira api head",
+          "jira api options",
+          "jira api post",
+          "jira api put",
+          "jira api patch",
+          "jira api delete"
+        ],
+        "order": 30,
+        "aliases": [],
+        "source_sha256": "b9e8655f41144e0bf35c5481cb93cf947e16c47e7c52a829c3ae5d8290e88820",
+        "runbook_sha256": "829d67cdff1e070eff295e033bcfe9ed6e847cb84e4ba450dd62b1bde01ab5e9",
+        "sections": {
+          "Decide": "6c999795f5f292e28471cddd25374cabc059302902aa3e03eb6d5a78e7d830e6",
+          "Run": "a2f10d9df9a77eab647537ead298da7f108c6a7801f07aa04d77ea080622242a",
+          "Save": "ab4a1af30cd25ff3c2e21b9f858d0f08768775830386c2168b28cf943ed9f3d6",
+          "Preconditions": "c0b02e4fd0b7ec61dfc49b19d2936c08b3b3a5e0ce0a812bcaedbcfeed702d1d",
+          "Recover": "aef5908baec59dcb5a3a4e4980dad4e3f80d322b1106c2f8870915f932799f6b",
+          "Next": "5883daddd541e9184a0f613bd579c741509520347271144ab934da0f039ce7f0"
+        }
+      },
+      {
+        "slug": "jql-discovery",
+        "title": "Discover JQL metadata and validate explicit queries",
+        "description": "Compose queries locally, read live metadata and distinguish parser diagnostics from command failures.",
+        "when_to_use": "Before writing, saving or running a JQL query, or when discovering custom field names and functions.",
+        "commands": [
+          "jira jql build",
+          "jira jql reference",
+          "jira jql validate",
+          "jira issue list",
+          "jira issue mine"
+        ],
+        "order": 35,
+        "aliases": [],
+        "source_sha256": "c51f6488917e38945175c7b534822a76872a40b2e7896224897a968eb61b3d29",
+        "runbook_sha256": "276d7b06575cb29a0906fec03cec201693fc94ddb03041bb9d80daa6218ffa5f",
+        "sections": {
+          "Decide": "af58fb4761c0f622049e41083f3488a6fe867957c8e5bc8031012581fd685c71",
+          "Run": "7ab3679172f0ed10a942750951267d050b35e45c0dcd422bb0116255ab41965f",
+          "Save": "47428c806202a8abb9014dfd876471f02c610156241a6b55cde809b455b8a430",
+          "Preconditions": "b1f00fec66e4ea3258bc04fbe1a89a609b4063c65fc336995cbe59d40e0b2f32",
+          "Recover": "762bf1ca7d94f8e6e50d47765bf2b954bfb05efbb02425a016722ad733879322",
+          "Next": "a923e26c1bfa41431c934f5a981ca0dce761090da20776e6f7eeb42e3f2cf676"
+        }
+      },
+      {
+        "slug": "safe-mutation",
+        "title": "Preview and verify a Jira change",
+        "description": "Inspect a local mutation preview, submit deliberately and verify the outcome.",
+        "when_to_use": "Before creating, editing, transitioning, cloning, deleting an issue or recording effort.",
+        "commands": [
+          "jira issue create",
+          "jira issue edit",
+          "jira issue input prepare",
+          "jira issue edit prepare",
+          "jira issue edit draft",
+          "jira issue edit inspect",
+          "jira issue edit resume",
+          "jira issue transition",
+          "jira issue clone",
+          "jira issue delete",
+          "jira issue move",
+          "jira issue move status",
+          "jira issue move fields",
+          "jira epic add",
+          "jira epic remove",
+          "jira worklog add",
+          "jira worklog list",
+          "jira issue attachment add",
+          "jira issue link create",
+          "jira issue link list",
+          "jira issue link delete",
+          "jira issue weblink add",
+          "jira issue weblink list",
+          "jira issue weblink delete",
+          "jira cache clear"
+        ],
+        "order": 40,
+        "aliases": [],
+        "source_sha256": "48d217d854022543774743425bb4ac4238108f2b916d9cfa445cf885fa3cfe1a",
+        "runbook_sha256": "ca4b56f69fd504be91f19268d59226c0f46829aed782b54b662c803746705966",
+        "sections": {
+          "Decide": "7b8dedb0515081fe5afa76287669231d38e8b7b0ef0a6c1b5afbd8d4da6ec301",
+          "Run": "2a7825e415850b88799cb49b8cd5f700e8b01c16dbbd3568d74f0b5ab95e1d81",
+          "Save": "74b82c40f13eafe0c43d11d1d194aa1895e274c776a0aae978d16b6ea4d10306",
+          "Preconditions": "9de2b5a6dbb69e34bd625b284b3b95eedbff4dde1eac9760f85723a7b3e60fb7",
+          "Recover": "d8b3fbc158e9a1f95e7c2f3abe4b7e59254230b90c0a033cc0f2a21ecfa2484f",
+          "Next": "da191c0a91a3e9538cb20e8be115056670e661584d938b4a540022c6242a6be3"
+        }
+      },
+      {
+        "slug": "cache-metadata",
+        "title": "Prime and inspect scoped metadata",
+        "description": "Store native Jira metadata, inspect freshness locally and refresh explicitly without losing partial outcomes.",
+        "when_to_use": "Before repeated metadata discovery or when refreshing a cached board list or issue link types.",
+        "commands": [
+          "jira cache labels",
+          "jira cache projects",
+          "jira cache epics",
+          "jira cache fields",
+          "jira cache issuetypes",
+          "jira cache linktypes",
+          "jira cache boards",
+          "jira cache statuses",
+          "jira cache priorities",
+          "jira cache resolutions",
+          "jira cache refresh",
+          "jira cache issuekeys",
+          "jira cache inspect",
+          "jira cache clear"
+        ],
+        "order": 42,
+        "aliases": [],
+        "source_sha256": "b13f3129ced40b4cdfdfd3f9068b2e0fd01de84ffcc35d185368939cf8f7f80c",
+        "runbook_sha256": "04b342100fe3f7f38e4d5a210c9810455d482e013240b7c0a89547737344ad81",
+        "sections": {
+          "Decide": "b1449588c5868db81112abe3d347525ad4937949f8ebc904b4af11a80fa108f2",
+          "Run": "b7ac0ebf21c87396bd59e4096c952ea5a248a49e0c20907ab87fc7a89ff331ed",
+          "Save": "1550cf2303eccbe4700d5e64c46866e88e9349187a2b8ab1b296d544113ab909",
+          "Preconditions": "bf8c45dbb2c717816695e21b12b52d5d81af395ad0907ed56f05a4085551a4e9",
+          "Recover": "08307e25e99a41c4b62301596adf3d9b46166c78cfdd78beccca20cc32728774",
+          "Next": "6115a791ebffd6cf5b78550f415e65f65c934531ad9e61f0b7595c468ae8f981"
+        }
+      },
+      {
+        "slug": "export-guides",
+        "title": "Install the CLI's guides as agent skills",
+        "description": "Export the installed CLI's runbooks as portable or Claude skills with inspectable file receipts.",
+        "when_to_use": "When configuring an agent harness to discover and execute Jira CLI workflows.",
+        "commands": [
+          "jira agent export"
+        ],
+        "order": 50,
+        "aliases": [],
+        "source_sha256": "00e67c455787691ab1e6d4f9acdc82733f17eeb4bc804a9a9847bfb1c9c37f9a",
+        "runbook_sha256": "006f5f7c80c8bc975c017f488f2935af81606cb095debc8f2461c27263f21bcd",
+        "sections": {
+          "Decide": "5485440d1a12a6c1996b9a2b74883c2263d7bdfef81cc3f90b6878f81fcfdc1c",
+          "Run": "7b5c86eecd3cdf5a69e33a2e77beb8da9ce15ae0613b34c3a85a023843792405",
+          "Save": "12bfe5f8ab6bd3ec2d61cb251c57df0d1f0d1376e77feb3b55b2b9b1e0c610c0",
+          "Preconditions": "7d69d0cde3d52844984427086b7c441fbbb88391b3589da17d68dd3f0fbecc28",
+          "Recover": "388318250a733ab3dd3db898f8c12fd8ac2b73d28a1ffde4ff3ab636e953f658",
+          "Next": "a7600365128e2aa32ca961abf31c7e5205d87344a4b155c947f95c7c6aeff85c"
+        }
+      },
+      {
+        "slug": "configure-credentials",
+        "title": "Select and verify credential storage",
+        "description": "Configure the OS keyring, environment or direct 1Password SDK without persisting tokens in settings.",
+        "when_to_use": "When choosing a credential backend or recovering from a credential-store failure.",
+        "commands": [
+          "jira config get",
+          "jira config set",
+          "jira config list",
+          "jira auth login",
+          "jira auth status",
+          "jira auth whoami",
+          "jira auth token",
+          "jira auth logout"
+        ],
+        "order": 65,
+        "aliases": [],
+        "source_sha256": "6b7aca14991a9b99e886d4f57677f30583a2db643df342c5e4adfe98e1d18361",
+        "runbook_sha256": "95b3e96344cbb5a33a1fb74b045689c54b93932601c64863ca5eb632ff4a8e7b",
+        "sections": {
+          "Decide": "e22bca0dcd44f978df9c38c1b70bcf8a1a5dc66f233f8d960c8a24812d2ff6d2",
+          "Run": "fe5547319ea5dc961e1d138325414aba287fcf226fa4f38a325ea25c3fac895b",
+          "Save": "fb8f83ea7f5e6c58c06620092d3f8da974502d175079fee54f798c25e0b28b1a",
+          "Preconditions": "61cfd95d3d8f2898a1fa448241ec021443c8164644d2bf80ca0ef5a9ab43b697",
+          "Recover": "3fc0774e17d18ff5a42850a478efa7a1dd82ab45c372298f25aa4ab153ba9a00",
+          "Next": "80290752f77c01ffec24a32e887ddde20adaf3ea8a60247294f2bb217a1edbe3"
+        }
+      },
+      {
+        "slug": "migrate-configuration",
+        "title": "Convert and recover a legacy configuration",
+        "description": "Convert one v0.15.2 profile with retained configuration and credential preimages, then explicitly roll back when needed.",
+        "when_to_use": "When moving a selected legacy profile into flat settings or recovering an interrupted conversion.",
+        "commands": [
+          "jira config migrate",
+          "jira config rollback",
+          "jira config get",
+          "jira auth status"
+        ],
+        "order": 67,
+        "aliases": [],
+        "source_sha256": "5b0f6dce3c909a975f42d59616939755cca4f2041442610cf6c021560c2e2cbc",
+        "runbook_sha256": "7a214029ff20bb55582e98d0334f55a75c75d4e79456254449630faf81837e3c",
+        "sections": {
+          "Decide": "de9596f21c04ecef0570125dc42bbbf156ce34984faa9701050eec609d1a4b53",
+          "Run": "1f9982ba3752301159696775787ce56d833edc61c8914797d3fbb8aa469b4717",
+          "Save": "2765a82af033237ba17defbffdea3ed352671f800196e44f292cd5d4197cc33c",
+          "Preconditions": "b8b13c6360c3c7dad01767dc140e1aad2f917b171e56aaccadae9a0ade065a67",
+          "Recover": "9fdce465a0a399e4b4df7d079910941c5abe9a8d9517327a27f8444df2bd2792",
+          "Next": "73238b98efff8ae4577e9563f37511a574ccef5dcf5f1ff4e005713ef76d3222"
+        }
+      },
+      {
+        "slug": "configure-theme",
+        "title": "Select built-in and custom terminal themes",
+        "description": "Inspect stored theme settings and validate a local palette before publication.",
+        "when_to_use": "When changing human terminal colors or recovering from an unavailable custom palette.",
+        "commands": [
+          "jira config theme",
+          "jira config get",
+          "jira config set",
+          "jira config list"
+        ],
+        "order": 70,
+        "aliases": [],
+        "source_sha256": "2ea8e04aab34836a6824403be8fa7cca3fd4e8a5f2aed81f84cb8451b23acc47",
+        "runbook_sha256": "648b323f584374d94c8b287ee1c631ccf9b9ac22daf78c78d5cfbf00c25e1cb2",
+        "sections": {
+          "Decide": "5e8163f352abf509c642c3f55b7e4e78592c346f9b1b8563db1057c841404294",
+          "Run": "9afafbb04572bb13e9e36181d7334c7d2aabd28b4e0e72e4599b6dc98e9f9fc2",
+          "Save": "29921eab31904ac491938e18f7fa2149269728a4472f9c644669215bf6cfb7f2",
+          "Preconditions": "2d074760b9dc884813b43bd739fd5b6854aeea4f66530503857d600376e4e2a1",
+          "Recover": "eee9bfe5b5f9365ffc59d68b97f242d11d52b85ae408c82bd455c7fc7c5d8c22",
+          "Next": "bd87abd7a080c702277c7fbdd70d3a8c3f902a252c52e24800a11d0f11434175"
+        }
+      },
+      {
+        "slug": "update-cli",
+        "title": "Inspect and update the installed CLI",
+        "description": "Resolve the installation owner, preview release availability and retain update outcomes.",
+        "when_to_use": "When updating jira-cli itself or recovering from a failed executable update.",
+        "commands": [
+          "jira update",
+          "jira version"
+        ],
+        "order": 75,
+        "aliases": [],
+        "source_sha256": "9979dd733093a434f7a7cdc9708c0b4d202d5b5ac218b83de738de6a6ea42787",
+        "runbook_sha256": "6e3e75e419c985a90294315e4a1990f02f6063393243cd18c53a4892c1d56239",
+        "sections": {
+          "Decide": "5dc2e8a7a605777a84e94ff4d57ad1491aeed2c468467e77894f804920768043",
+          "Run": "3e51002ca779da10b830a9b4db906d2fb0d5e8b1ce7fbe6b1d651b32d369266f",
+          "Save": "af47d5e8df9b17eaf44b7de7c682282efacb9e186ea7749d481e83b846634990",
+          "Preconditions": "ec9e65c222b575e2e54d635485354f41d69223a2438a46c72417f6084e4baf8c",
+          "Recover": "5e0c8be69f306633be506b8b32aa0df55eee5bff43eb215bd63b7c11845af55c",
+          "Next": "e9197e6bbb73ed455c1a106b8d3e148eafaea902cb20e097e250c61c375270c3"
+        }
+      }
+    ]
+  }
+}

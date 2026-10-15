@@ -1,0 +1,326 @@
+{
+  "before": [
+    {
+      "format": "agent-skill",
+      "slug": "core-contract",
+      "path": "jira-core-contract/SKILL.md",
+      "bytes": 6618,
+      "sha256": "91aa4222f363f4cc0fb3fe0495f373cdedd66878106af349502d4731bbdac263",
+      "order": 1
+    },
+    {
+      "format": "agent-skill",
+      "slug": "bootstrap",
+      "path": "jira-bootstrap/SKILL.md",
+      "bytes": 3297,
+      "sha256": "f0427d5304982ccad06cc1b2d6f3b4af4d4d49c1e32e0631727ab6c3eabae1db",
+      "order": 2
+    },
+    {
+      "format": "agent-skill",
+      "slug": "discover",
+      "path": "jira-discover/SKILL.md",
+      "bytes": 3293,
+      "sha256": "6a1bfd9fdb3d6b6c482f5aadfcde5f4b53fc2fb8faee36c5092d4d9446789877",
+      "order": 3
+    },
+    {
+      "format": "agent-skill",
+      "slug": "find-issues",
+      "path": "jira-find-issues/SKILL.md",
+      "bytes": 3926,
+      "sha256": "89c65ec3cdfbdc67ea91d90a243ee261c98d9ce1ed69d37df7d158e7365b617e",
+      "order": 4
+    },
+    {
+      "format": "agent-skill",
+      "slug": "safe-mutation",
+      "path": "jira-safe-mutation/SKILL.md",
+      "bytes": 3590,
+      "sha256": "b406ad4971fecc0eafcdeb01babfff305d2dcac37326847991120591195c959d",
+      "order": 5
+    },
+    {
+      "format": "agent-skill",
+      "slug": "shape-issues",
+      "path": "jira-shape-issues/SKILL.md",
+      "bytes": 3539,
+      "sha256": "9a08971257fccaabb07c74903558f8c28aa53ee58fb4f06267e272328fcdeb5d",
+      "order": 6
+    },
+    {
+      "format": "agent-skill",
+      "slug": "annotate-issues",
+      "path": "jira-annotate-issues/SKILL.md",
+      "bytes": 3971,
+      "sha256": "0243e3fd9cc7ecfbd054a53b2e38c0cf374653dced5b9a0747aeef9424ef7785",
+      "order": 7
+    },
+    {
+      "format": "agent-skill",
+      "slug": "restructure-issues",
+      "path": "jira-restructure-issues/SKILL.md",
+      "bytes": 3590,
+      "sha256": "90e41d0c4d821e71c56af044c4ed74ecc169ba180771484419cac08788a04273",
+      "order": 8
+    },
+    {
+      "format": "agent-skill",
+      "slug": "write-rich-text",
+      "path": "jira-write-rich-text/SKILL.md",
+      "bytes": 3251,
+      "sha256": "b5e7c8e925c88e2189383f7a74487e1a53335b1b0deac3a1af55a060f6006c51",
+      "order": 9
+    },
+    {
+      "format": "claude-skill",
+      "slug": "core-contract",
+      "path": "jira-core-contract/SKILL.md",
+      "bytes": 6623,
+      "sha256": "cf6f678800f0e7c829693f56cdfc4950db95941cd269591ad9668f7a80035620",
+      "order": 1
+    },
+    {
+      "format": "claude-skill",
+      "slug": "bootstrap",
+      "path": "jira-bootstrap/SKILL.md",
+      "bytes": 3302,
+      "sha256": "a0c63488e887d866d01f03017648ee8ef5866078f29172d13389aecc45ddc8f5",
+      "order": 2
+    },
+    {
+      "format": "claude-skill",
+      "slug": "discover",
+      "path": "jira-discover/SKILL.md",
+      "bytes": 3298,
+      "sha256": "99db7ae79ee612a6afd5d5c75da4d03517dbcb71ba157d64659c7024d5b3c2f2",
+      "order": 3
+    },
+    {
+      "format": "claude-skill",
+      "slug": "find-issues",
+      "path": "jira-find-issues/SKILL.md",
+      "bytes": 3931,
+      "sha256": "ed8adad35f82660f652f28e013a3b35a9b65a6eb30c4939526107b2a8c55156b",
+      "order": 4
+    },
+    {
+      "format": "claude-skill",
+      "slug": "safe-mutation",
+      "path": "jira-safe-mutation/SKILL.md",
+      "bytes": 3595,
+      "sha256": "471eabf0062c35f868ae66b9374582c7a27ea461301af0c5062fcd853180fbd8",
+      "order": 5
+    },
+    {
+      "format": "claude-skill",
+      "slug": "shape-issues",
+      "path": "jira-shape-issues/SKILL.md",
+      "bytes": 3544,
+      "sha256": "958dd89366bbfa102d14be1d53aeb66ffbe7d1adcd75baa64ef2235183f10dfb",
+      "order": 6
+    },
+    {
+      "format": "claude-skill",
+      "slug": "annotate-issues",
+      "path": "jira-annotate-issues/SKILL.md",
+      "bytes": 3976,
+      "sha256": "3c6e35f20d68982a337452632905db2cfdc9875b49ba988ba077bbb791008a96",
+      "order": 7
+    },
+    {
+      "format": "claude-skill",
+      "slug": "restructure-issues",
+      "path": "jira-restructure-issues/SKILL.md",
+      "bytes": 3595,
+      "sha256": "985b31a07e35f1b0658c0e0600760d2c402df65975a0cefc0daab479b7f2cce3",
+      "order": 8
+    },
+    {
+      "format": "claude-skill",
+      "slug": "write-rich-text",
+      "path": "jira-write-rich-text/SKILL.md",
+      "bytes": 3256,
+      "sha256": "d92a57b18005622cc0d99c4f607439840180ab6c865a5a43d527c26410790ee3",
+      "order": 9
+    }
+  ],
+  "after": [
+    {
+      "format": "agent-skill",
+      "slug": "discover-cli",
+      "path": "jira-discover-cli/SKILL.md",
+      "bytes": 14150,
+      "sha256": "3fb668a07de531ae3727aff57bca251f0b6e150da4646a26f209c916fc1732b7",
+      "order": 10
+    },
+    {
+      "format": "agent-skill",
+      "slug": "machine-output",
+      "path": "jira-machine-output/SKILL.md",
+      "bytes": 19410,
+      "sha256": "8554c644db5209b15f7d562c184bbea0cc4f2b58867f8fe6713cee69dcfc2b71",
+      "order": 20
+    },
+    {
+      "format": "agent-skill",
+      "slug": "raw-api",
+      "path": "jira-raw-api/SKILL.md",
+      "bytes": 4731,
+      "sha256": "ac9875cd93276400de892124588ef5ebb274cebbc1c64c47437709295fe35b63",
+      "order": 30
+    },
+    {
+      "format": "agent-skill",
+      "slug": "jql-discovery",
+      "path": "jira-jql-discovery/SKILL.md",
+      "bytes": 9793,
+      "sha256": "b29488ac1b5f89c2f2c3a18cfbb673dddf7315a5ca760bad52b46ed461b33c90",
+      "order": 35
+    },
+    {
+      "format": "agent-skill",
+      "slug": "safe-mutation",
+      "path": "jira-safe-mutation/SKILL.md",
+      "bytes": 38619,
+      "sha256": "f99fe8f5e8a7a2d9a7b2ddd1ba437a3ae8cddb1bdd8a97c6e99d820aea8b3664",
+      "order": 40
+    },
+    {
+      "format": "agent-skill",
+      "slug": "cache-metadata",
+      "path": "jira-cache-metadata/SKILL.md",
+      "bytes": 8563,
+      "sha256": "bbc1221afa35fd1e9c3bb07bebf67ec4af9201050405f9088a64b3e98fba1182",
+      "order": 42
+    },
+    {
+      "format": "agent-skill",
+      "slug": "export-guides",
+      "path": "jira-export-guides/SKILL.md",
+      "bytes": 3146,
+      "sha256": "d6571f3cdffad401ceb231fb6ec972f757602ddd06a60e15f6ef1e1a17403dce",
+      "order": 50
+    },
+    {
+      "format": "agent-skill",
+      "slug": "configure-credentials",
+      "path": "jira-configure-credentials/SKILL.md",
+      "bytes": 10614,
+      "sha256": "998ebffe3fa1c534a16eb44dbaf71eb18d29f1b2be3b2ef165adee0e1bd84dbf",
+      "order": 65
+    },
+    {
+      "format": "agent-skill",
+      "slug": "migrate-configuration",
+      "path": "jira-migrate-configuration/SKILL.md",
+      "bytes": 8039,
+      "sha256": "c50ecfbd30efbc262355c46348d8680b0236b87c2087fa228ec1aa7de0bc40be",
+      "order": 67
+    },
+    {
+      "format": "agent-skill",
+      "slug": "configure-theme",
+      "path": "jira-configure-theme/SKILL.md",
+      "bytes": 5662,
+      "sha256": "7ece66d189f2f932de8c3cd4bcc36c9ee4a6ab035ad329875d6105d91825aa4c",
+      "order": 70
+    },
+    {
+      "format": "agent-skill",
+      "slug": "update-cli",
+      "path": "jira-update-cli/SKILL.md",
+      "bytes": 4804,
+      "sha256": "94aa5ef03f6e136754b705c28ff7e1f1020e825d5199770a8eb406f13e30bc24",
+      "order": 75
+    },
+    {
+      "format": "claude-skill",
+      "slug": "discover-cli",
+      "path": "jira-discover-cli/SKILL.md",
+      "bytes": 14155,
+      "sha256": "476429c681400d68c25cc4c8cf7bf941afd2a7602fb800933f4f1c596f5df59f",
+      "order": 10
+    },
+    {
+      "format": "claude-skill",
+      "slug": "machine-output",
+      "path": "jira-machine-output/SKILL.md",
+      "bytes": 19415,
+      "sha256": "0137b9fb184e2d73d7e9e77e36b9db1db71d2ab7c4cc9cfbbdbddadd901450f0",
+      "order": 20
+    },
+    {
+      "format": "claude-skill",
+      "slug": "raw-api",
+      "path": "jira-raw-api/SKILL.md",
+      "bytes": 4736,
+      "sha256": "a8213d2ac21c906ae62cec1df880c0e4efad7387a6bfcacdcff53ec455b4636f",
+      "order": 30
+    },
+    {
+      "format": "claude-skill",
+      "slug": "jql-discovery",
+      "path": "jira-jql-discovery/SKILL.md",
+      "bytes": 9798,
+      "sha256": "8d6fa20d085fba9255b53ed7725e0057858bb7567ef7f93055c545c608992c54",
+      "order": 35
+    },
+    {
+      "format": "claude-skill",
+      "slug": "safe-mutation",
+      "path": "jira-safe-mutation/SKILL.md",
+      "bytes": 38624,
+      "sha256": "be1062d1ec637a22bdd77742be62050834475707422e5ded05b70146ea789ce5",
+      "order": 40
+    },
+    {
+      "format": "claude-skill",
+      "slug": "cache-metadata",
+      "path": "jira-cache-metadata/SKILL.md",
+      "bytes": 8568,
+      "sha256": "efa940f1eb43a5c9b311ed228838d68ce6be4ade8f088e566c8bccc319810623",
+      "order": 42
+    },
+    {
+      "format": "claude-skill",
+      "slug": "export-guides",
+      "path": "jira-export-guides/SKILL.md",
+      "bytes": 3151,
+      "sha256": "5f2bdf12640effa766c36a674d59dac98d3e48f88521f8aa8a81084b31987be8",
+      "order": 50
+    },
+    {
+      "format": "claude-skill",
+      "slug": "configure-credentials",
+      "path": "jira-configure-credentials/SKILL.md",
+      "bytes": 10619,
+      "sha256": "0c18be11779d554e43d80b2b9dfacf3b50d1a8b4609f463c3894873f6e5d7620",
+      "order": 65
+    },
+    {
+      "format": "claude-skill",
+      "slug": "migrate-configuration",
+      "path": "jira-migrate-configuration/SKILL.md",
+      "bytes": 8044,
+      "sha256": "08192ac3113451008426b78a2903480ff7f29b897f4f55833bb7919ff44188e2",
+      "order": 67
+    },
+    {
+      "format": "claude-skill",
+      "slug": "configure-theme",
+      "path": "jira-configure-theme/SKILL.md",
+      "bytes": 5667,
+      "sha256": "6ada86dd00a10a8c85584c2442a48e020322003b96c992d7042715a67b4258ef",
+      "order": 70
+    },
+    {
+      "format": "claude-skill",
+      "slug": "update-cli",
+      "path": "jira-update-cli/SKILL.md",
+      "bytes": 4809,
+      "sha256": "676fb3b82f8f432f7f552b85d13a6079c9e8cc6fd736ee2bfcea84d12dbe40c5",
+      "order": 75
+    }
+  ]
+}

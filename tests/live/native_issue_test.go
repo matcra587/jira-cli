@@ -24,7 +24,8 @@ type nativeIssueInput struct {
 	preflight bool
 }
 
-// Only fixed property, owned-parent, custom-date and missing-field preflight workflows register issue input.
+// Only fixed property, owned-parent, custom-date, admitted self-assignee and
+// missing-field preflight workflows register issue input.
 // Exact arguments, active ownership and a byte digest prevent a registered
 // file from becoming a route to selectors, fan-out or another issue.
 func (r *liveRun) checkNativeIssueMutation(keys, args []string) error {

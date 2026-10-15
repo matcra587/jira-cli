@@ -298,7 +298,7 @@ func TestClearVisibilityConflictRefusesEitherSetter(t *testing.T) {
 		{"developers", ""},
 		{"", "Administrators"},
 	} {
-		err := clearVisibilityConflict(true, tc.group, tc.role)
+		err := clearVisibilityConflict(true, tc.group != "", tc.role != "")
 		if err == nil {
 			t.Fatalf("--clear-visibility with group=%q role=%q must be refused; the request carries one answer", tc.group, tc.role)
 		}
@@ -325,7 +325,7 @@ func TestClearVisibilityConflictAllowsEachAlone(t *testing.T) {
 		{false, "", "Administrators"},
 		{false, "", ""},
 	} {
-		if err := clearVisibilityConflict(tc.clear, tc.group, tc.role); err != nil {
+		if err := clearVisibilityConflict(tc.clear, tc.group != "", tc.role != ""); err != nil {
 			t.Errorf("clearVisibilityConflict(%v, %q, %q) = %v, want nil", tc.clear, tc.group, tc.role, err)
 		}
 	}

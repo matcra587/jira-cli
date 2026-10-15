@@ -884,7 +884,12 @@ func separateComment(
 		// An accompanying error does not erase a usable resource identity.
 		data.CommentID = write.Comment.ID.Value
 	}
-	err = errors.Join(err, receiptErr)
+	// A failed call need not return a receipt. Do not replace a permission,
+	// cancellation or transport error with a fabricated acknowledgement error.
+	// Successful calls still require a usable native comment identity.
+	if err == nil {
+		err = receiptErr
+	}
 	if err != nil {
 		class := cli.MapError(err)
 		data.CommentPosted = envelope.CommentPostedFailed

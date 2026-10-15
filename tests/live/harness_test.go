@@ -85,19 +85,21 @@ type ownedComment struct {
 }
 
 type liveManifest struct {
-	RunID        string          `json:"run_id"`
-	BaseURL      string          `json:"base_url"`
-	Project      string          `json:"project"`
-	Attempts     []string        `json:"create_attempts"`
-	Issues       []ownedIssue    `json:"issues"`
-	BinarySHA256 string          `json:"binary_sha256"`
-	StartedAt    string          `json:"started_at"`
-	BulkTasks    []ownedBulkTask `json:"bulk_tasks,omitempty"`
-	Links        []ownedLink     `json:"links,omitempty"`
+	RunID          string          `json:"run_id"`
+	BaseURL        string          `json:"base_url"`
+	Project        string          `json:"project"`
+	Attempts       []string        `json:"create_attempts"`
+	Issues         []ownedIssue    `json:"issues"`
+	BinarySHA256   string          `json:"binary_sha256"`
+	StartedAt      string          `json:"started_at"`
+	BulkTasks      []ownedBulkTask `json:"bulk_tasks,omitempty"`
+	Links          []ownedLink     `json:"links,omitempty"`
+	PendingDeletes []string        `json:"pending_deletes,omitempty"`
 }
 
 type liveRun struct {
 	binary           string
+	cacheDir         string
 	dir              string
 	issueType        string
 	account          string
@@ -212,14 +214,29 @@ func (r *liveRun) invoke(t *testing.T, ctx context.Context, extraEnv []string, a
 // machine, timeout and headless flags in invoke.
 func (r *liveRun) invokeRaw(t *testing.T, ctx context.Context, extraEnv []string, args ...string) ([]byte, int) {
 	t.Helper()
+	return r.invokeSelectedRaw(t, ctx, r.binary, extraEnv, args...)
+}
+
+// invokeSelectedRaw keeps process supervision and receipts shared while binding
+// each differential invocation to its own binary. Cleanup always uses r.binary.
+func (r *liveRun) invokeSelectedRaw(t *testing.T, ctx context.Context, binary string, extraEnv []string, args ...string) ([]byte, int) {
+	t.Helper()
+	environment := append(os.Environ(), "JIRA_API_TOKEN=", "JIRA_KEYRING=true", "NO_COLOR=1", "TERM=dumb")
+	if r.verified {
+		environment = append(environment, "JIRA_BASE_URL="+r.manifest.BaseURL, "JIRA_READ_ONLY=false")
+	}
+	if r.cacheDir != "" {
+		environment = append(environment, "XDG_CACHE_HOME="+r.cacheDir)
+	}
+	return r.invokeEnvironmentRaw(t, ctx, binary, append(environment, extraEnv...), args...)
+}
+
+func (r *liveRun) invokeEnvironmentRaw(t *testing.T, ctx context.Context, binary string, environment []string, args ...string) ([]byte, int) {
+	t.Helper()
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, r.binary, args...)
-	cmd.Env = append(os.Environ(), "JIRA_API_TOKEN=", "JIRA_KEYRING=true", "NO_COLOR=1", "TERM=dumb")
-	if r.verified {
-		cmd.Env = append(cmd.Env, "JIRA_BASE_URL="+r.manifest.BaseURL, "JIRA_READ_ONLY=false")
-	}
-	cmd.Env = append(cmd.Env, extraEnv...)
+	cmd := exec.CommandContext(ctx, binary, args...)
+	cmd.Env = environment
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	exit := 0
@@ -435,6 +452,10 @@ func (r *liveRun) cleanup(t *testing.T) {
 	for i := len(r.manifest.Issues) - 1; i >= 0; i-- {
 		owned := &r.manifest.Issues[i]
 		if owned.Deleted {
+			continue
+		}
+		if slices.Contains(r.manifest.PendingDeletes, owned.Key) {
+			t.Errorf("owned deletion remains unresolved; retain manifest without replay")
 			continue
 		}
 		// Cleanup is a fresh invocation and never includes an inferred key.

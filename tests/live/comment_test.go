@@ -130,7 +130,7 @@ func rawOwnedComment(t *testing.T, r *liveRun, key, id string) storedOwnedCommen
 	return comment
 }
 
-func requireStoredComment(t *testing.T, r *liveRun, key, id string, body []byte, role string) {
+func requireNativeComment(t *testing.T, r *liveRun, key, id string, body []byte, role string) {
 	t.Helper()
 	stored := rawOwnedComment(t, r, key, id)
 	equal, err := adf.StructuralEqual(body, stored.Body)
@@ -144,6 +144,11 @@ func requireStoredComment(t *testing.T, r *liveRun, key, id string, body []byte,
 	} else if stored.Visibility == nil || stored.Visibility.Type != "role" || stored.Visibility.Value != role {
 		t.Fatal("stored comment lost its authored role restriction")
 	}
+}
+
+func requireStoredComment(t *testing.T, r *liveRun, key, id string, body []byte, role string) {
+	t.Helper()
+	requireNativeComment(t, r, key, id, body, role)
 	listed := r.success(t, "issue", "comment", "list", key, "--all")
 	if err := verifyStoredADFComments(map[string]json.RawMessage{id: body}, listed); err != nil {
 		t.Fatal(err)
