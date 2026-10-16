@@ -221,8 +221,8 @@
   "after": {
     "contract_version": "1",
     "index_sha256": "2ca21292572414856ad590161d81e7560c33debe5f9b6ae39e3bd5af525caefd",
-    "all_sha256": "a1c255f237f20d21d3c50e9773ab1d3655193e541aa21b9182c8f36509c0ae60",
-    "all_human_sha256": "6a9d5a070f6a5f29eae966a0126d27384cb767d3344a9c92615c7d12ddb5bc59",
+    "all_sha256": "a17fe4f02c288409030a8de65adb39e15c6ac7d65f0e521b4fa978c2c2cdeb25",
+    "all_human_sha256": "30307c92e3ec1e7197d1f8e1235b5e2d4cbc9027eb6e9c7c85eb19e3558aa53b",
     "guides": [
       {
         "slug": "discover-cli",
@@ -375,10 +375,10 @@
         ],
         "order": 40,
         "aliases": [],
-        "source_sha256": "c4985aa72d381e01e3133c482c6d519e9bbaefc46de87c5ae942a2a63887ea83",
-        "runbook_sha256": "1b71c07a2d375e129545668030fbdbcc737f9593aa54e8996fbe29e345a721fd",
+        "source_sha256": "dc41710c138a611e69aa2a69e8d9d4ffe4d2826d58e7a46453102a855845d88e",
+        "runbook_sha256": "dedeb098c64b50679281da5b050ed0e1b350e779a53605e4460cb8c3abda6074",
         "sections": {
-          "Decide": "7b8dedb0515081fe5afa76287669231d38e8b7b0ef0a6c1b5afbd8d4da6ec301",
+          "Decide": "1eaea919b717430190806df60400a67b9870b96e1c5cf90e8215185da4fd8051",
           "Run": "e5ce870238ce25071e6d4867535e3d8e04cefe07fcea4249487c5ec554a84f65",
           "Save": "74b82c40f13eafe0c43d11d1d194aa1895e274c776a0aae978d16b6ea4d10306",
           "Preconditions": "9de2b5a6dbb69e34bd625b284b3b95eedbff4dde1eac9760f85723a7b3e60fb7",

@@ -23,6 +23,17 @@ to inspect them before retrying.
 
 ### Select explicit issue targets
 
+Issue comment add, clone, delete, edit and transition expand explicit comma lists
+and inclusive ranges such as `KEY-1:3` or `KEY-1..KEY-3`. Repeated keys run once
+in first-occurrence order, including numerically equivalent keys such as
+`KEY-001` and `KEY-1`. Invalid expressions or more than 1000 unique keys refuse
+before any Jira request. Transition status remains separate from those keys.
+`issue edit --generate-json` uses the same explicit target rules.
+
+For `--from-file`, each nonblank, uncommented line remains a literal target.
+CSV and range syntax is not expanded. Exact repeated lines run once, retaining
+their first position. The selector cap counts 100 unique lines.
+
 ### Resolve an assignee or the current account
 
 The `--assignee` flag also accepts a bare email. A live run or

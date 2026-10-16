@@ -1,5 +1,11 @@
 # Jira CLI development
 
+Explicit issue comment/clone/delete/edit/transition targets use
+`command.ResolveTargets` and the existing `ParseIssueKeys` grammar before client
+entry. Keep ordered unique expansion, whole-list refusal and literal deduplicated
+file selectors. Transition passes extracted keys without its status; edit input
+discovery shares this owner. Remote duplicate search results still refuse.
+
 Logout remaining-source facts require an actual nonempty token. Derive both
 remaining_source and env_token_remains from the same post-removal observation;
 include an exposed environment fallback and never label an empty default as a

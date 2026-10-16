@@ -49,6 +49,12 @@ const (
 // establishes that the target set is complete.
 const MaxSelectorKeys = 100
 
+// ExplicitTargetHelp documents the shared explicit-key grammar before selectors.
+const ExplicitTargetHelp = "Explicit issue keys accept comma lists and inclusive ranges " +
+	"such as `KEY-1:3` or `KEY-1..KEY-3`. Repeated keys run once, in first-occurrence " +
+	"order, after canonicalizing their numeric suffix. Invalid expressions and " +
+	"expansions beyond 1000 unique keys refuse before any Jira request."
+
 // SelectorHelp is the paragraph every selector-bearing command's Long
 // text carries, so five commands cannot describe one mechanism five
 // ways.
@@ -61,7 +67,8 @@ const MaxSelectorKeys = 100
 // It states the four rules a caller can actually act on. It does not
 // restate the reasoning — the embedded agent guides own that, and the
 // design's §3.5 owns the argument.
-const SelectorHelp = "**Selecting issues instead of naming them.** `--jql`, `--filter` and " +
+const SelectorHelp = ExplicitTargetHelp + "\n\n" +
+	"**Selecting issues instead of naming them.** `--jql`, `--filter` and " +
 	"`--from-file` choose the issues for you. They are refused alongside " +
 	"named keys, and refused alongside each other — one way of saying " +
 	"which issues, per command. Because you did not name them, the " +
@@ -74,7 +81,9 @@ const SelectorHelp = "**Selecting issues instead of naming them.** `--jql`, `--f
 	"match: finding out is a read from the site, and a preview never " +
 	"contacts Jira. It says so and lists nothing. Add `--validate-remote` " +
 	"to resolve the query and list them while still writing nothing. " +
-	"`--from-file` needs no site, so a preview lists those keys normally."
+	"`--from-file` needs no site, so a preview lists those keys normally. " +
+	"File lines stay literal; repeated lines run once and the 100-issue cap " +
+	"counts unique lines."
 
 // SelectorFlags is the shared bulk-selector surface: three ways to name a
 // write's targets without typing their keys.
@@ -292,8 +301,18 @@ func ResolveTargets(
 	stdin io.Reader,
 	stdinIsTerminal bool,
 ) (core.JiraClient, Targets, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, Targets{}, err
+	}
 	if !f.Given() {
-		return nil, Targets{Keys: args}, nil
+		keys, err := ParseIssueKeys(args)
+		if canceled := ctx.Err(); canceled != nil {
+			return nil, Targets{}, canceled
+		}
+		if err != nil {
+			return nil, Targets{}, err
+		}
+		return nil, Targets{Keys: keys}, nil
 	}
 
 	summary := &envelope.SelectorSummary{Kind: f.kind(), Query: f.query()}
@@ -481,8 +500,8 @@ func searchKeys(ctx context.Context, client core.JiraClient, jql, kind string) (
 // argues: whether a key exists is knowable only from the site, a bad key
 // fails as its own entry rather than stopping the run, and a shape check
 // here would refuse a perfectly good key from a site whose project keys
-// this CLI did not anticipate. What a malformed line gets is the same
-// per-key failure a mistyped positional gets.
+// this CLI did not anticipate. File entries are literal, unlike explicit
+// positional expressions. Repeated literal lines retain their first position.
 func readKeyFile(ctx context.Context, path string, stdin io.Reader, stdinIsTerminal bool) ([]string, error) {
 	data, err := ReadInputFileContext(ctx, FlagFromFile, path, stdin, stdinIsTerminal)
 	if err != nil {
@@ -490,11 +509,16 @@ func readKeyFile(ctx context.Context, path string, stdin io.Reader, stdinIsTermi
 	}
 
 	var keys []string
+	seen := set.New[string]()
 	for line := range strings.Lines(string(data)) {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		if before, _, found := strings.Cut(line, "#"); found {
 			line = before
 		}
-		if key := strings.TrimSpace(line); key != "" {
+		if key := strings.TrimSpace(line); key != "" && !seen.Contains(key) {
+			seen.Add(key)
 			keys = append(keys, key)
 		}
 	}

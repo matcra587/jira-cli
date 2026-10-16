@@ -1478,3 +1478,11 @@ Single-comment native checks must not require a singleton thread when other
 registered comments exist. Keep exact native ID/body/visibility checks shared,
 then compare the full owned inventory separately. Retain failed fixture attempts
 and rerun corrected scenarios with fresh resources instead of replaying writes.
+
+## Duplicate comment target acceptance
+
+Paired live Jira duplicate-target controls admit only fixed repeated/CSV spellings of
+one active owned parent through the existing fixed Markdown recipe. Persist
+intent and IDs before assertions, register independently bound resources before
+behavior checks, and require complete native comment inventories to detect extra
+writes. Never use a deduplicated output row alone as exactly-once evidence.

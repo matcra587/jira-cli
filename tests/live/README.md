@@ -557,3 +557,22 @@ the same native payload; an admitted edit retains its checked field IDs. An
 unavailable field refuses on the owned issue, followed by an independent native
 state read. This tests screen/operation admission, not value validation, future
 permissions or server-enforced concurrency protection.
+
+Explicit target regression acceptance uses `TestParityActualBinaryCommentDuplicateTargets`
+for the paired legacy/current exactly-once comment control. The current-only
+`TestParityActualBinarySharedTargetPreviews` covers all five selector-bearing
+writers, ordered CSV/range expansion, canonical numeric suffixes and malformed
+late live-target refusals with disabled credentials, no HTTP and unchanged files.
+`TestParityActualBinarySharedTargetWrites` counts exact authenticated native
+writer entries for repeated, CSV and overlapping single-key ranges, plus edit
+input metadata reads. Its target-row oracle rejects duplicate JSON members,
+case aliases and reordered identities through named negative guards. These
+focused entry-count checks supplement the independent complete operation
+receipts; they do not establish live Jira behavior or native host acceptance.
+
+`TestLiveParityCommentDuplicateTargets` separately compares repeated and CSV
+targets against live Jira with both admitted binaries. Mutation admission accepts only
+two exact spellings of one active owned parent, using the fixed Markdown recipe.
+Persist intent and returned IDs before independent parent-bound ownership checks;
+require complete native inventories to show exactly one additional comment per
+command. A failed case stops later writes and retains the parent for cleanup.
