@@ -15,11 +15,13 @@ import (
 )
 
 type parityCommentAttempt struct {
-	Lane   string `json:"lane"`
-	Key    string `json:"key"`
-	Digest string `json:"body_sha256"`
-	ID     string `json:"returned_id"`
-	Bound  bool   `json:"bound"`
+	Lane      string `json:"lane"`
+	Key       string `json:"key"`
+	Digest    string `json:"body_sha256"`
+	ID        string `json:"returned_id"`
+	Bound     bool   `json:"bound"`
+	Operation string `json:"operation,omitempty"`
+	Source    string `json:"source,omitempty"`
 }
 
 func (r *liveRun) parityCommentInput(t *testing.T, key, id string, body []byte) string {
@@ -106,7 +108,17 @@ type parityCommentReply struct {
 	Visibility json.RawMessage
 }
 
-func parityCommentAddReply(stdout []byte, lane string, preview bool) parityCommentReply {
+func parityCommentAddReply(stdout []byte, lane string, preview bool, routes ...string) parityCommentReply {
+	route := "adf"
+	if (lane != "before" && lane != "after") || len(routes) > 1 {
+		return parityCommentReply{}
+	}
+	if len(routes) == 1 {
+		route = routes[0]
+	}
+	if route != "adf" && route != "markdown" {
+		return parityCommentReply{}
+	}
 	var frame struct {
 		Data struct {
 			Issue      liveIssue       `json:"issue"`
@@ -131,7 +143,7 @@ func parityCommentAddReply(stdout []byte, lane string, preview bool) parityComme
 		out.DryRun = *frame.Data.DryRun
 	}
 	if lane == "after" {
-		valid = valid && frame.Data.BodyRoute == "adf" && len(frame.Data.Results) == 1 && frame.Data.Results[0].OK
+		valid = valid && frame.Data.BodyRoute == route && len(frame.Data.Results) == 1 && frame.Data.Results[0].OK
 		if len(frame.Data.Results) == 1 {
 			row := frame.Data.Results[0]
 			out.Key = row.Issue.Key
@@ -253,7 +265,22 @@ func (p *parityRun) commentAdd(t *testing.T, lane parityLane, key, path string, 
 	return reply.ID
 }
 
-func parityCommentEditReceipt(stdout []byte, lane, key, id string, body []byte, mode, role string, preview bool) bool {
+type parityCommentReceiptOptions struct {
+	Route  string
+	Notify bool
+}
+
+func parityCommentEditReceipt(stdout []byte, lane, key, id string, body []byte, mode, role string, preview bool, options ...parityCommentReceiptOptions) bool {
+	want := parityCommentReceiptOptions{Route: "adf", Notify: true}
+	if (lane != "before" && lane != "after") || len(options) > 1 {
+		return false
+	}
+	if len(options) == 1 {
+		want = options[0]
+	}
+	if want.Route != "adf" && want.Route != "markdown" || lane == "before" && !want.Notify {
+		return false
+	}
 	var frame struct {
 		Data struct {
 			Issue             liveIssue       `json:"issue"`
@@ -279,7 +306,7 @@ func parityCommentEditReceipt(stdout []byte, lane, key, id string, body []byte, 
 		if frame.Data.VisibilityChange != mode || !nativeMetadataMatches(frame.Data.Summary, body, nil) {
 			return false
 		}
-	} else if frame.Data.BodyRoute != "adf" || frame.Data.VisibilityCleared == nil || *frame.Data.VisibilityCleared != (mode == "clear") || !nativeMetadataMatches(frame.Data.Body, body, nil) || !parityCommentVisibility(frame.Data.Visibility, mode, role) || frame.Data.Notify == nil || !*frame.Data.Notify {
+	} else if frame.Data.BodyRoute != want.Route || frame.Data.VisibilityCleared == nil || *frame.Data.VisibilityCleared != (mode == "clear") || !nativeMetadataMatches(frame.Data.Body, body, nil) || !parityCommentVisibility(frame.Data.Visibility, mode, role) || frame.Data.Notify == nil || *frame.Data.Notify != want.Notify {
 		return false
 	}
 	if preview {

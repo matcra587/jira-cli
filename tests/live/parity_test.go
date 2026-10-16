@@ -57,6 +57,7 @@ type parityEvidence struct {
 	Ranks       []parityRankAttempt        `json:"rank_attempts,omitempty"`
 	Epics       []parityEpicAttempt        `json:"epic_attempts,omitempty"`
 	FieldMoves  []parityFieldMoveAttempt   `json:"field_move_attempts,omitempty"`
+	EditFlags   []parityEditFlagsAttempt   `json:"edit_flag_attempts,omitempty"`
 }
 
 type parityRun struct {
@@ -449,6 +450,22 @@ func (p *parityRun) create(t *testing.T, lane parityLane) string {
 		t.Fatal(err)
 	}
 	frame, _, exit := p.invoke(t, lane, nil, "issue", "create", "--json-input", input, "--verify")
+	issue := p.bindCreated(t, lane, index, frame, exit)
+	var fields struct {
+		Description json.RawMessage `json:"description"`
+	}
+	if json.Unmarshal(issue.Fields, &fields) != nil || !nativeMetadataMatches(fields.Description, json.RawMessage(parityDescription), nil) {
+		t.Fatal("created native description differs from independently authored rich ADF")
+	}
+	return issue.Key
+}
+
+// Bind ownership before checking the remaining field or presentation assertions.
+// A failed acknowledgement must still retain independently identified cleanup.
+func (p *parityRun) bindCreated(t *testing.T, lane parityLane, index int, frame liveFrame, exit int) liveIssue {
+	t.Helper()
+	r := p.owner
+	summary := p.evidence.Creations[index].Summary
 	// Preserve a returned identity before assertions, including nonzero exits.
 	p.evidence.Creations[index].Identity = frame.Data.Issue
 	p.save(t)
@@ -482,10 +499,7 @@ func (p *parityRun) create(t *testing.T, lane parityLane) string {
 	if lane.Name == "after" && !parityCurrentCreateAcknowledged(frame, issue) {
 		t.Fatal("current creation lost its attempted/applied/native receipt contract; cleanup retained")
 	}
-	if !nativeMetadataMatches(fields.Description, json.RawMessage(parityDescription), nil) {
-		t.Fatal("created native description differs from independently authored rich ADF")
-	}
-	return issue.Key
+	return issue
 }
 
 func parityCurrentCreateAcknowledged(frame liveFrame, issue liveIssue) bool {
@@ -622,13 +636,15 @@ func TestParityFingerprint(t *testing.T) {
 	}
 }
 
-func parityUnchangedFields(observed, original json.RawMessage, changed string) bool {
+func parityUnchangedFields(observed, original json.RawMessage, changed ...string) bool {
 	var after, before map[string]json.RawMessage
 	if json.Unmarshal(observed, &after) != nil || json.Unmarshal(original, &before) != nil || after == nil || before == nil {
 		return false
 	}
-	delete(after, changed)
-	delete(before, changed)
+	for _, name := range changed {
+		delete(after, name)
+		delete(before, name)
+	}
 	a, errA := json.Marshal(after)
 	b, errB := json.Marshal(before)
 	return errA == nil && errB == nil && nativeMetadataMatches(a, b, nil)

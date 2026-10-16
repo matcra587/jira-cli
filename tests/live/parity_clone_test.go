@@ -272,8 +272,8 @@ type parityCloneObservedFields struct {
 
 // This fixture requests no native create followups. Its independently read
 // minimal identity must agree with the entire corresponding public receipt.
-func parityCloneAcknowledged(data []byte, lane, source string, clone liveIssue, fields map[string]any) bool {
-	if clone.ID == "" || clone.Key == "" || clone.Self == "" {
+func parityCloneAcknowledged(data []byte, lane, source string, clone liveIssue, fields map[string]any, selectors ...map[string]any) bool {
+	if clone.ID == "" || clone.Key == "" || clone.Self == "" || len(selectors) > 1 || len(selectors) != 0 && lane != "after" {
 		return false
 	}
 	identity := map[string]any{"id": clone.ID, "key": clone.Key, "self": clone.Self}
@@ -285,6 +285,9 @@ func parityCloneAcknowledged(data []byte, lane, source string, clone liveIssue, 
 		expected = map[string]any{"dry_run": false, "results": []any{map[string]any{"issue": map[string]any{"key": source}, "ok": true, "data": map[string]any{"applied": true, "clone": identity, "receipt": identity}}}}
 	default:
 		return false
+	}
+	if len(selectors) == 1 {
+		expected["selector"] = selectors[0]
 	}
 	raw, err := json.Marshal(expected)
 	return err == nil && parityAuthoringJSON(data, raw)

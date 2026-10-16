@@ -213,6 +213,44 @@ func TestLiveParityWorklogCreation(t *testing.T) {
 				t.Fatal("nonempty native worklog list differs from independently observed creation")
 			}
 			p.check(t, lane, "C073.worklogs.native-created")
+			if lane.Name == "after" {
+				for _, tc := range []struct {
+					name        string
+					start, size int
+					flags       []string
+				}{
+					{"one-record", 0, 1, []string{"--limit=1"}},
+					{"after-record", 1, 1, []string{"--start=1", "--limit=1"}},
+					{"all-records", 0, 100, []string{"--all"}},
+				} {
+					if !t.Run("paging/"+tc.name, func(t *testing.T) {
+						// The preceding acknowledged write supplied one independently
+						// bound record. Compare a separately requested native page;
+						// an empty pre-existing issue cannot prove offset selection.
+						read := rawRead(t, p.owner, "api", "get", "/rest/api/3/issue/"+key+"/worklog", "--query=startAt="+fmt.Sprint(tc.start), "--query=maxResults="+fmt.Sprint(tc.size))
+						expected, ok := parityNativeWorklogExpected(read.Response.JSON, tc.start, tc.size)
+						if !ok || !expected.Complete || expected.Total != 1 || len(expected.Native) != 1-tc.start {
+							t.Fatal("owned native paging fixture lost its acknowledged single record or exact offset")
+						}
+						if tc.start == 0 && !parityAuthoringJSON(expected.Native[0], stored.Native[0]) {
+							t.Fatal("independent native worklog changed before paging entry")
+						}
+						args := append([]string{"worklog", "list", key}, tc.flags...)
+						frame, stdout, exit := p.invoke(t, lane, []string{"JIRA_READ_ONLY=true"}, args...)
+						pages := map[string]parityWorklogExpected{key: expected}
+						if exit != 0 || !frame.OK || !parityWorklogProjection(parityWorklogData(t, stdout, lane.Name, "json", keys, pages), lane.Name, keys, pages) {
+							t.Fatal("explicit worklog paging differs from its independent native record, offset or complete receipt")
+						}
+						after, _ := p.nativeWorklogPage(t, key)
+						if len(after.Native) != 1 || !parityAuthoringJSON(after.Native[0], stored.Native[0]) {
+							t.Fatal("worklog paging changed its owned stored record")
+						}
+						p.check(t, lane, "C073.worklogs.paging."+tc.name+".native")
+					}) {
+						return
+					}
+				}
+			}
 		}) {
 			return
 		}
