@@ -38,6 +38,29 @@ validity, projection warnings, context bounds and source/remote preservation
 are checked independently. This does not establish lossless editing or remote
 concurrency protection.
 
+Local update-routing acceptance runs both frozen binaries from owned disposable
+copies with independent digest/version checks. Mise/Scoop path detection compares
+canonical/alias commands, preview/live/forced modes and complete JSON/compact
+receipts. Native installer observers have exact executed positive controls and
+must remain unentered; the copied installation and owned files stay unchanged,
+with no observed HTTP. Current source-build unknown-install refusals retain exact
+typed data and diagnostics. Those controls are current-only because the selected
+legacy official release remains archive-stamped. Archive publication, real
+installer ownership, human output and native Windows/macOS behavior remain open.
+
+Supplementary Linux archive comparisons live in
+`../contract/parity_update_archive_linux_test.go`. They select a separate
+archive-stamped build of the current revision and a synthetic replacement;
+neither replaces the primary admitted candidate. An owned fixed-host HTTPS
+fixture supplies release discovery, archive bytes and checksums to both actual
+CLIs. JSON/compact cases bind preview, consent refusal, canonical installation,
+renamed installation, checksum refusal and no-newer-release behavior to native
+bytes/version and exact requests. Legacy release prefixes and repeated discovery
+remain explicit. Its renamed-copy refusal differs from the current successful
+publication. Selected artifacts and private disposable installations remain
+available; temporary download stages must be empty. Real release delivery,
+other platforms and interactive behavior still need separate acceptance.
+
 Synthetic environment-login acceptance compares JSON/compact initial and repeated
 login plus refusal of a supplied stdin credential. Complete public receipts and
 independently decoded settings retain legacy profile defaults and current bound
@@ -68,6 +91,24 @@ its complete refusal. An owned observer positively executes with exact literal
 argv before a separate marker detects unexpected editor entry.
 Interactive public editing, broader failures and protected remote application
 remain separate requirements; no legacy editing counterpart is invented.
+
+Supplementary Linux public-editor acceptance lives in
+`../contract/parity_description_editor_linux_test.go`. Select the clean frozen
+current binary and its SHA-256 with `JIRA_PARITY_DESCRIPTION_BINARY` and
+`JIRA_PARITY_DESCRIPTION_SHA256`, and require its exact commit through
+`JIRA_PARITY_DESCRIPTION_REVISION`. Supply an independently verified live Jira draft
+directory and its exact source digest through
+`JIRA_PARITY_DESCRIPTION_SOURCE_DIRECTORY` and
+`JIRA_PARITY_DESCRIPTION_SOURCE_SHA256`. Use an unused absolute private directory
+for `JIRA_PARITY_DESCRIPTION_EDITOR_EVIDENCE_DIR`. Each JSON/compact scenario edits
+a separate copy through actual borrowed terminals. Success, unchanged saves,
+failed exits, invalid UTF-8, graceful cancellation and interrupt-resistant
+cancellation bind complete candidates or recovery receipts, literal editor argv,
+changed/restored modes, joined termination and retained saved work. Editor screen
+output stays separate from result stdout, and credential-disabled local execution
+observes no HTTP. This is current-only local acceptance on historical live Jira source;
+it does not establish fresh Jira editing, an old-layout counterpart, other native
+platforms or protected remote application.
 
 Current-only native bulk move acceptance converts one owned issue to a verified
 same-project type and back. Local/remote previews and read-only refusals preserve

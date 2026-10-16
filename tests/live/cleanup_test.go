@@ -12,6 +12,12 @@ import (
 // The test executable serves as a hermetic CLI fixture. TestMain handles this
 // mode before Go parses the appended Jira arguments; it never contacts Jira.
 func TestMain(m *testing.M) {
+	if os.Getenv("JIRA_PARITY_UPDATE_MANAGER_OBSERVER") == "1" {
+		if err := parityUpdateManagerObservation(); err != nil {
+			os.Exit(8)
+		}
+		os.Exit(0)
+	}
 	if os.Getenv("JIRA_LIVE_CLEANUP_HELPER") == "1" {
 		args := os.Args[1:]
 		if len(args) >= 5 && args[0] == "issue" && args[1] == "move" && args[2] == "status" {

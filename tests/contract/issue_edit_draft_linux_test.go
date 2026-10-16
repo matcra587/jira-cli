@@ -71,9 +71,26 @@ func TestIssueDraftEditorHelperProcess(t *testing.T) {
 			os.Exit(27)
 		}
 	}
-	data, err := json.Marshal(readyEditor{PID: os.Getpid(), Scratch: markdown})
+	data, err := json.Marshal(struct {
+		readyEditor
+		Args []string `json:"args"`
+	}{readyEditor{PID: os.Getpid(), Scratch: markdown}, slices.Clone(args)})
 	if err != nil || os.WriteFile(marker, data, 0o600) != nil {
 		os.Exit(28)
+	}
+	if release := os.Getenv("JIRA_TEST_DRAFT_EDITOR_RELEASE"); release != "" {
+		_, _ = os.Stdout.WriteString("owned-editor-stdout\n")
+		_, _ = os.Stderr.WriteString("owned-editor-stderr\n")
+		deadline := time.Now().Add(10 * time.Second)
+		for {
+			if _, err := os.Stat(release); err == nil {
+				break
+			}
+			if time.Now().After(deadline) {
+				os.Exit(30)
+			}
+			time.Sleep(time.Millisecond)
+		}
 	}
 	switch mode {
 	case "failure":

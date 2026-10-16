@@ -42,14 +42,16 @@ import (
 // owned HTTPS CONNECT proxy. The CLI still checks the actual host, certificate,
 // anonymous request policy and asset IDs; no production endpoint override exists.
 type nativeReleaseFixture struct {
-	env      []string
-	mu       sync.Mutex
-	requests map[string]int
-	metadata []byte
-	archive  []byte
-	checksum []byte
-	status   int
-	onLatest func(context.Context)
+	env          []string
+	mu           sync.Mutex
+	requests     map[string]int
+	targets      map[string]int
+	metadata     []byte
+	listMetadata []byte
+	archive      []byte
+	checksum     []byte
+	status       int
+	onLatest     func(context.Context)
 }
 
 func nativeReleaseServer(t *testing.T, candidate []byte) *nativeReleaseFixture {
@@ -71,7 +73,7 @@ func nativeReleaseServer(t *testing.T, candidate []byte) *nativeReleaseFixture {
 	}
 	name := "jira_1.2.3_linux_" + runtime.GOARCH + ".tar.gz"
 	fixture := &nativeReleaseFixture{
-		requests: make(map[string]int), archive: packed.Bytes(), status: http.StatusOK,
+		requests: make(map[string]int), targets: make(map[string]int), archive: packed.Bytes(), status: http.StatusOK,
 		checksum: fmt.Appendf(nil, "%x  %s\n", sha256.Sum256(packed.Bytes()), name),
 	}
 	fixture.metadata = fmt.Appendf(nil, `{"id":100,"tag_name":"v1.2.3","draft":false,"prerelease":false,"published_at":"2026-01-01T00:00:00Z","assets":[{"id":10,"name":%q,"state":"uploaded","size":%d},{"id":11,"name":"checksums.txt","state":"uploaded","size":%d}]}`, name, len(fixture.archive), len(fixture.checksum))
@@ -98,6 +100,7 @@ func nativeReleaseServer(t *testing.T, candidate []byte) *nativeReleaseFixture {
 		fixture.mu.Lock()
 		defer fixture.mu.Unlock()
 		fixture.requests[request.URL.Path]++
+		fixture.targets[request.URL.RequestURI()]++
 		if request.Method != http.MethodGet || request.Host != "api.github.com" || request.Header.Get("Authorization") != "" || request.Header.Get("Cookie") != "" {
 			t.Errorf("release request violated fixed anonymous GET policy: %s %s", request.Method, request.Host)
 			writer.WriteHeader(http.StatusForbidden)
@@ -105,6 +108,15 @@ func nativeReleaseServer(t *testing.T, candidate []byte) *nativeReleaseFixture {
 		}
 		var body []byte
 		switch request.URL.Path {
+		case "/repos/matcra587/jira-cli/releases":
+			if fixture.listMetadata == nil {
+				t.Errorf("release command used an unselected release-list endpoint")
+				writer.WriteHeader(http.StatusNotFound)
+				return
+			}
+			writer.Header().Set("Content-Type", "application/json")
+			writer.WriteHeader(fixture.status)
+			body = fixture.listMetadata
 		case "/repos/matcra587/jira-cli/releases/latest":
 			if fixture.onLatest != nil {
 				fixture.onLatest(request.Context())
