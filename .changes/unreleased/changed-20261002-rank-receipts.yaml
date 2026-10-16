@@ -1,3 +1,3 @@
 kind: changed
-body: "Retain per-issue rank receipts for acknowledged moves and native failures. Richer receipts do not make an uncertain rank request safe to replay."
+body: "Retain ordered per-issue rank receipts through sequential native requests of at most 50 issues. Chain successors after the prior last issue and stop them after failure, partial/malformed reply or cancellation. Report acknowledged and unsubmitted moves separately. Large ordered ranking already existed in v0.15; richer receipts do not make an uncertain rank request safe to replay."
 time: 2026-10-02T17:40:04.487154939-04:00

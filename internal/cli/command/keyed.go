@@ -267,6 +267,8 @@ func KeyFailureRanks() map[string]int { return maps.Clone(keyFailureSeverity) }
 // worth retrying as a unit. Then the per-key facts — a missing issue, a
 // rejected value — which are genuinely about the key that carried them.
 var keyFailureSeverity = map[string]int{
+	// Withheld work must never outrank the failure that stopped its predecessor.
+	cli.CodeRankNotAttempted: 0,
 	// 5 — the run was cut short. Whatever any single key reported, this
 	// is what happened to the command.
 	cli.CodeCanceled: 5,

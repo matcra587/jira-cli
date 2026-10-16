@@ -9,6 +9,15 @@ paths:
 
 # Commands
 
+Ranking uses `core.PlanRankRequests` to validate the complete ordered move
+before constructing independent native requests. Keep `core.MaxRankIssues` at
+50 for each request. Execute batches sequentially through the same context and
+client, chaining later batches after the previous last issue. A failed, partial,
+malformed or canceled batch stops its successors. Preserve earlier acknowledgements,
+original causes and complete typed source order; `rank_not_attempted` means no
+request entered for that move and never outranks the stopping cause. Preview
+remains local and provider-free. Do not replay or automatically roll back moves.
+
 After an acknowledged transition, a failed separate comment retains its original
 permission, cancellation or transport classification. A missing receipt is an
 error only when the comment call otherwise succeeds. Preserve any usable comment

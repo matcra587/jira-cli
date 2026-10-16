@@ -71,6 +71,8 @@ func TestMapError(t *testing.T) {
 		{name: "canceled transition discovery", err: errors.Join(core.ErrTransitionReadInvalid, context.Canceled), wantCode: "canceled", wantExit: ExitCanceled},
 		{name: "timed out transition discovery", err: errors.Join(core.ErrTransitionReadInvalid, context.DeadlineExceeded), wantCode: "timeout", wantExit: ExitTimeout},
 		{name: "uncertain ranking receipt", err: fmt.Errorf("write: %w", core.ErrRankResponseInvalid), wantCode: CodeRankResponseInvalid, wantExit: ExitServer},
+		{name: "unsubmitted ranking move", err: fmt.Errorf("later batch: %w", core.ErrRankNotAttempted), wantCode: CodeRankNotAttempted, wantExit: ExitServer},
+		{name: "canceled unsubmitted ranking move", err: errors.Join(core.ErrRankNotAttempted, context.Canceled), wantCode: CodeCanceled, wantExit: ExitCanceled},
 		{name: "uncertain issue deletion", err: fmt.Errorf("delete: %w", core.ErrIssueDeleteResponseInvalid), wantCode: CodeIssueDeleteResponseInvalid, wantExit: ExitServer},
 		{name: "canceled uncertain issue deletion", err: errors.Join(core.ErrIssueDeleteResponseInvalid, context.Canceled), wantCode: "canceled", wantExit: ExitCanceled},
 		{name: "timed out uncertain issue deletion", err: errors.Join(core.ErrIssueDeleteResponseInvalid, context.DeadlineExceeded), wantCode: "timeout", wantExit: ExitTimeout},
@@ -136,7 +138,7 @@ func TestRegistryIsComplete(t *testing.T) {
 	t.Parallel()
 	statuses := []int{400, 401, 403, 404, 405, 409, 412, 429, 500, 502, 503}
 	codes := map[string]bool{"canceled": true, "timeout": true, "validation_failed": true, "output_write_failed": true, CodeRedirectRefused: true, CodeAPIResponseIncomplete: true}
-	for _, err := range []error{core.ErrUserNotFound, core.ErrUserAmbiguous, core.ErrUserResolutionIncomplete, core.ErrUserSearchResponseInvalid, core.ErrUserLookupResponseInvalid, attachmentfiles.ErrInvalid, core.ErrAttachmentResponseInvalid, core.ErrCommentResponseInvalid, core.ErrTransitionResponseInvalid, core.ErrTransitionReadInvalid, core.ErrWeblinkResponseInvalid, core.ErrRankResponseInvalid, core.ErrIssueDeleteResponseInvalid, core.ErrIssueCreateResponseInvalid, core.ErrIssueCreateFollowupFailed, core.ErrIssueDescriptionInvalid, core.ErrIssueDescriptionScopeChanged, core.ErrIssueDescriptionUnavailable, core.ErrIssueEditDraftInvalid, core.ErrIssueEditDraftChanged, core.ErrIssueEditDraftIO, core.ErrIssueMetadataInvalid, core.ErrIssueMetadataUnavailable, &core.IssueTypeResolutionError{}, &core.IssueTypeResolutionError{Ambiguous: true}, &core.IssueFieldPreflightError{}} {
+	for _, err := range []error{core.ErrUserNotFound, core.ErrUserAmbiguous, core.ErrUserResolutionIncomplete, core.ErrUserSearchResponseInvalid, core.ErrUserLookupResponseInvalid, attachmentfiles.ErrInvalid, core.ErrAttachmentResponseInvalid, core.ErrCommentResponseInvalid, core.ErrTransitionResponseInvalid, core.ErrTransitionReadInvalid, core.ErrWeblinkResponseInvalid, core.ErrRankResponseInvalid, core.ErrRankNotAttempted, core.ErrIssueDeleteResponseInvalid, core.ErrIssueCreateResponseInvalid, core.ErrIssueCreateFollowupFailed, core.ErrIssueDescriptionInvalid, core.ErrIssueDescriptionScopeChanged, core.ErrIssueDescriptionUnavailable, core.ErrIssueEditDraftInvalid, core.ErrIssueEditDraftChanged, core.ErrIssueEditDraftIO, core.ErrIssueMetadataInvalid, core.ErrIssueMetadataUnavailable, &core.IssueTypeResolutionError{}, &core.IssueTypeResolutionError{Ambiguous: true}, &core.IssueFieldPreflightError{}} {
 		codes[MapError(err).Code] = true
 	}
 	for _, s := range statuses {

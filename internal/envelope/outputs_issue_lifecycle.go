@@ -170,7 +170,7 @@ func init() {
 	})
 
 	Register("issue.rank", IssueRankOutput{}, map[string]any{
-		"description": "The authored backlog move of at most 50 distinct issues relative to one different anchor, with ordered outcomes retained on total failure or interruption.",
+		"description": "The authored backlog move of distinct issues relative to one different anchor, submitted in ordered native batches of at most 50 issues. Ordered outcomes remain available on total failure or interruption.",
 		"properties": map[string]any{
 			"dry_run": map[string]any{
 				"description": "True when this was a preview. Nothing was moved, and it never contacts Jira, so it cannot report whether the issues or the anchor exist.",
@@ -182,7 +182,7 @@ func init() {
 				"description": "Which side of the anchor the issues landed on: before or after.",
 			},
 			"results": map[string]any{
-				"description": "One entry per requested key in input order. One ordered request returns 204 for full acknowledgement or 207 with complete native per-issue verdicts. Unusable attribution reports rank_response_invalid without inventing moves; inspect the backlog before retrying an uncertain write.",
+				"description": "One entry per requested key in input order. Sequential native batches contain at most 50 issues, with 204 acknowledgement or complete 207 per-issue verdicts. A failed, partial or uncertain batch stops later batches, whose entries report rank_not_attempted. Earlier acknowledgements remain real. Unusable attribution reports rank_response_invalid; inspect the backlog and choose a fresh anchor before retrying unresolved moves.",
 			},
 		},
 	})

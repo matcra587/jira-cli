@@ -2,7 +2,9 @@ package contract
 
 import (
 	"encoding/json"
+	"encoding/json/jsontext"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -155,8 +157,8 @@ func TestRankInterruptRetainsAuthoredBatchWithoutReplay(t *testing.T) {
 				t.Fatalf("rank interrupt changed severity or replayed: exit=%d calls=%d stderr=%q", exit, calls.Load(), stderr)
 			}
 			if mode == "human" {
-				if !strings.Contains(stdout, "KEY-1:") || !strings.Contains(stdout, "KEY-2:") || !strings.Contains(stdout, "canceled") {
-					t.Fatal("interrupted ranking discarded human target outcomes")
+				if !strings.Contains(stdout, "KEY-1:") || !strings.Contains(stdout, "KEY-2:") || !strings.Contains(stdout, "The command was interrupted.") || !strings.Contains(stderr, "context canceled") {
+					t.Fatalf("interrupted ranking discarded human target outcomes: stdout=%q stderr=%q", stdout, stderr)
 				}
 				return
 			}
@@ -288,12 +290,15 @@ func TestRankRejectsUnusableMultiStatusWithoutInventingMoves(t *testing.T) {
 
 func TestRankRefusesInvalidTargetsBeforeRequests(t *testing.T) {
 	t.Parallel()
-	tooMany := make([]string, 51)
-	for i := range tooMany {
-		tooMany[i] = fmt.Sprintf("KEY-%d", i+100)
+	lateDuplicate := make([]string, 101)
+	for i := range lateDuplicate {
+		lateDuplicate[i] = fmt.Sprintf("KEY-%d", i+100)
 	}
+	lateDuplicate[100] = lateDuplicate[0]
+	lateAnchor := slices.Clone(lateDuplicate)
+	lateAnchor[100] = "KEY-9"
 	for name, issues := range map[string][]string{
-		"too-many": tooMany, "repeated": {"KEY-1", "KEY-1"}, "self-anchor": {"KEY-9"}, "empty": {""},
+		"cross-batch-duplicate": lateDuplicate, "late-anchor": lateAnchor, "repeated": {"KEY-1", "KEY-1"}, "self-anchor": {"KEY-9"}, "empty": {""},
 	} {
 		for _, preview := range []bool{false, true} {
 			t.Run(name+map[bool]string{false: "/write", true: "/preview"}[preview], func(t *testing.T) {
@@ -316,5 +321,174 @@ func TestRankRefusesInvalidTargetsBeforeRequests(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+// Independently exercise the assembled binary beyond the native request cap.
+// Expectations use authored literal boundaries, never the production planner.
+func TestRankMultipleBatchesUseOrderedNativeRequests(t *testing.T) {
+	t.Parallel()
+	for _, count := range []int{51, 101} {
+		for _, position := range []string{"before", "after"} {
+			for _, preview := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s/%d/preview=%t", position, count, preview), func(t *testing.T) {
+					t.Parallel()
+					issues := make([]string, count)
+					for i := range issues {
+						issues[i] = fmt.Sprintf("KEY-%d", i+100)
+					}
+					var calls atomic.Int64
+					server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+						batch := int(calls.Add(1)) - 1
+						start := batch * 50
+						if start >= len(issues) {
+							t.Error("rank replayed an authored batch")
+							w.WriteHeader(http.StatusBadRequest)
+							return
+						}
+						before, after := "KEY-9", ""
+						if position == "after" {
+							before, after = "", "KEY-9"
+						}
+						if batch > 0 {
+							before, after = "", issues[start-1]
+						}
+						if req.Method != http.MethodPut || req.URL.RequestURI() != "/rest/agile/1.0/issue/rank" || !rankRequestMatches(req.Body, issues[start:min(start+50, len(issues))], before, after) {
+							t.Error("rank changed its native boundary, source order or chained anchor")
+							w.WriteHeader(http.StatusBadRequest)
+							return
+						}
+						w.WriteHeader(http.StatusNoContent)
+					}))
+					t.Cleanup(server.Close)
+					args := append([]string{"issue", "rank"}, issues...)
+					args = append(args, "--"+position+"=KEY-9", "--output=json", "--no-input")
+					if preview {
+						args = append(args, "--dry-run")
+					}
+					stdout, stderr, exit := runBinaryEnv(t, editReceiptEnv(server.URL), args...)
+					wantCalls := int64((count + 49) / 50)
+					if preview {
+						wantCalls = 0
+					}
+					var frame rankReceiptFrame
+					if exit != 0 || stderr != "" || calls.Load() != wantCalls || json.Unmarshal([]byte(stdout), &frame) != nil || !frame.OK || frame.Data == nil || frame.Data.Anchor != "KEY-9" || frame.Data.Position != position || frame.Data.DryRun != preview || len(frame.Data.Results) != count {
+						t.Fatalf("multi-batch ranking lost its complete ordered receipt: exit=%d calls=%d stdout=%q stderr=%q", exit, calls.Load(), stdout, stderr)
+					}
+					for i, row := range frame.Data.Results {
+						if row.Issue.Key != issues[i] || !row.OK || row.Data == nil || row.Err != nil {
+							t.Fatal("multi-batch ranking lost an authored move or acknowledgement")
+						}
+					}
+				})
+			}
+		}
+	}
+}
+
+func rankRequestMatches(reader io.Reader, issues []string, before, after string) bool {
+	raw, err := io.ReadAll(io.LimitReader(reader, 8193))
+	if err != nil || len(raw) > 8192 || !jsontext.Value(raw).IsValid() {
+		return false
+	}
+	var members map[string]json.RawMessage
+	if json.Unmarshal(raw, &members) != nil || len(members) != 2 {
+		return false
+	}
+	var observed []string
+	if json.Unmarshal(members["issues"], &observed) != nil || !slices.Equal(observed, issues) {
+		return false
+	}
+	name, expected := "rankBeforeIssue", before
+	if after != "" {
+		name, expected = "rankAfterIssue", after
+	}
+	var anchor string
+	return expected != "" && json.Unmarshal(members[name], &anchor) == nil && anchor == expected
+}
+
+func TestRankBatchWireOracleRejectsAmbiguousMembers(t *testing.T) {
+	t.Parallel()
+	valid := `{"issues":["KEY-1"],"rankBeforeIssue":"KEY-9"}`
+	if !rankRequestMatches(strings.NewReader(valid), []string{"KEY-1"}, "KEY-9", "") {
+		t.Fatal("valid independent rank fixture refused")
+	}
+	for name, raw := range map[string]string{
+		"duplicate":          `{"issues":[],"issues":["KEY-1"],"rankBeforeIssue":"KEY-9"}`,
+		"inactive-null":      `{"issues":["KEY-1"],"rankBeforeIssue":"KEY-9","rankAfterIssue":null}`,
+		"extra-member":       `{"issues":["KEY-1"],"rankBeforeIssue":"KEY-9","extra":true}`,
+		"trailing":           valid + `{}`,
+		"null-anchor":        `{"issues":["KEY-1"],"rankBeforeIssue":null}`,
+		"hidden-after-bound": valid + strings.Repeat(" ", 8192-len(valid)) + `{}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			if rankRequestMatches(strings.NewReader(raw), []string{"KEY-1"}, "KEY-9", "") {
+				t.Fatal("rank oracle accepted ambiguous native members")
+			}
+		})
+	}
+}
+
+func TestRankLaterBatchRefusalRetainsPublicOutcomes(t *testing.T) {
+	t.Parallel()
+	for _, mode := range []string{"json", "compact"} {
+		t.Run(mode, func(t *testing.T) {
+			t.Parallel()
+			issues := make([]string, 101)
+			for i := range issues {
+				issues[i] = fmt.Sprintf("KEY-%d", i+100)
+			}
+			var calls atomic.Int64
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				batch := int(calls.Add(1)) - 1
+				if batch > 1 {
+					t.Error("rank entered a batch after refusal")
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				before, after := "KEY-9", ""
+				if batch == 1 {
+					before, after = "", issues[49]
+				}
+				if req.Method != http.MethodPut || req.URL.RequestURI() != "/rest/agile/1.0/issue/rank" || !rankRequestMatches(req.Body, issues[batch*50:(batch+1)*50], before, after) {
+					t.Error("rank refusal fixture received a changed request")
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				if batch == 0 {
+					w.WriteHeader(http.StatusNoContent)
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusForbidden)
+				_, _ = w.Write([]byte(`{"errorMessages":["fixture denied"]}`))
+			}))
+			t.Cleanup(server.Close)
+			args := append([]string{"issue", "rank"}, issues...)
+			args = append(args, "--before=KEY-9", "--output="+mode, "--no-input")
+			stdout, stderr, exit := runBinaryEnv(t, editReceiptEnv(server.URL), args...)
+			var frame rankReceiptFrame
+			if exit != cli.ExitAuth || calls.Load() != 2 || json.Unmarshal([]byte(stdout), &frame) != nil || frame.OK || frame.Meta.ExitCode == nil || *frame.Meta.ExitCode != cli.ExitAuth || len(frame.Errors) != 1 || frame.Errors[0].Code != "jira_forbidden" || frame.Data == nil || frame.Data.Anchor != "KEY-9" || frame.Data.Position != "before" || len(frame.Data.Results) != 101 {
+				t.Fatalf("later refusal lost original severity or retained data: exit=%d calls=%d stdout=%q stderr=%q", exit, calls.Load(), stdout, stderr)
+			}
+			for i, row := range frame.Data.Results {
+				if row.Issue.Key != issues[i] {
+					t.Fatal("later refusal reordered public outcomes")
+				}
+				if i < 50 {
+					if !row.OK || row.Data == nil || row.Err != nil {
+						t.Fatal("later refusal erased an acknowledged move")
+					}
+					continue
+				}
+				code := "jira_forbidden"
+				if i == 100 {
+					code = "rank_not_attempted"
+				}
+				if row.OK || row.Data != nil || row.Err == nil || row.Err.Code != code {
+					t.Fatal("later refusal confused entered and withheld moves")
+				}
+			}
+		})
 	}
 }

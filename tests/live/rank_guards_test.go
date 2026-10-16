@@ -95,18 +95,43 @@ func TestLiveRankMutationOwnershipGrammar(t *testing.T) {
 	})
 	t.Run("batch-ceiling", func(t *testing.T) {
 		r := &liveRun{verified: true, manifest: liveManifest{Issues: []ownedIssue{{Key: "KEY-999", ID: "999"}}}}
-		sources := make([]string, 51)
+		sources := make([]string, 102)
 		for i := range sources {
 			sources[i] = fmt.Sprintf("KEY-%d", i+1)
 			r.manifest.Issues = append(r.manifest.Issues, ownedIssue{Key: sources[i], ID: fmt.Sprint(i + 1)})
 		}
-		for _, n := range []int{1, 50, 51} {
+		for _, n := range []int{1, 50, 51, 100, 101, 102} {
 			r.allowRank(sources[:n], "before", "KEY-999")
 			declared := append(slices.Clone(sources[:n]), "KEY-999")
 			err := r.checkMutation(declared, rankArgs(sources[:n], "before", "KEY-999"))
-			if (n <= 50) != (err == nil) {
+			if (n <= 101) != (err == nil) {
 				t.Fatalf("owned batch ceiling changed: size=%d error=%v", n, err)
 			}
+		}
+	})
+	t.Run("batch-tail-ownership", func(t *testing.T) {
+		for _, name := range []string{"foreign", "inactive", "duplicate"} {
+			t.Run(name, func(t *testing.T) {
+				r := &liveRun{verified: true, manifest: liveManifest{Issues: []ownedIssue{{Key: "KEY-999", ID: "999"}}}}
+				sources := make([]string, 101)
+				for i := range sources {
+					sources[i] = fmt.Sprintf("KEY-%d", i+1)
+					r.manifest.Issues = append(r.manifest.Issues, ownedIssue{Key: sources[i], ID: fmt.Sprint(i + 1)})
+				}
+				switch name {
+				case "foreign":
+					sources[50] = "KEY-888"
+				case "inactive":
+					r.manifest.Issues[51].Deleted = true
+				case "duplicate":
+					sources[50] = sources[0]
+				}
+				r.allowRank(sources, "before", "KEY-999")
+				declared := append(slices.Clone(sources), "KEY-999")
+				if err := r.checkRankMutation(declared, rankArgs(sources, "before", "KEY-999")); err == nil {
+					t.Fatal("rank ownership validation stopped at the first native batch")
+				}
+			})
 		}
 	})
 }

@@ -1,5 +1,26 @@
 # jira-cli
 
+Ranking uses `core.PlanRankRequests` to validate the complete ordered move
+before constructing independent native requests. Keep `core.MaxRankIssues` at
+50 for each request. Execute batches sequentially through the same context and
+client, chaining later batches after the previous last issue. A failed, partial,
+malformed or canceled batch stops its successors. Preserve earlier acknowledgements,
+original causes and complete typed source order; `rank_not_attempted` means no
+request entered for that move and never outranks the stopping cause. Preview
+remains local and provider-free. Do not replay or automatically roll back moves.
+
+Paired rank acceptance binds ordered sources and a distinct anchor through
+registered owned recipes before every process. Resolve the designated public
+board filter and rank field, then require two complete independent native and
+current-domain observations for each promised order. Preview/refusal steps retain
+the earlier order; live steps must actually change it. Persist intent before
+writes, never replay uncertain outcomes, and restore the same relative preimage
+before comparing the next lane. Legacy preview completion-history writes must
+stay scoped, ordered and capped; they are not a no-filesystem-effect path.
+Keep the legacy multi-request boundary distinct from the current native
+50-issue request limit. A locally refused legacy capability remains an open
+parity gap even when its characterization test passes.
+
 Paired issue-link acceptance translates only validated legacy bare-create and
 key-plus-ID delete grammar through the shared owned-pair admission. Both ends
 must remain distinct active fixtures; a global resource ID alone never grants

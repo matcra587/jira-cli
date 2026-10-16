@@ -27,7 +27,7 @@ import (
 //     entry rather than stopping the run;
 //   - clone copies the source's fields and lets the caller's flags
 //     override them — in that order;
-//   - rank sends ONE request whose array order IS the ranking, and turns
+//   - rank sends sequential native batches whose array order is the ranking, and turns
 //     a single 207 into per-key verdicts.
 
 // fakeLifecycleClient is a core.JiraClient double for delete, clone and
@@ -528,7 +528,7 @@ func TestRankPreviewSendsNothing(t *testing.T) {
 func TestRankRegistersNoParallelism(t *testing.T) {
 	fs := newRank(Deps{}).Flags()
 	if fs.Lookup(command.FlagParallelism) != nil {
-		t.Error("--parallelism is registered; rank sends one request, so there is nothing to widen")
+		t.Error("--parallelism is registered; rank batches must run sequentially")
 	}
 	for _, want := range []string{flagBefore, flagAfter, cli.FlagDryRun} {
 		if fs.Lookup(want) == nil {

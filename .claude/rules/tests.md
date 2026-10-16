@@ -9,6 +9,23 @@ paths:
 
 # Tests
 
+Paired rank acceptance binds ordered sources and a distinct anchor through
+registered owned recipes before every process. Resolve the designated public
+board filter and rank field, then require two complete independent native and
+current-domain observations for each promised order. Preview/refusal steps retain
+the earlier order; live steps must actually change it. Persist intent before
+writes, never replay uncertain outcomes, and restore the same relative preimage
+before comparing the next lane. Legacy preview completion-history writes must
+stay scoped, ordered and capped; they are not a no-filesystem-effect path.
+Both selected CLIs must preserve 51/100/101-source moves across exact native
+50-issue request boundaries. The live ownership ceiling is 101 sources, not a
+Jira endpoint limit; every source and anchor still requires active ownership and
+an exact registered recipe. The 51-source live Jira comparison derives source order
+from its observed preimage and restores it between lanes. Give every fixture
+creation a unique ordinal summary and retained request file before entry.
+Historical locally refused capabilities remain gap evidence for their original
+binary; only fresh candidate proof can close them.
+
 Paired issue-link acceptance translates only validated legacy bare-create and
 key-plus-ID delete grammar through the shared owned-pair admission. Both ends
 must remain distinct active fixtures; a global resource ID alone never grants

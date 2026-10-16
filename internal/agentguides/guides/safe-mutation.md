@@ -510,14 +510,22 @@ including an empty or null member. Native input preserves authored values.
 The URL-as-title fallback applies to the flag-only route. `data.payload`
 retains the complete composed request in previews and write outcomes.
 
-Ranking sends at most 50 distinct explicit issues in one ordered request, with
-exactly one `--before` or `--after` anchor outside that source list. The argument
-order is the move order; there is no `--parallelism`. Local preview validates
-these constraints without contacting Jira. A native multi-status must identify
-every requested issue exactly once. Total failure or interruption retains the
-anchor and ordered outcomes. `rank_response_invalid` means the acknowledgement
-cannot be trusted; inspect the backlog before retrying because some moves may
-already have landed. Ranking writes are never replayed automatically.
+### Rank issues in ordered batches
+
+Ranking validates the complete distinct source list and exactly one `--before`
+or `--after` anchor outside it before contacting Jira. Each native request holds
+at most 50 issues in argument order. Larger moves run sequentially: the first
+batch uses the authored anchor. Later batches follow the preceding batch's last
+issue. There is no `--parallelism`. Local previews validate the whole move
+without constructing a client.
+
+A native multi-status must identify every issue in its batch exactly once.
+Failed, partial or uncertain batches stop their successors. Unsubmitted entries
+report `rank_not_attempted`. Earlier acknowledged moves remain real and are not
+rolled back. Failure or interruption retains the original anchor and complete
+ordered outcomes. `rank_response_invalid` means the acknowledgement cannot be
+trusted. Inspect the backlog and earlier outcomes before choosing an anchor for
+remaining moves. Ranking writes are never replayed automatically.
 
 ### Choose native ADF or Markdown authoring
 
