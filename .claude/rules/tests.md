@@ -9,6 +9,156 @@ paths:
 
 # Tests
 
+Paired issue-link acceptance translates only validated legacy bare-create and
+key-plus-ID delete grammar through the shared owned-pair admission. Both ends
+must remain distinct active fixtures; a global resource ID alone never grants
+test ownership. Retain creation intent and every observed ID before assertions,
+bind exact native direction and inverse endpoints, then verify deletion with
+native absence on the resource and both issues. Preserve the legacy confirmation
+requirement and current confirmation-free layout as an explicit difference.
+Stop dependent writes after any failed step; never replay uncertain creation.
+
+Paired attachment acceptance binds every upload to registered owned bytes and
+one active native issue. Translate the historical key-plus-ID delete grammar
+only after exact parent/resource validation. Persist upload intent and returned
+IDs before assertions; independently bind native metadata before registration
+and compare native content bytes before credit. Map file-target downloads and
+legacy overwrite force into the new directory/name/overwrite layout explicitly.
+Keep complete zero-byte receipts, collision preimages, exact native absence and
+surviving sibling metadata. Bind explicit owned subprocess directories without
+changing the test process directory, and reject collateral download-tree changes.
+Compare legacy list totals/completeness with the current unpaginated collection.
+A failed upload or delete is never replayed.
+
+Paired web-link acceptance translates only the legacy bare add grammar into
+its registered current owner for mutation admission. Preserve explicit targets,
+recipes and worker bounds; re-admit before every process. Persist write intent
+and returned/native identities before assertions, bind the unique native resource,
+and never replay an uncertain add. New list/delete capabilities stay current-only,
+even when they inspect a legacy-created owned fixture. Confirm exact deletion
+with native absence and preserve unrelated issue fields. Legacy bare operation
+attribution must not mistake the issue key for a subcommand.
+
+Explicit help acceptance executes `help` against the independent non-config
+command census and named aliases, then compares its exact selected short help
+with native `-h`. Bind the canonical Usage path independently so two wrong
+routes cannot corroborate each other. Keep credential-free HTTP/workspace guards
+and all output modes. Unknown topics currently select their nearest existing
+parent; record that limitation explicitly, never as a strict refusal or child
+behavior acceptance. Config topics remain outside this acceptance scope.
+
+Raw API acceptance binds all seven current-only methods to exact authenticated
+wire requests and complete native receipts, including method aliases, literal
+repeated queries, HTTP preconditions, stdin, absent/empty/opaque bodies and byte
+bounds. Keep HTTP entry counts independent of attempted: a read-only refusal may
+retain entered client/request data without sending HTTP. Preview and missing-force
+paths send nothing; incomplete captures and HTTP failures retain receipts without
+replaying writes. Test a truncated valid JSON prefix and prove its view stays
+absent with an actually compiled defect, then restore source. Preserve permitted
+headers and exact base64 bytes while excluding credential/cookie headers. Piped
+human checks bind complete literal receipts and reject contradictory delivery
+markers. Exercise valid UTF-8 controls separately from opaque binary fallback;
+machine bytes remain exact while human text is sanitized.
+Owned live Jira API checks re-admit registered bytes immediately before every mutation,
+persist POST intent and returned identities before assertions, then bind native
+comment inventory before dependent writes. Keep unsupported method receipts explicit.
+Controlled-server behavior does not establish live Jira method support, server-enforced
+preconditions, native host behavior or a legacy raw API counterpart.
+
+Native ADF acceptance keeps new local commands distinct from legacy mappings.
+Use independently authored anchors, native documents and schema pins; do not derive
+expected candidates from preparation output. Retain exact original envelope data
+before inspecting native bytes: a test-side default JSON encoder can escape HTML.
+Bind full candidates, opaque numeric/escape spelling, protected-region refusals,
+merge conflicts and named schema locations without credentials, HTTP or file
+changes. Stored-source live Jira checks create one strictly owned current fixture,
+independently read its native body, disable credentials and trap local commands,
+then confirm input bytes and the Jira source remain unchanged. Their candidates
+are local artifacts; they do not establish protected remote application or a
+before/after counterpart. Human, malformed-input and broader edit variants need
+separate evidence.
+
+Paired completion acceptance fingerprints and executes each selected native shell.
+Generate both admitted CLI scripts in JSON, compact and human modes with identical
+bytes, disabled credentials, an HTTP trap and no CLI-owned file effects. Parse the
+actual source and reject a deliberate syntax error; Elvish loads its script in
+its real interactive edit namespace. Prime owned scoped history through the actual
+open command, then bind generated dispatch to complete successful callback argv
+receipts and literal cached candidates without HTTP or cache changes. Decode
+PowerShell candidate identity through its native AST, retaining quoted token bytes.
+The delivered legacy PowerShell generator nests its empty positional array and
+suppresses the open callback; require native registration control and the exact
+observed nested array before accepting that explicit baseline difference. Zsh
+terminal startup, interruption and exit wait for separate observed prompts, and
+all owned native processes are bounded and joined. These callback tests do not
+credit editor insertion, native Windows/macOS behavior, all predictor families or
+Nushell. Parent help/refusals bind both layouts, exact reasons, attribution and
+current diagnostics; help alone never credits generated-script execution.
+
+Refusal adapters pass through shared envelope admission requiring exactly one
+structured error before inspecting its row. Named malformed-frame guards cover
+absent, null, empty and non-array error collections across both lanes. Validate
+review claims against the complete admission path before adding redundant code.
+
+Paired open acceptance keeps normalized literal/padded/duplicate/single-range
+keys and site path prefixes explicit. Machine JSON/compact receipts contain no
+fetched ID or native fields and report opened=false. Trap all HTTP entry, disable
+credentials and verify the producer's exact public scoped history wrapper and
+key, publication time and owned file effects. Ambiguous target refusals publish
+no history and retain their real reason/field. Live Jira URL acceptance separately
+binds an actual native issue/project identity; URL construction alone does not
+prove existence. Map the exact top-level open operation independently of its positional key.
+Machine suppression does not credit browser callback execution,
+process termination, GUI rendering, human output or native platform acceptance.
+
+Release-note parity binds all embedded release fields/sections/changes and exact
+raw human Markdown to pinned independent source fixtures. Exercise full history,
+latest, explicit/prefixed/trimmed versions and aliases in actual JSON, compact
+and piped human modes. Preserve legacy single-release trailing-newline behavior
+explicitly. Local runs have no token, keyring, HTTP entry or owned-file changes.
+Successful release.notes envelopes and release-notes root failures have distinct
+identities. Bind version-conflict/missing-version reasons and typed current field
+attribution, not merely exit codes. Piped/no-pager checks do not credit interactive
+pagers, styled terminals or native platform acceptance.
+
+Epic list/board acceptance uses independent native rows, child statuses and
+literal lane-specific expected output. Bind exact authenticated search bodies,
+page sizes, query quoting, continuation and request counts. Legacy list reads
+one page; current default walking fills its total limit. Legacy child searches
+select their historical default fields; current counts select status and drain.
+Keep unknown-status warnings and child completeness explicit. JSON metadata and
+legacy compact embedded pagination have distinct locations. Freeze the observed
+legacy compact large-number rounding in its own fixture; never normalize current
+numeric tokens to match it. Dynamic native oracles must use lossless numbers and
+match literal fixtures. Live epic pages are complete and bounded to 50 records.
+Compare legacy child
+first-page counts separately from current bounded token walks. Child fixture
+admission belongs to the board subtest and cannot suppress runnable list checks.
+Larger epic walks, new flags, safety caps, failures, cancellation, human output
+and membership writes require separate evidence.
+
+Paired worklog creation uses a fixed minute-based recipe on fresh owned issues.
+Freeze registered input bytes and admitted artifacts; persist intent before the
+subprocess and target-bound receipts before any independent readback. Bind one
+native worklog ID, seconds, exact instant and ADF comment without replay. Later
+GET metadata is not an exact POST receipt oracle: complete native 201 values
+and numeric tokens require literal controlled-server fixtures. Exercise zero
+HTTP previews/refusals and exactly one POST for complete and missing-ID receipts.
+Current read-only output retains policy and failed-target data; do not weaken
+ordinary null-data refusal guards. Keep acknowledged incomplete receipts, warnings
+and retry guidance distinct from unknown outcomes. Confirm owned parent cleanup;
+this does not establish server-enforced conditional writes. Broader input forms,
+batching, estimate adjustments, cancellation and human output need separate cases.
+
+Paired worklog reads bind exact native record IDs, comments, absent/null values
+and numeric tokens through independent literal fixtures. Keep legacy reduced
+records and single-target metadata cursors explicit; current keyed records retain
+complete native values and per-issue paging facts. Bind every requested issue to
+one authenticated fixture request, including empty multi-issue cases. Native
+oracles reject missing/null page facts and repeated identities. Non-progress,
+walk/resume flags, failures, cancellation, history effects and human output need
+separate scenarios; a sparse page does not establish a complete walk.
+
 Board primer acceptance inspects the selected native disk payload and public
 receipt separately. Legacy read time and wrapper publication time may differ;
 current cached read time remains inside its native snapshot. Bind null/absent

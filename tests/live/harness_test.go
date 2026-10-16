@@ -26,6 +26,7 @@ import (
 )
 
 type liveIssue struct {
+	Self    string          `json:"self"`
 	Key     string          `json:"key"`
 	ID      string          `json:"id"`
 	Fields  json.RawMessage `json:"fields"`
@@ -221,6 +222,11 @@ func (r *liveRun) invokeRaw(t *testing.T, ctx context.Context, extraEnv []string
 // each differential invocation to its own binary. Cleanup always uses r.binary.
 func (r *liveRun) invokeSelectedRaw(t *testing.T, ctx context.Context, binary string, extraEnv []string, args ...string) ([]byte, int) {
 	t.Helper()
+	return r.invokeSelectedRawAt(t, ctx, binary, "", extraEnv, args...)
+}
+
+func (r *liveRun) invokeSelectedRawAt(t *testing.T, ctx context.Context, binary, directory string, extraEnv []string, args ...string) ([]byte, int) {
+	t.Helper()
 	environment := append(os.Environ(), "JIRA_API_TOKEN=", "JIRA_KEYRING=true", "NO_COLOR=1", "TERM=dumb")
 	if r.verified {
 		environment = append(environment, "JIRA_BASE_URL="+r.manifest.BaseURL, "JIRA_READ_ONLY=false")
@@ -228,14 +234,19 @@ func (r *liveRun) invokeSelectedRaw(t *testing.T, ctx context.Context, binary st
 	if r.cacheDir != "" {
 		environment = append(environment, "XDG_CACHE_HOME="+r.cacheDir)
 	}
-	return r.invokeEnvironmentRaw(t, ctx, binary, append(environment, extraEnv...), args...)
+	return r.invokeEnvironmentRawAt(t, ctx, binary, directory, append(environment, extraEnv...), args...)
 }
 
-func (r *liveRun) invokeEnvironmentRaw(t *testing.T, ctx context.Context, binary string, environment []string, args ...string) ([]byte, int) {
+func (r *liveRun) invokeEnvironmentRawAt(t *testing.T, ctx context.Context, binary, directory string, environment []string, args ...string) ([]byte, int) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
+	directory, err := liveInvocationDirectory(r.dir, directory)
+	if err != nil {
+		t.Fatal(err)
+	}
 	cmd := exec.CommandContext(ctx, binary, args...)
+	cmd.Dir = directory
 	cmd.Env = environment
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
@@ -484,4 +495,30 @@ func (r *liveRun) cleanup(t *testing.T) {
 	}
 	r.finishOwnedLinks(t)
 	r.finishOwnedWeblinks(t)
+}
+
+func liveInvocationDirectory(root, directory string) (string, error) {
+	if directory == "" {
+		return "", nil
+	}
+	if !filepath.IsAbs(directory) {
+		return "", fmt.Errorf("live working directory must be explicit and absolute")
+	}
+	owned, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return "", err
+	}
+	selected, err := filepath.EvalSymlinks(directory)
+	if err != nil {
+		return "", err
+	}
+	relative, err := filepath.Rel(owned, selected)
+	if err != nil || !filepath.IsLocal(relative) {
+		return "", fmt.Errorf("live working directory escapes its owned evidence root")
+	}
+	info, err := os.Stat(selected)
+	if err != nil || !info.IsDir() {
+		return "", fmt.Errorf("live working directory must be an existing owned directory")
+	}
+	return selected, nil
 }

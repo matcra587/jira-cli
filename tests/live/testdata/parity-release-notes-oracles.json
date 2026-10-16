@@ -1,0 +1,1275 @@
+{
+  "header": "# Release Notes",
+  "releases": [
+    {
+      "version": "0.15.2",
+      "tag": "v0.15.2",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.15.2",
+      "date": "2026-07-28",
+      "sections": [
+        {
+          "kind": "Fixed",
+          "changes": [
+            "Show the sentence each issue's page will render when creating or previewing an issue link, so a backwards link direction is visible before it lands",
+            "Return the created timestamp everywhere it was silently dropped - full and *all payloads now round-trip every Jira system field, created joins the default list and search projection, and issue list gains a created column",
+            "Accept --fields on jira issue view to fetch only the named fields, closing the selector parity gap with search jql"
+          ]
+        }
+      ],
+      "markdown": "## [0.15.2](https://github.com/matcra587/jira-cli/releases/tag/v0.15.2) — 2026-07-28\n\n### Fixed\n\n- Show the sentence each issue's page will render when creating or previewing an issue link, so a backwards link direction is visible before it lands\n- Return the created timestamp everywhere it was silently dropped - full and *all payloads now round-trip every Jira system field, created joins the default list and search projection, and issue list gains a created column\n- Accept --fields on jira issue view to fetch only the named fields, closing the selector parity gap with search jql"
+    },
+    {
+      "version": "0.15.1",
+      "tag": "v0.15.1",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.15.1",
+      "date": "2026-07-27",
+      "sections": [
+        {
+          "kind": "Changed",
+          "changes": [
+            "Include the issue key in comment-list data and human headings.",
+            "Include issue keys in attachment and watcher list data and headings.",
+            "Keep validated issue mutation context in successful live output.",
+            "Keep validated collaboration context in successful live output.",
+            "Publish typed output schemas for `jira agent adf-matrix` and `jira agent fieldtypes`."
+          ]
+        },
+        {
+          "kind": "Fixed",
+          "changes": [
+            "Report whether Jira screen metadata actually validated fields in `validated_remotely`."
+          ]
+        }
+      ],
+      "markdown": "## [0.15.1](https://github.com/matcra587/jira-cli/releases/tag/v0.15.1) — 2026-07-27\n\n### Changed\n\n- Include the issue key in comment-list data and human headings.\n- Include issue keys in attachment and watcher list data and headings.\n- Keep validated issue mutation context in successful live output.\n- Keep validated collaboration context in successful live output.\n- Publish typed output schemas for `jira agent adf-matrix` and `jira agent fieldtypes`.\n\n### Fixed\n\n- Report whether Jira screen metadata actually validated fields in `validated_remotely`."
+    },
+    {
+      "version": "0.15.0",
+      "tag": "v0.15.0",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.15.0",
+      "date": "2026-07-23",
+      "sections": [
+        {
+          "kind": "Fixed",
+          "changes": [
+            "Return output destination failures from machine and human renderers.",
+            "Report data, file, and terminal failures instead of silently continuing.",
+            "Return failed help and diagnostic writes as local output errors."
+          ]
+        }
+      ],
+      "markdown": "## [0.15.0](https://github.com/matcra587/jira-cli/releases/tag/v0.15.0) — 2026-07-23\n\n### Fixed\n\n- Return output destination failures from machine and human renderers.\n- Report data, file, and terminal failures instead of silently continuing.\n- Return failed help and diagnostic writes as local output errors."
+    },
+    {
+      "version": "0.14.2",
+      "tag": "v0.14.2",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.14.2",
+      "date": "2026-07-22",
+      "sections": [
+        {
+          "kind": "Fixed",
+          "changes": [
+            "Shell completion offers values for the agent surface's guide-section, schema-path, export-format, and export-scope flags, which the clib-driven completion path previously left empty",
+            "Agent guide exports use jira-prefixed skill names, scoped exports can explicitly select Claude Code or Codex, and bundled guides accurately describe live and local behavior"
+          ]
+        }
+      ],
+      "markdown": "## [0.14.2](https://github.com/matcra587/jira-cli/releases/tag/v0.14.2) — 2026-07-22\n\n### Fixed\n\n- Shell completion offers values for the agent surface's guide-section, schema-path, export-format, and export-scope flags, which the clib-driven completion path previously left empty\n- Agent guide exports use jira-prefixed skill names, scoped exports can explicitly select Claude Code or Codex, and bundled guides accurately describe live and local behavior"
+    },
+    {
+      "version": "0.14.1",
+      "tag": "v0.14.1",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.14.1",
+      "date": "2026-07-22",
+      "sections": [
+        {
+          "kind": "Fixed",
+          "changes": [
+            "Route ADF and custom-field registry lookups from the jira-how-to skill, pre-approve its discovery commands in full, and pin its hard-won never-list; the stale in-repo jira-cli router skill is gone (plugin 0.1.1)",
+            "Close twelve behavior gaps the old agent guide covered and the rewrite lost — screenless-transition recovery, create-screen vs instance-wide issue types, search-only field selectors, worklog workday semantics, wiki-markup normalization, rank chunk resume, scoped-token cloud_id recovery, positional key ranges, and more — and document that `issue move` cannot change project or type on Jira Cloud today (the edit API silently ignores those fields); clone and delete instead"
+          ]
+        }
+      ],
+      "markdown": "## [0.14.1](https://github.com/matcra587/jira-cli/releases/tag/v0.14.1) — 2026-07-22\n\n### Fixed\n\n- Route ADF and custom-field registry lookups from the jira-how-to skill, pre-approve its discovery commands in full, and pin its hard-won never-list; the stale in-repo jira-cli router skill is gone (plugin 0.1.1)\n- Close twelve behavior gaps the old agent guide covered and the rewrite lost — screenless-transition recovery, create-screen vs instance-wide issue types, search-only field selectors, worklog workday semantics, wiki-markup normalization, rank chunk resume, scoped-token cloud_id recovery, positional key ranges, and more — and document that `issue move` cannot change project or type on Jira Cloud today (the edit API silently ignores those fields); clone and delete instead"
+    },
+    {
+      "version": "0.14.0",
+      "tag": "v0.14.0",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.14.0",
+      "date": "2026-07-22",
+      "sections": [
+        {
+          "kind": "Added",
+          "changes": [
+            "Browse the embedded agent guides as a human with the new top-level `jira guide` command — themed Markdown rendering on a terminal, raw Markdown for pipes — and export them as agent skills with `jira agent export`",
+            "Ship the jira-how-to router skill under skills/ with a Claude plugin manifest — it steers any Jira task to the right embedded guide and the runtime schema, pre-approving the discovery commands it teaches"
+          ]
+        },
+        {
+          "kind": "Changed",
+          "changes": [
+            "Serve the agent surface through docent: nine rewritten workflow guides under `jira agent guide`, and a runtime-derived `jira agent schema` with per-command input/output schemas embedded in the command tree (agent contract 3.0.0; the previous envelope-wrapped schema shape is gone)",
+            "Emit the agent schema structure-first via docent v0.3.0: the full tree carries shape markers, `--path` returns a command's embedded schemas, and `--shapes` captures everything with repeated bodies pooled into $defs. In model-token terms the guide corpus is 87% smaller than the pre-docent surface and the full discovery contract half the size, with no behavior claim lost"
+          ]
+        }
+      ],
+      "markdown": "## [0.14.0](https://github.com/matcra587/jira-cli/releases/tag/v0.14.0) — 2026-07-22\n\n### Added\n\n- Browse the embedded agent guides as a human with the new top-level `jira guide` command — themed Markdown rendering on a terminal, raw Markdown for pipes — and export them as agent skills with `jira agent export`\n- Ship the jira-how-to router skill under skills/ with a Claude plugin manifest — it steers any Jira task to the right embedded guide and the runtime schema, pre-approving the discovery commands it teaches\n\n### Changed\n\n- Serve the agent surface through docent: nine rewritten workflow guides under `jira agent guide`, and a runtime-derived `jira agent schema` with per-command input/output schemas embedded in the command tree (agent contract 3.0.0; the previous envelope-wrapped schema shape is gone)\n- Emit the agent schema structure-first via docent v0.3.0: the full tree carries shape markers, `--path` returns a command's embedded schemas, and `--shapes` captures everything with repeated bodies pooled into $defs. In model-token terms the guide corpus is 87% smaller than the pre-docent surface and the full discovery contract half the size, with no behavior claim lost"
+    },
+    {
+      "version": "0.13.1",
+      "tag": "v0.13.1",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.13.1",
+      "date": "2026-07-21",
+      "sections": [
+        {
+          "kind": "Added",
+          "changes": [
+            "jira agent schema publishes an output schema for every operation, derived from the same typed definitions the CLI emits — previously ~40 operations had no declared output shape"
+          ]
+        },
+        {
+          "kind": "Changed",
+          "changes": [
+            "issue delete no longer emits a meaningless result: null on live deletes; the key is simply absent, matching dry-run"
+          ]
+        },
+        {
+          "kind": "Dependencies",
+          "changes": [
+            "golang.org/x/text 0.39.0 fixes GO-2026-5970 (infinite loop on invalid input)"
+          ]
+        }
+      ],
+      "markdown": "## [0.13.1](https://github.com/matcra587/jira-cli/releases/tag/v0.13.1) — 2026-07-21\n\n### Added\n\n- jira agent schema publishes an output schema for every operation, derived from the same typed definitions the CLI emits — previously ~40 operations had no declared output shape\n\n### Changed\n\n- issue delete no longer emits a meaningless result: null on live deletes; the key is simply absent, matching dry-run\n\n### Dependencies\n\n- golang.org/x/text 0.39.0 fixes GO-2026-5970 (infinite loop on invalid input)"
+    },
+    {
+      "version": "0.13.0",
+      "tag": "v0.13.0",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.13.0",
+      "date": "2026-07-20",
+      "sections": [
+        {
+          "kind": "Breaking Changes",
+          "changes": [
+            "data.issue is now always an identity object carrying at least key — across issue edit, transition, comment, worklog, epic, weblink, and delete envelopes — where mutation envelopes previously returned the bare key string; read .data.issue.key everywhere; the identity and dry_run invariants are documented in the core contract guide and enforced by contract tests",
+            "Attachment, link, and watcher envelopes now carry the issue identity as data.issue objects (link create reports inward_issue/outward_issue as objects); alias list wraps the map under data.aliases with a count; live delete, download, and watcher envelopes gained the issue identity and dry_run their dry-run counterparts already carried; worklog add --dry-run renames time_spent_seconds to the native timeSpentSeconds"
+          ]
+        },
+        {
+          "kind": "Fixed",
+          "changes": [
+            "issue edit --verify reports an ADF description as unverified instead of returning an empty verification block that implied the field was checked",
+            "auth logout reports the credential backend on live removals, update envelopes carry a managed discriminator on both shapes, and issue rank without a profile reports dry_run"
+          ]
+        }
+      ],
+      "markdown": "## [0.13.0](https://github.com/matcra587/jira-cli/releases/tag/v0.13.0) — 2026-07-20\n\n### Breaking Changes\n\n- data.issue is now always an identity object carrying at least key — across issue edit, transition, comment, worklog, epic, weblink, and delete envelopes — where mutation envelopes previously returned the bare key string; read .data.issue.key everywhere; the identity and dry_run invariants are documented in the core contract guide and enforced by contract tests\n- Attachment, link, and watcher envelopes now carry the issue identity as data.issue objects (link create reports inward_issue/outward_issue as objects); alias list wraps the map under data.aliases with a count; live delete, download, and watcher envelopes gained the issue identity and dry_run their dry-run counterparts already carried; worklog add --dry-run renames time_spent_seconds to the native timeSpentSeconds\n\n### Fixed\n\n- issue edit --verify reports an ADF description as unverified instead of returning an empty verification block that implied the field was checked\n- auth logout reports the credential backend on live removals, update envelopes carry a managed discriminator on both shapes, and issue rank without a profile reports dry_run"
+    },
+    {
+      "version": "0.12.2",
+      "tag": "v0.12.2",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.12.2",
+      "date": "2026-07-19",
+      "sections": [
+        {
+          "kind": "Changed",
+          "changes": [
+            "Agent detection for --output=auto now follows the cross-tool AGENT/AI_AGENT convention (a falsy value opts out) and recognises Replit; the Aider, Windsurf, Amazon Q, Codeium, and Copilot markers no longer trigger compact output"
+          ]
+        }
+      ],
+      "markdown": "## [0.12.2](https://github.com/matcra587/jira-cli/releases/tag/v0.12.2) — 2026-07-19\n\n### Changed\n\n- Agent detection for --output=auto now follows the cross-tool AGENT/AI_AGENT convention (a falsy value opts out) and recognises Replit; the Aider, Windsurf, Amazon Q, Codeium, and Copilot markers no longer trigger compact output"
+    },
+    {
+      "version": "0.12.1",
+      "tag": "v0.12.1",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.12.1",
+      "date": "2026-07-17",
+      "sections": [
+        {
+          "kind": "Added",
+          "changes": [
+            "TUI new-issue form picks the issue type and offers live assignee and label suggestions, instead of silently defaulting to Task with free-text fields",
+            "TUI shows a footer status trail and an activity-log overlay (L) for your mutations, with the affected issue key as a clickable link",
+            "Choose the target project on the new-issue form; the issue-type list refetches to match the selection.",
+            "Press ctrl+k in the TUI to open a command palette that fuzzy-finds and runs any command available in the current view"
+          ]
+        },
+        {
+          "kind": "Changed",
+          "changes": [
+            "TUI create/comment forms keep your draft and show an inline error when a submit fails, mark optional fields, and validate inline",
+            "Redesign the new-issue form with boxed fields and a pinned hint row that stays visible on short terminals."
+          ]
+        },
+        {
+          "kind": "Fixed",
+          "changes": [
+            "TUI Epics tab counts epics instead of the selected epic's child issues",
+            "TUI dialogs wider than the terminal now show a 'terminal too narrow' notice instead of garbled, wrapped borders",
+            "TUI pickers and the create form that open after a background fetch no longer capture keystrokes typed while waiting"
+          ]
+        }
+      ],
+      "markdown": "## [0.12.1](https://github.com/matcra587/jira-cli/releases/tag/v0.12.1) — 2026-07-17\n\n### Added\n\n- TUI new-issue form picks the issue type and offers live assignee and label suggestions, instead of silently defaulting to Task with free-text fields\n- TUI shows a footer status trail and an activity-log overlay (L) for your mutations, with the affected issue key as a clickable link\n- Choose the target project on the new-issue form; the issue-type list refetches to match the selection.\n- Press ctrl+k in the TUI to open a command palette that fuzzy-finds and runs any command available in the current view\n\n### Changed\n\n- TUI create/comment forms keep your draft and show an inline error when a submit fails, mark optional fields, and validate inline\n- Redesign the new-issue form with boxed fields and a pinned hint row that stays visible on short terminals.\n\n### Fixed\n\n- TUI Epics tab counts epics instead of the selected epic's child issues\n- TUI dialogs wider than the terminal now show a 'terminal too narrow' notice instead of garbled, wrapped borders\n- TUI pickers and the create form that open after a background fetch no longer capture keystrokes typed while waiting"
+    },
+    {
+      "version": "0.12.0",
+      "tag": "v0.12.0",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.12.0",
+      "date": "2026-07-13",
+      "sections": [
+        {
+          "kind": "Added",
+          "changes": [
+            "Create issues (n), edit labels (l), and pause auto-refresh (R) from the TUI dashboard — create opens a two-field overlay (summary plus Markdown description), labels edit the full comma-separated list in place",
+            "Ask before discarding edited TUI modal input: esc on a non-empty overlay now prompts discard input? (y)es (n)o",
+            "TUI epics tab: cycle open epics in a strip and triage the active epic's children with the full verb set",
+            "TUI board tab: the profile's default_board becomes its own tab once the boards cache is warm",
+            "Hot-apply theme changes in the TUI: editing theme.name re-skins every view without a restart",
+            "Choose the TUI glyph set with tui.icons: Nerd Font issue-type, priority, and pause icons, or the portable Unicode set (auto opts into Nerd Fonts only via the NERD_FONT convention)",
+            "Interactive TUI Settings tab: pick themes with a live preview as you browse, change icons, preview dock, tabs (with name autocompletion) and more — every change validates, saves atomically, and applies without a restart; press e to edit the raw config.toml with the same validation"
+          ]
+        },
+        {
+          "kind": "Changed",
+          "changes": [
+            "TUI issue list renders status as the same reverse-video pills as the detail header and the CLI's plain list",
+            "Render TUI key hints with inline mnemonics — the binding letter is highlighted inside its verb, footer and detail view alike",
+            "Open TUI comments in the in-app overlay first; with an external editor configured, ctrl+e continues the draft there instead of the editor opening unasked",
+            "Style backtick code spans in TUI summary cells and detail headings with the markdown code accent"
+          ]
+        },
+        {
+          "kind": "Fixed",
+          "changes": [
+            "TUI status pills use the same category-keyed fixed colors as the CLI's plain issue list, instead of theme colors keyed by guessing English status names",
+            "Clamp TUI chrome rows (tabs, detail pills, hint lines) on narrow terminals instead of wrapping and breaking the layout"
+          ]
+        }
+      ],
+      "markdown": "## [0.12.0](https://github.com/matcra587/jira-cli/releases/tag/v0.12.0) — 2026-07-13\n\n### Added\n\n- Create issues (n), edit labels (l), and pause auto-refresh (R) from the TUI dashboard — create opens a two-field overlay (summary plus Markdown description), labels edit the full comma-separated list in place\n- Ask before discarding edited TUI modal input: esc on a non-empty overlay now prompts discard input? (y)es (n)o\n- TUI epics tab: cycle open epics in a strip and triage the active epic's children with the full verb set\n- TUI board tab: the profile's default_board becomes its own tab once the boards cache is warm\n- Hot-apply theme changes in the TUI: editing theme.name re-skins every view without a restart\n- Choose the TUI glyph set with tui.icons: Nerd Font issue-type, priority, and pause icons, or the portable Unicode set (auto opts into Nerd Fonts only via the NERD_FONT convention)\n- Interactive TUI Settings tab: pick themes with a live preview as you browse, change icons, preview dock, tabs (with name autocompletion) and more — every change validates, saves atomically, and applies without a restart; press e to edit the raw config.toml with the same validation\n\n### Changed\n\n- TUI issue list renders status as the same reverse-video pills as the detail header and the CLI's plain list\n- Render TUI key hints with inline mnemonics — the binding letter is highlighted inside its verb, footer and detail view alike\n- Open TUI comments in the in-app overlay first; with an external editor configured, ctrl+e continues the draft there instead of the editor opening unasked\n- Style backtick code spans in TUI summary cells and detail headings with the markdown code accent\n\n### Fixed\n\n- TUI status pills use the same category-keyed fixed colors as the CLI's plain issue list, instead of theme colors keyed by guessing English status names\n- Clamp TUI chrome rows (tabs, detail pills, hint lines) on narrow terminals instead of wrapping and breaking the layout"
+    },
+    {
+      "version": "0.11.2",
+      "tag": "v0.11.2",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.11.2",
+      "date": "2026-07-13",
+      "sections": [
+        {
+          "kind": "Fixed",
+          "changes": [
+            "Report a misspelled subcommand as an unknown command with suggestions, instead of exiting silently with usage or blaming a trailing flag",
+            "Style every flag mentioned in an error hint consistently — all flags now render as code spans"
+          ]
+        }
+      ],
+      "markdown": "## [0.11.2](https://github.com/matcra587/jira-cli/releases/tag/v0.11.2) — 2026-07-13\n\n### Fixed\n\n- Report a misspelled subcommand as an unknown command with suggestions, instead of exiting silently with usage or blaming a trailing flag\n- Style every flag mentioned in an error hint consistently — all flags now render as code spans"
+    },
+    {
+      "version": "0.11.1",
+      "tag": "v0.11.1",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.11.1",
+      "date": "2026-07-12",
+      "sections": [
+        {
+          "kind": "Fixed",
+          "changes": [
+            "Apply the resolved --color mode and the standard human-output formatting (omit-empty fields, smart quotes, grouped numbers) to failure-diagnostics summaries, the warning mirror, and per-command list renderers, which previously auto-detected color and skipped those conventions",
+            "Honor NO_COLOR on manually styled output — entity colors, status pills, hyperlinks, themed markdown — and resolve the auto theme from stdout's own state in split-stream invocations; --color=always still overrides both"
+          ]
+        }
+      ],
+      "markdown": "## [0.11.1](https://github.com/matcra587/jira-cli/releases/tag/v0.11.1) — 2026-07-12\n\n### Fixed\n\n- Apply the resolved --color mode and the standard human-output formatting (omit-empty fields, smart quotes, grouped numbers) to failure-diagnostics summaries, the warning mirror, and per-command list renderers, which previously auto-detected color and skipped those conventions\n- Honor NO_COLOR on manually styled output — entity colors, status pills, hyperlinks, themed markdown — and resolve the auto theme from stdout's own state in split-stream invocations; --color=always still overrides both"
+    },
+    {
+      "version": "0.11.0",
+      "tag": "v0.11.0",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.11.0",
+      "date": "2026-07-12",
+      "sections": [
+        {
+          "kind": "Added",
+          "changes": [
+            "Built-in --jq filter runs a jq expression over the JSON output in-process (gojq, gh CLI style): strings print raw, other results print as JSON per line, --output=json is implied, and failure envelopes are filtered with the exit code preserved",
+            "New issue rank command reorders backlog issues headlessly: place keys before or after an anchor issue in LexoRank order, with ranges chunked transparently at the API's 50-issue limit and order preserved end-to-end"
+          ]
+        },
+        {
+          "kind": "Changed",
+          "changes": [
+            "The foreign-flag hint no longer competes with its own suggestion: it says to use this CLI's equivalent, and the suggestion names it"
+          ]
+        }
+      ],
+      "markdown": "## [0.11.0](https://github.com/matcra587/jira-cli/releases/tag/v0.11.0) — 2026-07-12\n\n### Added\n\n- Built-in --jq filter runs a jq expression over the JSON output in-process (gojq, gh CLI style): strings print raw, other results print as JSON per line, --output=json is implied, and failure envelopes are filtered with the exit code preserved\n- New issue rank command reorders backlog issues headlessly: place keys before or after an anchor issue in LexoRank order, with ranges chunked transparently at the API's 50-issue limit and order preserved end-to-end\n\n### Changed\n\n- The foreign-flag hint no longer competes with its own suggestion: it says to use this CLI's equivalent, and the suggestion names it"
+    },
+    {
+      "version": "0.10.15",
+      "tag": "v0.10.15",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.10.15",
+      "date": "2026-07-12",
+      "sections": [
+        {
+          "kind": "Added",
+          "changes": [
+            "Tab completion for issue KEY arguments offers recently used keys, recorded per profile as a side effect of list, view, search, and mutations; inspect with jira cache issuekeys, reset with jira cache clear issuekeys"
+          ]
+        }
+      ],
+      "markdown": "## [0.10.15](https://github.com/matcra587/jira-cli/releases/tag/v0.10.15) — 2026-07-12\n\n### Added\n\n- Tab completion for issue KEY arguments offers recently used keys, recorded per profile as a side effect of list, view, search, and mutations; inspect with jira cache issuekeys, reset with jira cache clear issuekeys"
+    },
+    {
+      "version": "0.10.14",
+      "tag": "v0.10.14",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.10.14",
+      "date": "2026-07-12",
+      "sections": [
+        {
+          "kind": "Added",
+          "changes": [
+            "Spinners and the multi-key progress footer show a live countdown of the remaining --timeout budget while a request is in flight",
+            "Completion lines that carry summary fields (lists, mutations, multi-key batches) show the blocking round-trip time as a trailing elapsed field when it reaches one second; fast calls stay clean",
+            "Successful Jira mutations complete with a distinct SCS success line, separating writes that landed from informational reads; dry-run previews and partial failures stay informational",
+            "release-notes pages a full history taller than the screen on interactive terminals, like git log — built-in pager by default, JIRA_PAGER/PAGER honored, --no-pager to print directly; piped, machine-mode, and agent output always streams"
+          ]
+        },
+        {
+          "kind": "Changed",
+          "changes": [
+            "Human output picks quote delimiters adaptively (values containing quotes render without backslash escaping) and groups digits in large numbers",
+            "config get and config profile human output renders as syntax-highlighted TOML matching the config file's own shape",
+            "Batch summary lines render succeeded as a gradient-colored fraction (succeeded=12/13) and show failed only when something failed"
+          ]
+        },
+        {
+          "kind": "Fixed",
+          "changes": [
+            "Help text wraps at a readable measure (100 columns) on very wide terminals instead of running the full width; narrow terminals are unchanged",
+            "Issue list completion line no longer prints detail=false noise; the detail field appears only when detail mode is on",
+            "Status pills color by category consistently across issue list --detail and multi-key issue view, instead of drifting to arbitrary hues"
+          ]
+        }
+      ],
+      "markdown": "## [0.10.14](https://github.com/matcra587/jira-cli/releases/tag/v0.10.14) — 2026-07-12\n\n### Added\n\n- Spinners and the multi-key progress footer show a live countdown of the remaining --timeout budget while a request is in flight\n- Completion lines that carry summary fields (lists, mutations, multi-key batches) show the blocking round-trip time as a trailing elapsed field when it reaches one second; fast calls stay clean\n- Successful Jira mutations complete with a distinct SCS success line, separating writes that landed from informational reads; dry-run previews and partial failures stay informational\n- release-notes pages a full history taller than the screen on interactive terminals, like git log — built-in pager by default, JIRA_PAGER/PAGER honored, --no-pager to print directly; piped, machine-mode, and agent output always streams\n\n### Changed\n\n- Human output picks quote delimiters adaptively (values containing quotes render without backslash escaping) and groups digits in large numbers\n- config get and config profile human output renders as syntax-highlighted TOML matching the config file's own shape\n- Batch summary lines render succeeded as a gradient-colored fraction (succeeded=12/13) and show failed only when something failed\n\n### Fixed\n\n- Help text wraps at a readable measure (100 columns) on very wide terminals instead of running the full width; narrow terminals are unchanged\n- Issue list completion line no longer prints detail=false noise; the detail field appears only when detail mode is on\n- Status pills color by category consistently across issue list --detail and multi-key issue view, instead of drifting to arbitrary hues"
+    },
+    {
+      "version": "0.10.13",
+      "tag": "v0.10.13",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.10.13",
+      "date": "2026-07-11",
+      "sections": [
+        {
+          "kind": "Fixed",
+          "changes": [
+            "Stop the auth login verification spinner from corrupting --debug output; verification narrates bare under debug like every other lifecycle",
+            "Color assignee and other entity names with fixed mid-tone hues readable on both light and dark terminals, instead of the theme's background-specific palette"
+          ]
+        }
+      ],
+      "markdown": "## [0.10.13](https://github.com/matcra587/jira-cli/releases/tag/v0.10.13) — 2026-07-11\n\n### Fixed\n\n- Stop the auth login verification spinner from corrupting --debug output; verification narrates bare under debug like every other lifecycle\n- Color assignee and other entity names with fixed mid-tone hues readable on both light and dark terminals, instead of the theme's background-specific palette"
+    },
+    {
+      "version": "0.10.12",
+      "tag": "v0.10.12",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.10.12",
+      "date": "2026-07-11",
+      "sections": [
+        {
+          "kind": "Fixed",
+          "changes": [
+            "Apply --color=always/never to all human output on stdout (tables, pills, links, human-mode JSON, ADF views, mirrored warnings) — always styles piped output, never suppresses color and hyperlinks even on a terminal; mode values are accepted case-insensitively"
+          ]
+        },
+        {
+          "kind": "Dependencies",
+          "changes": [
+            "Upgrade gechr libraries: clog v0.13.1, clib v0.6.6, x v0.2.18, primer v0.1.2"
+          ]
+        }
+      ],
+      "markdown": "## [0.10.12](https://github.com/matcra587/jira-cli/releases/tag/v0.10.12) — 2026-07-11\n\n### Fixed\n\n- Apply --color=always/never to all human output on stdout (tables, pills, links, human-mode JSON, ADF views, mirrored warnings) — always styles piped output, never suppresses color and hyperlinks even on a terminal; mode values are accepted case-insensitively\n\n### Dependencies\n\n- Upgrade gechr libraries: clog v0.13.1, clib v0.6.6, x v0.2.18, primer v0.1.2"
+    },
+    {
+      "version": "0.10.11",
+      "tag": "v0.10.11",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.10.11",
+      "date": "2026-07-11",
+      "sections": [
+        {
+          "kind": "Fixed",
+          "changes": [
+            "Narrate dry-run fan-outs as previews in --debug lifecycles and progress labels (\"previewing issue edit\") instead of claiming the mutation ran"
+          ]
+        }
+      ],
+      "markdown": "## [0.10.11](https://github.com/matcra587/jira-cli/releases/tag/v0.10.11) — 2026-07-11\n\n### Fixed\n\n- Narrate dry-run fan-outs as previews in --debug lifecycles and progress labels (\"previewing issue edit\") instead of claiming the mutation ran"
+    },
+    {
+      "version": "0.10.10",
+      "tag": "v0.10.10",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.10.10",
+      "date": "2026-07-11",
+      "sections": [
+        {
+          "kind": "Fixed",
+          "changes": [
+            "Align TUI relative ages with the CLI compact format: sub-minute and future-skewed updates show \"now\", and 30-34 day ages show \"4w\""
+          ]
+        }
+      ],
+      "markdown": "## [0.10.10](https://github.com/matcra587/jira-cli/releases/tag/v0.10.10) — 2026-07-11\n\n### Fixed\n\n- Align TUI relative ages with the CLI compact format: sub-minute and future-skewed updates show \"now\", and 30-34 day ages show \"4w\""
+    },
+    {
+      "version": "0.10.9",
+      "tag": "v0.10.9",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.10.9",
+      "date": "2026-07-11",
+      "sections": [
+        {
+          "kind": "Fixed",
+          "changes": [
+            "Phrase dry-run previews in the conditional mood (\"Would transition issue\") instead of past-tense completion"
+          ]
+        }
+      ],
+      "markdown": "## [0.10.9](https://github.com/matcra587/jira-cli/releases/tag/v0.10.9) — 2026-07-11\n\n### Fixed\n\n- Phrase dry-run previews in the conditional mood (\"Would transition issue\") instead of past-tense completion"
+    },
+    {
+      "version": "0.10.8",
+      "tag": "v0.10.8",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.10.8",
+      "date": "2026-07-11",
+      "sections": [
+        {
+          "kind": "Fixed",
+          "changes": [
+            "Drop the redundant 'attachment download: validation:' prefix from the download overwrite refusal; it keeps its validation classification (exit 3) like the other --force gates",
+            "Report the attachment download path-escape refusal as flag_value_invalid naming --to, instead of a generic validation failure",
+            "Render status pills with fixed truecolor fills and luma-based text so contrast survives terminals that remap the 16-color ANSI palette"
+          ]
+        }
+      ],
+      "markdown": "## [0.10.8](https://github.com/matcra587/jira-cli/releases/tag/v0.10.8) — 2026-07-11\n\n### Fixed\n\n- Drop the redundant 'attachment download: validation:' prefix from the download overwrite refusal; it keeps its validation classification (exit 3) like the other --force gates\n- Report the attachment download path-escape refusal as flag_value_invalid naming --to, instead of a generic validation failure\n- Render status pills with fixed truecolor fills and luma-based text so contrast survives terminals that remap the 16-color ANSI palette"
+    },
+    {
+      "version": "0.10.7",
+      "tag": "v0.10.7",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.10.7",
+      "date": "2026-07-11",
+      "sections": [
+        {
+          "kind": "Added",
+          "changes": [
+            "Add an env secret backend: jira auth login --backend env reads the profile's JIRA_TOKEN_<PROFILE> variable at run time and stores nothing — for WSL, headless Linux, containers, and op run-style secret injectors"
+          ]
+        },
+        {
+          "kind": "Fixed",
+          "changes": [
+            "Offer only usable secret backends in interactive auth login — the keyring is dropped when no Secret Service answers (WSL, headless Linux) and 1Password in no-CGO builds — and fail headless logins early with actionable errors",
+            "Honor the secret backend selected in the interactive auth login form instead of silently keeping the profile's stored backend",
+            "Classify OS keyring failures as a typed keyring_unavailable error that points at the env backend, instead of surfacing raw Secret Service D-Bus text as a generic validation failure",
+            "Report a nonexistent Atlassian site as jira_site_not_found with the offending host named, instead of relaying Atlassian's misleading 'Site temporarily unavailable' 404 — auth login verification and auth status probes now point at the base_url site name",
+            "Shorten the post-login warning about an old credential that could not be revoked to the typed message instead of the full error chain",
+            "Strip ANSI escapes and control bytes from Jira-sourced text in comment list previews, mirrored ADF warning lines, and debug failure reasons"
+          ]
+        },
+        {
+          "kind": "Dependencies",
+          "changes": [
+            "Upgrade clive to v0.4.2, dropping go-selfupdate and its deprecated x/crypto/openpgp dependency (GO-2026-5932); the govulncheck advisory allowlist is retired now that no accepted advisories remain"
+          ]
+        }
+      ],
+      "markdown": "## [0.10.7](https://github.com/matcra587/jira-cli/releases/tag/v0.10.7) — 2026-07-11\n\n### Added\n\n- Add an env secret backend: jira auth login --backend env reads the profile's JIRA_TOKEN_<PROFILE> variable at run time and stores nothing — for WSL, headless Linux, containers, and op run-style secret injectors\n\n### Fixed\n\n- Offer only usable secret backends in interactive auth login — the keyring is dropped when no Secret Service answers (WSL, headless Linux) and 1Password in no-CGO builds — and fail headless logins early with actionable errors\n- Honor the secret backend selected in the interactive auth login form instead of silently keeping the profile's stored backend\n- Classify OS keyring failures as a typed keyring_unavailable error that points at the env backend, instead of surfacing raw Secret Service D-Bus text as a generic validation failure\n- Report a nonexistent Atlassian site as jira_site_not_found with the offending host named, instead of relaying Atlassian's misleading 'Site temporarily unavailable' 404 — auth login verification and auth status probes now point at the base_url site name\n- Shorten the post-login warning about an old credential that could not be revoked to the typed message instead of the full error chain\n- Strip ANSI escapes and control bytes from Jira-sourced text in comment list previews, mirrored ADF warning lines, and debug failure reasons\n\n### Dependencies\n\n- Upgrade clive to v0.4.2, dropping go-selfupdate and its deprecated x/crypto/openpgp dependency (GO-2026-5932); the govulncheck advisory allowlist is retired now that no accepted advisories remain"
+    },
+    {
+      "version": "0.10.6",
+      "tag": "v0.10.6",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.10.6",
+      "date": "2026-07-08",
+      "sections": [
+        {
+          "kind": "Added",
+          "changes": [
+            "Show a description and worked examples in --help for each top-level command group (issue, config, cache, auth, and the rest)."
+          ]
+        },
+        {
+          "kind": "Changed",
+          "changes": [
+            "Require --force to delete an alias in headless, agent, or --no-input mode, matching cache clear; interactive terminals are unaffected."
+          ]
+        }
+      ],
+      "markdown": "## [0.10.6](https://github.com/matcra587/jira-cli/releases/tag/v0.10.6) — 2026-07-08\n\n### Added\n\n- Show a description and worked examples in --help for each top-level command group (issue, config, cache, auth, and the rest).\n\n### Changed\n\n- Require --force to delete an alias in headless, agent, or --no-input mode, matching cache clear; interactive terminals are unaffected."
+    },
+    {
+      "version": "0.10.5",
+      "tag": "v0.10.5",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.10.5",
+      "date": "2026-07-08",
+      "sections": [
+        {
+          "kind": "Added",
+          "changes": [
+            "Add --dry-run to the local-state mutations that lacked it: alias set/delete/import, config init, config theme, and cache refresh now preview the change and write nothing under --dry-run, reporting data.dry_run true. cache refresh --dry-run reports which resources are stale without contacting Jira."
+          ]
+        },
+        {
+          "kind": "Security",
+          "changes": [
+            "Build with Go 1.26.5 to pick up its crypto/tls security fixes."
+          ]
+        }
+      ],
+      "markdown": "## [0.10.5](https://github.com/matcra587/jira-cli/releases/tag/v0.10.5) — 2026-07-08\n\n### Added\n\n- Add --dry-run to the local-state mutations that lacked it: alias set/delete/import, config init, config theme, and cache refresh now preview the change and write nothing under --dry-run, reporting data.dry_run true. cache refresh --dry-run reports which resources are stale without contacting Jira.\n\n### Security\n\n- Build with Go 1.26.5 to pick up its crypto/tls security fixes."
+    },
+    {
+      "version": "0.10.4",
+      "tag": "v0.10.4",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.10.4",
+      "date": "2026-07-08",
+      "sections": [
+        {
+          "kind": "Fixed",
+          "changes": [
+            "Sharpen error guidance: the generic Jira 404 hint no longer assumes the identifier is an issue key (it also covers boards, attachments, users, comments, and links); a --type value with no match on a project's create screen now exits 3 (validation) with the valid issue types offered as suggestions instead of a misleading not-found; and an unknown search saved name points to the queries directory rather than --help."
+          ]
+        }
+      ],
+      "markdown": "## [0.10.4](https://github.com/matcra587/jira-cli/releases/tag/v0.10.4) — 2026-07-08\n\n### Fixed\n\n- Sharpen error guidance: the generic Jira 404 hint no longer assumes the identifier is an issue key (it also covers boards, attachments, users, comments, and links); a --type value with no match on a project's create screen now exits 3 (validation) with the valid issue types offered as suggestions instead of a misleading not-found; and an unknown search saved name points to the queries directory rather than --help."
+    },
+    {
+      "version": "0.10.3",
+      "tag": "v0.10.3",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.10.3",
+      "date": "2026-07-08",
+      "sections": [
+        {
+          "kind": "Fixed",
+          "changes": [
+            "Surface write failures (broken pipe, disk quota) on paginated list and search envelopes instead of silently swallowing them."
+          ]
+        }
+      ],
+      "markdown": "## [0.10.3](https://github.com/matcra587/jira-cli/releases/tag/v0.10.3) — 2026-07-08\n\n### Fixed\n\n- Surface write failures (broken pipe, disk quota) on paginated list and search envelopes instead of silently swallowing them."
+    },
+    {
+      "version": "0.10.2",
+      "tag": "v0.10.2",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.10.2",
+      "date": "2026-07-08",
+      "sections": [
+        {
+          "kind": "Added",
+          "changes": [
+            "Extend shell tab-completion: the issue transition status argument (--transition) now completes status names, and search saved completes saved-query names."
+          ]
+        }
+      ],
+      "markdown": "## [0.10.2](https://github.com/matcra587/jira-cli/releases/tag/v0.10.2) — 2026-07-08\n\n### Added\n\n- Extend shell tab-completion: the issue transition status argument (--transition) now completes status names, and search saved completes saved-query names."
+    },
+    {
+      "version": "0.10.1",
+      "tag": "v0.10.1",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.10.1",
+      "date": "2026-07-08",
+      "sections": [
+        {
+          "kind": "Fixed",
+          "changes": [
+            "Locally-detected command errors now carry typed classifications instead of being guessed from their message text, which fixes five wrong exit codes. `auth login` with a `--backend` that differs from the profile's stored backend, and `issue edit --assignee me` on a profile with no saved account id, now exit 3 (validation, `flag_value_invalid`) instead of 1 (auth). `auth whoami` against a profile that has no base URL now exits 2 (`profile_incomplete`) instead of 1 (auth). `jira agent guide` with an unknown section and `jira search saved` with an unknown query name now exit 3 (validation, `arg_value_invalid`) instead of 2 (not found) — the lookups are local, not Jira resources. Every `--force` gate keeps its `validation_failed`/exit 3 contract, and a genuinely absent Jira user on watcher commands keeps `not_found`/exit 2.",
+            "The command error classifier no longer guesses an error's category from its message text — a fragile heuristic that misrouted some validation errors to the wrong exit code. A bad `auth_type` (rejected on config load or via `config set`) and `auth login` with the conflicting `--secret-stdin` and `--credential-env` flags now exit 3 (validation) instead of 1 (auth), where before the word \"auth\" or the flag name \"credential-env\" pushed them onto the authentication path. Multi-key batch commands that partially fail now carry the exit code of their worst failure directly instead of re-deriving it from the summary line, so mixed-failure batches classify correctly. Any error the CLI does not explicitly classify now defaults to validation (exit 3) rather than being sorted by keyword."
+          ]
+        }
+      ],
+      "markdown": "## [0.10.1](https://github.com/matcra587/jira-cli/releases/tag/v0.10.1) — 2026-07-08\n\n### Fixed\n\n- Locally-detected command errors now carry typed classifications instead of being guessed from their message text, which fixes five wrong exit codes. `auth login` with a `--backend` that differs from the profile's stored backend, and `issue edit --assignee me` on a profile with no saved account id, now exit 3 (validation, `flag_value_invalid`) instead of 1 (auth). `auth whoami` against a profile that has no base URL now exits 2 (`profile_incomplete`) instead of 1 (auth). `jira agent guide` with an unknown section and `jira search saved` with an unknown query name now exit 3 (validation, `arg_value_invalid`) instead of 2 (not found) — the lookups are local, not Jira resources. Every `--force` gate keeps its `validation_failed`/exit 3 contract, and a genuinely absent Jira user on watcher commands keeps `not_found`/exit 2.\n- The command error classifier no longer guesses an error's category from its message text — a fragile heuristic that misrouted some validation errors to the wrong exit code. A bad `auth_type` (rejected on config load or via `config set`) and `auth login` with the conflicting `--secret-stdin` and `--credential-env` flags now exit 3 (validation) instead of 1 (auth), where before the word \"auth\" or the flag name \"credential-env\" pushed them onto the authentication path. Multi-key batch commands that partially fail now carry the exit code of their worst failure directly instead of re-deriving it from the summary line, so mixed-failure batches classify correctly. Any error the CLI does not explicitly classify now defaults to validation (exit 3) rather than being sorted by keyword."
+    },
+    {
+      "version": "0.10.0",
+      "tag": "v0.10.0",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.10.0",
+      "date": "2026-07-07",
+      "sections": [
+        {
+          "kind": "Added",
+          "changes": [
+            "`issue view` now surfaces the discovery data Jira already returns on the read instead of discarding it: `data.issue.transitions[]` lists the workflow moves valid from the current status, and `data.issue.editmeta.fields` lists the editable fields with their required flag, accepted operations, and allowed values — so an agent or script can plan an edit or transition from a single read. The human view gains a one-line transitions summary.",
+            "The agent contract is now versioned: `jira agent schema` reports the revision at `data.schema_version` and the full `jira agent guide` output stamps the same value, so an agent can detect a breaking change instead of discovering it mid-workflow. The scheme (what a major, minor, or patch bump means for the contract) is documented in the guide's core_contract section.",
+            "Two discovery gaps are closed. A new `jira cache resolutions` command lists the tenant's resolution names (they vary per instance), so a resolve transition that requires a `resolution` field can be planned instead of guessed. Cached statuses now carry `status_category` (`new`, `indeterminate`, or `done`) alongside `id` and `name`, and the guide documents that status ids repeat across workflows — map a name to its category from the cache, and resolve the id per issue via the transition list.",
+            "The `--dry-run`/`--force` safety rails now cover local state mutations, not just Jira writes. `cache clear --dry-run` reports what a live clear would remove without touching any file, `config set --dry-run` runs the full key and value validation and reports the current and new value without writing config, `auth switch --dry-run` resolves the target profile without changing the default, and `auth logout --dry-run` names the credential a live logout would revoke without opening the secret backend. The destructive pair — `cache clear` and `auth logout` — now requires `--force` in agent, non-TTY, or `--no-input` context, matching the gate on destructive Jira mutations; headless scripts that clear caches or log out must add the flag. Interactive terminals proceed without prompts."
+          ]
+        },
+        {
+          "kind": "Changed",
+          "changes": [
+            "`jira update` no longer asks for a yes/no confirmation in an interactive terminal — running the command is the consent, and the self-replace is already checksum-verified and rollback-safe. `--dry-run` still previews without changing anything, and headless, agent, and `--no-input` runs still require `--force`."
+          ]
+        }
+      ],
+      "markdown": "## [0.10.0](https://github.com/matcra587/jira-cli/releases/tag/v0.10.0) — 2026-07-07\n\n### Added\n\n- `issue view` now surfaces the discovery data Jira already returns on the read instead of discarding it: `data.issue.transitions[]` lists the workflow moves valid from the current status, and `data.issue.editmeta.fields` lists the editable fields with their required flag, accepted operations, and allowed values — so an agent or script can plan an edit or transition from a single read. The human view gains a one-line transitions summary.\n- The agent contract is now versioned: `jira agent schema` reports the revision at `data.schema_version` and the full `jira agent guide` output stamps the same value, so an agent can detect a breaking change instead of discovering it mid-workflow. The scheme (what a major, minor, or patch bump means for the contract) is documented in the guide's core_contract section.\n- Two discovery gaps are closed. A new `jira cache resolutions` command lists the tenant's resolution names (they vary per instance), so a resolve transition that requires a `resolution` field can be planned instead of guessed. Cached statuses now carry `status_category` (`new`, `indeterminate`, or `done`) alongside `id` and `name`, and the guide documents that status ids repeat across workflows — map a name to its category from the cache, and resolve the id per issue via the transition list.\n- The `--dry-run`/`--force` safety rails now cover local state mutations, not just Jira writes. `cache clear --dry-run` reports what a live clear would remove without touching any file, `config set --dry-run` runs the full key and value validation and reports the current and new value without writing config, `auth switch --dry-run` resolves the target profile without changing the default, and `auth logout --dry-run` names the credential a live logout would revoke without opening the secret backend. The destructive pair — `cache clear` and `auth logout` — now requires `--force` in agent, non-TTY, or `--no-input` context, matching the gate on destructive Jira mutations; headless scripts that clear caches or log out must add the flag. Interactive terminals proceed without prompts.\n\n### Changed\n\n- `jira update` no longer asks for a yes/no confirmation in an interactive terminal — running the command is the consent, and the self-replace is already checksum-verified and rollback-safe. `--dry-run` still previews without changing anything, and headless, agent, and `--no-input` runs still require `--force`."
+    },
+    {
+      "version": "0.9.2",
+      "tag": "v0.9.2",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.9.2",
+      "date": "2026-07-07",
+      "sections": [
+        {
+          "kind": "Added",
+          "changes": [
+            "The JSON envelope now carries Jira's own trace id: the `Atl-Traceid` / `X-ARequestId` response header is captured as `meta.upstream_request_id` and on each error entry, so a Jira-side failure can be quoted directly to Atlassian support. The existing `meta.request_id` is generated locally and has no server-side meaning."
+          ]
+        },
+        {
+          "kind": "Fixed",
+          "changes": [
+            "Human output now strips ANSI escape and control bytes from Jira-controlled text (summaries, descriptions, error messages), so a crafted issue or error can no longer inject color codes or corrupt your terminal.",
+            "`jira agent schema` now binds the comment input schema to the `comment add`/`comment edit` leaves (they previously reported no input schema) and publishes output schemas for the read/list commands — comment, attachment, link, worklog, transition, boards, and cache — so agents can discover response shapes without trial calls.",
+            "`issue attachment download --to` is now confined to the working directory: a `..` traversal or an absolute path outside it is rejected before any HTTP call, so an agent (or a crafted instruction) can no longer write downloads outside the tree it was launched in. A new `security_posture` section in `jira agent guide` documents the threat model."
+          ]
+        }
+      ],
+      "markdown": "## [0.9.2](https://github.com/matcra587/jira-cli/releases/tag/v0.9.2) — 2026-07-07\n\n### Added\n\n- The JSON envelope now carries Jira's own trace id: the `Atl-Traceid` / `X-ARequestId` response header is captured as `meta.upstream_request_id` and on each error entry, so a Jira-side failure can be quoted directly to Atlassian support. The existing `meta.request_id` is generated locally and has no server-side meaning.\n\n### Fixed\n\n- Human output now strips ANSI escape and control bytes from Jira-controlled text (summaries, descriptions, error messages), so a crafted issue or error can no longer inject color codes or corrupt your terminal.\n- `jira agent schema` now binds the comment input schema to the `comment add`/`comment edit` leaves (they previously reported no input schema) and publishes output schemas for the read/list commands — comment, attachment, link, worklog, transition, boards, and cache — so agents can discover response shapes without trial calls.\n- `issue attachment download --to` is now confined to the working directory: a `..` traversal or an absolute path outside it is rejected before any HTTP call, so an agent (or a crafted instruction) can no longer write downloads outside the tree it was launched in. A new `security_posture` section in `jira agent guide` documents the threat model."
+    },
+    {
+      "version": "0.9.1",
+      "tag": "v0.9.1",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.9.1",
+      "date": "2026-07-07",
+      "sections": [
+        {
+          "kind": "Added",
+          "changes": [
+            "Running a command with --debug now prints the error's classification on the error line — its stable code and type, plus a retryable marker when the error is retryable — the same fields an agent reads from the JSON envelope.",
+            "Rate-limited commands now say how long to wait: when Jira sends a Retry-After, human output adds a 'retry in Ns' line under the rate-limit hint."
+          ]
+        }
+      ],
+      "markdown": "## [0.9.1](https://github.com/matcra587/jira-cli/releases/tag/v0.9.1) — 2026-07-07\n\n### Added\n\n- Running a command with --debug now prints the error's classification on the error line — its stable code and type, plus a retryable marker when the error is retryable — the same fields an agent reads from the JSON envelope.\n- Rate-limited commands now say how long to wait: when Jira sends a Retry-After, human output adds a 'retry in Ns' line under the rate-limit hint."
+    },
+    {
+      "version": "0.9.0",
+      "tag": "v0.9.0",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.9.0",
+      "date": "2026-07-06",
+      "sections": [
+        {
+          "kind": "Added",
+          "changes": [
+            "Errors are now easier to act on: human output prints the next-step hint (and a did-you-mean suggestion for unknown flags or commands), the JSON envelope carries those in a new `suggestions` field, and hints across the CLI were rewritten in plain language."
+          ]
+        },
+        {
+          "kind": "Fixed",
+          "changes": [
+            "error envelopes now carry a complete, guarded taxonomy: read-only refusals emit code read_only, dry-run transport guards dry_run_blocked, wrong-shape ADF payloads adf_invalid (the raw json unmarshal text no longer leaks), issue-key expansion limits, ambiguous users and ambiguous boards their own codes, invalid --output values route through flag_value_invalid, every code ships a non-empty hint, a permanently deleted resource (HTTP 410) now exits 2 (not found) instead of 3, and exits 6 (canceled) / 7 (timeout) plus all emitted error fields are documented in the agent contract",
+            "Several credential and 1Password error hints now point at the correct fix — including a 1Password failure on a build without 1Password support, and a login that can't reach Jira to verify, which previously suggested remediation that did not apply."
+          ]
+        }
+      ],
+      "markdown": "## [0.9.0](https://github.com/matcra587/jira-cli/releases/tag/v0.9.0) — 2026-07-06\n\n### Added\n\n- Errors are now easier to act on: human output prints the next-step hint (and a did-you-mean suggestion for unknown flags or commands), the JSON envelope carries those in a new `suggestions` field, and hints across the CLI were rewritten in plain language.\n\n### Fixed\n\n- error envelopes now carry a complete, guarded taxonomy: read-only refusals emit code read_only, dry-run transport guards dry_run_blocked, wrong-shape ADF payloads adf_invalid (the raw json unmarshal text no longer leaks), issue-key expansion limits, ambiguous users and ambiguous boards their own codes, invalid --output values route through flag_value_invalid, every code ships a non-empty hint, a permanently deleted resource (HTTP 410) now exits 2 (not found) instead of 3, and exits 6 (canceled) / 7 (timeout) plus all emitted error fields are documented in the agent contract\n- Several credential and 1Password error hints now point at the correct fix — including a 1Password failure on a build without 1Password support, and a login that can't reach Jira to verify, which previously suggested remediation that did not apply."
+    },
+    {
+      "version": "0.8.4",
+      "tag": "v0.8.4",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.8.4",
+      "date": "2026-07-06",
+      "sections": [
+        {
+          "kind": "Fixed",
+          "changes": [
+            "issue create/edit gain --verify: after a successful live write the issue is re-fetched and every requested field is diffed against what the server actually applied, so silently dropped labels, parents, assignees, priorities, versions, components, and custom fields surface as field_not_applied warnings with a data.verification block instead of a clean success"
+          ]
+        }
+      ],
+      "markdown": "## [0.8.4](https://github.com/matcra587/jira-cli/releases/tag/v0.8.4) — 2026-07-06\n\n### Fixed\n\n- issue create/edit gain --verify: after a successful live write the issue is re-fetched and every requested field is diffed against what the server actually applied, so silently dropped labels, parents, assignees, priorities, versions, components, and custom fields surface as field_not_applied warnings with a data.verification block instead of a clean success"
+    },
+    {
+      "version": "0.8.3",
+      "tag": "v0.8.3",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.8.3",
+      "date": "2026-07-06",
+      "sections": [
+        {
+          "kind": "Fixed",
+          "changes": [
+            "alias list human output now renders one name → expansion line per alias (natural-ordered) instead of the collapsed value={...} placeholder; the generic plain fallback also renders any string-keyed map per key, closing the class",
+            "auth login no longer wipes existing profiles when configuring a new one without --config: the fresh-config probe now stats the resolved default path instead of the raw (empty) flag value, so adding a second profile preserves the first"
+          ]
+        }
+      ],
+      "markdown": "## [0.8.3](https://github.com/matcra587/jira-cli/releases/tag/v0.8.3) — 2026-07-06\n\n### Fixed\n\n- alias list human output now renders one name → expansion line per alias (natural-ordered) instead of the collapsed value={...} placeholder; the generic plain fallback also renders any string-keyed map per key, closing the class\n- auth login no longer wipes existing profiles when configuring a new one without --config: the fresh-config probe now stats the resolved default path instead of the raw (empty) flag value, so adding a second profile preserves the first"
+    },
+    {
+      "version": "0.8.2",
+      "tag": "v0.8.2",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.8.2",
+      "date": "2026-07-06",
+      "sections": [
+        {
+          "kind": "Fixed",
+          "changes": [
+            "auth login credential-rejection and cloudId discovery errors now name the HTTP status text (e.g. 401 Unauthorized) instead of the bare status code",
+            "key- and name-like candidate lists now sort naturally (PROJ-2 before PROJ-10) — failed-key summaries in the TUI, board project keys, alias names, and JQL completion candidates"
+          ]
+        }
+      ],
+      "markdown": "## [0.8.2](https://github.com/matcra587/jira-cli/releases/tag/v0.8.2) — 2026-07-06\n\n### Fixed\n\n- auth login credential-rejection and cloudId discovery errors now name the HTTP status text (e.g. 401 Unauthorized) instead of the bare status code\n- key- and name-like candidate lists now sort naturally (PROJ-2 before PROJ-10) — failed-key summaries in the TUI, board project keys, alias names, and JQL completion candidates"
+    },
+    {
+      "version": "0.8.1",
+      "tag": "v0.8.1",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.8.1",
+      "date": "2026-07-06",
+      "sections": [
+        {
+          "kind": "Fixed",
+          "changes": [
+            "search jql/saved --fields now narrows the flat per-issue summary projection instead of silently switching the issues array to Jira's raw wire shape; --full remains the raw-record mode",
+            "worklog add --started now accepts ISO-8601 and relative times (yesterday, 2h ago), normalizes them to the exact timestamp format Jira requires, and rejects unparseable values at --dry-run instead of on submit",
+            "auth logout can now purge a credential whose profile was deleted from config: pass --base-url with the profile's old site and the orphaned keychain token is removed instead of failing with profile not found",
+            "issue attachment download/delete now validate their issue-key argument (a traversal path or malformed key fails fast with exit 3), and negative --timeout, --max-retry-wait, and --limit values are rejected instead of silently falling back; 0 remains the documented default/disabled sentinel",
+            "issue create/edit --json-input now accept flat-string values for object-valued system fields (project, issuetype, parent, priority, assignee, reporter, components, fixVersions, versions), lifting them to the wire shape Jira requires instead of passing --dry-run and failing on submit; explicit wire objects are untouched"
+          ]
+        }
+      ],
+      "markdown": "## [0.8.1](https://github.com/matcra587/jira-cli/releases/tag/v0.8.1) — 2026-07-06\n\n### Fixed\n\n- search jql/saved --fields now narrows the flat per-issue summary projection instead of silently switching the issues array to Jira's raw wire shape; --full remains the raw-record mode\n- worklog add --started now accepts ISO-8601 and relative times (yesterday, 2h ago), normalizes them to the exact timestamp format Jira requires, and rejects unparseable values at --dry-run instead of on submit\n- auth logout can now purge a credential whose profile was deleted from config: pass --base-url with the profile's old site and the orphaned keychain token is removed instead of failing with profile not found\n- issue attachment download/delete now validate their issue-key argument (a traversal path or malformed key fails fast with exit 3), and negative --timeout, --max-retry-wait, and --limit values are rejected instead of silently falling back; 0 remains the documented default/disabled sentinel\n- issue create/edit --json-input now accept flat-string values for object-valued system fields (project, issuetype, parent, priority, assignee, reporter, components, fixVersions, versions), lifting them to the wire shape Jira requires instead of passing --dry-run and failing on submit; explicit wire objects are untouched"
+    },
+    {
+      "version": "0.8.0",
+      "tag": "v0.8.0",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.8.0",
+      "date": "2026-07-05",
+      "sections": [
+        {
+          "kind": "Added",
+          "changes": [
+            "Publish curated release notes on the docs site, assembled per release from change fragments.",
+            "Read jira-cli's own changelog from the CLI with `jira release-notes` (alias `rn`): the notes are embedded in the binary and rendered as Markdown — the full history by default, or a single release with a version argument or `--latest`."
+          ]
+        },
+        {
+          "kind": "Fixed",
+          "changes": [
+            "Honor a named theme set in config (e.g. `dracula`, `nord`) in plain command output — tables and the `release-notes` view — instead of falling back to the dark palette; previously only the opt-in `auto` theme (or `JIRA_THEME`) styled non-TUI output."
+          ]
+        }
+      ],
+      "markdown": "## [0.8.0](https://github.com/matcra587/jira-cli/releases/tag/v0.8.0) — 2026-07-05\n\n### Added\n\n- Publish curated release notes on the docs site, assembled per release from change fragments.\n- Read jira-cli's own changelog from the CLI with `jira release-notes` (alias `rn`): the notes are embedded in the binary and rendered as Markdown — the full history by default, or a single release with a version argument or `--latest`.\n\n### Fixed\n\n- Honor a named theme set in config (e.g. `dracula`, `nord`) in plain command output — tables and the `release-notes` view — instead of falling back to the dark palette; previously only the opt-in `auto` theme (or `JIRA_THEME`) styled non-TUI output."
+    },
+    {
+      "version": "0.7.7",
+      "tag": "v0.7.7",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.7.7",
+      "date": "2026-07-05",
+      "sections": [
+        {
+          "kind": "Changed",
+          "changes": [
+            "Detect grapheme-clustering terminals through emulator markers (Ghostty, WezTerm, foot, Contour, Windows Terminal); kitty now measures width by wcwidth, correcting its column drift."
+          ]
+        },
+        {
+          "kind": "Fixed",
+          "changes": [
+            "Keep issue-table columns aligned when a summary contains an inline-code span."
+          ]
+        },
+        {
+          "kind": "Dependencies",
+          "changes": [
+            "Update gechr/clib to v0.5.9",
+            "Update gechr/clive to v0.2.6",
+            "Update gechr/clog to v0.11.15",
+            "Update gechr/x to v0.2.8"
+          ]
+        }
+      ],
+      "markdown": "## [0.7.7](https://github.com/matcra587/jira-cli/releases/tag/v0.7.7) — 2026-07-05\n\n### Changed\n\n- Detect grapheme-clustering terminals through emulator markers (Ghostty, WezTerm, foot, Contour, Windows Terminal); kitty now measures width by wcwidth, correcting its column drift.\n\n### Fixed\n\n- Keep issue-table columns aligned when a summary contains an inline-code span.\n\n### Dependencies\n\n- Update gechr/clib to v0.5.9\n- Update gechr/clive to v0.2.6\n- Update gechr/clog to v0.11.15\n- Update gechr/x to v0.2.8"
+    },
+    {
+      "version": "0.7.6",
+      "tag": "v0.7.6",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.7.6",
+      "date": "2026-07-04",
+      "sections": [
+        {
+          "kind": "Added",
+          "changes": [
+            "Author Jira checklists from Markdown task lists (`- [ ]` / `- [x]`); the ADF support matrix now covers every node and mark of the pinned Atlassian schema.",
+            "Teach a foreign flag carried over from another Jira CLI, pointing at this CLI's equivalent instead of rejecting it bare."
+          ]
+        },
+        {
+          "kind": "Fixed",
+          "changes": [
+            "Align issue tables on grapheme-clustering terminals (Ghostty, WezTerm, foot) when a summary contains emoji.",
+            "Pad status pills to a uniform width down the column.",
+            "Show an unassigned issue as `unassigned` rather than a raw `map[]`."
+          ]
+        },
+        {
+          "kind": "Dependencies",
+          "changes": [
+            "Update gechr/primer to v0.1.1",
+            "Update gechr/x to v0.2.4",
+            "Update bubbletea to v2.0.8",
+            "Update lipgloss to v2.0.5",
+            "Update google/uuid to v1.6.0"
+          ]
+        }
+      ],
+      "markdown": "## [0.7.6](https://github.com/matcra587/jira-cli/releases/tag/v0.7.6) — 2026-07-04\n\n### Added\n\n- Author Jira checklists from Markdown task lists (`- [ ]` / `- [x]`); the ADF support matrix now covers every node and mark of the pinned Atlassian schema.\n- Teach a foreign flag carried over from another Jira CLI, pointing at this CLI's equivalent instead of rejecting it bare.\n\n### Fixed\n\n- Align issue tables on grapheme-clustering terminals (Ghostty, WezTerm, foot) when a summary contains emoji.\n- Pad status pills to a uniform width down the column.\n- Show an unassigned issue as `unassigned` rather than a raw `map[]`.\n\n### Dependencies\n\n- Update gechr/primer to v0.1.1\n- Update gechr/x to v0.2.4\n- Update bubbletea to v2.0.8\n- Update lipgloss to v2.0.5\n- Update google/uuid to v1.6.0"
+    },
+    {
+      "version": "0.7.5",
+      "tag": "v0.7.5",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.7.5",
+      "date": "2026-07-03",
+      "sections": [
+        {
+          "kind": "Added",
+          "changes": [
+            "Accept native Jira REST payloads on `create`, `edit`, `transition`, and `link` via `--json-input`.",
+            "Render bulk operations as a live per-key block."
+          ]
+        },
+        {
+          "kind": "Changed",
+          "changes": [
+            "Validate `--dry-run` against the server and report only the checks it actually ran.",
+            "Emit pagination as a single canonical block with resumable cursors."
+          ]
+        },
+        {
+          "kind": "Fixed",
+          "changes": [
+            "Resolve numeric transition targets against the live transition list under `--dry-run`."
+          ]
+        }
+      ],
+      "markdown": "## [0.7.5](https://github.com/matcra587/jira-cli/releases/tag/v0.7.5) — 2026-07-03\n\n### Added\n\n- Accept native Jira REST payloads on `create`, `edit`, `transition`, and `link` via `--json-input`.\n- Render bulk operations as a live per-key block.\n\n### Changed\n\n- Validate `--dry-run` against the server and report only the checks it actually ran.\n- Emit pagination as a single canonical block with resumable cursors.\n\n### Fixed\n\n- Resolve numeric transition targets against the live transition list under `--dry-run`."
+    },
+    {
+      "version": "0.7.4",
+      "tag": "v0.7.4",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.7.4",
+      "date": "2026-07-03",
+      "sections": [
+        {
+          "kind": "Added",
+          "changes": [
+            "Carry a comment and field edits atomically with a transition's status change.",
+            "Resolve names and emails to Jira account identities with `user search`."
+          ]
+        }
+      ],
+      "markdown": "## [0.7.4](https://github.com/matcra587/jira-cli/releases/tag/v0.7.4) — 2026-07-03\n\n### Added\n\n- Carry a comment and field edits atomically with a transition's status change.\n- Resolve names and emails to Jira account identities with `user search`."
+    },
+    {
+      "version": "0.7.3",
+      "tag": "v0.7.3",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.7.3",
+      "date": "2026-07-03",
+      "sections": [
+        {
+          "kind": "Added",
+          "changes": [
+            "Read Markdown bodies from a file or stdin via `--markdown-file`, unified under a single `--markdown` flag.",
+            "Accept both `--json-input` payload shapes on `create` and `edit`."
+          ]
+        },
+        {
+          "kind": "Changed",
+          "changes": [
+            "Normalize pasted Jira wiki markup before Markdown conversion.",
+            "Abort strict ADF mode on content loss only, not on decoration or placement.",
+            "Treat the wire and alias spellings of the project field as one."
+          ]
+        }
+      ],
+      "markdown": "## [0.7.3](https://github.com/matcra587/jira-cli/releases/tag/v0.7.3) — 2026-07-03\n\n### Added\n\n- Read Markdown bodies from a file or stdin via `--markdown-file`, unified under a single `--markdown` flag.\n- Accept both `--json-input` payload shapes on `create` and `edit`.\n\n### Changed\n\n- Normalize pasted Jira wiki markup before Markdown conversion.\n- Abort strict ADF mode on content loss only, not on decoration or placement.\n- Treat the wire and alias spellings of the project field as one."
+    },
+    {
+      "version": "0.7.2",
+      "tag": "v0.7.2",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.7.2",
+      "date": "2026-07-03",
+      "sections": [
+        {
+          "kind": "Added",
+          "changes": [
+            "Author ADF ahead of submission with standalone `adf convert` and `adf render` commands.",
+            "Return native ADF bodies from `comment list` for lossless reuse.",
+            "Convert GFM tables, blockquotes, and images (as alt-text links) during Markdown conversion, with source-mapped diagnostics."
+          ]
+        }
+      ],
+      "markdown": "## [0.7.2](https://github.com/matcra587/jira-cli/releases/tag/v0.7.2) — 2026-07-03\n\n### Added\n\n- Author ADF ahead of submission with standalone `adf convert` and `adf render` commands.\n- Return native ADF bodies from `comment list` for lossless reuse.\n- Convert GFM tables, blockquotes, and images (as alt-text links) during Markdown conversion, with source-mapped diagnostics."
+    },
+    {
+      "version": "0.7.1",
+      "tag": "v0.7.1",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.7.1",
+      "date": "2026-07-03",
+      "sections": [
+        {
+          "kind": "Fixed",
+          "changes": [
+            "Fail closed on an unknown or incomplete `--profile`."
+          ]
+        }
+      ],
+      "markdown": "## [0.7.1](https://github.com/matcra587/jira-cli/releases/tag/v0.7.1) — 2026-07-03\n\n### Fixed\n\n- Fail closed on an unknown or incomplete `--profile`."
+    },
+    {
+      "version": "0.7.0",
+      "tag": "v0.7.0",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.7.0",
+      "date": "2026-07-03",
+      "sections": [
+        {
+          "kind": "Added",
+          "changes": [
+            "Update the CLI in place with channel-aware self-update.",
+            "Print a bare version for humans, with a `--detailed` build block."
+          ]
+        },
+        {
+          "kind": "Dependencies",
+          "changes": [
+            "Update gechr/clib to v0.5.8",
+            "Update gechr/clive to v0.2.4",
+            "Update gechr/clog to v0.11.12",
+            "Update gechr/primer to v0.0.16",
+            "Update gechr/x to v0.1.14"
+          ]
+        }
+      ],
+      "markdown": "## [0.7.0](https://github.com/matcra587/jira-cli/releases/tag/v0.7.0) — 2026-07-03\n\n### Added\n\n- Update the CLI in place with channel-aware self-update.\n- Print a bare version for humans, with a `--detailed` build block.\n\n### Dependencies\n\n- Update gechr/clib to v0.5.8\n- Update gechr/clive to v0.2.4\n- Update gechr/clog to v0.11.12\n- Update gechr/primer to v0.0.16\n- Update gechr/x to v0.1.14"
+    },
+    {
+      "version": "0.6.4",
+      "tag": "v0.6.4",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.6.4",
+      "date": "2026-06-30",
+      "sections": [
+        {
+          "kind": "Added",
+          "changes": [
+            "Edit an issue description with `--description-markdown`.",
+            "Install on Windows via a published Scoop manifest."
+          ]
+        }
+      ],
+      "markdown": "## [0.6.4](https://github.com/matcra587/jira-cli/releases/tag/v0.6.4) — 2026-06-30\n\n### Added\n\n- Edit an issue description with `--description-markdown`.\n- Install on Windows via a published Scoop manifest."
+    },
+    {
+      "version": "0.6.2",
+      "tag": "v0.6.2",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.6.2",
+      "date": "2026-06-18",
+      "sections": [
+        {
+          "kind": "Added",
+          "changes": [
+            "Auto-detect and support scoped (granular) API tokens."
+          ]
+        },
+        {
+          "kind": "Changed",
+          "changes": [
+            "Resolve config, cache, and query directories OS-natively."
+          ]
+        },
+        {
+          "kind": "Fixed",
+          "changes": [
+            "Handle ADF that Jira rejects with `INVALID_INPUT`."
+          ]
+        },
+        {
+          "kind": "Dependencies",
+          "changes": [
+            "Update gechr/clib to v0.5.4",
+            "Update gechr/clog to v0.11.2",
+            "Update gechr/x to v0.1.4",
+            "Update glamour to v2.0.1",
+            "Update koanf to v2.3.5",
+            "Update lipgloss to v2.0.4",
+            "Update golang.org/x/sync to v0.21.0"
+          ]
+        }
+      ],
+      "markdown": "## [0.6.2](https://github.com/matcra587/jira-cli/releases/tag/v0.6.2) — 2026-06-18\n\n### Added\n\n- Auto-detect and support scoped (granular) API tokens.\n\n### Changed\n\n- Resolve config, cache, and query directories OS-natively.\n\n### Fixed\n\n- Handle ADF that Jira rejects with `INVALID_INPUT`.\n\n### Dependencies\n\n- Update gechr/clib to v0.5.4\n- Update gechr/clog to v0.11.2\n- Update gechr/x to v0.1.4\n- Update glamour to v2.0.1\n- Update koanf to v2.3.5\n- Update lipgloss to v2.0.4\n- Update golang.org/x/sync to v0.21.0"
+    },
+    {
+      "version": "0.6.0",
+      "tag": "v0.6.0",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.6.0",
+      "date": "2026-06-10",
+      "sections": [
+        {
+          "kind": "Changed",
+          "changes": [
+            "Rebuild the TUI as a section-based dashboard, with context-aware JQL autocomplete drawn from the instance's own metadata."
+          ]
+        },
+        {
+          "kind": "Dependencies",
+          "changes": [
+            "Update bubbletea to v2.0.7",
+            "Update glamour to v2.0.0"
+          ]
+        }
+      ],
+      "markdown": "## [0.6.0](https://github.com/matcra587/jira-cli/releases/tag/v0.6.0) — 2026-06-10\n\n### Changed\n\n- Rebuild the TUI as a section-based dashboard, with context-aware JQL autocomplete drawn from the instance's own metadata.\n\n### Dependencies\n\n- Update bubbletea to v2.0.7\n- Update glamour to v2.0.0"
+    },
+    {
+      "version": "0.5.1",
+      "tag": "v0.5.1",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.5.1",
+      "date": "2026-06-09",
+      "sections": [
+        {
+          "kind": "Added",
+          "changes": [
+            "Warn on a successful response that is near the rate limit."
+          ]
+        }
+      ],
+      "markdown": "## [0.5.1](https://github.com/matcra587/jira-cli/releases/tag/v0.5.1) — 2026-06-09\n\n### Added\n\n- Warn on a successful response that is near the rate limit."
+    },
+    {
+      "version": "0.5.0",
+      "tag": "v0.5.0",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.5.0",
+      "date": "2026-06-08",
+      "sections": [
+        {
+          "kind": "Added",
+          "changes": [
+            "Retry 429/503 responses within a bounded budget, honoring `Retry-After`, opt-in via `--max-retry-wait` and explained under `--debug`."
+          ]
+        }
+      ],
+      "markdown": "## [0.5.0](https://github.com/matcra587/jira-cli/releases/tag/v0.5.0) — 2026-06-08\n\n### Added\n\n- Retry 429/503 responses within a bounded budget, honoring `Retry-After`, opt-in via `--max-retry-wait` and explained under `--debug`."
+    },
+    {
+      "version": "0.4.1",
+      "tag": "v0.4.1",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.4.1",
+      "date": "2026-06-08",
+      "sections": [
+        {
+          "kind": "Added",
+          "changes": [
+            "Warm every cached resource in one pass with `cache refresh`, backed by a per-resource TTL ladder and versioned entries that self-invalidate on a shape change."
+          ]
+        }
+      ],
+      "markdown": "## [0.4.1](https://github.com/matcra587/jira-cli/releases/tag/v0.4.1) — 2026-06-08\n\n### Added\n\n- Warm every cached resource in one pass with `cache refresh`, backed by a per-resource TTL ladder and versioned entries that self-invalidate on a shape change."
+    },
+    {
+      "version": "0.4.0",
+      "tag": "v0.4.0",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.4.0",
+      "date": "2026-06-08",
+      "sections": [
+        {
+          "kind": "Added",
+          "changes": [
+            "Adapt output to the terminal background with an opt-in `auto` theme, honored across output and the dashboard.",
+            "Show progress feedback for blocking and fan-out operations.",
+            "Accept `-o` as shorthand for `--output`."
+          ]
+        },
+        {
+          "kind": "Changed",
+          "changes": [
+            "Colour issue-list status pills and the priority column."
+          ]
+        },
+        {
+          "kind": "Fixed",
+          "changes": [
+            "Write machine-mode error envelopes to stdout with a clean message."
+          ]
+        },
+        {
+          "kind": "Dependencies",
+          "changes": [
+            "Update gechr/clib to v0.5.2",
+            "Update gechr/clog to v0.10.2",
+            "Update gechr/x to v0.0.10"
+          ]
+        }
+      ],
+      "markdown": "## [0.4.0](https://github.com/matcra587/jira-cli/releases/tag/v0.4.0) — 2026-06-08\n\n### Added\n\n- Adapt output to the terminal background with an opt-in `auto` theme, honored across output and the dashboard.\n- Show progress feedback for blocking and fan-out operations.\n- Accept `-o` as shorthand for `--output`.\n\n### Changed\n\n- Colour issue-list status pills and the priority column.\n\n### Fixed\n\n- Write machine-mode error envelopes to stdout with a clean message.\n\n### Dependencies\n\n- Update gechr/clib to v0.5.2\n- Update gechr/clog to v0.10.2\n- Update gechr/x to v0.0.10"
+    },
+    {
+      "version": "0.3.3",
+      "tag": "v0.3.3",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.3.3",
+      "date": "2026-06-03",
+      "sections": [
+        {
+          "kind": "Added",
+          "changes": [
+            "Complete `--status`, `--priority`, `--assignee`, and `--columns` from cached metadata in the shell.",
+            "Validate JQL against Jira's parser (`jql validate`), list instance JQL metadata (`jql reference`), count approximate matches (`--count`), and page `search jql` with `--all`/`--limit`/`--unbounded`."
+          ]
+        },
+        {
+          "kind": "Security",
+          "changes": [
+            "Rebuild with Go 1.26.4 to clear two standard-library advisories on the HTTPS path to Jira: GO-2026-5039 (`net/textproto`) and GO-2026-5037 (`crypto/x509`)."
+          ]
+        }
+      ],
+      "markdown": "## [0.3.3](https://github.com/matcra587/jira-cli/releases/tag/v0.3.3) — 2026-06-03\n\n### Added\n\n- Complete `--status`, `--priority`, `--assignee`, and `--columns` from cached metadata in the shell.\n- Validate JQL against Jira's parser (`jql validate`), list instance JQL metadata (`jql reference`), count approximate matches (`--count`), and page `search jql` with `--all`/`--limit`/`--unbounded`.\n\n### Security\n\n- Rebuild with Go 1.26.4 to clear two standard-library advisories on the HTTPS path to Jira: GO-2026-5039 (`net/textproto`) and GO-2026-5037 (`crypto/x509`)."
+    },
+    {
+      "version": "0.3.2",
+      "tag": "v0.3.2",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.3.2",
+      "date": "2026-06-01",
+      "sections": [
+        {
+          "kind": "Added",
+          "changes": [
+            "Filter `issue mine` with the full list surface, plus `--updated`/`--created`/`--resolved` date filters."
+          ]
+        }
+      ],
+      "markdown": "## [0.3.2](https://github.com/matcra587/jira-cli/releases/tag/v0.3.2) — 2026-06-01\n\n### Added\n\n- Filter `issue mine` with the full list surface, plus `--updated`/`--created`/`--resolved` date filters."
+    },
+    {
+      "version": "0.3.1",
+      "tag": "v0.3.1",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.3.1",
+      "date": "2026-06-01",
+      "sections": [
+        {
+          "kind": "Fixed",
+          "changes": [
+            "Route config and credential writes through a symlink-aware atomic writer."
+          ]
+        }
+      ],
+      "markdown": "## [0.3.1](https://github.com/matcra587/jira-cli/releases/tag/v0.3.1) — 2026-06-01\n\n### Fixed\n\n- Route config and credential writes through a symlink-aware atomic writer."
+    },
+    {
+      "version": "0.3.0",
+      "tag": "v0.3.0",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.3.0",
+      "date": "2026-05-31",
+      "sections": [
+        {
+          "kind": "Added",
+          "changes": [
+            "Open issues and queries in the browser.",
+            "Transition by status name or positional target.",
+            "Filter status with JQL comparators and negation; select and order columns with `--columns` and `--tsv`; create issues with convenience flags."
+          ]
+        },
+        {
+          "kind": "Changed",
+          "changes": [
+            "Colour issue statuses by workflow category.",
+            "Require a 1Password vault and item on the headless login path, and validate the profile name at login."
+          ]
+        },
+        {
+          "kind": "Fixed",
+          "changes": [
+            "Apply `--order-by` to a custom `--jql` query.",
+            "Write config through a symlinked file instead of clobbering it."
+          ]
+        },
+        {
+          "kind": "Dependencies",
+          "changes": [
+            "Update gechr/clib to v0.4.15",
+            "Update gechr/clog to v0.9.8",
+            "Update gechr/x to v0.0.8"
+          ]
+        }
+      ],
+      "markdown": "## [0.3.0](https://github.com/matcra587/jira-cli/releases/tag/v0.3.0) — 2026-05-31\n\n### Added\n\n- Open issues and queries in the browser.\n- Transition by status name or positional target.\n- Filter status with JQL comparators and negation; select and order columns with `--columns` and `--tsv`; create issues with convenience flags.\n\n### Changed\n\n- Colour issue statuses by workflow category.\n- Require a 1Password vault and item on the headless login path, and validate the profile name at login.\n\n### Fixed\n\n- Apply `--order-by` to a custom `--jql` query.\n- Write config through a symlinked file instead of clobbering it.\n\n### Dependencies\n\n- Update gechr/clib to v0.4.15\n- Update gechr/clog to v0.9.8\n- Update gechr/x to v0.0.8"
+    },
+    {
+      "version": "0.2.0",
+      "tag": "v0.2.0",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.2.0",
+      "date": "2026-05-29",
+      "sections": [
+        {
+          "kind": "Added",
+          "changes": [
+            "Fan out multi-key operations with bounded parallelism."
+          ]
+        },
+        {
+          "kind": "Dependencies",
+          "changes": [
+            "Update golang.org/x/sync to v0.20.0"
+          ]
+        }
+      ],
+      "markdown": "## [0.2.0](https://github.com/matcra587/jira-cli/releases/tag/v0.2.0) — 2026-05-29\n\n### Added\n\n- Fan out multi-key operations with bounded parallelism.\n\n### Dependencies\n\n- Update golang.org/x/sync to v0.20.0"
+    },
+    {
+      "version": "0.1.2",
+      "tag": "v0.1.2",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.1.2",
+      "date": "2026-05-28",
+      "sections": [
+        {
+          "kind": "Added",
+          "changes": [
+            "Accept issue-key ranges (`PROJ-1..PROJ-5`)."
+          ]
+        }
+      ],
+      "markdown": "## [0.1.2](https://github.com/matcra587/jira-cli/releases/tag/v0.1.2) — 2026-05-28\n\n### Added\n\n- Accept issue-key ranges (`PROJ-1..PROJ-5`)."
+    },
+    {
+      "version": "0.1.1",
+      "tag": "v0.1.1",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.1.1",
+      "date": "2026-05-27",
+      "sections": [
+        {
+          "kind": "Fixed",
+          "changes": [
+            "Render agent human output as styled JSON."
+          ]
+        }
+      ],
+      "markdown": "## [0.1.1](https://github.com/matcra587/jira-cli/releases/tag/v0.1.1) — 2026-05-27\n\n### Fixed\n\n- Render agent human output as styled JSON."
+    },
+    {
+      "version": "0.1.0",
+      "tag": "v0.1.0",
+      "url": "https://github.com/matcra587/jira-cli/releases/tag/v0.1.0",
+      "date": "2026-05-27",
+      "sections": [
+        {
+          "kind": "Added",
+          "changes": [
+            "Log in to Jira Cloud with an API token, credentials keyed per site.",
+            "Read, create, edit, and mutate issues, with an honest `--dry-run`.",
+            "Emit machine output modes with agent detection, typed command-line parse failures, and an actionable hint on every Jira failure.",
+            "Validate and preserve submitted ADF, and validate custom fields against the Jira screen schema.",
+            "Page and query with truthful JQL, backed by a site-isolated metadata cache."
+          ]
+        }
+      ],
+      "markdown": "## [0.1.0](https://github.com/matcra587/jira-cli/releases/tag/v0.1.0) — 2026-05-27\n\nInitial release — a Jira Cloud CLI built for developer and agent workflows.\n\n### Added\n\n- Log in to Jira Cloud with an API token, credentials keyed per site.\n- Read, create, edit, and mutate issues, with an honest `--dry-run`.\n- Emit machine output modes with agent detection, typed command-line parse failures, and an actionable hint on every Jira failure.\n- Validate and preserve submitted ADF, and validate custom fields against the Jira screen schema.\n- Page and query with truthful JQL, backed by a site-isolated metadata cache."
+    }
+  ]
+}
