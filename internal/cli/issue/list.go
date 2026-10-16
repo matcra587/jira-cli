@@ -482,7 +482,7 @@ func newIssueList(deps Deps, currentAccount bool) *cobra.Command {
 				jqlInput.JQL = "saved query"
 			}
 			if currentAccount {
-				// The original mine preset sorts by updated ascending, while
+				// The current mine preset sorts by updated ascending, while
 				// ordinary lists retain their field-specific directions.
 				if jqlInput.OrderBy == "" {
 					if strings.TrimSpace(jql) == "" && !board.given() && saved == "" {
