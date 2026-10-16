@@ -39,8 +39,8 @@ func (r *liveRun) checkRankMutation(keys, args []string) error {
 		i++
 	}
 	issues := args[2:i]
-	if len(issues) == 0 || len(issues) > 50 {
-		return errors.New("ranking requires between one and fifty authored sources")
+	if len(issues) == 0 || len(issues) > 101 {
+		return errors.New("ranking acceptance requires between one and 101 authored sources")
 	}
 	var position, anchor string
 	preview := false

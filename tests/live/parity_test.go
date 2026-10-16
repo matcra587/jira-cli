@@ -54,6 +54,7 @@ type parityEvidence struct {
 	Weblinks    []parityWeblinkAttempt     `json:"weblink_attempts,omitempty"`
 	Attachments []parityAttachmentAttempt  `json:"attachment_attempts,omitempty"`
 	Links       []parityLinkAttempt        `json:"link_attempts,omitempty"`
+	Ranks       []parityRankAttempt        `json:"rank_attempts,omitempty"`
 }
 
 type parityRun struct {
@@ -402,7 +403,7 @@ func (p *parityRun) native(t *testing.T, key string) liveIssue {
 func (p *parityRun) create(t *testing.T, lane parityLane) string {
 	t.Helper()
 	r := p.owner
-	summary := r.manifest.RunID + " paired " + lane.Name
+	summary := fmt.Sprintf("%s paired %s %03d", r.manifest.RunID, lane.Name, len(p.evidence.Creations)+1)
 	r.manifest.Attempts = append(r.manifest.Attempts, summary)
 	r.save(t)
 	index := len(p.evidence.Creations)
@@ -430,7 +431,7 @@ func (p *parityRun) create(t *testing.T, lane parityLane) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	input := filepath.Join(r.dir, "create-"+lane.Name+".json")
+	input := filepath.Join(r.dir, fmt.Sprintf("create-%s-%03d.json", lane.Name, index+1))
 	if err := os.WriteFile(input, payload, 0o600); err != nil {
 		t.Fatal(err)
 	}

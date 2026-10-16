@@ -224,6 +224,16 @@ ranking writes are never replayed. Foreign or deleted targets, changed recipes,
 selectors and extra options are refused by hermetic ownership guards. Native
 partial failures, malformed receipts and interruption use hermetic fault cases.
 
+Paired rank acceptance covers both placement directions with one source and
+with 51 sources plus a distinct owned anchor. Every creation has a unique
+ordinal summary and retained request file. Each lane starts from the same
+observed relative order, changes it, then restores it before the next lane.
+Controlled-server comparisons separately execute 51/100/101-source requests
+through both frozen binaries and validate exact authentication, native batch
+boundaries, ordered source identities and chained anchors. Local JSON/compact
+previews construct no remote requests. The harness ceiling of 101 sources is
+independent of the native endpoint limit of 50 per request.
+
 The raw-write guard admits exact owned comment routes and separately registered
 description-only issue PUT probes, with explicit force and one input authored
 by the run. Its method, endpoint and byte digest are checked before invoking

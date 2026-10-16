@@ -27,9 +27,9 @@ const (
 
 // newRank returns `jira issue rank`.
 //
-// The Agile endpoint takes one ordered batch of at most fifty issues, so there
-// is no fan-out or parallelism option. A 204 acknowledges every move; a 207
-// supplies the native per-issue verdicts validated by rankResults.
+// The Agile endpoint accepts at most fifty issues per ordered request. Larger
+// moves use sequential batches whose anchors follow acknowledged predecessors.
+// A 204 acknowledges a batch; a 207 supplies its exact per-issue verdicts.
 func newRank(deps Deps) *cobra.Command {
 	var keyed command.KeyedFlags
 	var mut command.MutationFlags
@@ -53,16 +53,18 @@ func newRank(deps Deps) *cobra.Command {
 			"**The order you list the issues in is the order they end up in.** " +
 			"`jira issue rank KEY-1 KEY-2 --before KEY-9` leaves KEY-1 above " +
 			"KEY-2, both above KEY-9.\n\n" +
-			"The command sends at most 50 distinct issues in one ordered request. " +
-			"The anchor must differ from every issue being moved. That is the endpoint's own shape and it " +
-			"is what makes the ordering above mean anything: applying an anchored " +
-			"move issue by issue would rank each one against a backlog the " +
-			"previous move had already changed. It is also why there is no " +
-			"`--parallelism` here — there is nothing to run in parallel.\n\n" +
+			"Each native request carries at most 50 distinct issues. Larger moves " +
+			"run in sequential batches: the first uses your anchor, and each later " +
+			"batch follows the preceding batch's last issue. The complete source " +
+			"list must be distinct and exclude the anchor; validation finishes " +
+			"before any request. There is no `--parallelism`, because later " +
+			"batches depend on the earlier ordering.\n\n" +
 			"Jira can accept some issues and refuse others in that one response. " +
-			"When it does, the entries for the refused issues carry the reason " +
-			"and the rest still report success — the moves that landed are real. " +
-			"The native breakdown must identify every requested issue exactly once. " +
+			"When it does, the refused entries carry the reason and acknowledged " +
+			"moves stay successful. A failed, partial or uncertain batch stops " +
+			"its successors: their entries report `rank_not_attempted`. Earlier " +
+			"moves are not rolled back. Every native breakdown must identify " +
+			"each issue in its batch exactly once. " +
 			"An unusable acknowledgement reports `rank_response_invalid`; inspect " +
 			"the backlog before retrying because issues may already have moved. " +
 			"Writes are never automatically replayed. Total failure, cancellation " +
@@ -86,13 +88,11 @@ func newRank(deps Deps) *cobra.Command {
 		Args: command.ArgSpec{Min: 1, Max: command.AnyArgs, Positions: []command.Arg{{Name: "ISSUE_KEY", Predictor: "issuekey"}}},
 		Flags: func(c *cobra.Command) {
 			cmd = c
-			// WithoutParallelism, and the reason is stronger than the
-			// registrar's own example: `rank` does not merely need its keys
-			// in order, it sends them in ONE request. There is no fan-out
-			// for a width to bound, so a --parallelism here would be a flag
-			// with nothing to act on.
+			// Later batches use an earlier acknowledged move as their anchor.
+			// A parallelism option would contradict that dependency.
 			command.AddKeyedFlags(c, &keyed, command.WithoutParallelism(
-				"rank sends every issue in a single request, so there is no fan-out to widen"))
+				"rank batches run sequentially so later moves follow their acknowledged predecessor",
+			))
 			command.AddMutationFlags(c, &mut)
 			command.AddStringVar(c, &before, flagBefore, "",
 				"Put the issues immediately above this one",
@@ -145,10 +145,10 @@ func requireOneAnchor(before, after string) error {
 	return nil
 }
 
-// runRank composes the one request and either previews it or sends it.
+// runRank validates the complete move, then previews or joins sequential batches.
 //
-// The array order is the authored ranking, so the shared client receives the
-// whole batch once. Local validation and preview construct no client. Joined
+// Array order is the authored ranking; each native batch is submitted once.
+// Local validation and preview construct no client. Joined
 // acknowledgements survive a deadline or cancellation from the spinner owner.
 func runRank(ctx context.Context, deps Deps, inv command.Invocation, before, after string) (envelope.IssueRankOutput, error) {
 	var zero envelope.IssueRankOutput
@@ -163,7 +163,8 @@ func runRank(ctx context.Context, deps Deps, inv command.Invocation, before, aft
 		Position:      position,
 	}
 	req := jira.RankRequest{Issues: inv.Args, RankBeforeIssue: before, RankAfterIssue: after}
-	if err := core.ValidateRankRequest(req); err != nil {
+	requests, err := core.PlanRankRequests(req)
+	if err != nil {
 		e := cli.NewInputError(cli.CodeArgValueInvalid, err.Error())
 		e.Field = "ISSUE_KEY"
 		if input, ok := errors.AsType[*core.RankRequestError](err); ok {
@@ -181,25 +182,48 @@ func runRank(ctx context.Context, deps Deps, inv command.Invocation, before, aft
 		return out, nil
 	}
 
+	if err := ctx.Err(); err != nil {
+		return zero, err
+	}
 	client, err := deps.JiraClient(ctx)
 	if err != nil {
 		return zero, err
 	}
-	write, err := command.Spin(ctx, rankSpinnerLabel(inv.Args, position, anchor), func(ctx context.Context) (core.RankWrite, error) {
-		return client.RankIssues(ctx, req)
-	})
-	if write.StatusCode == http.StatusNoContent || write.StatusCode == http.StatusMultiStatus {
-		var receiptErr error
-		out.Results, receiptErr = rankResults(inv.Args, write)
-		if err != nil {
-			return out, err
+	out.Results = rankFailedResults(inv.Args, core.ErrRankNotAttempted)
+	_, err = command.Spin(ctx, rankSpinnerLabel(inv.Args, position, anchor), func(ctx context.Context) (struct{}, error) {
+		offset := 0
+		for _, request := range requests {
+			if err := ctx.Err(); err != nil {
+				return struct{}{}, err
+			}
+			keys := inv.Args[offset : offset+len(request.Issues)]
+			write, writeErr := client.RankIssues(ctx, request)
+			var results []envelope.KeyedResult[envelope.IssueRankData]
+			var receiptErr error
+			if write.StatusCode == http.StatusNoContent || write.StatusCode == http.StatusMultiStatus {
+				results, receiptErr = rankResults(keys, write)
+			} else {
+				if writeErr == nil {
+					writeErr = core.ErrRankResponseInvalid
+				}
+				results = rankFailedResults(keys, writeErr)
+			}
+			copy(out.Results[offset:], results)
+			offset += len(results)
+			if writeErr != nil {
+				return struct{}{}, writeErr
+			}
+			if receiptErr != nil {
+				return struct{}{}, receiptErr
+			}
+			for _, row := range results {
+				if !row.OK {
+					return struct{}{}, nil
+				}
+			}
 		}
-		return out, receiptErr
-	}
-	if err == nil {
-		err = core.ErrRankResponseInvalid
-	}
-	out.Results = rankFailedResults(inv.Args, err)
+		return struct{}{}, nil
+	})
 	return out, err
 }
 

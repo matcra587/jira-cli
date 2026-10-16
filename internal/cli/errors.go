@@ -162,6 +162,9 @@ const CodeWeblinkResponseInvalid = "weblink_response_invalid"
 // CodeRankResponseInvalid reports an uncertain ranking acknowledgement.
 const CodeRankResponseInvalid = "rank_response_invalid"
 
+// CodeRankNotAttempted reports a move withheld after an earlier batch stopped.
+const CodeRankNotAttempted = "rank_not_attempted"
+
 // CodeIssueDeleteResponseInvalid reports an uncertain issue deletion acknowledgement.
 const CodeIssueDeleteResponseInvalid = "issue_delete_response_invalid"
 
@@ -228,6 +231,7 @@ var registry = map[string]spec{
 	CodeIssueCreateResponseInvalid:      {exit: ExitServer, hint: "Inspect the project's issues and retained creation payload before retrying. Jira may already have created it; repeating create or clone makes duplicates. Creation writes are never automatically replayed."},
 	CodeIssueDeleteResponseInvalid:      {exit: ExitServer, hint: "Inspect each requested issue and any subtasks before retrying. Jira may already have deleted them; deletion writes are never automatically replayed."},
 	CodeRankResponseInvalid:             {exit: ExitServer, hint: "Inspect the backlog order and native ranking response before retrying. Jira may already have moved some issues; ranking writes are never automatically replayed."},
+	CodeRankNotAttempted:                {exit: ExitServer, hint: "This move was not submitted because an earlier ranking batch did not complete. Inspect earlier outcomes and the backlog before choosing an anchor for the remaining moves."},
 	CodeWeblinkResponseInvalid:          {exit: ExitServer, hint: "Inspect the issue's web links and native response before retrying a write. Jira may already have stored it; repeating an add without the same global ID creates duplicates."},
 	CodeCommentResponseInvalid:          {exit: ExitServer, hint: "Retry reads as needed. Inspect the issue's comment list before retrying a write; Jira may already have stored it."},
 	CodeTransitionResponseInvalid:       {exit: ExitServer, hint: "Inspect the issue's current status and comments before retrying; the transition may already have landed."},
@@ -385,6 +389,8 @@ func MapError(err error) Classification {
 		return newError(CodeIssueDeleteResponseInvalid, err)
 	case errors.Is(err, core.ErrRankResponseInvalid):
 		return newError(CodeRankResponseInvalid, err)
+	case errors.Is(err, core.ErrRankNotAttempted):
+		return newError(CodeRankNotAttempted, err)
 	case errors.Is(err, core.ErrWeblinkResponseInvalid):
 		return newError(CodeWeblinkResponseInvalid, err)
 	case errors.Is(err, core.ErrCommentResponseInvalid):

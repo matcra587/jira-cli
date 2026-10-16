@@ -24,6 +24,7 @@ type parityLocalEvidence struct {
 	Checks      map[string][]string     `json:"checks"`
 	Invocations []parityLocalInvocation `json:"invocations"`
 	NativeRuns  []parityNativeShellRun  `json:"native_shell_runs,omitempty"`
+	Differences map[string][]string     `json:"differences,omitempty"`
 }
 
 type parityNativeShellRun struct {

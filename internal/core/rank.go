@@ -13,6 +13,9 @@ import (
 // Some issues may have moved; the caller must inspect before another write.
 var ErrRankResponseInvalid = errors.New("invalid ranking response")
 
+// ErrRankNotAttempted identifies moves withheld after an earlier batch stopped.
+var ErrRankNotAttempted = errors.New("ranking not attempted because an earlier batch did not complete")
+
 // MaxRankIssues is the Agile endpoint's maximum for one ordered request.
 const MaxRankIssues = 50
 
@@ -30,6 +33,10 @@ func ValidateRankRequest(req jira.RankRequest) error {
 	if len(req.Issues) == 0 || len(req.Issues) > MaxRankIssues {
 		return &RankRequestError{Field: "issues", Message: fmt.Sprintf("rank requires between 1 and %d issues in one request", MaxRankIssues)}
 	}
+	return validateRankIdentities(req)
+}
+
+func validateRankIdentities(req jira.RankRequest) error {
 	if (req.RankBeforeIssue == "") == (req.RankAfterIssue == "") {
 		return &RankRequestError{Field: "rankBeforeIssue", Message: "rank requires exactly one before or after anchor"}
 	}

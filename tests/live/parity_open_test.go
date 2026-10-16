@@ -37,6 +37,11 @@ func parityOpenProjection(data []byte, lane, key, site string) bool {
 // reader uses native wrappers and paths, never the command's acknowledgement.
 func parityOpenHistory(t *testing.T, home, lane, site, key string, earliest time.Time) string {
 	t.Helper()
+	return parityLocalHistory(t, home, lane, site, []string{key}, earliest)
+}
+
+func parityLocalHistory(t *testing.T, home, lane, site string, keys []string, earliest time.Time) string {
+	t.Helper()
 	var path, identity string
 	if lane == "before" {
 		identity, path = parityMetadataLegacyLocation(home, site, "issuekeys")
@@ -74,7 +79,7 @@ func parityOpenHistory(t *testing.T, home, lane, site, key string, earliest time
 	} else if wrapper.Key != identity {
 		t.Fatal("open history changed public site/account scope")
 	}
-	expected, err := json.Marshal([]string{key})
+	expected, err := json.Marshal(keys)
 	if err != nil || !parityAuthoringJSON(payload, expected) || written.Before(earliest) || written.After(time.Now()) {
 		t.Fatal("open history differs from its explicit normalized key or publication interval")
 	}
