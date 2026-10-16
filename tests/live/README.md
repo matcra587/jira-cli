@@ -576,3 +576,51 @@ two exact spellings of one active owned parent, using the fixed Markdown recipe.
 Persist intent and returned IDs before independent parent-bound ownership checks;
 require complete native inventories to show exactly one additional comment per
 command. A failed case stops later writes and retains the parent for cleanup.
+
+`TestParityActualBinaryWorklogAuthoringFlags` compares explicit effort and start
+flags with inline/file Markdown on both admitted binaries. Literal minute and
+mixed day/hour/minute expectations bind native seconds and UTC/offset timestamp
+spelling independently, including public six-hour and eight-hour workdays in
+each configuration layout. JSON/compact previews disable credentials and send no
+HTTP; live fixtures require one exact authenticated POST, complete per-lane
+receipts and only the declared current history effect. These are controlled
+server authoring checks; relative clock syntax and live Jira persistence need separate
+evidence.
+
+`TestLiveParityWorklogAuthoringFlags` separately verifies the fixed two-minute
+inline/file Markdown recipes against live Jira. Exact flag argv delegates to registered
+native-input admission. Preserve intent, returned IDs and acknowledgements before
+checking native parent-bound reads and complete worklog inventories. Bind the
+requested body, instant and seconds, retain frozen input bytes and unrelated issue
+fields, and stop after failures without replay. Complete unknown POST-member
+preservation remains the controlled-server check above; Jira POST/GET metadata
+may differ.
+
+Selected Linux authentication can also use a real, isolated native keyring.
+Set `JIRA_NATIVE_AUTH_BINARY` to the absolute path of the admitted current CLI
+and `JIRA_NATIVE_AUTH_SHA256` to its exact SHA-256, then run:
+
+```sh
+go test -tags=live,nativekeyring ./tests/contract \
+  -run '^TestSelectedNativeKeyringAuthLifecycle$' -count=1 -v
+```
+
+This reuses the existing private D-Bus, GNOME keyring and synthetic credential
+owner. The selected CLI must execute its version command before the session
+starts and retain its digest afterward. Fresh CLI processes exercise verified
+login, status, whoami, token reads, rejected replacement, logout confirmation,
+previews and idempotent removal. JSON, compact and human status checks cover
+masking, explicitly requested synthetic disclosure, revoked credentials and
+malformed native identity. Independent `secret-tool` reads bind stored outcomes;
+failed reads preserve the credential and public settings. After logout, every
+read command must refuse despite retained public identity metadata, without
+contacting Jira or recreating the native record.
+
+The private fixture makes no use of an inherited desktop bus or real tokens.
+The common owner also runs migration and terminal/context guards; injected
+context-owner subprocesses remain distinct from selected-CLI behavior. This is
+Linux native keyring evidence against a controlled Jira server. Live Jira identity
+comparison and verified public identity saving run separately through
+`TestLiveAuthIdentity`, `TestLiveParityIdentityInspection` and
+`TestLiveWhoamiSavePublishesVerifiedBoundIdentity`. It does not establish native
+1Password, Windows/macOS behavior or equivalents for missing legacy operations.

@@ -201,6 +201,18 @@ literal secret bytes across output modes. Exercise it only with authored synthet
 values, require zero HTTP/file effects and never credit those distinct contracts
 as an equivalent-behavior pair. Retain legacy compact null omission explicitly.
 
+Selected Linux native authentication acceptance reuses the private D-Bus/keyring
+owner with an explicitly admitted external binary and SHA-256. Execute its
+version command before opening the private store and recheck the digest afterward.
+Exercise status masking, explicit synthetic-token disclosure, raw token reads,
+revoked credentials and malformed native identity in JSON, compact and human
+modes. Bind complete independent identity/store facts, original failure classes,
+unchanged public settings and independent native credential preimages. After
+logout, fresh status, whoami and token processes must refuse without HTTP even
+though cached public identity remains. Keep the Linux native keyring evidence
+separate from live Jira identity reads, source-owner context guards and native SDK or
+other-platform provider claims. Never use a real token for disclosure tests.
+
 Stored-description acceptance binds original HTTP/base64 native bytes, timestamp,
 immutable ID and public scope independently of prepared output. Pin complete
 Markdown/region descriptors through native source SHA256 and an authored projection;
@@ -1486,3 +1498,17 @@ one active owned parent through the existing fixed Markdown recipe. Persist
 intent and IDs before assertions, register independently bound resources before
 behavior checks, and require complete native comment inventories to detect extra
 writes. Never use a deduplicated output row alone as exactly-once evidence.
+
+Worklog authoring parity uses literal effort seconds and native timestamp
+spelling, never the production duration/time parsers for expected values. Bind
+inline/file Markdown to independently authored ADF and complete per-lane
+receipts; retain exact authenticated request counts, disabled-token no-request
+previews and scoped storage effects.
+
+Live worklog flag recipes translate only fixed effort/body/UTC-start argv through
+registered native-input admission. Re-admit immediately before entry and retain
+intent, returned IDs and acknowledgements first. Require a canonical resource ID
+before constructing its native read path; bind ownership independently of desired
+behavior. Complete parent inventories detect duplicate writes. Keep Markdown as
+an exact owned direct-child regular file, reject leaf/ancestor symlinks and preserve
+all observed effects without replay.

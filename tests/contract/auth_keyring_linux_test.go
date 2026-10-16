@@ -249,6 +249,7 @@ func testNativeKeyringAuthLifecycle(t *testing.T) {
 	const rejected = "synthetic-rejected-fixture-token"
 	var calls atomic.Int32
 	var revoked atomic.Bool
+	var malformedIdentity atomic.Bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
 		if r.Method == http.MethodGet && r.URL.Path == "/_edge/tenant_info" {
@@ -265,6 +266,10 @@ func testNativeKeyringAuthLifecycle(t *testing.T) {
 		if !ok || account != email || candidate != token || revoked.Load() {
 			w.WriteHeader(http.StatusUnauthorized)
 			_, _ = io.WriteString(w, `{"errorMessages":["Fixture credential rejected"]}`)
+			return
+		}
+		if malformedIdentity.Load() {
+			_, _ = io.WriteString(w, `{"accountId":"native:fixture","accountId":"foreign:fixture"}`)
 			return
 		}
 		_, _ = io.WriteString(w, `{"accountId":"native:fixture","displayName":"Native fixture","active":true}`)
@@ -375,6 +380,15 @@ func testNativeKeyringAuthLifecycle(t *testing.T) {
 			t.Fatal("stored native credential did not authenticate the expected account")
 		}
 	})
+	if !t.Run("native status and token modes", func(t *testing.T) {
+		testNativeAuthReadModes(t, nativeAuthReadFixture{
+			Binary: os.Getenv("JIRA_TEST_KEYRING_BINARY"), Config: configPath,
+			Site: server.URL, Email: email, Token: token, Environment: env,
+			Stored: stored, Revoked: &revoked, Malformed: &malformedIdentity,
+		})
+	}) {
+		return
+	}
 	t.Run("rejected login preserves native record", func(t *testing.T) {
 		before := stored(t)
 		invoke(t, rejected, cli.ExitAuth, "auth", "login", "--with-token")
@@ -391,10 +405,23 @@ func testNativeKeyringAuthLifecycle(t *testing.T) {
 			t.Fatal("failed identity read changed the stored credential")
 		}
 	})
+	publicBeforeLogout, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertPublicIdentityRetained := func(t *testing.T) {
+		t.Helper()
+		after, err := os.ReadFile(configPath)
+		if err != nil || !bytes.Equal(publicBeforeLogout, after) {
+			t.Fatal("logout changed the retained public identity settings")
+		}
+	}
 	t.Run("logout preview and refusal preserve native record", func(t *testing.T) {
 		before := stored(t)
 		invoke(t, "", 0, "auth", "logout", "--dry-run")
+		assertPublicIdentityRetained(t)
 		invoke(t, "", cli.ExitValidation, "auth", "logout")
+		assertPublicIdentityRetained(t)
 		if stored(t) != before {
 			t.Fatal("unconfirmed logout changed the stored credential")
 		}
@@ -402,13 +429,23 @@ func testNativeKeyringAuthLifecycle(t *testing.T) {
 	t.Run("confirmed logout removes native record", func(t *testing.T) {
 		invoke(t, "", 0, "auth", "logout", "--yes")
 		absent(t)
+		assertPublicIdentityRetained(t)
 	})
 	t.Run("repeated logout remains absent", func(t *testing.T) {
 		invoke(t, "", 0, "auth", "logout", "--yes")
 		absent(t)
+		assertPublicIdentityRetained(t)
 	})
-	if calls.Load() != 6 {
-		t.Fatalf("native lifecycle sent %d requests, want 6", calls.Load())
+	if !t.Run("fresh processes refuse after logout", func(t *testing.T) {
+		testNativeAuthMissing(t, nativeAuthReadFixture{
+			Binary: os.Getenv("JIRA_TEST_KEYRING_BINARY"), Config: configPath,
+			Site: server.URL, Email: email, Token: token, Environment: env,
+		}, absent)
+	}) {
+		return
+	}
+	if calls.Load() != 18 {
+		t.Fatalf("native lifecycle sent %d requests, want 18", calls.Load())
 	}
 	t.Run("migration and rollback", testNativeKeyringMigrationCommands)
 	t.Run("interactive terminal", testNativeKeyringAuthTerminal)
