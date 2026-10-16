@@ -1,5 +1,148 @@
 # Live acceptance
 
+`parity_comment_flags_live_test.go` adds owned live Jira Markdown add/edit cases for
+both binaries, inline and literal file sources, and a role independently verified
+for the authenticated account. Distinct fixed documents prove the edit changed
+stored content. The exact Markdown recipe is translated only for admission into
+the existing registered native-body owner; fixed content, direct owned child
+files, digests, target pairs and selected binaries are checked immediately before
+entry. Persist intents and returned IDs before assertions; independently bind
+fresh comments to their owned parent and register cleanup before checking body or
+visibility. Compare complete inventories, shared lane receipts, frozen inputs and
+unrelated issue fields. Current edit requests notification suppression; receipt
+policy does not prove delivery. Synthetic fixtures retain broader full-layout
+checks. No arbitrary Markdown, group-membership or server-CAS claim follows.
+
+`parity_comment_flags_test.go` compares both selected binaries' inline/file
+Markdown comment add/edit writers, including the legacy bare-add mapping and
+literal group/role restrictions. JSON/compact previews use disabled credentials,
+trap HTTP and preserve the entire owned tree. Live cases admit exactly one
+independent authenticated native POST/PUT, compare full per-layout receipts and
+allow only current scoped issue history as a local effect. The legacy compact
+projection omits null update_author; full legacy JSON retains it. Current-only
+edit notification suppression binds both notify=false output and the exact native
+query. These are single-target synthetic cases; parallelism flag admission does
+not establish worker bounds, fan-out, live Jira behavior or failed-write acceptance.
+
+`parity_paging_flags_test.go` executes current-only worklog/user paging flags
+against independently authored authenticated page plans. It binds offsets, size
+boundaries, sparse walks, explicit false and the user endpoint ceiling to complete
+JSON/compact results. User rows preserve nullable/absent email and advance by
+fetched rows, including excluded inactive accounts; worklogs retain exact native
+records and use their independent total-based completion contract. Worklog reads
+publish only their exact scoped issue history; user reads leave storage unchanged.
+First-invalid boundaries and explicit-default conflicts refuse with complete
+operation-specific errors and diagnostics before credentials, HTTP or storage.
+These fixtures supply no live Jira, failed-walk or native provider credit. The separate
+`TestLiveParityWorklogCreation` supplement creates one acknowledged owned record
+and compares native `--limit=1`, offset-one and `--all` reads before confirming
+that record unchanged. This is single-record live Jira evidence, separate from synthetic
+multipage walks and failure cases.
+
+`parity_clone_flags_live_test.go` compares legacy native overrides with current
+summary, replacement, label and assignee flags against Jira. It independently
+reads an owned immutable source ID before entry, retains write intent and returned
+identity, then binds exact native ownership before checking requested behavior.
+Cleanup registration must survive a broken assignment, description or extra label;
+case-insensitive JSON aliases cannot change the validated cleanup target. Full
+native readback and acknowledgements must agree, the source and frozen input stay
+unchanged, and both sources and clones require independent deletion confirmation.
+These cases do not establish concurrent fan-out or server-enforced preconditions.
+
+`parity_clone_flags_test.go` executes current clone field flags through native
+authenticated reads and writes against an owned controlled server. It compares
+complete independently authored scalar/collection overrides, quoted CSV and
+duplicates, numeric display names and ordered summary replacements. Unknown
+native numbers, explicit nulls and unrelated copied values survive; server-owned
+fields stay excluded. JQL, filter and owned-file selectors bind exact reads,
+target facts and write order. Full acknowledgements agree with scoped source/clone
+history, and unrelated files remain unchanged. Bare and remote selector previews
+separately bind warnings, resolved targets, no writer/source reads and unchanged
+storage. These cases remain distinct from live Jira and concurrent/failure acceptance.
+
+`parity_jql_flags_test.go` compares independently authored structured filters,
+CSV/repeated values, key ranges, account aliases, status categories/exclusions,
+all three date fields and their meaningful combinations through actual local
+`jql build` and `issue list/mine --as-jql` commands. JSON/compact receipts retain
+each layout's clause order, quoting, complete scope and output shape. Disabled
+tokens, HTTP traps and unchanged owned trees bind the offline contract. Positive
+relative dates are explicit differences: legacy emits +2w while current emits
+2w. Separate paired live Jira parser reads prove the former invalid and the latter valid
+for created/updated/resolved. These differences earn no equivalent-generation
+credit; local composition does not establish live search results or board scope.
+
+`parity_cache_flags_test.go` executes all ten current primer previews with
+disabled credentials and compares complete plans, custom/default TTLs and exact
+no-request/no-storage behavior. Controlled current collection walks exceed the
+100-page and 10,000-item bounds, inspect exact stored native snapshots and warning
+facts, then prove that --unbounded refetches an incomplete cache and that the
+completed cache is reused without HTTP or storage changes. Paired metadata tests
+backdate independently verified wrappers: defaults reuse the two-minute-old
+snapshot, while --ttl-minutes=1 refetches and the next call reuses it. These are
+actual selected-binary checks against owned local fixtures, separate from live Jira,
+board/epic collection limits, human rendering and failure-path acceptance.
+
+`parity_auth_legacy_test.go` executes the legacy refresh report, profile-switch
+preview/publication and keyring/1Password migration previews using only owned
+public profiles and disabled tokens. It compares exact current missing-command
+refusals without treating them as equivalent behavior. HTTP is trapped, provider
+stores remain unopened, profile metadata is independently checked after switching,
+and unrelated files must survive. These characterized mapping gaps do not credit
+live credential relocation, runtime profiles or a replacement workflow.
+
+`parity_edit_flags_live_test.go` applies fixed convenience edits to owned Jira
+fixtures through both admitted binaries. Inline Markdown assigns the verified
+account; different file Markdown explicitly unassigns it. Both change the summary.
+Identity-bound native preimages and exact candidates are saved before mutation;
+acknowledgements are retained before complete receipts and immutable-ID native
+readback are compared. Untouched selected fields and authored files must survive.
+Later cases stop after failure without replay, and owned deletion is independently
+confirmed. This is ordinary native write/readback evidence, not server-enforced
+compare-and-swap, protected editor application or broader field/failure coverage.
+
+`parity_edit_flags_test.go` compares local selected-binary JSON/compact previews
+for summary, literal assignee, explicit unassignment and inline/file Markdown.
+It binds complete legacy fields and current native payloads/per-key results.
+The legacy compact renderer removes null assignee; current output preserves it.
+Current-only scalar and collection flags retain native identity meanings,
+add/remove ordering, quoted CSV commas and duplicates. Notification output states
+the requested policy. Credentials remain disabled, HTTP is trapped and the entire
+owned public/input/cache tree stays unchanged. No writer, live Jira, remote preflight,
+multi-key or full failure-coverage claim follows from these previews.
+
+`parity_create_flags_live_test.go` exercises both admitted binaries' convenience
+creates against the dedicated Jira project, with inline and literal file Markdown.
+The fixed recipe includes project/type, summary, CSV labels and the authenticated
+assignee. Intents precede writes; the shared native ownership binder registers
+cleanup before field/presentation
+assertions. Immutable-ID reads compare complete label membership, native identities
+and full description, alongside each lane's complete candidate and acknowledgement.
+Priority remains outside this successful recipe because some create screens
+omit it. Cases stop after failure and never replay unresolved writes. Native Jira
+ordering is distinct from submitted CSV order. Parent hierarchy, additional current-only
+fields, defaults, preflight and failure variants remain outside these live cases.
+
+`parity_create_flags_binary_test.go` submits convenience-field creates through
+both actual writers to an owned synthetic server in JSON/compact modes, with
+literal inline/file Markdown. It compares complete native POST payloads and complete
+lane acknowledgements. Legacy execution first walks the named issue type and
+field metadata; current unflagged execution submits directly. Request transcripts
+retain bounded body bytes, exact URI/order, JSON content type and an authentication
+boolean without credential headers or values. Unexpected requests and replay
+fail; authored input remains unchanged. A separately compiled writer-only defect
+is distinguished from a correct preview. This supplies synthetic writer evidence,
+not live Jira acceptance, remote preflight, defaults, failures or all field variants.
+
+`parity_create_flags_test.go` compares selected-binary create convenience previews
+separately from native JSON lifecycle tests. JSON/compact cases bind complete
+legacy preview aliases and current native request fields, including scalar fields,
+parent/priority/assignee, repeated labels, quoted CSV commas and duplicates, and
+literal inline/file Markdown. Current-only reporter, component, version, due-date
+and estimate flags retain native names and identity meanings, including names made
+of digits. Credentials are disabled; an owned HTTP trap and complete local tree
+snapshots require no requests or file changes. These are local preparation checks,
+not actual writer or live Jira acceptance, remote preflight, defaults or every refusal.
+
 These opt-in tests run the rebuilt binary with the existing OS keyring. They
 write to a dedicated disposable project. The configured site must match the
 explicit expected site before any write; environment tokens are disabled.

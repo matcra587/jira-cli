@@ -148,6 +148,7 @@ type parityMetadataExpected struct {
 	TTL, Pages                      int
 	Cached, Force                   bool
 	Earliest, Latest                time.Time
+	ReadStarted                     time.Time
 }
 
 func parityMetadataProjection(data []byte, lane string, want parityMetadataExpected) bool {
@@ -187,7 +188,11 @@ func parityMetadataProjection(data []byte, lane string, want parityMetadataExpec
 		}
 	} else {
 		var age int64
-		if json.Unmarshal(actual["age_seconds"], &age) != nil || age < 0 || age > int64(want.Latest.Sub(written).Seconds())+1 || !want.Cached && age != 0 {
+		minimumAge := int64(0)
+		if want.Cached && !want.ReadStarted.IsZero() {
+			minimumAge = max(int64(want.ReadStarted.Sub(written).Seconds()), 0)
+		}
+		if json.Unmarshal(actual["age_seconds"], &age) != nil || age < minimumAge || age > int64(want.Latest.Sub(written).Seconds())+1 || !want.Cached && age != 0 {
 			return false
 		}
 		expected["age_seconds"], expected["dry_run"] = age, false
@@ -224,8 +229,11 @@ func parityMetadataLegacyWrapper(raw []byte, home, site, name, path string) (jso
 
 // Inspect only an owned synthetic home. Decode the persisted wrapper and native
 // payload independently so an acknowledgement alone cannot earn storage credit.
-func parityMetadataDisk(t *testing.T, home, lane, site, name string, native []json.RawMessage, pages int) time.Time {
+func parityMetadataDisk(t *testing.T, home, lane, site, name string, native []json.RawMessage, pages int, truncated ...string) time.Time {
 	t.Helper()
+	if len(truncated) > 1 || lane == "before" && len(truncated) != 0 {
+		t.Fatal("unsupported independent metadata snapshot expectation")
+	}
 	logical := "v1:metadata:" + name
 	if name == "linktypes" {
 		logical = "v1:link-types:" + site
@@ -278,7 +286,11 @@ func parityMetadataDisk(t *testing.T, home, lane, site, name string, native []js
 				if !jsontext.Value(wrapper.Value).IsValid() || json.Unmarshal(wrapper.Value, &snapshot) != nil {
 					return fmt.Errorf("owned metadata snapshot is malformed")
 				}
-				expected, err := json.Marshal(map[string]any{"version": 1, "items": native, "count": len(native), "pages": pages, "complete": true})
+				facts := map[string]any{"version": 1, "items": native, "count": len(native), "pages": pages, "complete": len(truncated) == 0}
+				if len(truncated) == 1 {
+					facts["next_start"], facts["truncated_reason"] = len(native), truncated[0]
+				}
+				expected, err := json.Marshal(facts)
 				if err != nil || !parityAuthoringJSON(wrapper.Value, expected) {
 					return fmt.Errorf("persisted metadata lost native values or collection facts")
 				}
@@ -296,6 +308,73 @@ func parityMetadataDisk(t *testing.T, home, lane, site, name string, native []js
 		t.Fatalf("independent owned metadata publication failed: matches %d; error %v", found, err)
 	}
 	return stamp
+}
+
+// Change only a previously verified owned wrapper. Backdating avoids wall-clock
+// sleeps while the selected binaries still make their own freshness decision.
+func parityMetadataBackdate(t *testing.T, home, lane, site, name string, prior time.Time) time.Time {
+	t.Helper()
+	identity := fmt.Sprintf("%d:%s%d:%s", len(site), site, len("fixture@example.invalid"), "fixture@example.invalid")
+	logical := "v1:metadata:" + name
+	if name == "linktypes" {
+		logical = "v1:link-types:" + site
+	}
+	key := fmt.Sprintf("scope-v2:%x:%s", sha256.Sum256([]byte(identity)), logical)
+	_, legacyPath := parityMetadataLegacyLocation(home, site, name)
+	aged := time.Now().Add(-2 * time.Minute).UTC()
+	found := 0
+	err := filepath.WalkDir(home, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() || filepath.Ext(path) != ".json" {
+			return nil
+		}
+		if !entry.Type().IsRegular() {
+			return fmt.Errorf("owned cache fixture contains a nonregular JSON entry")
+		}
+		raw, err := os.ReadFile(path)
+		var wrapper map[string]json.RawMessage
+		if err != nil || !jsontext.Value(raw).IsValid() || json.Unmarshal(raw, &wrapper) != nil {
+			return fmt.Errorf("owned cache wrapper is unavailable or malformed")
+		}
+		stampKey := "written"
+		if lane == "before" {
+			if filepath.Clean(path) != legacyPath {
+				return nil
+			}
+			if _, stamp, ok := parityMetadataLegacyWrapper(raw, home, site, name, path); !ok || !stamp.Equal(prior) {
+				return fmt.Errorf("legacy wrapper changed before backdating")
+			}
+			stampKey = "fetched_at"
+		} else {
+			var observed string
+			if json.Unmarshal(wrapper["key"], &observed) != nil || observed != key {
+				return nil
+			}
+		}
+		var stamp time.Time
+		if json.Unmarshal(wrapper[stampKey], &stamp) != nil || !stamp.Equal(prior) {
+			return fmt.Errorf("owned wrapper timestamp changed before backdating")
+		}
+		wrapper[stampKey], err = json.Marshal(aged)
+		if err != nil {
+			return err
+		}
+		raw, err = json.Marshal(wrapper)
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(path, raw, 0o600); err != nil {
+			return err
+		}
+		found++
+		return nil
+	})
+	if err != nil || found != 1 {
+		t.Fatalf("owned cache backdating failed: matches %d; error %v", found, err)
+	}
+	return aged
 }
 
 func TestParityActualBinaryMetadataPrimers(t *testing.T) {
@@ -370,17 +449,24 @@ func TestParityActualBinaryMetadataPrimers(t *testing.T) {
 					defer server.Close()
 					home := t.TempDir()
 					began := time.Now()
+					var previousWritten time.Time
 					for _, tc := range []struct {
 						name, mode string
 						cached     bool
 						force      bool
+						ttl        int
+						age        bool
 					}{
-						{"initial", "json", false, false},
-						{"cached", "compact", true, false},
-						{"forced", "json", false, true},
-						{"cached-after-force", "json", true, false},
+						{"initial", "json", false, false, 0, false},
+						{"cached", "compact", true, false, 0, false},
+						{"forced", "json", false, true, 0, false},
+						{"cached-after-force", "json", true, false, 0, false},
+						{"custom-ttl-cache", "json", true, false, 7, false},
+						{"aged-default-cache", "compact", true, false, 0, true},
+						{"custom-ttl-expired", "json", false, false, 1, false},
+						{"custom-ttl-refetched-cache", "compact", true, false, 1, false},
 					} {
-						t.Run(tc.name, func(t *testing.T) {
+						if !t.Run(tc.name, func(t *testing.T) {
 							if tc.force {
 								revision.Store(1)
 							}
@@ -396,6 +482,21 @@ func TestParityActualBinaryMetadataPrimers(t *testing.T) {
 								}
 							}
 							args := []string{"cache", fixture.Name}
+							if tc.age {
+								pages := 1
+								if !empty && fixture.Paged && (lane.name != "before" || fixture.BeforeEndpoint == "") {
+									pages = 2
+								}
+								prior := parityMetadataDisk(t, home, lane.name, server.URL, fixture.Name, items, pages)
+								aged := parityMetadataBackdate(t, home, lane.name, server.URL, fixture.Name, prior)
+								if written := parityMetadataDisk(t, home, lane.name, server.URL, fixture.Name, items, pages); !written.Equal(aged) {
+									t.Fatal("owned cache backdating did not retain its exact native snapshot")
+								}
+								previousWritten = aged
+							}
+							if tc.ttl > 0 {
+								args = append(args, fmt.Sprintf("--ttl-minutes=%d", tc.ttl))
+							}
 							if tc.force {
 								flag := "--force"
 								if lane.name == "before" {
@@ -407,7 +508,9 @@ func TestParityActualBinaryMetadataPrimers(t *testing.T) {
 							if err := parityFingerprint(lane.binary, lane.digest); err != nil {
 								t.Fatal(err)
 							}
+							readStarted := time.Now()
 							result := parityFixtureProcessAt(t, lane.name, lane.binary, server.URL, home, parityFixtureInput{Output: tc.mode}, []string{"JIRA_READ_ONLY=true"}, args...)
+							readFinished := time.Now()
 							evidence.Invocations = append(evidence.Invocations, parityLocalInvocation{Lane: lane.name, Digest: lane.digest, Argv: result.Argv, Exit: result.Exit, OutputBytes: result.Stdout, StderrBytes: result.Stderr})
 							pages := 1
 							if !empty && fixture.Paged && (lane.name != "before" || fixture.BeforeEndpoint == "") {
@@ -424,13 +527,29 @@ func TestParityActualBinaryMetadataPrimers(t *testing.T) {
 								t.Fatalf("metadata primer failed: exit %d; HTTP %d want %d; stdout %s; stderr %s", result.Exit, calls.Load()-beforeCalls, wantCalls, result.Stdout, result.Stderr)
 							}
 							written := parityMetadataDisk(t, home, lane.name, server.URL, fixture.Name, items, pages)
+							if tc.cached {
+								if previousWritten.IsZero() || !written.Equal(previousWritten) {
+									t.Fatal("cached metadata changed its previous publication timestamp")
+								}
+							} else if written.Before(readStarted) || written.After(readFinished) {
+								t.Fatal("fetched metadata retained an old or future publication timestamp")
+							}
+							previousWritten = written
 							state := "fresh"
 							if tc.name == "initial" {
 								state = "missing"
 							} else if tc.force && lane.name == "before" {
 								state = "refresh"
+							} else if tc.name == "custom-ttl-expired" {
+								state = "stale"
 							}
-							want := parityMetadataExpected{Resource: fixture.Name, Profile: "fixture", State: state, Items: items, TTL: fixture.TTL, Pages: pages, Cached: tc.cached, Force: tc.force, Earliest: began, Latest: time.Now()}
+							want := parityMetadataExpected{Resource: fixture.Name, Profile: "fixture", State: state, Items: items, TTL: fixture.TTL, Pages: pages, Cached: tc.cached, Force: tc.force, Earliest: began, Latest: readFinished, ReadStarted: readStarted}
+							if tc.ttl > 0 {
+								want.TTL = tc.ttl
+							}
+							if tc.age {
+								want.Earliest = written
+							}
 							if lane.name == "before" {
 								want.Stamp = written.UTC().Format(time.RFC3339)
 							} else if tc.cached {
@@ -453,7 +572,9 @@ func TestParityActualBinaryMetadataPrimers(t *testing.T) {
 							}
 							id := fmt.Sprintf("%s.metadata.empty=%t.%s.%s", fixture.ID, empty, tc.name, tc.mode)
 							evidence.Checks[id] = append(evidence.Checks[id], lane.name)
-						})
+						}) {
+							break
+						}
 					}
 				})
 			}
@@ -528,6 +649,25 @@ func TestParityMetadataProjectionRejectsChangedFacts(t *testing.T) {
 						t.Fatal("changed native value or collection/publication fact earned metadata credit")
 					}
 				})
+			}
+		})
+	}
+}
+
+func TestParityMetadataAgedReceiptRequiresObservedAge(t *testing.T) {
+	const valid = `{"dry_run":false,"items":["owned"],"count":1,"pages":1,"complete":true,"resource":"labels","ttl_minutes":60,"force":false,"unbounded":false,"would_fetch":false,"attempted":false,"from_cache":true,"cache_state":"fresh","saved":false,"written_at":"2026-01-01T00:00:00Z","age_seconds":120}`
+	stamp := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	want := parityMetadataExpected{Resource: "labels", State: "fresh", Stamp: stamp.Format(time.RFC3339), Items: []json.RawMessage{json.RawMessage(`"owned"`)}, TTL: 60, Pages: 1, Cached: true, Earliest: stamp, ReadStarted: stamp.Add(120 * time.Second), Latest: stamp.Add(121 * time.Second)}
+	if !parityMetadataProjection([]byte(valid), "after", want) {
+		t.Fatal("independent aged cache receipt was refused")
+	}
+	for _, tc := range []struct {
+		name string
+		age  string
+	}{{"aged-zero", "0"}, {"before-read", "119"}, {"after-finish", "123"}} {
+		t.Run(tc.name, func(t *testing.T) {
+			if parityMetadataProjection([]byte(strings.Replace(valid, `"age_seconds":120`, `"age_seconds":`+tc.age, 1)), "after", want) {
+				t.Fatal("age outside the independently bounded read interval earned freshness credit")
 			}
 		})
 	}

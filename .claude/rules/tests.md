@@ -9,6 +9,135 @@ paths:
 
 # Tests
 
+Live Jira Markdown comment admission permits only fixed independent add/edit documents.
+Translate exact authored argv into the existing registered native-body admission;
+verify both documents agree, preserve active target/resource and verified-role
+bindings, and reject extra flags or indirect targets. File recipes are exact
+direct children with regular leaves; lexical containment alone cannot exclude
+ancestor symlinks. Exercise a compiled escape defect against synthetic files.
+Persist intent and exact returned IDs, bind the native resource to its owned
+parent, then register cleanup before behavioral assertions. Distinct edit content,
+full inventories, unchanged inputs and unrelated issue fields remain mandatory.
+Never replay an uncertain comment write or infer notification delivery from policy.
+
+Comment convenience acceptance compares independently authored Markdown/native
+bodies, literal group/role visibility and complete lane receipts through actual
+writers. Preserve the explicit legacy bare-add mapping and compact null-member
+omission. Current notification suppression must bind both exact native query and
+reported request policy. Previews disable credentials, send nothing and preserve
+all owned files; live cases may publish only their independently bound history.
+Single-target parallelism admission does not prove fan-out or worker bounds.
+Keep synthetic and live Jira evidence, failed writes and readback claims separate.
+
+Paging flag acceptance binds exact authenticated request order and independent
+native rows to complete per-operation output. User search advances by fetched rows
+and requires an empty probe for completion; worklogs use native totals. Preserve
+privacy, unknown native values and explicit false. Check first-invalid boundaries
+and explicit-default conflicts with exact message, hint and field attribution;
+a shared error code alone is insufficient. Refusals disable credentials and leave
+HTTP/storage untouched. Successful keyed reads may publish only independently
+bound scoped history. Keep controlled fixtures separate from live Jira and failure walks.
+Native worklog paging acceptance starts from an acknowledged independently bound
+record, then compares exact offset/size native pages and complete current output.
+Confirm the stored record survives each read; an empty pre-existing issue alone
+cannot prove offset selection. Single-record evidence is not a multipage walk.
+
+Live clone flag acceptance binds immutable source preimages and frozen candidates
+before entry, retains intent and returned identities, then registers cleanup from
+minimal exact native ownership before asserting requested fields. A broken
+assignee, description or extra label must not abandon a uniquely owned clone.
+Retain exact lowercase identity/fields after strict validation; a permissive second
+struct decode must not replace cleanup targets with mixed-case aliases. Require
+complete native field readback, unchanged sources and inputs, full acknowledgements
+and independent deletion confirmation. Never replay uncertain creation.
+
+Clone field flags need native writer acceptance because bare clone previews
+publish targets without copied fields or resolved candidates. Bind an exact
+authenticated source read to independently authored POST fields, native unknown
+values, nulls and server-field exclusions. Exercise scalar/collection overrides,
+CSV identities and ordered summary replacements, then check full source/clone
+receipts and scoped history without collateral file changes. Selector cases must
+bind exact filter/search requests before source reads or writes. Remote previews
+resolve targets only; bare previews keep unresolved warnings and enter no HTTP.
+Both leave the complete owned tree unchanged. Keep controlled-server acceptance
+separate from live Jira, concurrent fan-out and failed-write evidence.
+
+Structured-query acceptance uses independently authored per-layout literals for
+filters, CSV/repeated values, key ranges, account aliases, status categories and
+date grammars. Exercise jql build and both issue list/mine local previews, binding
+full JSON/compact data, clause ordering, URLs and the fixed mine account scope.
+Disable tokens, trap HTTP and compare the complete owned tree. Positive relative
+periods remain explicit differences when legacy emits invalid +2w and current
+emits valid 2w: compare both diagnostics with independent live Jira native parsing and
+do not credit equivalent query generation. Offline composition, Jira parsing,
+live search and cached board scope require separate evidence.
+
+Legacy auth mapping acceptance must execute the old operation, not infer its
+meaning from help. Refresh is a local unsupported-flow report, switch publishes
+the owned default profile, and migrate previews provider relocation without
+opening stores. Compare exact current dispatch refusals separately from these
+legacy outcomes; missing commands earn no equivalent-behavior credit. Use only
+owned public profiles with disabled tokens, trap HTTP and verify authored profile
+metadata plus unrelated files survive. This does not establish live provider
+migration, a runtime profile feature or an equivalent flat-layout workflow.
+
+Live convenience-edit cases bind an owned native identity before every write,
+persist candidate/preimage intent and retain acknowledgements before assertions.
+Use different inline/file descriptions and assignment/unassignment states so
+untouched earlier values cannot corroborate an ignored flag. Require complete
+bound project/type/label facts and a different admitted summary, description and
+assignee before entry; default assignment is not assignment-change evidence.
+Compare immutable-ID
+native readback, explicit null, all selected untouched fields and complete lane
+receipts. Stop dependent cases after failure and never replay uncertain edits.
+Preserve source files and independently confirm cleanup; no server CAS or protected
+editor application follows from an acknowledged write and later observation.
+
+Convenience-edit previews compare complete independent native fields/update and
+per-key results in both machine modes. Map legacy `--assignee=none` to current
+`--unassign` explicitly. Retain legacy compact's null-member loss as a presentation
+difference; current payloads keep explicit null. Collection flags add/remove and
+preserve literal name meanings, CSV commas, duplicates and operation order. Whole
+replacement belongs to native JSON input, not an invented flag. Preview tests
+disable credentials, trap HTTP and compare the entire unchanged owned tree.
+Notification facts report only the request. These tests do not credit a writer,
+live Jira changes, remote validation, multi-key selection or all failure variants.
+
+Live convenience-field creates persist a fixed recipe's intent before entry and
+reuse the native create ownership binder before additional assertions. Independently
+bind the authenticated account; compare project/type identities, summary, exact
+label membership, assignee and the full description through an immutable-ID read.
+Admit strict original JSON
+and exact outer/inner native member names; duplicate or wrong-case fields cannot
+earn readback credit. Compare complete legacy preview aliases and current native candidate/acknowledgement data. Keep submitted
+label order separate from Jira's observed order, retain original Markdown files,
+and stop subsequent cases after failure without replay. Parent hierarchies,
+priority, additional current-only fields and remote preflight remain separate
+requirements.
+
+Convenience create writer comparisons use an owned authenticated HTTP fixture
+separately from local previews. Admit exactly the legacy name-to-ID metadata walk
+and one native POST, or the current single POST without implicit metadata reads.
+Require the complete independent native body, JSON content type, literal identities,
+CSV membership/order and the complete description, plus complete lane acknowledgements.
+Capture bounded request bodies and exact ordered URIs before assertions without
+credential headers or token values. Preserve unexpected/replayed attempts and
+never retry a write. Keep authored Markdown unchanged; legacy metadata-cache
+publication is separate from input preservation. A writer-only compiled defect
+must fail the actual wire guard even when its preview remains correct. Synthetic
+writer evidence does not establish live Jira acceptance or remote preflight.
+
+Create convenience flags require direct selected-binary evidence; native JSON
+creates do not cover the corresponding flags. Compare full independent legacy
+preview aliases with current native fields and mutation state in JSON/compact.
+Keep literal account IDs, parent keys, named priorities and digit-only component
+or version names distinct from IDs. Exercise Markdown text and literal file paths
+separately, and retain CSV commas, duplicates and order. Bare previews disable
+credentials, trap HTTP and leave the entire owned public/input/cache tree unchanged.
+Current additional field flags remain current-only. Pin the explicit empty
+description_route when no description is authored. Preview evidence does not
+establish the actual writer, Jira acceptance, remote preflight or broader failures.
+
 Supplementary public-editor acceptance pins both the clean selected executable
 and its independently observed live Jira source artifact. Copy each draft into an owned
 case directory; retain the original source and readiness manifest unchanged.
@@ -386,9 +515,18 @@ expectations in independent raw buffers and guard immutable fixture preimages.
 Changed forced reads must survive a subsequent zero-request cached invocation;
 fresh reuse preserves owned files. Compare empty arrays explicitly. Current force
 maps legacy refresh without pretending their cache-source state is identical.
+Backdate only an independently verified owned wrapper: the same two-minute-old
+snapshot must remain fresh under the resource default and refetch under an
+explicit one-minute TTL. Bind the new publication and subsequent zero-request
+reuse. Primer previews cover all ten resources with disabled tokens, exact typed
+plans, custom/default TTLs and unchanged owned storage. Actual current paged
+primers must stop at the page/item bound, retain the incomplete native snapshot,
+reuse it without requests, then refetch all 101 pages under --unbounded and reuse
+the complete publication. Compare exact cursors, warnings, wire order and disk
+values. These controlled-server checks do not establish Jira collection size,
+board/epic bound behavior, human rendering or failed-read parity.
 Live acceptance reads native resources independently and changes only owned local
-caches. TTL overrides, previews, human rendering, caps and failed reads remain
-separate requirements until exercised.
+caches; keep that evidence distinct from synthetic freshness and bound fixtures.
 
 Paired board discovery binds numeric board order, native type presence and
 independently fetched associated projects; location metadata cannot supply the
