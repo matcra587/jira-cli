@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -546,6 +547,7 @@ func TestLogoutIsIdempotent(t *testing.T) {
 func TestLogoutSaysWhenTheEnvironmentStillWins(t *testing.T) {
 	t.Parallel()
 	site := configured()
+	site.Token = "an-environment-token"
 	site.TokenSource = string(envelope.TokenSourceEnv)
 	h := newHarness(t, site)
 
@@ -559,6 +561,69 @@ func TestLogoutSaysWhenTheEnvironmentStillWins(t *testing.T) {
 	if out.RemainingSource != string(envelope.TokenSourceEnv) {
 		t.Errorf("remaining_source = %q, want %q — the environment token outlives logout",
 			out.RemainingSource, envelope.TokenSourceEnv)
+	}
+}
+
+func TestLogoutOmitsEmptyRemainingCredentialLayers(t *testing.T) {
+	t.Parallel()
+	for _, source := range []string{"default", "env", "file"} {
+		for _, token := range []string{"", " \t\n"} {
+			for _, preview := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s/blank_%t/preview_%t", source, token != "", preview), func(t *testing.T) {
+					site := configured()
+					site.Token, site.TokenSource = token, source
+					h := newHarness(t, site)
+					h.deps.SiteWithoutStore = func(context.Context) (SiteInfo, error) {
+						t.Fatal("a nonstored layer must not reopen fallback resolution")
+						return SiteInfo{}, nil
+					}
+					out, err := doLogout(t, h, preview)
+					if err != nil || out.RemainingSource != "" || out.EnvTokenRemains || out.DryRun != preview {
+						t.Fatalf("empty credential layer became a remaining token: %+v, %v", out, err)
+					}
+					wantDeletes := 1
+					if preview {
+						wantDeletes = 0
+					}
+					if h.store.delCall != wantDeletes {
+						t.Fatal("remaining-token reporting changed credential deletion entry")
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestLogoutReportsActualEnvironmentFallbackConsistently(t *testing.T) {
+	t.Parallel()
+	for _, source := range []string{"keyring", "1password"} {
+		for _, token := range []string{"environment-token", " \t\n"} {
+			t.Run(fmt.Sprintf("%s/available_%t", source, strings.TrimSpace(token) != ""), func(t *testing.T) {
+				site := configured()
+				site.TokenSource = source
+				h := newHarness(t, site)
+				if err := credentials.Save(t.Context(), h.store, credentials.Record{Site: site.BaseURL, Email: site.Email, Token: "owned-stored-token"}); err != nil {
+					t.Fatal(err)
+				}
+				calls := 0
+				h.deps.SiteWithoutStore = func(context.Context) (SiteInfo, error) {
+					calls++
+					return SiteInfo{Token: token, TokenSource: "env"}, nil
+				}
+				out, err := doLogout(t, h, false)
+				present := strings.TrimSpace(token) != ""
+				want := ""
+				if present {
+					want = "env"
+				}
+				if err != nil || calls != 1 || out.EnvTokenRemains != present || out.RemainingSource != want {
+					t.Fatalf("fallback facts disagree: %+v, calls%d err%v", out, calls, err)
+				}
+				if _, err := credentials.Load(t.Context(), h.store); err == nil {
+					t.Fatal("reporting a remaining token left the owned stored record in place")
+				}
+			})
+		}
 	}
 }
 

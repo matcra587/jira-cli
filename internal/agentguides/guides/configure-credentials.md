@@ -242,7 +242,10 @@ acknowledgment remains its actual outcome.
 
 `jira auth logout --yes` removes only the owned field in 1Password, retaining the
 item and unmanaged content. Other clients using that field also lose it. Logout
-does not revoke the Jira token or clear environment variables. `auth token`
+does not revoke the Jira token or clear environment variables. `remaining_source`
+names only a layer still supplying a nonempty token. `env_token_remains` also
+covers an environment credential exposed by removing the stored record. An empty
+or default layer does not mean authentication remains. `auth token`
 deliberately prints the raw token and newline. Handle its output as a secret.
 Use `migrate-configuration` to retain legacy profiles and explicitly roll back.
 

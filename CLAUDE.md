@@ -1,5 +1,10 @@
 # jira-cli
 
+Logout remaining-source facts require an actual nonempty token. Derive both
+remaining_source and env_token_remains from the same post-removal observation;
+include an exposed environment fallback and never label an empty default as a
+credential. Preserve lazy fallback resolution and acknowledged removal outcomes.
+
 Ranking uses `core.PlanRankRequests` to validate the complete ordered move
 before constructing independent native requests. Keep `core.MaxRankIssues` at
 50 for each request. Execute batches sequentially through the same context and

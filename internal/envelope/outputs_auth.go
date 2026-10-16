@@ -93,8 +93,9 @@ type AuthLogoutOutput struct {
 	MutationState
 	// Email is the account whose stored token was removed.
 	Email string `json:"email"`
-	// EnvTokenRemains reports that JIRA_API_TOKEN is still set, so
-	// commands will keep working. Serialized even when false: a caller
+	// EnvTokenRemains reports an actual environment token still supplied after
+	// removal, including one exposed by clearing the stored record. Serialized
+	// even when false: a caller
 	// checking whether logout took effect needs the answer either way.
 	EnvTokenRemains bool `json:"env_token_remains"`
 	// RemainingSource names a layer that still supplies a token after
@@ -142,8 +143,8 @@ func init() {
 		"properties": map[string]any{
 			"dry_run":           map[string]any{"description": "Whether this was a preview; nothing is removed when true."},
 			"email":             map[string]any{"description": "Account whose stored token was removed."},
-			"env_token_remains": map[string]any{"description": "Whether JIRA_API_TOKEN is still set, keeping commands working."},
-			"remaining_source":  map[string]any{"description": "Layer still supplying a token after removal, if any."},
+			"env_token_remains": map[string]any{"description": "Whether a nonempty environment token remains after removal, including a newly exposed fallback."},
+			"remaining_source":  map[string]any{"description": "Layer still supplying a nonempty token after removal. Omitted when no token remains; a default layer label alone is not a credential."},
 			"revocation_needed": map[string]any{"description": "Removing the stored credential does not revoke the token."},
 		},
 	})
