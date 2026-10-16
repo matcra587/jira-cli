@@ -9,6 +9,46 @@ paths:
 
 # Tests
 
+Supplementary public-editor acceptance pins both the clean selected executable
+and its independently observed live Jira source artifact. Copy each draft into an owned
+case directory; retain the original source and readiness manifest unchanged.
+Use independently authored Markdown and complete native candidates, including
+protected content. Exercise actual JSON/compact editor success, unchanged saves,
+failed exit, invalid text and both graceful and resistant cancellation. Observe
+both borrowed terminal modes changed before releasing the editor, then require
+restoration and joined termination. Bind literal argv and exact saved bytes;
+retain complete typed recovery data and refusal reasons without a fabricated
+candidate. Keep editor screens off result stdout, disable credential stores and
+trap HTTP. Such evidence covers local candidates derived from a historical live Jira
+read, not fresh remote application or a legacy editing counterpart.
+
+Local update acceptance executes digest-verified disposable copies with renamed
+basenames, preserving `.exe` on Windows. Execute their version commands before
+interpreting update output. Managed mise/Scoop path routing binds both spellings,
+preview/live/forced modes and complete independent receipts without HTTP or file
+changes. Isolate PATH with owned installer observers, positively execute each with
+literal argv and joined termination, then require no observer entry from update.
+An unstamped current source build's unknown-install refusal is current-only;
+the frozen official legacy release remains an archive install outside managed
+paths. Never equate those different build provenances. Retain complete current
+installation data, refusal and diagnostic text. Real installer ownership,
+archive downloads/publication and native platform execution need separate evidence.
+
+Supplementary archive-update comparisons use separately admitted archive-stamped
+builds from the same clean selected current revision; never silently replace the
+primary binary or transfer its digest credit. Use the fixed-host owned HTTPS
+release fixture, anonymous requests, empty PATH and isolated GitHub configuration.
+Opt in to the legacy release-list response explicitly; current discovery keeps
+its latest endpoint. Require complete lane receipts/errors, exact request counts,
+installed bytes/version, installation members and empty download stages. Persist
+disposable copies and receipts in an unused private evidence directory, and
+fingerprint selected artifacts before and after. Both original and replacement
+version commands must execute. Preserve stripped legacy release versions and
+its second discovery before installing. The legacy renamed-executable refusal
+and current successful publication are an explicit improvement comparison, not
+equivalent native outcomes. Linux evidence does not establish Windows/macOS,
+real GitHub release delivery, installer ownership or interactive behavior.
+
 Environment-login acceptance uses only synthetic credentials and owned public
 configuration, with native credential stores disabled. Bind exact authenticated
 requests, complete lane-specific publication/refusal receipts and complete saved
