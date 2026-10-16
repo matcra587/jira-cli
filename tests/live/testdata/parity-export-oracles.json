@@ -206,8 +206,8 @@
       "format": "agent-skill",
       "slug": "configure-credentials",
       "path": "jira-configure-credentials/SKILL.md",
-      "bytes": 10614,
-      "sha256": "998ebffe3fa1c534a16eb44dbaf71eb18d29f1b2be3b2ef165adee0e1bd84dbf",
+      "bytes": 10847,
+      "sha256": "edac9690d0e9196fdcc92fb2346bb399066445b034466bc94670cb8cfff2cebb",
       "order": 65
     },
     {
@@ -294,8 +294,8 @@
       "format": "claude-skill",
       "slug": "configure-credentials",
       "path": "jira-configure-credentials/SKILL.md",
-      "bytes": 10619,
-      "sha256": "0c18be11779d554e43d80b2b9dfacf3b50d1a8b4609f463c3894873f6e5d7620",
+      "bytes": 10852,
+      "sha256": "ce70bf76ee3a7cf6e400484d17c7166094954140de1cc37d7476b41bfb209c26",
       "order": 65
     },
     {

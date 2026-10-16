@@ -38,6 +38,25 @@ validity, projection warnings, context bounds and source/remote preservation
 are checked independently. This does not establish lossless editing or remote
 concurrency protection.
 
+Synthetic environment-login acceptance compares JSON/compact initial and repeated
+login plus refusal of a supplied stdin credential. Complete public receipts and
+independently decoded settings retain legacy profile defaults and current bound
+identity/provider/reference metadata. Legacy board warming requires exact native
+requests, an empty complete cache and timestamps within each invocation. Current
+preview and fresh-process reuse of saved routing/reference are current-only;
+neither opens native credential stores. Finite stdin tests do not prove when
+input was consumed: legacy reads before refusing the environment backend.
+Interactive login, real providers, cloud discovery and broader failures remain open.
+
+Synthetic auth read acceptance compares complete JSON/compact status data and
+exact authenticated wire requests with privacy-hidden native email. Legacy status
+includes permission probes; current status verifies identity. Token tests use
+only authored environment credentials, disabled keyrings and owned public homes.
+Legacy redacted diagnostics and current exact raw output are distinct contracts;
+no equivalent token pair is credited. Raw output is checked across JSON, compact
+and human modes without HTTP or file changes. Real-provider operations, failures,
+live authentication and a mapping for legacy local diagnostics remain open.
+
 Current-only stored-description acceptance prepares an independently authored
 rich native issue, publishes its recoverable draft, and inspects local edits,
 fresh merges and conflicts. Raw HTTP/base64 observations bind exact source bytes,

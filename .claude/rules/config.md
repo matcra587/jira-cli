@@ -12,6 +12,11 @@ paths:
 
 # Config
 
+Logout derives remaining_source and env_token_remains from one observation of
+an actual nonempty remaining token, including the environment fallback after a
+stored record is cleared. Empty/default provenance alone is not a credential.
+Keep fallback resolution lazy and preserve the existing removal outcome.
+
 Named documents use `format_version=1`, `default_profile` and `[profiles.NAME]`
 tables. Existing flat files remain readable. One selected profile resolves to
 the flat runtime `Config`. `internal/config/load.go` owns koanf resolution;

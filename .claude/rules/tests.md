@@ -9,6 +9,29 @@ paths:
 
 # Tests
 
+Environment-login acceptance uses only synthetic credentials and owned public
+configuration, with native credential stores disabled. Bind exact authenticated
+requests, complete lane-specific publication/refusal receipts and complete saved
+public configuration through independent TOML decoding. Legacy login also warms
+its board cache: bind wrapper and native timestamps to the invocation interval,
+respect native timestamp precision, and require a fresh publication on repeat.
+Current preview changes no files; repeated live login acknowledges unchanged
+settings. Verify saved routing and the named environment reference from a fresh
+process with site/email overrides removed. Keep preview/fresh-process checks
+current-only. Finite stdin refusal tests prove matching refusal and no HTTP/file
+effects; legacy reads supplied input before refusing, so they do not establish
+equal consumption order or a current pre-read guard. Real providers, interactive
+login, scoped discovery and broader failure variants remain separate evidence.
+
+Auth read comparison uses synthetic environment credentials in isolated public
+fixture homes with keyring access disabled. Bind complete lane-specific status
+data and exact authenticated empty GET transcripts. Legacy status also probes
+permissions; current status verifies identity only. Do not erase that difference.
+Legacy token diagnostics are redacted and framed; the current token command emits
+literal secret bytes across output modes. Exercise it only with authored synthetic
+values, require zero HTTP/file effects and never credit those distinct contracts
+as an equivalent-behavior pair. Retain legacy compact null omission explicitly.
+
 Stored-description acceptance binds original HTTP/base64 native bytes, timestamp,
 immutable ID and public scope independently of prepared output. Pin complete
 Markdown/region descriptors through native source SHA256 and an authored projection;

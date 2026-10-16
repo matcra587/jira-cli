@@ -34,6 +34,8 @@ func newLogout(deps Deps) *cobra.Command {
 			"An environment variable is not touched either — `JIRA_API_TOKEN` " +
 			"is set by whatever set it, and this command does not reach into " +
 			"your shell.\n\n" +
+			"The result reports any nonempty environment credential still available after removal, " +
+			"including one exposed by deleting the stored record.\n\n" +
 			"It asks before removing anything. `--yes` skips the question, " +
 			"and is required when there is no terminal to ask at.",
 		Flags: func(c *cobra.Command) {
@@ -161,6 +163,9 @@ func remainingSource(ctx context.Context, deps Deps, site SiteInfo) string {
 		// not touch — the environment, or the config file — so removing
 		// the stored record changes nothing about being authenticated.
 		// Empty stays empty: no token in effect, nothing to warn about.
+		if strings.TrimSpace(site.Token) == "" {
+			return ""
+		}
 		return site.TokenSource
 	}
 	if deps.SiteWithoutStore == nil {
@@ -171,7 +176,7 @@ func remainingSource(ctx context.Context, deps Deps, site SiteInfo) string {
 	// Resolve again with the credential store withheld: whatever answers
 	// then is what takes over.
 	without, err := deps.SiteWithoutStore(ctx)
-	if err != nil || without.Token == "" {
+	if err != nil || strings.TrimSpace(without.Token) == "" {
 		return ""
 	}
 	return without.TokenSource
@@ -200,11 +205,12 @@ func logout(ctx context.Context, deps Deps, site SiteInfo, account string, dryRu
 
 	// An environment token survives this, and a caller who does not know
 	// that will read the next successful command as a failed logout.
+	remaining := remainingSource(ctx, deps, site)
 	return envelope.AuthLogoutOutput{
 		MutationState:    envelope.MutationState{DryRun: dryRun},
 		Email:            account,
-		EnvTokenRemains:  site.TokenSource == string(envelope.TokenSourceEnv),
-		RemainingSource:  remainingSource(ctx, deps, site),
+		EnvTokenRemains:  remaining == string(envelope.TokenSourceEnv),
+		RemainingSource:  remaining,
 		RevocationNeeded: true,
 	}, nil
 }
