@@ -71,6 +71,10 @@ func (r *liveRun) checkMoveMutation(keys, args []string) error {
 			i++
 			path = args[i]
 		case "--force", "--dry-run":
+		case "--parallelism=1":
+			if !fieldMove {
+				return errors.New("native bulk move has no per-key parallelism option")
+			}
 		case "--validate-remote", "--wait", "--max-polls=40", "--poll-interval=1s":
 			if fieldMove {
 				return errors.New("field move has an unauthored option")

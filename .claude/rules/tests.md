@@ -9,6 +9,87 @@ paths:
 
 # Tests
 
+Stored-description acceptance binds original HTTP/base64 native bytes, timestamp,
+immutable ID and public scope independently of prepared output. Pin complete
+Markdown/region descriptors through native source SHA256 and an authored projection;
+reopening through production preparation cannot serve as the expected result.
+Verify all three regular draft files and independently bind manifest version,
+source size/digest and initial Markdown digest before publication credit. Require
+complete source/current snapshots, ready-state facts and complete authored local
+and merged candidates. Preserve the entire draft tree across preview, refusal,
+inspection, refresh and conflict. Bind exact terminal/conflict errors. Positively
+execute and join the owned editor observer with literal argv before crediting
+its separate absent entry marker; isolate profile/temp stores and retain PATHEXT.
+Resume preview/refusal is not interactive editing
+acceptance; local candidates and refreshes never establish protected Jira writes.
+
+Current-only native bulk move acceptance records provisional task intent before
+every invocation, including previews and read-only refusals. Clear it only after
+complete original-JSON no-write admission. Bind required booleans, exact authored
+payload/targets and ordered issue identities/outcomes; sparse zero-value decoding
+is not receipt evidence. Retain new task IDs before assertions and reject reused
+IDs without making their new intent settleable. Join known jobs before cleanup,
+observe real type changes and unchanged native fields by immutable ID, then bind
+plain/waited status to complete independent terminal progress and processed IDs.
+These capabilities have no historical bulk counterpart and earn current-only
+credit. An asynchronous acknowledgement never proves movement or remote CAS.
+
+Paired historical field moves translate legacy spelling only for shared owned
+admission; execute each lane's original argv. Preserve native bulk recipe
+discrimination and restrict literal per-key parallelism to field writes. Bind
+registered direct-child regular inputs and exact bytes before every process.
+Keep native project/type metadata, immutable issue IDs, hierarchy and unrelated
+fields independent of command receipts. Actual type conversion needs a changed
+native type observation; an unchanged authored type cannot establish it. Persist
+intent before PUTs, retain ordered acknowledgements and restore original native
+summary/type preimages through fresh explicit recipes before the next lane.
+Legacy single missing-force may read edit metadata before refusal; multi-key
+missing-force and current refusal send nothing. Bind complete independent force
+and read-only errors. Local previews, synchronous field acknowledgements and
+native bulk tasks remain distinct; never invent an applied field or job receipt.
+
+Paired epic membership acceptance admits every child and the destination through
+the shared owned mutation grammar before entry. Create the Epic through its
+separate metadata-bound setup; do not weaken the homogeneous paired-create type
+binding. Persist per-child intent before native mutations, bind ordered lane
+receipts and independently read exact issue/parent IDs and unrelated fields.
+Require the same native unparented presence preimage before each lane and after
+restoration. Preview/refusal steps retain exact parent presence. Legacy single
+and multi-key receipts differ; current outcomes always remain keyed. Refusals
+bind complete independent top-level and per-key errors. Synthetic transcripts
+include every validation GET and PUT, exact query multiplicity and empty read
+bodies. Keep legacy preview history effects distinct from zero HTTP. Cleanup
+requires native absence, and uncertain writes are never replayed. Parent reads
+and writes remain separate requests, without remote compare-and-swap.
+
+Paired issue search acceptance uses independently decoded original native JSON
+for exact IDs, keys, summaries, complete labels and assignee presence. Bind the
+current account through raw native identity before assigning owned fixtures.
+Only missing known index entries may wait; foreign identities, wrong fields or
+assignments fail immediately. Pin explicit ordering separately from the legacy
+descending and current mine ascending defaults. Keep legacy modeled null omission,
+metadata and pagination distinct from current native fields and data pagination.
+Each lane walks its own opaque cursors. Saved query files retain exact authored
+bytes and descriptive project metadata must never become a filter. Legacy full
+search maps to current detail with an explicit empty expansion override; ordinary
+list detail uses its six native expansions. Read coverage does not establish all
+flags, human output or malformed-response handling.
+
+Paired clone acceptance binds one active owned source and the exact bytes of a
+direct-child regular override file before every process. Retain creation intent
+and returned identity before assertions, then bind independent native run,
+summary, project and type markers before registering cleanup. Unknown outcomes
+are never replayed. Native source fields must remain unchanged; preview/refusal
+steps require two complete dedicated-project ID/key census observations,
+independent of labels a faulty clone might omit. Baseline or unexpected observed
+identities never grant cleanup ownership. Bind each fresh native source ID to
+the original owned manifest; preserve that binding after every step. Clone
+label overrides must differ from the source and match complete native membership. Compare legacy headless
+confirmation separately from the current layout, and never claim unread copied
+fields from a local preview. Actual copied rich ADF and acknowledgement need
+independent native readback; every bound source and clone needs native absence
+before cleanup is credited.
+
 Paired rank acceptance binds ordered sources and a distinct anchor through
 registered owned recipes before every process. Resolve the designated public
 board filter and rank field, then require two complete independent native and

@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -73,8 +74,19 @@ func TestLiveBoundDescriptionPrepareAndFreshMerge(t *testing.T) {
 	if len(regions) != 2 || regions[0].Protected || !regions[1].Protected {
 		t.Fatal("live fixture does not distinguish editable text and native protected panel state")
 	}
-	r := newLiveRun(t)
-	key := r.create(t, "bound-description")
+	p := newParityRun(t)
+	r := p.owner
+	lane := p.evidence.Lanes[1]
+	key := p.create(t, lane)
+	editorBinary, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	editorArgv := []string{editorBinary, "-test.run=^TestLiveDescriptionEditorObserver$"}
+	parityDescriptionEditorControl(t, editorArgv, r.dir)
+	editorMarker := filepath.Join(r.dir, "editor-entered.json")
+	editorEnvironment := []string{"JIRA_READ_ONLY=true", "JIRA_EDITOR=" + strconv.Quote(editorBinary) + " " + editorArgv[1], "JIRA_PARITY_EDITOR_OBSERVER=1", "JIRA_PARITY_EDITOR_MARKER=" + editorMarker}
+	localEnvironment := append(append([]string{}, editorEnvironment...), "JIRA_KEYRING=false", "JIRA_API_TOKEN=", "JIRA_API_TOKEN_ENV=", "JIRA_EMAIL=", "JIRA_BASE_URL=https://unreachable.example.invalid")
 	store := func(document []byte) {
 		t.Helper()
 		endpoint, path := r.rawDescriptionInput(t, key, document)
@@ -83,7 +95,8 @@ func TestLiveBoundDescriptionPrepareAndFreshMerge(t *testing.T) {
 		assertStoredPreconditionBody(t, r, key, "", "description", document)
 	}
 	store(original)
-	frame, stdout, exit := r.invoke(t, t.Context(), []string{"JIRA_READ_ONLY=true"}, "issue", "edit", "prepare", key)
+	scope := parityStoredDescription(t, r, key, original)
+	frame, stdout, exit := p.invoke(t, lane, editorEnvironment, "issue", "edit", "prepare", key)
 	var prepared struct {
 		Data envelope.IssueEditPrepareOutput `json:"data"`
 	}
@@ -106,6 +119,10 @@ func TestLiveBoundDescriptionPrepareAndFreshMerge(t *testing.T) {
 	if err != nil || !bytes.Equal(untouched, out.Snapshot.DescriptionBytes) {
 		t.Fatal("real native snapshot lost bytes on untouched edit", err)
 	}
+	if !parityDescriptionPrepared(parityOriginalFrameData(stdout), scope) {
+		t.Fatal("prepared original JSON lacks independently bound native snapshot")
+	}
+	assertStoredPreconditionBody(t, r, key, "", "description", original)
 	protected := false
 	editable := false
 	for _, region := range out.Regions {
@@ -115,14 +132,31 @@ func TestLiveBoundDescriptionPrepareAndFreshMerge(t *testing.T) {
 	if !protected || !editable {
 		t.Fatal("actual snapshot did not distinguish editable text and protected panel")
 	}
+	parityDescriptionEditorNotRun(t, editorMarker)
+	p.check(t, lane, "N001.description.prepare.native")
 	directory := filepath.Join(r.dir, "description-draft")
-	frame, stdout, exit = r.invoke(t, t.Context(), []string{"JIRA_READ_ONLY=true"}, "issue", "edit", "draft", key, "--directory", directory)
+	previewDirectory := filepath.Join(r.dir, "description-preview")
+	frame, stdout, exit = p.invoke(t, lane, localEnvironment, "issue", "edit", "draft", key, "--directory", previewDirectory, "--dry-run")
+	if exit != 0 || !frame.OK || !parityDescriptionDraftPreview(parityOriginalFrameData(stdout), previewDirectory, key) {
+		t.Fatal("local draft preview lost its exact no-publication plan")
+	}
+	if _, err := os.Lstat(previewDirectory); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("draft preview published editing artifacts")
+	}
+	assertStoredPreconditionBody(t, r, key, "", "description", original)
+	parityDescriptionEditorNotRun(t, editorMarker)
+	p.check(t, lane, "N002.description.draft.local_preview")
+	frame, stdout, exit = p.invoke(t, lane, editorEnvironment, "issue", "edit", "draft", key, "--directory", directory)
 	var drafted struct {
 		Data envelope.IssueEditDraftOutput `json:"data"`
 	}
 	if exit != 0 || !frame.OK || json.Unmarshal(stdout, &drafted) != nil || !drafted.Data.Draft.Ready || drafted.Data.Source == nil || drafted.Data.Source.IssueID != out.Snapshot.IssueID {
 		t.Fatal("actual live Jira draft did not publish the bound native backup")
 	}
+	if !parityDescriptionSnapshot(parityOriginalFrameData(stdout), "source", scope) || !parityDescriptionDraftState(parityOriginalFrameData(stdout), directory, true) {
+		t.Fatal("published draft lacks native scope or explicit publication facts")
+	}
+	assertStoredPreconditionBody(t, r, key, "", "description", original)
 	sourcePath, markdownPath := filepath.Join(directory, "source.json"), filepath.Join(directory, "description.md")
 	source, err := os.ReadFile(sourcePath)
 	if err != nil {
@@ -132,37 +166,67 @@ func TestLiveBoundDescriptionPrepareAndFreshMerge(t *testing.T) {
 	if err != nil || !bytes.Contains(markdown, []byte("source alpha")) {
 		t.Fatal("actual live Jira draft lost editable source", err)
 	}
+	if !parityDescriptionSnapshotObject(source, scope) {
+		t.Fatal("saved native source lost its independent binding")
+	}
+	initialTree := parityDescriptionFiles(t, directory)
+	if !parityDescriptionManifest(initialTree["manifest.json"], source, markdown) || !bytes.Equal(markdown, []byte(out.Markdown)) || !parityDescriptionDraftUnchanged(parityOriginalFrameData(stdout), scope.Native) {
+		t.Fatal("published draft or manifest lost independently bound source, text or unchanged candidate")
+	}
+	parityDescriptionEditorNotRun(t, editorMarker)
+	p.check(t, lane, "N002.description.draft.native_source")
+	frame, stdout, exit = p.invoke(t, lane, localEnvironment, "issue", "edit", "resume", "--directory", directory, "--dry-run")
+	if exit != 0 || !frame.OK || !parityDescriptionDraftState(parityOriginalFrameData(stdout), directory, false) || !parityDescriptionResumePreview(parityOriginalFrameData(stdout), editorArgv) || !parityDescriptionSnapshot(parityOriginalFrameData(stdout), "source", scope) {
+		t.Fatal("resume preview lost editor selection or claimed an editor launch")
+	}
+	assertStoredPreconditionBody(t, r, key, "", "description", original)
+	parityDescriptionFilesUnchanged(t, directory, initialTree)
+	parityDescriptionEditorNotRun(t, editorMarker)
+	p.check(t, lane, "N004.description.resume.local_preview")
+	frame, stdout, exit = p.invoke(t, lane, localEnvironment, "issue", "edit", "resume", "--directory", directory)
+	if exit != 3 || frame.OK || !parityDescriptionTerminalRefusal(stdout) {
+		t.Fatal("headless resume did not refuse before launching the editor")
+	}
+	assertStoredPreconditionBody(t, r, key, "", "description", original)
+	parityDescriptionFilesUnchanged(t, directory, initialTree)
+	parityDescriptionEditorNotRun(t, editorMarker)
+	p.check(t, lane, "N004.description.resume.terminal_refusal")
 	localMarkdown := bytes.Replace(markdown, []byte("source alpha"), []byte("authored alpha"), 1)
 	if err := os.WriteFile(markdownPath, localMarkdown, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	frame, stdout, exit = r.invoke(t, t.Context(), []string{"JIRA_READ_ONLY=true", "JIRA_KEYRING=false", "JIRA_API_TOKEN=", "JIRA_API_TOKEN_ENV=", "JIRA_EMAIL=", "JIRA_BASE_URL=https://unreachable.example.invalid"}, "issue", "edit", "inspect", "--directory", directory)
+	localTree := parityDescriptionFiles(t, directory)
+	frame, stdout, exit = p.invoke(t, lane, localEnvironment, "issue", "edit", "inspect", "--directory", directory)
 	var inspected struct {
 		Data envelope.IssueEditInspectOutput `json:"data"`
 	}
 	if exit != 0 || !frame.OK || json.Unmarshal(stdout, &inspected) != nil || inspected.Data.Refreshed || inspected.Data.Source == nil || !bytes.Contains(inspected.Data.Description, []byte("authored alpha")) || !bytes.Contains(inspected.Data.Description, []byte("protected native panel")) {
 		t.Fatal("actual live Jira artifact cannot be inspected without credentials")
 	}
+	wantLocal := bytes.Replace(original, []byte("source alpha"), []byte("authored alpha"), 1)
+	if !parityDescriptionCandidate(parityOriginalFrameData(stdout), wantLocal, false, true) || !parityDescriptionSnapshot(parityOriginalFrameData(stdout), "source", scope) || !parityDescriptionDraftState(parityOriginalFrameData(stdout), directory, false) {
+		t.Fatal("local inspection differs from complete independently authored candidate")
+	}
 	assertStoredPreconditionBody(t, r, key, "", "description", original)
-	current, err := adf.ParseDocument(out.Snapshot.Description)
-	if err != nil {
-		t.Fatal(err)
-	}
-	appended, warnings, err := adf.FromMarkdownLossy("remote appended")
-	if err != nil || len(warnings) != 0 {
-		t.Fatal("live appended content is not lossless", err, warnings)
-	}
-	current.SetContent(append(current.Content(), appended.Content()...))
-	currentBytes, err := current.Marshal()
-	if err != nil {
-		t.Fatal(err)
-	}
+	parityDescriptionFilesUnchanged(t, directory, localTree)
+	parityDescriptionEditorNotRun(t, editorMarker)
+	p.check(t, lane, "N003.description.inspect.local_candidate")
+	currentBytes := []byte(`{"type":"doc","version":1,"content":[{"type":"paragraph","content":[{"type":"text","text":"source alpha"}]},{"type":"panel","attrs":{"panelType":"note","localId":"11111111-1111-4111-8111-111111111111"},"content":[{"type":"paragraph","content":[{"type":"text","text":"protected native panel"}]}]},{"type":"paragraph","content":[{"type":"text","text":"remote appended"}]}]}`)
 	store(currentBytes)
+	currentScope := parityStoredDescription(t, r, key, currentBytes)
 	inspected.Data = envelope.IssueEditInspectOutput{}
-	frame, stdout, exit = r.invoke(t, t.Context(), []string{"JIRA_READ_ONLY=true"}, "issue", "edit", "inspect", "--directory", directory, "--refresh")
+	frame, stdout, exit = p.invoke(t, lane, editorEnvironment, "issue", "edit", "inspect", "--directory", directory, "--refresh")
 	if exit != 0 || !frame.OK || json.Unmarshal(stdout, &inspected) != nil || !inspected.Data.Refreshed || inspected.Data.Current == nil || inspected.Data.Current.IssueID != out.Snapshot.IssueID || !bytes.Contains(inspected.Data.Description, []byte("authored alpha")) || !bytes.Contains(inspected.Data.Description, []byte("remote appended")) || !bytes.Contains(inspected.Data.Description, []byte("protected native panel")) {
 		t.Fatal("production draft refresh lost local/current/protected live Jira state")
 	}
+	wantMerged := bytes.Replace(currentBytes, []byte("source alpha"), []byte("authored alpha"), 1)
+	if !parityDescriptionCandidate(parityOriginalFrameData(stdout), wantMerged, true, true) || !parityDescriptionSnapshot(parityOriginalFrameData(stdout), "source", scope) || !parityDescriptionSnapshot(parityOriginalFrameData(stdout), "current", currentScope) || !parityDescriptionDraftState(parityOriginalFrameData(stdout), directory, false) {
+		t.Fatal("fresh inspection differs from complete independently authored merge")
+	}
+	assertStoredPreconditionBody(t, r, key, "", "description", currentBytes)
+	parityDescriptionFilesUnchanged(t, directory, localTree)
+	parityDescriptionEditorNotRun(t, editorMarker)
+	p.check(t, lane, "N003.description.inspect.fresh_merge")
 	reader := &liveDescriptionReader{t: t, r: r, key: key, id: out.Snapshot.IssueID, apiBaseURL: out.Snapshot.APIBaseURL}
 	local := strings.Replace(out.Markdown, "source alpha", "authored alpha", 1)
 	merged, err := session.Merge(t.Context(), reader, local)
@@ -173,10 +237,17 @@ func TestLiveBoundDescriptionPrepareAndFreshMerge(t *testing.T) {
 	conflict := bytes.Replace(currentBytes, []byte("source alpha"), []byte("remote alpha"), 1)
 	store(conflict)
 	inspected.Data = envelope.IssueEditInspectOutput{}
-	frame, stdout, exit = r.invoke(t, t.Context(), []string{"JIRA_READ_ONLY=true"}, "issue", "edit", "inspect", "--directory", directory, "--refresh")
+	frame, stdout, exit = p.invoke(t, lane, editorEnvironment, "issue", "edit", "inspect", "--directory", directory, "--refresh")
 	if exit != 3 || frame.OK || json.Unmarshal(stdout, &inspected) != nil || len(inspected.Data.Description) != 0 || inspected.Data.Current != nil || inspected.Data.Changed != nil || inspected.Data.Source == nil {
 		t.Fatal("production draft refresh fabricated a candidate on live Jira conflict")
 	}
+	if !parityDescriptionConflict(stdout, out.Regions[0].ID) || !parityDescriptionSnapshot(parityOriginalFrameData(stdout), "source", scope) || !parityDescriptionDraftState(parityOriginalFrameData(stdout), directory, false) {
+		t.Fatal("conflicting refresh lost its exact refusal reason")
+	}
+	assertStoredPreconditionBody(t, r, key, "", "description", conflict)
+	parityDescriptionFilesUnchanged(t, directory, localTree)
+	parityDescriptionEditorNotRun(t, editorMarker)
+	p.check(t, lane, "N003.description.inspect.fresh_conflict")
 	backup, err := os.ReadFile(sourcePath)
 	saved, savedErr := os.ReadFile(markdownPath)
 	if err != nil || savedErr != nil || !bytes.Equal(backup, source) || !bytes.Equal(saved, localMarkdown) {

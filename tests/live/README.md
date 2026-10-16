@@ -38,6 +38,61 @@ validity, projection warnings, context bounds and source/remote preservation
 are checked independently. This does not establish lossless editing or remote
 concurrency protection.
 
+Current-only stored-description acceptance prepares an independently authored
+rich native issue, publishes its recoverable draft, and inspects local edits,
+fresh merges and conflicts. Raw HTTP/base64 observations bind exact source bytes,
+timestamp, identity and public scope. Complete Markdown/region and candidate
+oracles retain the protected panel. Independent manifest digests and exact regular
+members establish publication and preservation. Credential-disabled local draft
+and resume previews create nothing and launch no editor; headless resume binds
+its complete refusal. An owned observer positively executes with exact literal
+argv before a separate marker detects unexpected editor entry.
+Interactive public editing, broader failures and protected remote application
+remain separate requirements; no legacy editing counterpart is invented.
+
+Current-only native bulk move acceptance converts one owned issue to a verified
+same-project type and back. Local/remote previews and read-only refusals preserve
+native fields; asynchronous and waited submissions require strict original JSON
+receipts and independent immutable-ID readback. Provisional task intents cover
+all invocations. Missing or reused task IDs remain unresolved and prevent cleanup;
+known jobs settle before deletion. Plain/waited status binds complete independent
+terminal queue progress and exact processed IDs. These checks have no historical
+bulk-job counterpart. Cross-project moves, destination overrides, failures and
+human output remain separate acceptance requirements.
+
+Paired historical field moves compare legacy `issue move` with current
+`issue move fields`, using verified same-project native type IDs and two owned
+issues. Single/batch previews, missing confirmation, read-only refusal, actual
+type/summary changes and explicit restoration retain independent native identity,
+hierarchy and unrelated fields. Input files stay byte-bound to shared ownership
+recipes. JSON/compact controlled-server checks distinguish legacy edit-metadata
+reads from current native PUTs and bind complete lane errors. These synchronous
+field writes do not submit native bulk tasks. Broader fields/update preservation,
+human output and partial failures remain separate requirements.
+
+Paired epic membership acceptance uses a metadata-bound owned Epic and two
+ordinary children. Both selected binaries run single and batch add/remove
+previews, read-only refusals and native writes. Persisted per-child intents and
+ordered acknowledgements precede independent parent-ID and unrelated-field
+checks. The exact unparented presence preimage is restored between lanes.
+Controlled-server JSON/compact success checks bind full ordered validation/write
+transcripts; JSON refusals bind complete lane-specific errors and zero PUTs.
+Legacy multi-key previews may update scoped completion history. Every owned
+fixture requires native absence. Hierarchy failures, current-only options,
+human output and broader partial failures remain separate requirements.
+
+Paired issue search acceptance creates three owned issues, assigns two to the
+independently read current account and explicitly unassigns the control. Original
+native JSON establishes IDs, keys, authored summaries, complete labels, assignees
+and stable order. Both selected binaries run structured lists, mine, scoped raw
+OR queries and their own limit-one cursor walks. Legacy inline and saved full
+searches map to current list detail with an explicit empty expansion override.
+Plain, YAML and TOML query files retain their exact bytes; descriptive project
+metadata must not filter results. JSON and compact controlled-server checks bind
+authenticated requests, projections, metadata and pagination. Default sort order
+and legacy null omission remain explicit differences. Broader flags, human output
+and malformed-response variants need separate evidence.
+
 Issue deletion acceptance creates a parent, a metadata-selected subtask, a
 sibling and a missing-target fixture in the dedicated project. Cascade requests
 require an independent complete native observation matching registered owned
@@ -233,6 +288,23 @@ through both frozen binaries and validate exact authentication, native batch
 boundaries, ordered source identities and chained anchors. Local JSON/compact
 previews construct no remote requests. The harness ceiling of 101 sources is
 independent of the native endpoint limit of 50 per request.
+
+Paired clone acceptance uses separate owned sources with rich native ADF and
+run-bound native overrides. Local previews validate the original output shape
+without reading source fields, sending HTTP requests or changing owned files.
+Live previews, the legacy headless confirmation requirement and read-only
+refusals preserve source fields and a complete bounded dedicated-project ID/key
+census, independent of labels an unintended clone might omit. Each fresh source
+ID must retain its original manifest binding. Clone label overrides differ from
+the source and are checked as complete native membership. A live
+clone retains its write intent and returned identity before assertions, binds
+independent native summary/project/type/run markers before cleanup registration,
+then verifies acknowledgement and copied description. Two complete native
+census observations confirm each step. A controlled read-only binary guard
+requires an authenticated source read and zero creation POSTs; current source
+reads may publish only their scoped completion history. Unexpected identities remain unowned;
+unknown creations are never replayed. Source and clone cleanup both require
+independent native absence.
 
 The raw-write guard admits exact owned comment routes and separately registered
 description-only issue PUT probes, with explicit force and one input authored

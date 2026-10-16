@@ -55,6 +55,8 @@ type parityEvidence struct {
 	Attachments []parityAttachmentAttempt  `json:"attachment_attempts,omitempty"`
 	Links       []parityLinkAttempt        `json:"link_attempts,omitempty"`
 	Ranks       []parityRankAttempt        `json:"rank_attempts,omitempty"`
+	Epics       []parityEpicAttempt        `json:"epic_attempts,omitempty"`
+	FieldMoves  []parityFieldMoveAttempt   `json:"field_move_attempts,omitempty"`
 }
 
 type parityRun struct {
@@ -205,6 +207,9 @@ func (p *parityRun) invokeAt(t *testing.T, lane parityLane, directory string, ex
 }
 
 func parityExpectedOperation(lane string, args []string, exit int) string {
+	if lane == "before" && exit == 0 && len(args) >= 2 && args[0] == "issue" && args[1] == "mine" {
+		return "issue.list"
+	}
 	if lane == "before" && len(args) >= 3 && args[0] == "issue" && (args[1] == "weblink" || args[1] == "link") && liveKey.MatchString(args[2]) {
 		return "issue." + args[1]
 	}
@@ -249,6 +254,14 @@ func parityOperation(args []string) string {
 		case "transition":
 			if args[2] == "list" {
 				return "issue.transition.list"
+			}
+		case "edit":
+			if slices.Contains([]string{"prepare", "draft", "inspect", "resume"}, args[2]) {
+				return strings.Join(args[:3], ".")
+			}
+		case "move":
+			if args[2] == "fields" || args[2] == "status" {
+				return strings.Join(args[:3], ".")
 			}
 		}
 	}
