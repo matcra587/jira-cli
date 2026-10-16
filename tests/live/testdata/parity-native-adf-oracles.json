@@ -1,0 +1,18 @@
+{
+  "source": "{\"type\":\"doc\",\"version\":1,\"future\":\"<>&\\u2028\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"original\"}]},{\"type\":\"futureBlock\",\"attrs\":{\"id\":900719925474099312345,\"extra\":\"\\u003c\"},\"content\":[{\"type\":\"text\",\"text\":\"protected\"}]}]}",
+  "prepared": {
+    "markdown": "<!-- jira-adf:begin b1cc03ab5a8d0f6a5b1689d74b4be2cb99c384bd273191654c82ab06c6de776f-0 editable -->\n\noriginal\n\n<!-- jira-adf:end b1cc03ab5a8d0f6a5b1689d74b4be2cb99c384bd273191654c82ab06c6de776f-0 -->\n\n<!-- jira-adf:begin b1cc03ab5a8d0f6a5b1689d74b4be2cb99c384bd273191654c82ab06c6de776f-1 protected -->\n\n\\[futureBlock\\]protected\n\n<!-- jira-adf:end b1cc03ab5a8d0f6a5b1689d74b4be2cb99c384bd273191654c82ab06c6de776f-1 -->\n\n",
+    "regions": [
+      {
+        "id": "b1cc03ab5a8d0f6a5b1689d74b4be2cb99c384bd273191654c82ab06c6de776f-0",
+        "node_type": "paragraph",
+        "protected": false
+      },
+      {
+        "id": "b1cc03ab5a8d0f6a5b1689d74b4be2cb99c384bd273191654c82ab06c6de776f-1",
+        "node_type": "futureBlock",
+        "protected": true
+      }
+    ]
+  }
+}

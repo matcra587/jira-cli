@@ -23,6 +23,21 @@ import (
 type parityLocalEvidence struct {
 	Checks      map[string][]string     `json:"checks"`
 	Invocations []parityLocalInvocation `json:"invocations"`
+	NativeRuns  []parityNativeShellRun  `json:"native_shell_runs,omitempty"`
+}
+
+type parityNativeShellRun struct {
+	Lane         string   `json:"lane"`
+	Shell        string   `json:"shell"`
+	Binary       string   `json:"binary"`
+	Digest       string   `json:"sha256"`
+	Action       string   `json:"action"`
+	Argv         []string `json:"argv"`
+	Exit         int      `json:"exit"`
+	Stdout       []byte   `json:"stdout"`
+	Stderr       []byte   `json:"stderr"`
+	ScriptDigest string   `json:"script_sha256,omitempty"`
+	CallbackArgs []byte   `json:"callback_argv,omitempty"`
 }
 
 type parityLocalInvocation struct {

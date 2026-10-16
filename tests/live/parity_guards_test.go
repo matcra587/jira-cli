@@ -172,3 +172,41 @@ func TestParityEnvelope(t *testing.T) {
 		}
 	}
 }
+
+func TestParityRefusalAdaptersRejectMissingErrorRows(t *testing.T) {
+	fixture := parityReleaseNotesFixtures(t)
+	for _, lane := range []string{"before", "after"} {
+		for _, operation := range []string{"open", "release-notes"} {
+			for _, shape := range []string{"empty", "null", "absent", "object"} {
+				t.Run(lane+"/"+operation+"/"+shape, func(t *testing.T) {
+					meta := map[string]any{"command": operation, "timestamp": "2026-01-02T12:30:00Z", "request_id": "independent-refusal-guard", "exit_code": 3}
+					if lane == "after" {
+						meta["contract_version"] = "1"
+					}
+					frame := map[string]any{"ok": false, "meta": meta, "data": nil, "warnings": []any{}}
+					switch shape {
+					case "empty":
+						frame["errors"] = []any{}
+					case "null":
+						frame["errors"] = nil
+					case "object":
+						frame["errors"] = map[string]any{}
+					}
+					raw, err := json.Marshal(frame)
+					if err != nil {
+						t.Fatal(err)
+					}
+					accepted := false
+					if operation == "open" {
+						accepted = parityOpenRefusal(raw, lane, 3)
+					} else {
+						accepted = parityReleaseNotesRefusal(raw, lane, "conflict", fixture, 3)
+					}
+					if accepted {
+						t.Fatal("refusal adapter admitted an absent, null, empty or non-array error collection")
+					}
+				})
+			}
+		}
+	}
+}

@@ -25,11 +25,12 @@ type parityLane struct {
 }
 
 type parityInvocation struct {
-	Lane     string   `json:"lane"`
-	Digest   string   `json:"sha256"`
-	Argv     []string `json:"argv"`
-	Sequence int      `json:"receipt_sequence"`
-	Exit     int      `json:"exit"`
+	Directory string   `json:"working_directory,omitempty"`
+	Lane      string   `json:"lane"`
+	Digest    string   `json:"sha256"`
+	Argv      []string `json:"argv"`
+	Sequence  int      `json:"receipt_sequence"`
+	Exit      int      `json:"exit"`
 }
 
 type parityCreation struct {
@@ -49,6 +50,10 @@ type parityEvidence struct {
 	IssueTypeID string                     `json:"issue_type_id"`
 	Preimages   map[string]json.RawMessage `json:"preimages,omitempty"`
 	Comments    []parityCommentAttempt     `json:"comment_attempts,omitempty"`
+	Worklogs    []parityWorklogAttempt     `json:"worklog_attempts,omitempty"`
+	Weblinks    []parityWeblinkAttempt     `json:"weblink_attempts,omitempty"`
+	Attachments []parityAttachmentAttempt  `json:"attachment_attempts,omitempty"`
+	Links       []parityLinkAttempt        `json:"link_attempts,omitempty"`
 }
 
 type parityRun struct {
@@ -155,10 +160,19 @@ func newParityRun(t *testing.T) *parityRun {
 
 func (p *parityRun) invoke(t *testing.T, lane parityLane, extra []string, args ...string) (liveFrame, []byte, int) {
 	t.Helper()
+	return p.invokeAt(t, lane, "", extra, args...)
+}
+
+func (p *parityRun) invokeAt(t *testing.T, lane parityLane, directory string, extra []string, args ...string) (liveFrame, []byte, int) {
+	t.Helper()
 	if !slices.Contains(p.evidence.Lanes, lane) {
 		t.Fatal("invocation selected an unadmitted lane")
 	}
 	if err := parityFingerprint(lane.Binary, lane.Digest); err != nil {
+		t.Fatal(err)
+	}
+	directory, err := liveInvocationDirectory(p.owner.dir, directory)
+	if err != nil {
 		t.Fatal(err)
 	}
 	argv := slices.Clone(args)
@@ -170,11 +184,11 @@ func (p *parityRun) invoke(t *testing.T, lane parityLane, extra []string, args .
 	var exit int
 	if lane.Name == "before" {
 		environment := append(parityLegacyEnvironment(os.Environ()), "JIRA_READ_ONLY=false", "JIRA_NO_UPDATE_CHECK=1", "NO_COLOR=1", "TERM=dumb", "XDG_CACHE_HOME="+filepath.Join(p.owner.dir, "cache-before"))
-		stdout, exit = p.owner.invokeEnvironmentRaw(t, t.Context(), lane.Binary, append(environment, extra...), argv...)
+		stdout, exit = p.owner.invokeEnvironmentRawAt(t, t.Context(), lane.Binary, directory, append(environment, extra...), argv...)
 	} else {
-		stdout, exit = p.owner.invokeSelectedRaw(t, t.Context(), lane.Binary, extra, argv...)
+		stdout, exit = p.owner.invokeSelectedRawAt(t, t.Context(), lane.Binary, directory, extra, argv...)
 	}
-	p.evidence.Invocations = append(p.evidence.Invocations, parityInvocation{lane.Name, lane.Digest, argv, p.owner.sequence, exit})
+	p.evidence.Invocations = append(p.evidence.Invocations, parityInvocation{Directory: directory, Lane: lane.Name, Digest: lane.Digest, Argv: argv, Sequence: p.owner.sequence, Exit: exit})
 	p.save(t)
 	var frame liveFrame
 	if json.Unmarshal(stdout, &frame) != nil {
@@ -190,6 +204,9 @@ func (p *parityRun) invoke(t *testing.T, lane parityLane, extra []string, args .
 }
 
 func parityExpectedOperation(lane string, args []string, exit int) string {
+	if lane == "before" && len(args) >= 3 && args[0] == "issue" && (args[1] == "weblink" || args[1] == "link") && liveKey.MatchString(args[2]) {
+		return "issue." + args[1]
+	}
 	if lane == "before" && exit == 0 && len(args) == 3 && args[0] == "issue" && args[1] == "transition" && liveKey.MatchString(args[2]) {
 		return "issue.transitions"
 	}
@@ -203,11 +220,17 @@ func parityExpectedOperation(lane string, args []string, exit int) string {
 }
 
 func parityOperation(args []string) string {
-	if len(args) > 0 && args[0] == "me" {
-		return "me"
+	if len(args) > 0 && (args[0] == "me" || args[0] == "open") {
+		return args[0]
 	}
 	if len(args) < 2 {
 		return ""
+	}
+	if len(args) >= 3 && args[0] == "adf" && args[1] == "edit" {
+		switch args[2] {
+		case "prepare", "apply", "merge":
+			return strings.Join(args[:3], ".")
+		}
 	}
 	if len(args) >= 3 && args[0] == "issue" {
 		switch args[1] {

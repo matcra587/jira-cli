@@ -42,6 +42,19 @@ func parityAuthoringJSON(actual, expected []byte) bool {
 	return aOK && bOK && reflect.DeepEqual(a, b)
 }
 
+func parityOriginalFrameData(stdout []byte) json.RawMessage {
+	if !jsontext.Value(stdout).IsValid() {
+		return nil
+	}
+	var frame struct {
+		Data json.RawMessage `json:"data"`
+	}
+	if json.Unmarshal(stdout, &frame) != nil {
+		return nil
+	}
+	return frame.Data
+}
+
 func parityAuthoringData(t *testing.T, stdout []byte, lane, operation string, exit int) map[string]json.RawMessage {
 	t.Helper()
 	if !jsontext.Value(stdout).IsValid() {

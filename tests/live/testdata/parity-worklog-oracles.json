@@ -1,0 +1,34 @@
+{
+  "native": [
+    {
+      "id": "501",
+      "timeSpentSeconds": 90,
+      "started": "2026-01-02T12:30:00.000+0000",
+      "comment": {"version": 1, "type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Owned <&> café"}]}]},
+      "author": {"accountId": "native-author", "emailAddress": null, "active": false},
+      "updateAuthor": null,
+      "created": "2026-01-02T12:31:00.000+0000",
+      "updated": "2026-01-02T12:32:00.000+0000",
+      "issueId": "10002",
+      "visibility": {"type": "role", "value": "Developers"},
+      "future": 900719925474099312345
+    },
+    {
+      "id": "502",
+      "timeSpentSeconds": 0,
+      "started": null,
+      "comment": null,
+      "author": null,
+      "future": false
+    }
+  ],
+  "before": [
+    {
+      "id": "501",
+      "timeSpentSeconds": 90,
+      "started": "2026-01-02T12:30:00.000+0000",
+      "comment": {"version": 1, "type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Owned <&> café"}]}]}
+    },
+    {"id": "502", "timeSpentSeconds": 0}
+  ]
+}

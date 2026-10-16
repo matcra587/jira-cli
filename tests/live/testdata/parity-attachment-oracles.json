@@ -1,0 +1,408 @@
+[
+  {
+    "name": "upload-before-preview-true",
+    "lane": "before",
+    "operation": "upload",
+    "preview": true,
+    "data": {
+      "issue": {
+        "key": "PAIR-1"
+      },
+      "files": [
+        {
+          "path": "owned.bin",
+          "size": 3,
+          "mime_inferred": "application/octet-stream"
+        }
+      ],
+      "dry_run": true
+    }
+  },
+  {
+    "name": "delete-before-preview-true",
+    "lane": "before",
+    "operation": "delete",
+    "preview": true,
+    "data": {
+      "dry_run": true,
+      "attachment_id": "41",
+      "issue": {
+        "key": "PAIR-1"
+      }
+    }
+  },
+  {
+    "name": "upload-before-preview-false",
+    "lane": "before",
+    "operation": "upload",
+    "preview": false,
+    "data": {
+      "issue": {
+        "key": "PAIR-1"
+      },
+      "files": [
+        {
+          "path": "owned.bin",
+          "size": 3,
+          "mime_inferred": "application/octet-stream"
+        }
+      ],
+      "dry_run": false,
+      "attachments": [
+        {
+          "id": "41",
+          "filename": "owned.bin",
+          "mime_type": "application/octet-stream",
+          "size": 3,
+          "created": "2026-01-01T00:00:00.000+0000",
+          "author": {
+            "account_id": "fixture-account",
+            "display_name": "Fixture"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "delete-before-preview-false",
+    "lane": "before",
+    "operation": "delete",
+    "preview": false,
+    "data": {
+      "dry_run": false,
+      "attachment_id": "41",
+      "issue": {
+        "key": "PAIR-1"
+      },
+      "deleted": true
+    }
+  },
+  {
+    "name": "download-before-preview-true-size-3-overwrite-false",
+    "lane": "before",
+    "operation": "download",
+    "preview": true,
+    "size": 3,
+    "overwrite": false,
+    "data": {
+      "issue": {
+        "key": "PAIR-1"
+      },
+      "attachment_id": "41",
+      "mode": "output",
+      "target": "owned.bin",
+      "dry_run": true
+    }
+  },
+  {
+    "name": "download-before-preview-false-size-3-overwrite-false",
+    "lane": "before",
+    "operation": "download",
+    "preview": false,
+    "size": 3,
+    "overwrite": false,
+    "data": {
+      "issue": {
+        "key": "PAIR-1"
+      },
+      "attachment_id": "41",
+      "mode": "output",
+      "target": "owned.bin",
+      "dry_run": false,
+      "written_to": "owned.bin",
+      "bytes": 3
+    }
+  },
+  {
+    "name": "download-before-preview-false-size-0-overwrite-false",
+    "lane": "before",
+    "operation": "download",
+    "preview": false,
+    "size": 0,
+    "overwrite": false,
+    "data": {
+      "issue": {
+        "key": "PAIR-1"
+      },
+      "attachment_id": "41",
+      "mode": "output",
+      "target": "owned.bin",
+      "dry_run": false,
+      "written_to": "owned.bin",
+      "bytes": 0
+    }
+  },
+  {
+    "name": "download-before-preview-false-size-3-overwrite-true",
+    "lane": "before",
+    "operation": "download",
+    "preview": false,
+    "size": 3,
+    "overwrite": true,
+    "data": {
+      "issue": {
+        "key": "PAIR-1"
+      },
+      "attachment_id": "41",
+      "mode": "output",
+      "target": "owned.bin",
+      "dry_run": false,
+      "written_to": "owned.bin",
+      "bytes": 3
+    }
+  },
+  {
+    "name": "upload-refused-before",
+    "lane": "before",
+    "operation": "refused",
+    "data": null
+  },
+  {
+    "name": "upload-after-preview-true",
+    "lane": "after",
+    "operation": "upload",
+    "preview": true,
+    "data": {
+      "dry_run": true,
+      "files": [
+        "owned.bin"
+      ],
+      "file_details": [
+        {
+          "path": "owned.bin",
+          "size": 3,
+          "mime_inferred": "application/octet-stream"
+        }
+      ],
+      "results": [
+        {
+          "issue": {
+            "key": "PAIR-1"
+          },
+          "ok": true,
+          "data": {}
+        }
+      ]
+    }
+  },
+  {
+    "name": "delete-after-preview-true",
+    "lane": "after",
+    "operation": "delete",
+    "preview": true,
+    "data": {
+      "dry_run": true,
+      "attachment_id": "41"
+    }
+  },
+  {
+    "name": "upload-after-preview-false",
+    "lane": "after",
+    "operation": "upload",
+    "preview": false,
+    "data": {
+      "dry_run": false,
+      "files": [
+        "owned.bin"
+      ],
+      "file_details": [
+        {
+          "path": "owned.bin",
+          "size": 3,
+          "mime_inferred": "application/octet-stream"
+        }
+      ],
+      "results": [
+        {
+          "issue": {
+            "key": "PAIR-1"
+          },
+          "ok": true,
+          "data": {
+            "attachments": [
+              {
+                "id": "41",
+                "filename": "owned.bin",
+                "mime_type": "application/octet-stream",
+                "size": 3,
+                "created": "2026-01-01T00:00:00.000+0000",
+                "author": {
+                  "account_id": "fixture-account",
+                  "display_name": "Fixture"
+                },
+                "content": "https://jira.invalid/content/41"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "delete-after-preview-false",
+    "lane": "after",
+    "operation": "delete",
+    "preview": false,
+    "data": {
+      "dry_run": false,
+      "attachment_id": "41"
+    }
+  },
+  {
+    "name": "download-after-preview-true-size-3-overwrite-false",
+    "lane": "after",
+    "operation": "download",
+    "preview": true,
+    "size": 3,
+    "overwrite": false,
+    "data": {
+      "attachment_id": "41",
+      "directory": ".",
+      "filename_resolved": true,
+      "filename": "owned.bin",
+      "path": "owned.bin",
+      "dry_run": true
+    }
+  },
+  {
+    "name": "download-after-preview-false-size-3-overwrite-false",
+    "lane": "after",
+    "operation": "download",
+    "preview": false,
+    "size": 3,
+    "overwrite": false,
+    "data": {
+      "attachment_id": "41",
+      "directory": ".",
+      "filename_resolved": true,
+      "filename": "owned.bin",
+      "path": "owned.bin",
+      "dry_run": false,
+      "bytes_written": 3,
+      "overwrote": false
+    }
+  },
+  {
+    "name": "download-after-preview-false-size-0-overwrite-false",
+    "lane": "after",
+    "operation": "download",
+    "preview": false,
+    "size": 0,
+    "overwrite": false,
+    "data": {
+      "attachment_id": "41",
+      "directory": ".",
+      "filename_resolved": true,
+      "filename": "owned.bin",
+      "path": "owned.bin",
+      "dry_run": false,
+      "bytes_written": 0,
+      "overwrote": false
+    }
+  },
+  {
+    "name": "download-after-preview-false-size-3-overwrite-true",
+    "lane": "after",
+    "operation": "download",
+    "preview": false,
+    "size": 3,
+    "overwrite": true,
+    "data": {
+      "attachment_id": "41",
+      "directory": ".",
+      "filename_resolved": true,
+      "filename": "owned.bin",
+      "path": "owned.bin",
+      "dry_run": false,
+      "bytes_written": 3,
+      "overwrote": true
+    }
+  },
+  {
+    "name": "upload-refused-after",
+    "lane": "after",
+    "operation": "refused",
+    "data": {
+      "dry_run": false,
+      "files": [
+        "owned.bin"
+      ],
+      "file_details": [
+        {
+          "path": "owned.bin",
+          "size": 3,
+          "mime_inferred": "application/octet-stream"
+        }
+      ],
+      "results": [
+        {
+          "issue": {
+            "key": "PAIR-1"
+          },
+          "ok": false,
+          "error": {
+            "code": "read_only_blocked",
+            "message": "read-only mode: write blocked: POST /rest/api/3/issue/PAIR-1/attachments",
+            "hint": "Read-only mode is on, so writes are refused before they reach Jira — clear it to allow this command to mutate."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "list-before",
+    "lane": "before",
+    "operation": "list",
+    "data": {
+      "issue": {
+        "key": "PAIR-1"
+      },
+      "attachments": [
+        {
+          "id": "41",
+          "filename": "owned.bin",
+          "size": 3,
+          "mime_type": "application/octet-stream",
+          "created": "2026-01-01T00:00:00.000+0000",
+          "author": {
+            "account_id": "fixture-account",
+            "display_name": "Fixture"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "list-after",
+    "lane": "after",
+    "operation": "list",
+    "data": {
+      "results": [
+        {
+          "issue": {
+            "id": "1",
+            "key": "PAIR-1",
+            "self": "https://jira.invalid/rest/api/3/issue/1"
+          },
+          "ok": true,
+          "data": {
+            "attachments": [
+              {
+                "id": "41",
+                "filename": "owned.bin",
+                "size": 3,
+                "mime_type": "application/octet-stream",
+                "created": "2026-01-01T00:00:00.000+0000",
+                "author": {
+                  "account_id": "fixture-account",
+                  "display_name": "Fixture"
+                },
+                "content": "https://jira.invalid/content/41"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+]

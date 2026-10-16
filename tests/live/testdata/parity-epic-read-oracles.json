@@ -1,0 +1,1259 @@
+[
+  {
+    "name": "empty",
+    "native": [],
+    "children": [
+      {
+        "id": "20001",
+        "key": "PAIR-3",
+        "fields": {
+          "status": {
+            "name": "Review",
+            "future": false
+          }
+        }
+      },
+      {
+        "id": "20002",
+        "key": "PAIR-4",
+        "fields": {
+          "status": {
+            "name": "Done"
+          }
+        }
+      }
+    ],
+    "expected": {
+      "before": {
+        "list": {
+          "jql": "issuetype = Epic",
+          "epics": [],
+          "detail": false
+        },
+        "board": {
+          "epics": [],
+          "totals": {
+            "To Do": 0,
+            "In Progress": 0,
+            "Done": 0
+          }
+        }
+      },
+      "after": {
+        "list": {
+          "jql": "issuetype = Epic",
+          "epics": [],
+          "pagination": {
+            "is_last": true,
+            "returned": 0
+          },
+          "truncated": false
+        },
+        "board": {
+          "epics": [],
+          "totals": {
+            "To Do": 0,
+            "In Progress": 0,
+            "Done": 0
+          },
+          "jql": "issuetype = Epic",
+          "pagination": {
+            "is_last": true,
+            "returned": 0
+          },
+          "truncated": false,
+          "unknown_status": 0,
+          "counts_complete": true
+        }
+      },
+      "before-compact": {
+        "list": {
+          "jql": "issuetype = Epic",
+          "epics": [],
+          "detail": false
+        },
+        "board": {
+          "epics": [],
+          "totals": {
+            "To Do": 0,
+            "In Progress": 0,
+            "Done": 0
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "complete",
+    "native": [
+      {
+        "id": "10001",
+        "key": "PAIR-1",
+        "self": "https://native.invalid/issue/10001",
+        "fields": {
+          "summary": "Owned <&> café",
+          "status": {
+            "id": "10",
+            "name": "To Do",
+            "future": false
+          },
+          "customfield_10001": {
+            "opaque": 900719925474099312345
+          }
+        },
+        "expand": "names",
+        "future": {
+          "root": null
+        }
+      },
+      {
+        "id": "10002",
+        "key": "PAIR-2",
+        "fields": {
+          "summary": null,
+          "status": null,
+          "customfield_10002": []
+        }
+      }
+    ],
+    "children": [
+      {
+        "id": "20001",
+        "key": "PAIR-3",
+        "fields": {
+          "status": {
+            "name": "Review",
+            "future": false
+          }
+        }
+      },
+      {
+        "id": "20002",
+        "key": "PAIR-4",
+        "fields": {
+          "status": {
+            "name": "Done"
+          }
+        }
+      }
+    ],
+    "expected": {
+      "before": {
+        "list": {
+          "jql": "issuetype = Epic",
+          "epics": [
+            {
+              "id": "10001",
+              "key": "PAIR-1",
+              "self": "https://native.invalid/issue/10001",
+              "fields": {
+                "summary": "Owned <&> café",
+                "status": {
+                  "name": "To Do"
+                },
+                "customfield_10001": {
+                  "opaque": 900719925474099312345
+                }
+              }
+            },
+            {
+              "id": "10002",
+              "key": "PAIR-2",
+              "fields": {
+                "customfield_10002": []
+              }
+            }
+          ],
+          "detail": false
+        },
+        "board": {
+          "epics": [
+            {
+              "key": "PAIR-1",
+              "summary": "Owned <&> café",
+              "status": "To Do",
+              "counts": {
+                "To Do": 0,
+                "In Progress": 0,
+                "Done": 1,
+                "Review": 1
+              }
+            },
+            {
+              "key": "PAIR-2",
+              "summary": "",
+              "status": "",
+              "counts": {
+                "To Do": 0,
+                "In Progress": 0,
+                "Done": 0
+              }
+            }
+          ],
+          "totals": {
+            "To Do": 0,
+            "In Progress": 0,
+            "Done": 1,
+            "Review": 1
+          }
+        }
+      },
+      "after": {
+        "list": {
+          "jql": "issuetype = Epic",
+          "epics": [
+            {
+              "id": "10001",
+              "key": "PAIR-1",
+              "self": "https://native.invalid/issue/10001",
+              "fields": {
+                "summary": "Owned <&> café",
+                "status": {
+                  "id": "10",
+                  "name": "To Do",
+                  "future": false
+                },
+                "customfield_10001": {
+                  "opaque": 900719925474099312345
+                }
+              },
+              "details": {
+                "expand": "names",
+                "future": {
+                  "root": null
+                }
+              }
+            },
+            {
+              "id": "10002",
+              "key": "PAIR-2",
+              "fields": {
+                "summary": null,
+                "status": null,
+                "customfield_10002": []
+              }
+            }
+          ],
+          "pagination": {
+            "is_last": true,
+            "returned": 2
+          },
+          "truncated": false
+        },
+        "board": {
+          "epics": [
+            {
+              "id": "10001",
+              "key": "PAIR-1",
+              "self": "https://native.invalid/issue/10001",
+              "fields": {
+                "summary": "Owned <&> café",
+                "status": {
+                  "id": "10",
+                  "name": "To Do",
+                  "future": false
+                },
+                "customfield_10001": {
+                  "opaque": 900719925474099312345
+                }
+              },
+              "details": {
+                "expand": "names",
+                "future": {
+                  "root": null
+                }
+              },
+              "counts": {
+                "To Do": 0,
+                "In Progress": 0,
+                "Done": 1,
+                "Review": 1
+              },
+              "children": {
+                "attempted": true,
+                "complete": true,
+                "pagination": {
+                  "is_last": true,
+                  "returned": 2
+                },
+                "truncated": false,
+                "unknown_status": 0
+              }
+            },
+            {
+              "id": "10002",
+              "key": "PAIR-2",
+              "fields": {
+                "summary": null,
+                "status": null,
+                "customfield_10002": []
+              },
+              "counts": {
+                "To Do": 0,
+                "In Progress": 0,
+                "Done": 0
+              },
+              "children": {
+                "attempted": true,
+                "complete": true,
+                "pagination": {
+                  "is_last": true,
+                  "returned": 0
+                },
+                "truncated": false,
+                "unknown_status": 0
+              }
+            }
+          ],
+          "totals": {
+            "To Do": 0,
+            "In Progress": 0,
+            "Done": 1,
+            "Review": 1
+          },
+          "jql": "issuetype = Epic",
+          "pagination": {
+            "is_last": true,
+            "returned": 2
+          },
+          "truncated": false,
+          "unknown_status": 0,
+          "counts_complete": true
+        }
+      },
+      "before-compact": {
+        "list": {
+          "jql": "issuetype = Epic",
+          "epics": [
+            {
+              "id": "10001",
+              "key": "PAIR-1",
+              "self": "https://native.invalid/issue/10001",
+              "fields": {
+                "summary": "Owned <&> café",
+                "status": {
+                  "name": "To Do"
+                },
+                "customfield_10001": {
+                  "opaque": 900719925474099300000
+                }
+              }
+            },
+            {
+              "id": "10002",
+              "key": "PAIR-2",
+              "fields": {
+                "customfield_10002": []
+              }
+            }
+          ],
+          "detail": false
+        },
+        "board": {
+          "epics": [
+            {
+              "key": "PAIR-1",
+              "summary": "Owned <&> café",
+              "status": "To Do",
+              "counts": {
+                "To Do": 0,
+                "In Progress": 0,
+                "Done": 1,
+                "Review": 1
+              }
+            },
+            {
+              "key": "PAIR-2",
+              "summary": "",
+              "status": "",
+              "counts": {
+                "To Do": 0,
+                "In Progress": 0,
+                "Done": 0
+              }
+            }
+          ],
+          "totals": {
+            "To Do": 0,
+            "In Progress": 0,
+            "Done": 1,
+            "Review": 1
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "continuation",
+    "native": [
+      {
+        "id": "10001",
+        "key": "PAIR-1",
+        "self": "https://native.invalid/issue/10001",
+        "fields": {
+          "summary": "Owned <&> café",
+          "status": {
+            "id": "10",
+            "name": "To Do",
+            "future": false
+          },
+          "customfield_10001": {
+            "opaque": 900719925474099312345
+          }
+        },
+        "expand": "names",
+        "future": {
+          "root": null
+        }
+      },
+      {
+        "id": "10002",
+        "key": "PAIR-2",
+        "fields": {
+          "summary": null,
+          "status": null,
+          "customfield_10002": []
+        }
+      }
+    ],
+    "children": [
+      {
+        "id": "20001",
+        "key": "PAIR-3",
+        "fields": {
+          "status": {
+            "name": "Review",
+            "future": false
+          }
+        }
+      },
+      {
+        "id": "20002",
+        "key": "PAIR-4",
+        "fields": {
+          "status": {
+            "name": "Done"
+          }
+        }
+      }
+    ],
+    "expected": {
+      "before": {
+        "list": {
+          "jql": "issuetype = Epic",
+          "epics": [
+            {
+              "id": "10001",
+              "key": "PAIR-1",
+              "self": "https://native.invalid/issue/10001",
+              "fields": {
+                "summary": "Owned <&> café",
+                "status": {
+                  "name": "To Do"
+                },
+                "customfield_10001": {
+                  "opaque": 900719925474099312345
+                }
+              }
+            }
+          ],
+          "detail": false
+        },
+        "board": {
+          "epics": [
+            {
+              "key": "PAIR-1",
+              "summary": "Owned <&> café",
+              "status": "To Do",
+              "counts": {
+                "To Do": 0,
+                "In Progress": 0,
+                "Done": 1,
+                "Review": 1
+              }
+            }
+          ],
+          "totals": {
+            "To Do": 0,
+            "In Progress": 0,
+            "Done": 1,
+            "Review": 1
+          }
+        }
+      },
+      "after": {
+        "list": {
+          "jql": "issuetype = Epic",
+          "epics": [
+            {
+              "id": "10001",
+              "key": "PAIR-1",
+              "self": "https://native.invalid/issue/10001",
+              "fields": {
+                "summary": "Owned <&> café",
+                "status": {
+                  "id": "10",
+                  "name": "To Do",
+                  "future": false
+                },
+                "customfield_10001": {
+                  "opaque": 900719925474099312345
+                }
+              },
+              "details": {
+                "expand": "names",
+                "future": {
+                  "root": null
+                }
+              }
+            },
+            {
+              "id": "10002",
+              "key": "PAIR-2",
+              "fields": {
+                "summary": null,
+                "status": null,
+                "customfield_10002": []
+              }
+            }
+          ],
+          "pagination": {
+            "is_last": true,
+            "returned": 2
+          },
+          "truncated": false
+        },
+        "board": {
+          "epics": [
+            {
+              "id": "10001",
+              "key": "PAIR-1",
+              "self": "https://native.invalid/issue/10001",
+              "fields": {
+                "summary": "Owned <&> café",
+                "status": {
+                  "id": "10",
+                  "name": "To Do",
+                  "future": false
+                },
+                "customfield_10001": {
+                  "opaque": 900719925474099312345
+                }
+              },
+              "details": {
+                "expand": "names",
+                "future": {
+                  "root": null
+                }
+              },
+              "counts": {
+                "To Do": 0,
+                "In Progress": 0,
+                "Done": 1,
+                "Review": 1
+              },
+              "children": {
+                "attempted": true,
+                "complete": true,
+                "pagination": {
+                  "is_last": true,
+                  "returned": 2
+                },
+                "truncated": false,
+                "unknown_status": 0
+              }
+            },
+            {
+              "id": "10002",
+              "key": "PAIR-2",
+              "fields": {
+                "summary": null,
+                "status": null,
+                "customfield_10002": []
+              },
+              "counts": {
+                "To Do": 0,
+                "In Progress": 0,
+                "Done": 0
+              },
+              "children": {
+                "attempted": true,
+                "complete": true,
+                "pagination": {
+                  "is_last": true,
+                  "returned": 0
+                },
+                "truncated": false,
+                "unknown_status": 0
+              }
+            }
+          ],
+          "totals": {
+            "To Do": 0,
+            "In Progress": 0,
+            "Done": 1,
+            "Review": 1
+          },
+          "jql": "issuetype = Epic",
+          "pagination": {
+            "is_last": true,
+            "returned": 2
+          },
+          "truncated": false,
+          "unknown_status": 0,
+          "counts_complete": true
+        }
+      },
+      "before-compact": {
+        "list": {
+          "jql": "issuetype = Epic",
+          "epics": [
+            {
+              "id": "10001",
+              "key": "PAIR-1",
+              "self": "https://native.invalid/issue/10001",
+              "fields": {
+                "summary": "Owned <&> café",
+                "status": {
+                  "name": "To Do"
+                },
+                "customfield_10001": {
+                  "opaque": 900719925474099300000
+                }
+              }
+            }
+          ],
+          "detail": false
+        },
+        "board": {
+          "epics": [
+            {
+              "key": "PAIR-1",
+              "summary": "Owned <&> café",
+              "status": "To Do",
+              "counts": {
+                "To Do": 0,
+                "In Progress": 0,
+                "Done": 1,
+                "Review": 1
+              }
+            }
+          ],
+          "totals": {
+            "To Do": 0,
+            "In Progress": 0,
+            "Done": 1,
+            "Review": 1
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "unknown-status",
+    "native": [
+      {
+        "id": "10001",
+        "key": "PAIR-1",
+        "self": "https://native.invalid/issue/10001",
+        "fields": {
+          "summary": "Owned <&> café",
+          "status": {
+            "id": "10",
+            "name": "To Do",
+            "future": false
+          },
+          "customfield_10001": {
+            "opaque": 900719925474099312345
+          }
+        },
+        "expand": "names",
+        "future": {
+          "root": null
+        }
+      },
+      {
+        "id": "10002",
+        "key": "PAIR-2",
+        "fields": {
+          "summary": null,
+          "status": null,
+          "customfield_10002": []
+        }
+      }
+    ],
+    "children": [
+      {
+        "id": "20001",
+        "key": "PAIR-3",
+        "fields": {
+          "status": {
+            "name": "Review",
+            "future": false
+          }
+        }
+      },
+      {
+        "id": "20002",
+        "key": "PAIR-4",
+        "fields": {
+          "status": {
+            "name": "Done"
+          }
+        }
+      },
+      {
+        "id": "20003",
+        "key": "PAIR-5",
+        "fields": {
+          "status": null
+        }
+      }
+    ],
+    "expected": {
+      "before": {
+        "list": {
+          "jql": "issuetype = Epic",
+          "epics": [
+            {
+              "id": "10001",
+              "key": "PAIR-1",
+              "self": "https://native.invalid/issue/10001",
+              "fields": {
+                "summary": "Owned <&> café",
+                "status": {
+                  "name": "To Do"
+                },
+                "customfield_10001": {
+                  "opaque": 900719925474099312345
+                }
+              }
+            },
+            {
+              "id": "10002",
+              "key": "PAIR-2",
+              "fields": {
+                "customfield_10002": []
+              }
+            }
+          ],
+          "detail": false
+        },
+        "board": {
+          "epics": [
+            {
+              "key": "PAIR-1",
+              "summary": "Owned <&> café",
+              "status": "To Do",
+              "counts": {
+                "To Do": 0,
+                "In Progress": 0,
+                "Done": 1,
+                "Review": 1
+              }
+            },
+            {
+              "key": "PAIR-2",
+              "summary": "",
+              "status": "",
+              "counts": {
+                "To Do": 0,
+                "In Progress": 0,
+                "Done": 0
+              }
+            }
+          ],
+          "totals": {
+            "To Do": 0,
+            "In Progress": 0,
+            "Done": 1,
+            "Review": 1
+          }
+        }
+      },
+      "after": {
+        "list": {
+          "jql": "issuetype = Epic",
+          "epics": [
+            {
+              "id": "10001",
+              "key": "PAIR-1",
+              "self": "https://native.invalid/issue/10001",
+              "fields": {
+                "summary": "Owned <&> café",
+                "status": {
+                  "id": "10",
+                  "name": "To Do",
+                  "future": false
+                },
+                "customfield_10001": {
+                  "opaque": 900719925474099312345
+                }
+              },
+              "details": {
+                "expand": "names",
+                "future": {
+                  "root": null
+                }
+              }
+            },
+            {
+              "id": "10002",
+              "key": "PAIR-2",
+              "fields": {
+                "summary": null,
+                "status": null,
+                "customfield_10002": []
+              }
+            }
+          ],
+          "pagination": {
+            "is_last": true,
+            "returned": 2
+          },
+          "truncated": false
+        },
+        "board": {
+          "epics": [
+            {
+              "id": "10001",
+              "key": "PAIR-1",
+              "self": "https://native.invalid/issue/10001",
+              "fields": {
+                "summary": "Owned <&> café",
+                "status": {
+                  "id": "10",
+                  "name": "To Do",
+                  "future": false
+                },
+                "customfield_10001": {
+                  "opaque": 900719925474099312345
+                }
+              },
+              "details": {
+                "expand": "names",
+                "future": {
+                  "root": null
+                }
+              },
+              "counts": {
+                "To Do": 0,
+                "In Progress": 0,
+                "Done": 1,
+                "Review": 1
+              },
+              "children": {
+                "attempted": true,
+                "complete": false,
+                "pagination": {
+                  "is_last": true,
+                  "returned": 3
+                },
+                "truncated": false,
+                "unknown_status": 1
+              }
+            },
+            {
+              "id": "10002",
+              "key": "PAIR-2",
+              "fields": {
+                "summary": null,
+                "status": null,
+                "customfield_10002": []
+              },
+              "counts": {
+                "To Do": 0,
+                "In Progress": 0,
+                "Done": 0
+              },
+              "children": {
+                "attempted": true,
+                "complete": true,
+                "pagination": {
+                  "is_last": true,
+                  "returned": 0
+                },
+                "truncated": false,
+                "unknown_status": 0
+              }
+            }
+          ],
+          "totals": {
+            "To Do": 0,
+            "In Progress": 0,
+            "Done": 1,
+            "Review": 1
+          },
+          "jql": "issuetype = Epic",
+          "pagination": {
+            "is_last": true,
+            "returned": 2
+          },
+          "truncated": false,
+          "unknown_status": 1,
+          "counts_complete": false
+        }
+      },
+      "before-compact": {
+        "list": {
+          "jql": "issuetype = Epic",
+          "epics": [
+            {
+              "id": "10001",
+              "key": "PAIR-1",
+              "self": "https://native.invalid/issue/10001",
+              "fields": {
+                "summary": "Owned <&> café",
+                "status": {
+                  "name": "To Do"
+                },
+                "customfield_10001": {
+                  "opaque": 900719925474099300000
+                }
+              }
+            },
+            {
+              "id": "10002",
+              "key": "PAIR-2",
+              "fields": {
+                "customfield_10002": []
+              }
+            }
+          ],
+          "detail": false
+        },
+        "board": {
+          "epics": [
+            {
+              "key": "PAIR-1",
+              "summary": "Owned <&> café",
+              "status": "To Do",
+              "counts": {
+                "To Do": 0,
+                "In Progress": 0,
+                "Done": 1,
+                "Review": 1
+              }
+            },
+            {
+              "key": "PAIR-2",
+              "summary": "",
+              "status": "",
+              "counts": {
+                "To Do": 0,
+                "In Progress": 0,
+                "Done": 0
+              }
+            }
+          ],
+          "totals": {
+            "To Do": 0,
+            "In Progress": 0,
+            "Done": 1,
+            "Review": 1
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "child-continuation",
+    "native": [
+      {
+        "id": "10001",
+        "key": "PAIR-1",
+        "self": "https://native.invalid/issue/10001",
+        "fields": {
+          "summary": "Owned <&> café",
+          "status": {
+            "id": "10",
+            "name": "To Do",
+            "future": false
+          },
+          "customfield_10001": {
+            "opaque": 900719925474099312345
+          }
+        },
+        "expand": "names",
+        "future": {
+          "root": null
+        }
+      },
+      {
+        "id": "10002",
+        "key": "PAIR-2",
+        "fields": {
+          "summary": null,
+          "status": null,
+          "customfield_10002": []
+        }
+      }
+    ],
+    "children": [
+      {
+        "id": "20001",
+        "key": "PAIR-3",
+        "fields": {
+          "status": {
+            "name": "Review",
+            "future": false
+          }
+        }
+      },
+      {
+        "id": "20002",
+        "key": "PAIR-4",
+        "fields": {
+          "status": {
+            "name": "Done"
+          }
+        }
+      }
+    ],
+    "expected": {
+      "before": {
+        "list": {
+          "jql": "issuetype = Epic",
+          "epics": [
+            {
+              "id": "10001",
+              "key": "PAIR-1",
+              "self": "https://native.invalid/issue/10001",
+              "fields": {
+                "summary": "Owned <&> café",
+                "status": {
+                  "name": "To Do"
+                },
+                "customfield_10001": {
+                  "opaque": 900719925474099312345
+                }
+              }
+            },
+            {
+              "id": "10002",
+              "key": "PAIR-2",
+              "fields": {
+                "customfield_10002": []
+              }
+            }
+          ],
+          "detail": false
+        },
+        "board": {
+          "epics": [
+            {
+              "key": "PAIR-1",
+              "summary": "Owned <&> café",
+              "status": "To Do",
+              "counts": {
+                "To Do": 0,
+                "In Progress": 0,
+                "Done": 0,
+                "Review": 1
+              }
+            },
+            {
+              "key": "PAIR-2",
+              "summary": "",
+              "status": "",
+              "counts": {
+                "To Do": 0,
+                "In Progress": 0,
+                "Done": 0
+              }
+            }
+          ],
+          "totals": {
+            "To Do": 0,
+            "In Progress": 0,
+            "Done": 0,
+            "Review": 1
+          }
+        }
+      },
+      "after": {
+        "list": {
+          "jql": "issuetype = Epic",
+          "epics": [
+            {
+              "id": "10001",
+              "key": "PAIR-1",
+              "self": "https://native.invalid/issue/10001",
+              "fields": {
+                "summary": "Owned <&> café",
+                "status": {
+                  "id": "10",
+                  "name": "To Do",
+                  "future": false
+                },
+                "customfield_10001": {
+                  "opaque": 900719925474099312345
+                }
+              },
+              "details": {
+                "expand": "names",
+                "future": {
+                  "root": null
+                }
+              }
+            },
+            {
+              "id": "10002",
+              "key": "PAIR-2",
+              "fields": {
+                "summary": null,
+                "status": null,
+                "customfield_10002": []
+              }
+            }
+          ],
+          "pagination": {
+            "is_last": true,
+            "returned": 2
+          },
+          "truncated": false
+        },
+        "board": {
+          "epics": [
+            {
+              "id": "10001",
+              "key": "PAIR-1",
+              "self": "https://native.invalid/issue/10001",
+              "fields": {
+                "summary": "Owned <&> café",
+                "status": {
+                  "id": "10",
+                  "name": "To Do",
+                  "future": false
+                },
+                "customfield_10001": {
+                  "opaque": 900719925474099312345
+                }
+              },
+              "details": {
+                "expand": "names",
+                "future": {
+                  "root": null
+                }
+              },
+              "counts": {
+                "To Do": 0,
+                "In Progress": 0,
+                "Done": 1,
+                "Review": 1
+              },
+              "children": {
+                "attempted": true,
+                "complete": true,
+                "pagination": {
+                  "is_last": true,
+                  "returned": 2
+                },
+                "truncated": false,
+                "unknown_status": 0
+              }
+            },
+            {
+              "id": "10002",
+              "key": "PAIR-2",
+              "fields": {
+                "summary": null,
+                "status": null,
+                "customfield_10002": []
+              },
+              "counts": {
+                "To Do": 0,
+                "In Progress": 0,
+                "Done": 0
+              },
+              "children": {
+                "attempted": true,
+                "complete": true,
+                "pagination": {
+                  "is_last": true,
+                  "returned": 0
+                },
+                "truncated": false,
+                "unknown_status": 0
+              }
+            }
+          ],
+          "totals": {
+            "To Do": 0,
+            "In Progress": 0,
+            "Done": 1,
+            "Review": 1
+          },
+          "jql": "issuetype = Epic",
+          "pagination": {
+            "is_last": true,
+            "returned": 2
+          },
+          "truncated": false,
+          "unknown_status": 0,
+          "counts_complete": true
+        }
+      },
+      "before-compact": {
+        "list": {
+          "jql": "issuetype = Epic",
+          "epics": [
+            {
+              "id": "10001",
+              "key": "PAIR-1",
+              "self": "https://native.invalid/issue/10001",
+              "fields": {
+                "summary": "Owned <&> café",
+                "status": {
+                  "name": "To Do"
+                },
+                "customfield_10001": {
+                  "opaque": 900719925474099300000
+                }
+              }
+            },
+            {
+              "id": "10002",
+              "key": "PAIR-2",
+              "fields": {
+                "customfield_10002": []
+              }
+            }
+          ],
+          "detail": false
+        },
+        "board": {
+          "epics": [
+            {
+              "key": "PAIR-1",
+              "summary": "Owned <&> café",
+              "status": "To Do",
+              "counts": {
+                "To Do": 0,
+                "In Progress": 0,
+                "Done": 0,
+                "Review": 1
+              }
+            },
+            {
+              "key": "PAIR-2",
+              "summary": "",
+              "status": "",
+              "counts": {
+                "To Do": 0,
+                "In Progress": 0,
+                "Done": 0
+              }
+            }
+          ],
+          "totals": {
+            "To Do": 0,
+            "In Progress": 0,
+            "Done": 0,
+            "Review": 1
+          }
+        }
+      }
+    }
+  }
+]

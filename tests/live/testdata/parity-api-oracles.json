@@ -1,0 +1,211 @@
+[
+  {
+    "name": "body",
+    "data": {
+      "dry_run": false,
+      "request": {
+        "method": "POST",
+        "endpoint": "/rest/agile/1.0/fixture",
+        "query": [
+          {
+            "name": "empty",
+            "values": [
+              ""
+            ]
+          },
+          {
+            "name": "field",
+            "values": [
+              "summary,status",
+              "a=b &+"
+            ]
+          }
+        ],
+        "content_type": "application/vnd.fixture+json",
+        "max_response_bytes": 16777216,
+        "if_match": "\"tag,with,commas\", W/\"weak\"",
+        "if_unmodified_since": "Thu, 01 Jan 1970 00:00:00 GMT",
+        "body_base64": "IAp7Im9wYXF1ZSI6OTAwNzE5OTI1NDc0MDk5MzEyMzQ1LCJ0ZXh0IjoiPCY+XHUyMDI4In0K"
+      },
+      "attempted": true,
+      "response": {
+        "status_code": 200,
+        "headers": [
+          {
+            "name": "Content-Length",
+            "values": [
+              "53"
+            ]
+          },
+          {
+            "name": "Content-Type",
+            "values": [
+              "application/json"
+            ]
+          },
+          {
+            "name": "Etag",
+            "values": [
+              "\"native-tag\""
+            ]
+          },
+          {
+            "name": "X-Ratelimit-Fixture",
+            "values": [
+              "first",
+              "second"
+            ]
+          }
+        ],
+        "body_base64": "IHsiZnV0dXJlIjo5MDA3MTk5MjU0NzQwOTkzMTIzNDUsInRleHQiOiI8Jj5cdTIwMjgifQo=",
+        "body_text": " {\"future\":900719925474099312345,\"text\":\"<&>\\u2028\"}\n",
+        "json": {
+          "future": 900719925474099312345,
+          "text": "<&> "
+        },
+        "truncated": false,
+        "attempts": 1,
+        "waited_ms": 0
+      }
+    }
+  },
+  {
+    "name": "empty-body",
+    "data": {
+      "dry_run": false,
+      "request": {
+        "method": "POST",
+        "endpoint": "/rest/agile/1.0/fixture",
+        "query": [
+          {
+            "name": "empty",
+            "values": [
+              ""
+            ]
+          },
+          {
+            "name": "field",
+            "values": [
+              "summary,status",
+              "a=b &+"
+            ]
+          }
+        ],
+        "content_type": "application/vnd.fixture+json",
+        "max_response_bytes": 16777216,
+        "if_match": "\"tag,with,commas\", W/\"weak\"",
+        "if_unmodified_since": "Thu, 01 Jan 1970 00:00:00 GMT",
+        "body_base64": ""
+      },
+      "attempted": true,
+      "response": {
+        "status_code": 200,
+        "headers": [
+          {
+            "name": "Content-Length",
+            "values": [
+              "53"
+            ]
+          },
+          {
+            "name": "Content-Type",
+            "values": [
+              "application/json"
+            ]
+          },
+          {
+            "name": "Etag",
+            "values": [
+              "\"native-tag\""
+            ]
+          },
+          {
+            "name": "X-Ratelimit-Fixture",
+            "values": [
+              "first",
+              "second"
+            ]
+          }
+        ],
+        "body_base64": "IHsiZnV0dXJlIjo5MDA3MTk5MjU0NzQwOTkzMTIzNDUsInRleHQiOiI8Jj5cdTIwMjgifQo=",
+        "body_text": " {\"future\":900719925474099312345,\"text\":\"<&>\\u2028\"}\n",
+        "json": {
+          "future": 900719925474099312345,
+          "text": "<&> "
+        },
+        "truncated": false,
+        "attempts": 1,
+        "waited_ms": 0
+      }
+    }
+  },
+  {
+    "name": "no-body",
+    "data": {
+      "dry_run": false,
+      "request": {
+        "method": "POST",
+        "endpoint": "/rest/agile/1.0/fixture",
+        "query": [
+          {
+            "name": "empty",
+            "values": [
+              ""
+            ]
+          },
+          {
+            "name": "field",
+            "values": [
+              "summary,status",
+              "a=b &+"
+            ]
+          }
+        ],
+        "content_type": "application/vnd.fixture+json",
+        "max_response_bytes": 16777216,
+        "if_match": "\"tag,with,commas\", W/\"weak\"",
+        "if_unmodified_since": "Thu, 01 Jan 1970 00:00:00 GMT"
+      },
+      "attempted": true,
+      "response": {
+        "status_code": 200,
+        "headers": [
+          {
+            "name": "Content-Length",
+            "values": [
+              "53"
+            ]
+          },
+          {
+            "name": "Content-Type",
+            "values": [
+              "application/json"
+            ]
+          },
+          {
+            "name": "Etag",
+            "values": [
+              "\"native-tag\""
+            ]
+          },
+          {
+            "name": "X-Ratelimit-Fixture",
+            "values": [
+              "first",
+              "second"
+            ]
+          }
+        ],
+        "body_base64": "IHsiZnV0dXJlIjo5MDA3MTk5MjU0NzQwOTkzMTIzNDUsInRleHQiOiI8Jj5cdTIwMjgifQo=",
+        "body_text": " {\"future\":900719925474099312345,\"text\":\"<&>\\u2028\"}\n",
+        "json": {
+          "future": 900719925474099312345,
+          "text": "<&> "
+        },
+        "truncated": false,
+        "attempts": 1,
+        "waited_ms": 0
+      }
+    }
+  }
+]
