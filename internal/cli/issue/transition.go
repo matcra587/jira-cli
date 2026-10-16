@@ -469,16 +469,16 @@ func runTransition(ctx context.Context, deps Deps, inv command.Invocation, opts 
 
 	// The selector resolves FIRST, so the confirmation below names the
 	// issues instead of echoing the query back (design §3.5 rule 1).
-	_, targets, err := resolveTargets(ctx, newClient, inv, selectorInputs{
+	targetInvocation := inv
+	targetInvocation.Args = keys
+	_, targets, err := resolveTargets(ctx, newClient, targetInvocation, selectorInputs{
 		selector:       opts.selector,
 		validateRemote: opts.validateRemote,
 	})
 	if err != nil {
 		return zero, err
 	}
-	if opts.selector.Given() {
-		keys = targets.Keys
-	}
+	keys = targets.Keys
 	plan := transitionPlan{
 		want:        status,
 		comment:     input.body.ADF,

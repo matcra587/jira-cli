@@ -735,3 +735,14 @@ root handle. Literal reparse traversal refuses; ordinary rooted paths retain
 their existing semantics. Native tests cover authored and metadata names,
 ordinary/extended directories, failed streams and sibling preservation. Windows
 delete-sharing refusal is directory identity evidence, not an executed rename.
+
+## Explicit issue targets
+
+Issue comment add, clone, delete, edit, transition and edit input discovery use
+`command.ResolveTargets`. Normalize explicit arguments with `ParseIssueKeys`
+before client construction or keyed work. Refuse the complete malformed list
+without partial targets. Keep stable deduplication and the shared expansion cap.
+Transition passes only extracted issue keys, never its positional status.
+File selectors preserve literal lines and deduplicate before their unique-key
+cap. Remote duplicate search identities remain an incomplete-search refusal.
+Exercise actual binary preview/refusal paths and native writer entry counts.

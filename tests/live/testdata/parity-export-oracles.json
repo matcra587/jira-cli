@@ -182,8 +182,8 @@
       "format": "agent-skill",
       "slug": "safe-mutation",
       "path": "jira-safe-mutation/SKILL.md",
-      "bytes": 38958,
-      "sha256": "5537626f38ac420914cccff2f9af444945d3833d3d9d9a296c1bf83082e002e0",
+      "bytes": 39639,
+      "sha256": "b14bd9bf2a7b66094d8a89c1278b8e64c3de23bd98759a20a0794ace2b6307f8",
       "order": 40
     },
     {
@@ -270,8 +270,8 @@
       "format": "claude-skill",
       "slug": "safe-mutation",
       "path": "jira-safe-mutation/SKILL.md",
-      "bytes": 38963,
-      "sha256": "49993da2f4a83886daeb659c0f92191b2254c0d50a3773f2d0b5c5d6c0aea410",
+      "bytes": 39644,
+      "sha256": "6b152e4bdcbf7adcf24ff589e29da17fc63a9bc7c60f5d426be12dcdd00335f8",
       "order": 40
     },
     {

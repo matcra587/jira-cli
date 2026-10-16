@@ -76,6 +76,7 @@ func newDelete(deps Deps) *cobra.Command {
 			"acknowledgement; without it the command does not claim deletion. " +
 			"Inspect uncertain outcomes and subtasks before retrying; deletion " +
 			"is never automatically replayed.\n\n" +
+			command.ExplicitTargetHelp + "\n\n" +
 			"**Selecting issues instead of naming them.** `--jql`, `--filter` " +
 			"and `--from-file` choose the issues for you, and are refused " +
 			"alongside named keys — two ways of saying which issues to delete " +
@@ -84,7 +85,9 @@ func newDelete(deps Deps) *cobra.Command {
 			"the query: a query is the thing you may have got wrong, and " +
 			"re-reading it is not how you would find out. A match larger than " +
 			"100 issues is refused outright rather than trimmed, because a run " +
-			"that stopped partway would look exactly like one that finished.\n\n" +
+			"that stopped partway would look exactly like one that finished. " +
+			"File lines stay literal; repeated lines run once and the cap counts " +
+			"unique lines.\n\n" +
 			"`--dry-run` lists what would be deleted and stops, asking nothing " +
 			"and contacting nobody. It cannot tell you whether the issues exist " +
 			"or whether any of them have subtasks — and with `--jql` or " +
