@@ -237,12 +237,39 @@ func TestStoreMissingItemAndFieldAreExplicitAndIdempotent(t *testing.T) {
 				t.Fatal(err)
 			}
 			if missingItem {
-				want := sdk.ItemCreateParams{VaultID: "vault-id", Title: "selected item", Category: sdk.ItemCategorySecureNote, Fields: []sdk.ItemField{{ID: CredentialFieldID, Title: CredentialFieldID, FieldType: sdk.ItemFieldTypeConcealed, Value: "synthetic-created-record"}}}
+				want := sdk.ItemCreateParams{VaultID: "vault-id", Title: "selected item", Category: sdk.ItemCategoryAPICredentials, Fields: []sdk.ItemField{{ID: CredentialFieldID, Title: CredentialFieldID, FieldType: sdk.ItemFieldTypeConcealed, Value: "synthetic-created-record"}}}
 				if len(client.created) != 1 || len(client.puts) != 0 || !reflect.DeepEqual(client.created[0], want) {
-					t.Fatal("missing selected item was not created with the owned concealed field")
+					t.Fatal("missing selected item was not created as API Credentials with the owned concealed field")
 				}
 			} else if len(client.puts) != 1 || len(client.created) != 0 {
 				t.Fatal("missing owned field created a second item")
+			}
+		})
+	}
+}
+
+func TestStorePreservesExistingItemCategory(t *testing.T) {
+	for _, category := range []sdk.ItemCategory{sdk.ItemCategorySecureNote, sdk.ItemCategoryAPICredentials, sdk.ItemCategoryLogin} {
+		t.Run(strings.ToLower(string(category)), func(t *testing.T) {
+			client := fixtureClient()
+			client.item.Category = category
+			store := New(fixtureConfig(client))
+			if value, err := store.Get(t.Context(), "default"); err != nil || value != "synthetic-original" {
+				t.Fatal("existing item category prevented reading the owned credential")
+			}
+			if err := store.Set(t.Context(), "default", "synthetic-replacement"); err != nil {
+				t.Fatal(err)
+			}
+			if err := store.Delete(t.Context(), "default"); err != nil {
+				t.Fatal(err)
+			}
+			if len(client.created) != 0 || len(client.puts) != 2 {
+				t.Fatal("existing item was recreated instead of updating its owned field")
+			}
+			for _, item := range client.puts {
+				if item.Category != category {
+					t.Fatal("changing the owned field replaced the existing item category")
+				}
 			}
 		})
 	}

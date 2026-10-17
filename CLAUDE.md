@@ -462,6 +462,7 @@ and attempted writes invalidate stale hints after later cancellation without
 reopening credentials or detaching context.
 
 Direct 1Password uses the official SDK and current flat `secret_backend` settings.
+New login items use API Credentials; existing item categories and private Secure Note backups stay intact.
 Keep initialization lazy, service tokens environment-only, selected-store
 provenance and site/account binding intact. Manage only stable owned credential
 field ID; never delete items or infer ownership from titles/tags. Follow

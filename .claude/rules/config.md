@@ -307,7 +307,8 @@ case sensitivity. Explicit environment email/token pairs retain precedence.
 SDK reads and writes manage only stable field ID `jira-cli-credential`. Never
 infer ownership from title/tags or delete a whole item. Names require a unique
 exact match; existing IDs select identities directly. New selected items are
-created only during explicit login; metadata/unmanaged fields stay intact.
+created as API Credentials only during explicit login; existing item categories,
+metadata and unmanaged fields stay intact. Private recovery backups remain Secure Notes.
 SDK failures retain inspectable causes but public errors suppress their text.
 
 Selection constructs no SDK client. Stores share a lazy client per invocation.

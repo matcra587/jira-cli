@@ -108,7 +108,8 @@ func (s *Store) Get(ctx context.Context, account string) (string, error) {
 }
 
 // Set upserts a concealed owned field. Existing item metadata and unmanaged
-// fields survive; a missing item is created only after successful enumeration.
+// fields survive; a missing API Credentials item is created only after successful
+// enumeration. Existing items retain their category, including old Secure Notes.
 func (s *Store) Set(ctx context.Context, account, secret string) error {
 	if err := s.admit(ctx, account, "save"); err != nil {
 		return err
@@ -123,7 +124,7 @@ func (s *Store) Set(ctx context.Context, account, secret string) error {
 		if err := ctx.Err(); err != nil {
 			return failure(ctx, "save", err, false)
 		}
-		_, err = s.client.CreateItem(ctx, sdk.ItemCreateParams{VaultID: vault, Title: s.config.Item, Category: sdk.ItemCategorySecureNote, Fields: []sdk.ItemField{field}})
+		_, err = s.client.CreateItem(ctx, sdk.ItemCreateParams{VaultID: vault, Title: s.config.Item, Category: sdk.ItemCategoryAPICredentials, Fields: []sdk.ItemField{field}})
 		if err != nil {
 			return failure(ctx, "save", err, true)
 		}
