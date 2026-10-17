@@ -104,11 +104,12 @@ write failure as secondary context; it does not try the failed stream again.
     and file-write outcomes remain conditional.
 *   **Shared keyed-result output changes placement, not operation shape.**
     The operation object appears at `data` for one key and
-    `data.results[].data` for each successful key; a failed key carries
-    `error` in that slot's place and never a half-filled operation object.
-    Preserve the documented exceptions: multi-key `issue view` uses
-    `data.results[].issue`, and keyed pagination or warnings are folded into
-    the child operation object.
+    `data.results[].data` for each successful key. A failed key carries
+    `error`; operation-specific receipt types may also retain `data` for
+    acknowledged or uncertain effects. Preserve those receipts rather than
+    inferring absence of effects from `ok: false`.
+    Keyed pagination stays inside its child operation object. Warning
+    placement follows the operation's published schema.
 *   **A new or changed `data` field must land in the registered Output struct
     in the same change.** Add a registration doc override when its conditional
     meaning or outer schema cannot be expressed by Go tags alone. Schema
@@ -138,6 +139,13 @@ write failure as secondary context; it does not try the failed stream again.
     `compact`; human diagnostics go to **stderr** through clog.
 *   Warnings carry a taxonomy (`unknown_adf_node`, `lossy_adf_conversion`,
     `rate_limit_near`, …) — reuse existing codes before minting new ones.
+*   Jira near-limit replies use `core.WithRateLimitObservation` state scoped to
+    one invocation. The shared adapter observes every completed authenticated
+    attempt, including discarded retry responses, and the shared success/failure
+    boundaries publish one `rate_limit_near` warning. Never route transport
+    observations through the process-wide warning queue. Credential-free media
+    replies cannot establish Jira rate state. JSON and human output retain the
+    advisory; compact success retains its existing bare-data contract.
 
 ## Human output
 
@@ -246,12 +254,13 @@ A `KEY…` command returns ordered `data.results[]` — one entry per key the
 caller named, **in the order they named them**, never in completion order.
 The frame is `envelope.KeyedResults[T]`/`KeyedResult[T]`
 (`internal/envelope/keyed.go`); each entry carries the key's own `issue`
-ref, an always-serialized `ok`, and exactly one of `data` (the operation
-object) or `error` (`code`/`message`/`hint`, the same taxonomy vocabulary
-`errors[]` uses). `issue.link.list` is the worked example.
+ref and an always-serialized `ok`. Successful rows carry `data`; failed rows
+carry `error` (`code`/`message`/`hint`, the same taxonomy vocabulary `errors[]`
+uses) and may retain operation-specific acknowledgement data alongside it.
+`issue.link.list` is the ordinary read example.
 
-**A failed key is a partial result, not a command failure.** If any key
-succeeded, the envelope is `ok: true`, exit 0, and the failures ride inline
+**An ordinary failed key is a partial result, not a command failure.** If any key
+succeeded, the keyed policy returns `ok: true`, exit 0, and failures ride inline
 in their own entries — throwing away real data because one key was
 mistyped serves nobody. If **no** key succeeded there is no partial result
 to report, so the command fails with the most severe per-key error
@@ -260,6 +269,15 @@ transport facts — exactly what the same single bad key would have produced
 alone. Severity is an explicit ladder over taxonomy codes
 (`command.FailureSeverity`), not the numeric exit code, which is an
 enumeration rather than a scale.
+Command-level cancellation, timeout or output failure can still produce a
+nonzero exit after earlier successes; preserve and inspect retained outcomes.
+
+Published agent guides must explain that exit `0`, outer `ok: true` and empty
+`errors[]` do not establish all-target success. Teach inspection of every
+`data.results[].ok`, identity, `data` and `error`, including retained failure
+frames. Compact success starts at `results[]`. Save complete receipts before
+filtering, preserve successful outcomes and inspect uncertain writes before
+retrying only the remaining intended step; never replay the original batch.
 
 The registrar and the declaration are cross-checked: a command declaring
 `Keyed` must call `command.AddKeyedFlags` and vice versa — `command.New`

@@ -663,6 +663,12 @@ Keep the result identity, prepared payload and verification facts. Preserve
 per-key results in their input order. For a compound operation, inspect each
 completed step and any failed follow-up before deciding what to repeat.
 
+For a keyed batch, inspect every `data.results[].ok`, `data` and `error` in the
+full JSON receipt. Exit `0`, outer `ok: true` and an empty `errors[]` can coexist
+with failed targets. Compact success starts at `results[]`. Compact failure
+retains `data.results[]`. Use `machine-output`'s Save section for read-only
+expressions over a saved receipt.
+
 ## Preconditions
 
 Live changes need a configured site, valid credentials, supported project
@@ -677,6 +683,13 @@ Inspect typed errors, hints and retained receipts. A failure, timeout,
 cancellation or output error can follow an applied write. Read the resource
 before retrying and repeat only the remaining intended step. The CLI never
 automatically replays writes or broadens a failed selector.
+
+### Some batch targets succeeded
+
+Do not replay a partially successful batch. A row with `ok: false` can retain
+`data.applied`, a created identity or a completed follow-up. Inspect that data
+and the resource before retrying only the remaining intended step. Keep earlier
+successes even when the overall command exits nonzero after interruption.
 
 ### Create and recover a description draft
 

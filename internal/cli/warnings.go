@@ -1,22 +1,38 @@
 package cli
 
 import (
+	"context"
 	"sync"
 
+	"github.com/matcra587/jira-cli/internal/core"
 	"github.com/matcra587/jira-cli/internal/envelope"
 )
+
+// TakeRequestWarnings maps invocation-local transport observations to the shared
+// warning contract. It never uses the process-wide startup warning queue.
+func TakeRequestWarnings(ctx context.Context) []envelope.Warning {
+	if !core.TakeRateLimitNear(ctx) {
+		return nil
+	}
+	return []envelope.Warning{{
+		Type:    "rate_limit_near",
+		Message: "Approaching Jira's rate limit; requests may soon be throttled. Slow down or lower --parallelism.",
+		Lossy:   false,
+	}}
+}
 
 // warnings are non-fatal problems collected during a run, to be published
 // on the envelope the run produces.
 //
-// **THIS IS THE ROUTE FOR A WARNING RAISED INSIDE A Spec.Run HANDLER**,
-// and it is the only one, so it is worth saying here rather than in each
+// This is the legacy route for a warning raised inside a Spec.Run handler,
+// so it is worth saying here rather than in each
 // caller. command.Spec's Run returns just (T, error) — a handler holds no
 // writer and no warning sink, deliberately, because a handler that could
 // reach a stream could bypass the envelope entirely (see command.Spec.Run
 // and command.Invocation, which is documented as facts, never
 // capabilities). A warning therefore has nowhere else to go that still
-// reaches the SAME envelope the handler's return value feeds.
+// reaches the SAME envelope the handler's return value feeds. New typed result
+// warnings use Spec.Warnings; transport facts use TakeRequestWarnings above.
 //
 // They are collected rather than printed because a library writing to
 // stderr bypasses the contract entirely: the text is not in warnings[],

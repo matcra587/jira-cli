@@ -190,11 +190,10 @@ Read every refresh row before deciding what to retry. Each `results[]` row has
 `resource`, `ok`, `data` and, on failure, `error`. Full JSON puts the rows at
 `data.results[]`. Compact success starts at `results[]`.
 
-Refresh returns `results[]` with `resource`, `ok`, `data` and, for failures,
-`error`. Inspect every row: mixed success retains failed rows in a successful
-frame; total failure or interruption retains all rows in a failure frame.
-Failed rows keep their plan, native observations and late storage receipts.
-Resource names are metadata identities, not issue references.
+Mixed success includes failed rows in a successful response. Total failure or
+interruption retains all rows in a failure response. Exit `0`, outer
+`ok: true` and empty `errors[]` do not prove that every resource refreshed.
+Resource names identify metadata, not issues.
 
 Inspect nonzero failure responses too. Failed rows keep their plan, native
 observations and any storage write acknowledged late. Do not repeat the whole

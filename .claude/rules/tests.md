@@ -9,6 +9,13 @@ paths:
 
 # Tests
 
+Near-limit warning guards exercise actual auth/issue commands in JSON, compact
+and human modes on success and HTTP refusal. Verify true, false, absent and
+malformed headers, exact request admission and explicit `lossy:false`. Cover
+concurrent write deduplication, retained filter failures, discarded retry replies,
+invocation isolation and refusal of credential-free or misbound observations.
+Observe a named compiled guard fail before crediting the restored warning.
+
 Live Jira Markdown comment admission permits only fixed independent add/edit documents.
 Translate exact authored argv into the existing registered native-body admission;
 verify both documents agree, preserve active target/resource and verified-role
@@ -695,6 +702,12 @@ and require unchanged human previews to say they would keep the identity.
 | Live | `tests/live/` | `//go:build live`; real tenant via `mise run test:live` + `JIRA_LIVETEST_PROJECT` (a dedicated probe project); `JIRA_LIVETEST_BINARY` selects a frozen executable for comparisons; excluded from `go test ./...` |
 
 ## Contract tests are black-box
+
+Published batch-inspection expressions must run against real binary receipts
+for all-success, mixed-success, total-failure and acknowledged-write/follow-up
+failure cases. Verify every target remains visible and failed-row selection
+retains both `data` and `error`. Check zero-exit mixed batches explicitly;
+guide text matching alone does not establish an executable recovery recipe.
 
 Contract tests execute the real binary (`runJira(t, args...)`-style helpers
 returning stdout/stderr/exit code) against `httptest.NewServer` Jira stubs,

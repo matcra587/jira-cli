@@ -221,8 +221,8 @@
   "after": {
     "contract_version": "1",
     "index_sha256": "2ca21292572414856ad590161d81e7560c33debe5f9b6ae39e3bd5af525caefd",
-    "all_sha256": "a17fe4f02c288409030a8de65adb39e15c6ac7d65f0e521b4fa978c2c2cdeb25",
-    "all_human_sha256": "30307c92e3ec1e7197d1f8e1235b5e2d4cbc9027eb6e9c7c85eb19e3558aa53b",
+    "all_sha256": "ad10db13f33d5d006fa98d1bf36cf8dfca01c9547763ef6d935642f3ab0d2609",
+    "all_human_sha256": "112d1fdf5e7b0ed412888a776c3657a92579a6de76bdc6c0d58393be5dd1bb84",
     "guides": [
       {
         "slug": "discover-cli",
@@ -278,14 +278,14 @@
           "output-contract"
         ],
         "order": 20,
-        "source_sha256": "9e5fb34263c9ce4ebfc22df1e71798381aac2d1e930668d913d0a478dd5267e2",
-        "runbook_sha256": "fbafb92c81aec6af6d2a7289491d16632af7fdc2aaf3a2a5150559eab91cabe5",
+        "source_sha256": "eb6e9fc10943db465e88efd79e2382152cf622bc0cd1b38a1e8d0512767b3d58",
+        "runbook_sha256": "f88507339ccc090e005678f45c3eab8c1bded2827587e95160f9ed4c437cfdc7",
         "sections": {
           "Decide": "4c86866b952be5a5d038fd09c5160c7b0baad5a27ed230beba7ec5e1c8cf117d",
-          "Run": "e1c264871bc84e6802aee22ecc1edaa96dafbc646b6da234dfbd1e784abf861f",
-          "Save": "84788f93d067aefa59719f758ba7d56b9369aeb44175396f4d0ec5ad4a318d88",
+          "Run": "dc912d186ea9a0c6594f59d469fb7d2c7b3f018638223a81f34521770441b299",
+          "Save": "5e45a5ef31e6b9ea95bfef397060fbe52eac4ccc5e39779f1ddc6b629c646ca6",
           "Preconditions": "e12ba62ee385b068d640d4f3b7d13520bd1e9598c252aed276d4b13f167fe403",
-          "Recover": "1a38938b8764c8bdb67369ec9b78f638b30bd8dda4f5c50ebbc7b6650cdbf867",
+          "Recover": "47c75ac46bf39cc7f43016de7837517af1018c620f2cb634ab097796bb9c8fd6",
           "Next": "948b67db87082990ada2aba77e5db0668530f5d59f5bda0be3c1e7286a8e25ba"
         }
       },
@@ -375,14 +375,14 @@
         ],
         "order": 40,
         "aliases": [],
-        "source_sha256": "dc41710c138a611e69aa2a69e8d9d4ffe4d2826d58e7a46453102a855845d88e",
-        "runbook_sha256": "dedeb098c64b50679281da5b050ed0e1b350e779a53605e4460cb8c3abda6074",
+        "source_sha256": "c43bcc6c63d38201f30c1a97009b56d742e1f7e6cb08c7ad24ae4eda5709f81d",
+        "runbook_sha256": "8353c722130c3aceba4c7308916e7a18c6354baeebb4eb19fa9875885746d680",
         "sections": {
           "Decide": "1eaea919b717430190806df60400a67b9870b96e1c5cf90e8215185da4fd8051",
           "Run": "e5ce870238ce25071e6d4867535e3d8e04cefe07fcea4249487c5ec554a84f65",
-          "Save": "74b82c40f13eafe0c43d11d1d194aa1895e274c776a0aae978d16b6ea4d10306",
+          "Save": "31fb8cdd26093168688ee103dd79220223465706f4363900d3b48aed907318ed",
           "Preconditions": "9de2b5a6dbb69e34bd625b284b3b95eedbff4dde1eac9760f85723a7b3e60fb7",
-          "Recover": "d8b3fbc158e9a1f95e7c2f3abe4b7e59254230b90c0a033cc0f2a21ecfa2484f",
+          "Recover": "9e51be1584ef4f68d0620237ee5dd7702bdfecb9b8bcfdb26440981c7243ed02",
           "Next": "da191c0a91a3e9538cb20e8be115056670e661584d938b4a540022c6242a6be3"
         }
       },
@@ -409,14 +409,14 @@
         ],
         "order": 42,
         "aliases": [],
-        "source_sha256": "b13f3129ced40b4cdfdfd3f9068b2e0fd01de84ffcc35d185368939cf8f7f80c",
-        "runbook_sha256": "04b342100fe3f7f38e4d5a210c9810455d482e013240b7c0a89547737344ad81",
+        "source_sha256": "83514c0b78642009b40217e60075e8986f3766cad7d3684cfcf08855f7b0c4d6",
+        "runbook_sha256": "f153aa5d9ccdb2b9fb1e035608b32e5b801bb0398752ece0682e765a3670ea36",
         "sections": {
           "Decide": "b1449588c5868db81112abe3d347525ad4937949f8ebc904b4af11a80fa108f2",
           "Run": "b7ac0ebf21c87396bd59e4096c952ea5a248a49e0c20907ab87fc7a89ff331ed",
           "Save": "1550cf2303eccbe4700d5e64c46866e88e9349187a2b8ab1b296d544113ab909",
           "Preconditions": "bf8c45dbb2c717816695e21b12b52d5d81af395ad0907ed56f05a4085551a4e9",
-          "Recover": "08307e25e99a41c4b62301596adf3d9b46166c78cfdd78beccca20cc32728774",
+          "Recover": "d9e9d73f89835250d6be215a365a6b56ada28aef7f1cada1e667037620ed50db",
           "Next": "6115a791ebffd6cf5b78550f415e65f65c934531ad9e61f0b7595c468ae8f981"
         }
       },
