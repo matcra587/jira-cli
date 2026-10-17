@@ -190,8 +190,10 @@ Settings store only public backend coordinates and preferences. The selected
 store holds the selected profile's JSON credential record. For 1Password,
 login creates or updates the concealed field with ID `jira-cli-credential`.
 Titles and tags never establish ownership. Existing item metadata and unmanaged
-fields remain intact. Only explicit login creates a missing selected item;
-reads and logout never create it.
+fields and the existing item category remain intact, including older Secure Notes.
+Only explicit login creates a missing selected item, using the API Credentials
+category; reads and logout never create it. Private recovery backups remain
+Secure Notes.
 
 ## Preconditions
 

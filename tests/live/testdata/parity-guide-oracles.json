@@ -221,8 +221,8 @@
   "after": {
     "contract_version": "1",
     "index_sha256": "2ca21292572414856ad590161d81e7560c33debe5f9b6ae39e3bd5af525caefd",
-    "all_sha256": "ad10db13f33d5d006fa98d1bf36cf8dfca01c9547763ef6d935642f3ab0d2609",
-    "all_human_sha256": "112d1fdf5e7b0ed412888a776c3657a92579a6de76bdc6c0d58393be5dd1bb84",
+    "all_sha256": "53c8b8f77ab67265b09a6af3aed99b93c9ee2c9077cb8bcd989f6b750ab7c5aa",
+    "all_human_sha256": "089b54e030ba7caeaaad492e3092c76bf5294650ab5381acc9489d7f2530c63e",
     "guides": [
       {
         "slug": "discover-cli",
@@ -458,12 +458,12 @@
         ],
         "order": 65,
         "aliases": [],
-        "source_sha256": "d1df04e4d7ddbe0a8c662c1feee3887b2c456063cb761294555f4102a43ac9d6",
-        "runbook_sha256": "3c08ca78c8952be27b91de6670a6bb178e33c0b72393fbc1af5add60db1e80c8",
+        "source_sha256": "b880cd90a7ec88dfac6ad5c8bf2139489e9777e356cd65c9af6b39df4ee32754",
+        "runbook_sha256": "38561dfb0838960ace1c0c57c61bb7317d5ae7c3ff61cae1896d6923e4ce6813",
         "sections": {
           "Decide": "e22bca0dcd44f978df9c38c1b70bcf8a1a5dc66f233f8d960c8a24812d2ff6d2",
           "Run": "fe5547319ea5dc961e1d138325414aba287fcf226fa4f38a325ea25c3fac895b",
-          "Save": "fb8f83ea7f5e6c58c06620092d3f8da974502d175079fee54f798c25e0b28b1a",
+          "Save": "c5f38d9fe2d70554b6092a64f41cd448bf137c0483e506258593bbcb5e265699",
           "Preconditions": "61cfd95d3d8f2898a1fa448241ec021443c8164644d2bf80ca0ef5a9ab43b697",
           "Recover": "e5fc63525d10fca08465b2780550d7dacbc7ac5b0ae26f62b981398c53cb9b39",
           "Next": "80290752f77c01ffec24a32e887ddde20adaf3ea8a60247294f2bb217a1edbe3"
