@@ -71,6 +71,14 @@ against the selected shape: `.data.issue.key` for full JSON, `.issue.key` for
 compact data. Unset output plus `--jq` resolves to JSON, including for agents.
 `--output=human` conflicts with `--jq`.
 
+### Check rate-limit warnings
+
+Use JSON to monitor CLI advisories. An authenticated Jira near-limit reply adds
+one `rate_limit_near` warning per invocation with `lossy: false`, even when a
+retry succeeds or the operation fails. It does not change acknowledgements or
+make writes safe to replay. Compact success omits warnings. Compact failure
+retains them in the full error envelope.
+
 ### Preserve native issue data
 
 Issue reads retain native metadata at `.issue.details` or `.issues[].details`.
@@ -216,6 +224,34 @@ in its `data`. Stderr prose is not the machine contract. Identity fields are
 objects such as `issue.key`. Multi-key results retain input order and report
 per-key success or failure. Inspect every entry before deciding what remains.
 
+### Inspect batch outcomes
+
+For keyed batches, exit `0`, outer `ok: true` and an empty `errors[]` do not
+mean every target succeeded. Ordinary mixed outcomes can satisfy all three
+while a row has `ok: false`. Inspect every `data.results[].ok`, its identity
+(`issue` or `resource`), `data` and `error`. Commands without keyed results use
+their own published output schema.
+
+Save the full `--output=json` receipt as `batch.json` before filtering it. With
+external `jq`, these read-only expressions show all outcomes, then failed rows
+without discarding their retained data:
+
+```sh
+jq '.data.results[] | {issue, resource, ok, data, error}' batch.json
+jq '.data.results[] | select(.ok == false) | {issue, resource, ok, data, error}' batch.json
+```
+
+Compact success uses `results[]`. Compact failures retain the full frame and
+use `data.results[]`. An all-target failure returns nonzero. Cancellation,
+timeouts or output failures can also follow completed work. Inspect any retained
+results on those paths too.
+
+A failed row can still retain an acknowledged write in `data`, including
+`applied`, created identities or follow-up receipts. Never replay the original
+batch or blindly retry every failed row. Preserve successful outcomes, inspect
+uncertain writes and repeat only the remaining intended step after checking
+the resource. Readback or verification problems do not undo an acknowledged write.
+
 ### A create or clone failed after a possible write
 
 `issue create` retains the attempted payload and any returned identity on
@@ -292,8 +328,9 @@ their 1 MiB input limit. Other native file reads and standard input on other
 non-Unix platforms check context before and after reading but cannot interrupt
 a blocked read. The HTTP
 `--timeout` flag does not set an input deadline.
-Follow each error's hint and executable suggestions. Successful partial batches
-can exit `0` while individual results failed.
+Follow each error's hint and executable suggestions. Inspect every batch row's
+`ok`, `data` and `error`, even after exit `0`. Use the saved-receipt expressions
+in Save. Never infer that a failed row had no effect or replay the whole batch.
 
 ### A user search stopped before completion
 

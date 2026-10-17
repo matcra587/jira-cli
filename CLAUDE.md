@@ -1,5 +1,16 @@
 # jira-cli
 
+Rate-limit observations belong to invocation-local core context state and the
+shared authenticated transport/success/failure boundaries. Deduplicate across
+workers and retries without the global warning queue; preserve completed
+observations after failure/cancellation. Compact success remains bare data.
+
+Published batch guides must require inspecting every `results[].ok`, retained
+`data` and `error` after both zero and nonzero exits. Outer success does not
+establish all-target success; failed rows can retain acknowledged writes.
+Keep executable saved-receipt examples and shared output rules in sync, and
+never advise replaying the original batch.
+
 Explicit issue comment/clone/delete/edit/transition targets use
 `command.ResolveTargets` and the existing `ParseIssueKeys` grammar before client
 entry. Keep ordered unique expansion, whole-list refusal and literal deduplicated

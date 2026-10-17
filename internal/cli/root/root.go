@@ -571,9 +571,16 @@ func (s *failureSink) exitCode(err error) int {
 }
 
 func (s *failureSink) exitCodeContext(ctx context.Context, err error) int {
+	// Read observations from Cobra's completed invocation; rendering still uses
+	// the caller's context. Conductor calls this after the command unwinds.
+	observationContext := ctx //nolint:contextcheck // This context selects retained facts, not new work.
 	if s.command != nil {
 		s.op = opName(s.command)
+		if commandContext := s.command.Context(); commandContext != nil {
+			observationContext = commandContext
+		}
 	}
+	requestWarnings := cli.TakeRequestWarnings(observationContext)
 	e := cli.MapError(err)
 	var resultErr *cli.ResultError
 	if errors.As(err, &resultErr) && resultErr.Mutation {
@@ -589,6 +596,9 @@ func (s *failureSink) exitCodeContext(ctx context.Context, err error) int {
 	// sees the error without the state it happened in.
 	if s.format == output.FormatHuman {
 		command.EmitWarnings()
+		for _, warning := range requestWarnings {
+			clog.Warn().Msg(warning.Message)
+		}
 		if resultErr != nil {
 			for _, warning := range resultErr.Warnings {
 				clog.Warn().Msg(warning.Message)
@@ -602,7 +612,7 @@ func (s *failureSink) exitCodeContext(ctx context.Context, err error) int {
 			// describe the state it failed in, and dropping them here
 			// would make a bad theme visible only when nothing went
 			// wrong — which is the least useful moment for it.
-			Warnings: cli.TakeWarnings(),
+			Warnings: append(cli.TakeWarnings(), requestWarnings...),
 			Errors: []envelope.Error{{
 				Code:              e.Code,
 				Message:           e.Message,
@@ -736,7 +746,7 @@ func newRoot(deps *Deps, sink *failureSink, renderer *help.Renderer) *cobra.Comm
 		if format == output.FormatHuman {
 			command.EmitWarnings()
 		}
-		ctx := cli.WithFormat(cmd.Context(), format)
+		ctx := cli.WithFormat(core.WithRateLimitObservation(cmd.Context()), format)
 		browseOnly := cmd.CommandPath() == cmd.Root().Name()+" open"
 		if cmd.Flags().Lookup("web") != nil {
 			web, err := cmd.Flags().GetBool("web")

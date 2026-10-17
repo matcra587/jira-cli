@@ -57,6 +57,10 @@ func TestGuideRetrievalModesAndDoors(t *testing.T) {
 	}
 	raw, _ := guides.Get("raw-api")
 	save, _ := raw.Section("Save")
+	machine, _ := guides.Get("machine-output")
+	batchSave, _ := machine.Section("Save")
+	mutation, _ := guides.Get("safe-mutation")
+	batchRecover, _ := mutation.Section("Recover")
 	cases := []struct {
 		name, kind, slug, section, document string
 		args                                []string
@@ -64,6 +68,8 @@ func TestGuideRetrievalModesAndDoors(t *testing.T) {
 		{name: "index", kind: "index", document: index},
 		{name: "runbook", kind: "runbook", slug: "raw-api", document: docentexport.Runbook{}.Render(raw), args: []string{"raw-api"}},
 		{name: "section", kind: "section", slug: "raw-api", section: "Save", document: save.Body + "\n", args: []string{"raw-api", "--section=save"}},
+		{name: "batch inspection", kind: "section", slug: "machine-output", section: "Save", document: batchSave.Body + "\n", args: []string{"machine-output", "--section=Save"}},
+		{name: "batch recovery", kind: "section", slug: "safe-mutation", section: "Recover", document: batchRecover.Body + "\n", args: []string{"safe-mutation", "--section=Recover"}},
 		{name: "all", kind: "all", document: docentexport.Concat(guides.Guides()), args: []string{"--all"}},
 		{name: "empty section", kind: "section", slug: "discover-cli", section: "Preconditions", document: "\n", args: []string{"discover-cli", "--section=Preconditions"}},
 	}

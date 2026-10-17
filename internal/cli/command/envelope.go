@@ -59,12 +59,13 @@ func writeEnvelope(cmd *cobra.Command, op string, data any, warnings []envelope.
 		return cli.NewCodedError(cli.CodeOutputWriteFailed,
 			"no output format in the command context: root's output resolution did not run")
 	}
+	allWarnings := append(cli.TakeWarnings(), cli.TakeRequestWarnings(cmd.Context())...)
 	res := output.Assemble(output.Inputs{
 		Op:   op,
 		Data: data,
 		// Startup warnings lead: they describe the state everything else
 		// in this envelope was produced under.
-		Warnings:  append(cli.TakeWarnings(), warnings...),
+		Warnings:  append(allWarnings, warnings...),
 		Now:       time.Now(),
 		RequestID: output.NewRequestID(),
 		// nil unless --jq was given. Assemble drops it on a failure

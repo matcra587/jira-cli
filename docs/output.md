@@ -146,6 +146,14 @@ backslashes in Jira content cannot change what the expression means.
     is always serialized, so "this dropped data" is never indistinguishable
     from "this did not".
 
+Jira's `X-RateLimit-NearLimit: true` response header produces one
+`rate_limit_near` warning per invocation, including after a retry or failed
+operation. It reports `lossy: false`; it does not change the result or authorize
+replaying a write. JSON carries the warning in `warnings[]`, and human output
+prints it on stderr. Successful compact output contains only data and omits
+advisories; use JSON when monitoring rate-limit warnings. Failed compact output
+retains the full envelope and its warnings.
+
 An `errors[]` entry always carries `code`, `message`, and `hint`. `message`
 says what failed; `hint` says what to do next, and the two never trade places.
 The rest appear only when there is something to report:
@@ -159,6 +167,22 @@ The rest appear only when there is something to report:
 | `retry_after_seconds` | The server's `Retry-After`, when it sent one |
 | `attempts` | How many tries the transport already made |
 | `waited_ms` | How long it already spent backing off |
+
+## Partial batches
+
+Keyed commands publish ordered `data.results[]` with each target's identity,
+`ok`, operation `data` and any `error`. A mixed batch can exit `0` with outer
+`ok: true` and `errors: []` while individual rows have `ok: false`. Inspect
+every row before treating the batch as complete. In compact success, the path
+is `results[]`; compact failures retain the full envelope.
+
+Save the complete JSON receipt before filtering it. `jira agent guide
+machine-output --section=Save` provides read-only inspection examples. Failed
+rows can retain acknowledged writes or created identities. Never replay the
+original batch or assume `ok: false` means nothing happened: inspect retained
+receipts and the resource, then repeat only the remaining intended step.
+Total failure returns nonzero; interruption and output failures can also follow
+completed work.
 
 ## Exit codes
 

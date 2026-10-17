@@ -102,7 +102,7 @@ func replayableBody(req *http.Request) bool {
 func (c *Client) doWithRetry(req *http.Request) (*http.Response, core.RetryInfo, error) {
 	info := core.RetryInfo{Attempts: 1}
 	if c.retry.MaxWait <= 0 || !c.safeToRetry(req) || !replayableBody(req) {
-		resp, err := c.http.Do(req)
+		resp, err := c.doObservedRequest(req)
 		return resp, info, err
 	}
 
@@ -129,7 +129,7 @@ func (c *Client) doWithRetry(req *http.Request) (*http.Response, core.RetryInfo,
 			attemptReq.Body = body
 		}
 
-		resp, err := c.http.Do(attemptReq)
+		resp, err := c.doObservedRequest(attemptReq)
 		switch {
 		case err != nil:
 			// A redirect-policy refusal is permanent for this request. It is
