@@ -237,9 +237,14 @@ func TestStoreMissingItemAndFieldAreExplicitAndIdempotent(t *testing.T) {
 				t.Fatal(err)
 			}
 			if missingItem {
-				want := sdk.ItemCreateParams{VaultID: "vault-id", Title: "selected item", Category: sdk.ItemCategoryAPICredentials, Fields: []sdk.ItemField{{ID: CredentialFieldID, Title: CredentialFieldID, FieldType: sdk.ItemFieldTypeConcealed, Value: "synthetic-created-record"}}}
+				sectionID := "jira-cli"
+				want := sdk.ItemCreateParams{
+					VaultID: "vault-id", Title: "selected item", Category: sdk.ItemCategoryAPICredentials,
+					Fields:   []sdk.ItemField{{ID: CredentialFieldID, Title: CredentialFieldID, FieldType: sdk.ItemFieldTypeConcealed, Value: "synthetic-created-record", SectionID: &sectionID}},
+					Sections: []sdk.ItemSection{{ID: "jira-cli", Title: "Jira CLI"}}, Tags: []string{"jira-cli"},
+				}
 				if len(client.created) != 1 || len(client.puts) != 0 || !reflect.DeepEqual(client.created[0], want) {
-					t.Fatal("missing selected item was not created as API Credentials with the owned concealed field")
+					t.Fatal("missing selected item lost its API Credentials category, Jira CLI section, jira-cli tag or owned concealed field")
 				}
 			} else if len(client.puts) != 1 || len(client.created) != 0 {
 				t.Fatal("missing owned field created a second item")
