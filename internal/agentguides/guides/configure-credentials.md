@@ -192,8 +192,11 @@ login creates or updates the concealed field with ID `jira-cli-credential`.
 Titles and tags never establish ownership. Existing item metadata and unmanaged
 fields and the existing item category remain intact, including older Secure Notes.
 Only explicit login creates a missing selected item, using the API Credentials
-category; reads and logout never create it. Private recovery backups remain
-Secure Notes.
+category, a Jira CLI section and a `jira-cli` tag. The concealed field contains
+the complete JSON credential record. Separate site/email/token fields are not
+assembled into a record. The section and tag organise new items and never
+establish field ownership. Reads and logout never create items. Existing item
+sections and tags stay intact. Private recovery backups remain Secure Notes.
 
 ## Preconditions
 

@@ -403,7 +403,9 @@ and attempted writes invalidate stale hints after later cancellation without
 reopening credentials or detaching context.
 
 Direct 1Password uses the official SDK and the selected profile's `secret_backend`.
-New login items use API Credentials; existing item categories and private Secure Note backups stay intact.
+New login items use API Credentials with a Jira CLI section and jira-cli tag.
+Retain the concealed JSON record and ID-based ownership; existing item layout
+and private Secure Note backups stay intact.
 Keep initialization lazy, service tokens environment-only, selected-store
 provenance and site/account binding intact. Manage only stable owned credential
 field ID; never delete items or infer ownership from titles/tags. Follow

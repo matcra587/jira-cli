@@ -109,7 +109,8 @@ func (s *Store) Get(ctx context.Context, account string) (string, error) {
 
 // Set upserts a concealed owned field. Existing item metadata and unmanaged
 // fields survive; a missing API Credentials item is created only after successful
-// enumeration. Existing items retain their category, including old Secure Notes.
+// enumeration, with a Jira CLI section and an organizational jira-cli tag.
+// Existing items retain their category, sections and tags, including old Secure Notes.
 func (s *Store) Set(ctx context.Context, account, secret string) error {
 	if err := s.admit(ctx, account, "save"); err != nil {
 		return err
@@ -124,7 +125,12 @@ func (s *Store) Set(ctx context.Context, account, secret string) error {
 		if err := ctx.Err(); err != nil {
 			return failure(ctx, "save", err, false)
 		}
-		_, err = s.client.CreateItem(ctx, sdk.ItemCreateParams{VaultID: vault, Title: s.config.Item, Category: sdk.ItemCategoryAPICredentials, Fields: []sdk.ItemField{field}})
+		section := sdk.ItemSection{ID: "jira-cli", Title: "Jira CLI"}
+		field.SectionID = &section.ID
+		_, err = s.client.CreateItem(ctx, sdk.ItemCreateParams{
+			VaultID: vault, Title: s.config.Item, Category: sdk.ItemCategoryAPICredentials,
+			Fields: []sdk.ItemField{field}, Sections: []sdk.ItemSection{section}, Tags: []string{"jira-cli"},
+		})
 		if err != nil {
 			return failure(ctx, "save", err, true)
 		}

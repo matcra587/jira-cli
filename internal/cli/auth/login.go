@@ -90,7 +90,7 @@ func newLogin(deps Deps) *cobra.Command {
 		Long: "Store an API token in the selected credential store.\n\n" +
 			"The default is the OS keyring. With secret_backend=1password, the direct " +
 			"SDK updates only the owned credential field in the selected item. " +
-			"A missing item is created as API Credentials; existing items retain their category. " +
+			"A missing item is created as API Credentials with a Jira CLI section and jira-cli tag; existing item layout stays intact. " +
 			"The env backend verifies its selected environment token and saves public metadata only. " +
 			"Run it without `--with-token`; no token is stored. See `jira agent guide configure-credentials`.\n\n" +
 			"The token is read from standard input with `--with-token`. There " +
