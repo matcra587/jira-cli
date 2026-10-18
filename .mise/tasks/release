@@ -1,18 +1,24 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# shellcheck source=.mise/tasks/lib/release-version.sh
+source "${BASH_SOURCE[0]%/*}/lib/release-version.sh"
+
 usage() {
 	cat <<'EOF'
 usage: mise run release -- [--dry-run] <version> [<commit>]
 
 Create and push the semver tag that triggers .github/workflows/release.yml.
 The version may be passed with or without the leading "v".
+Prereleases (e.g. 0.16.0-beta.0 or 0.16.0-rc.0) publish GitHub prereleases
+without updating Homebrew, Scoop or the stable latest release.
 <commit> defaults to HEAD; pass an already-pushed commit on main to tag a
 point behind the current tip (e.g. a patch release for an earlier commit).
 
 examples:
   mise run release -- v0.8.1
   mise run release -- --dry-run 0.8.1
+  mise run release -- --dry-run 0.16.0-beta.0
   mise run release -- 0.3.1 42463f7
 EOF
 }
@@ -38,7 +44,7 @@ ref="${2:-}"
 tag="${version#v}"
 tag="v${tag}"
 
-[[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "version must match vMAJOR.MINOR.PATCH"
+release_prerelease "$tag" >/dev/null || fail "invalid release version: ${version}"
 
 branch="$(git branch --show-current)"
 [[ "$branch" == "main" ]] || fail "must release from main, currently on ${branch:-detached HEAD}"
@@ -88,11 +94,7 @@ if ((dry_run)); then
 fi
 
 git tag -a "$tag" "$target_sha" -m "$tag"
-# --no-verify: hk's pre-push hook feeds the annotated tag OBJECT id into
-# git2 merge_base, which rejects non-commit ids (jdx/hk files_between_refs,
-# fixed upstream eventually). The tagged commit is already on origin/main
-# and fully linted, so skipping the hook on the tag push loses nothing.
-git push --no-verify origin "$tag"
+git push origin "$tag"
 
 echo "release tag pushed: ${tag}"
 echo "GitHub Actions release workflow will run for ${tag}."

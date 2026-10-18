@@ -119,6 +119,10 @@ documented raw-output exception and emit identical bytes in every output mode.
 *   Make coherent Conventional Commits with normal hk hooks. `hk.pkl` defines
     formatting, lint, Markdown and secret checks. Check scoped rules explicitly
     when a tool's default exclusions omit them. Keep private evidence excluded.
+*   Local release tags and CI share `.mise/tasks/lib/release-version.sh`.
+    Prereleases must neither become stable latest nor update Homebrew/Scoop;
+    guard packaging-token creation as well as publication. Keep the main-only
+    release policy and exact-commit push CI gate. Exercise `test:release`.
 *   Live acceptance uses `JIRA_LIVE_ACCEPTANCE=1`, a selected
     `JIRA_LIVE_BINARY`, and dedicated `JIRA_LIVE_BASE_URL`, `JIRA_LIVE_PROJECT`
     and `JIRA_LIVE_ISSUE_TYPE` fixtures. Follow [tests.md](tests.md) for ownership,

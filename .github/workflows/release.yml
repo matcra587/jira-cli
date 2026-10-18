@@ -44,9 +44,13 @@ jobs:
           cache: false
 
       - name: Validate release tag
+        id: release-tag
         env:
           TAG_NAME: ${{ github.ref_name }}
-        run: '[[ "${TAG_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]'
+        run: |
+          source .mise/tasks/lib/release-version.sh
+          prerelease="$(release_prerelease "${TAG_NAME}")"
+          echo "prerelease=${prerelease}" >>"${GITHUB_OUTPUT}"
 
       - name: Check release state
         id: release-state
@@ -106,6 +110,7 @@ jobs:
         run: mise run release:check
 
       - name: Create packaging token
+        if: steps.release-tag.outputs.prerelease == 'false'
         id: app-token
         # @clover: constraint=major tags=create-github-app-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
@@ -119,18 +124,15 @@ jobs:
 
       - name: Run GoReleaser
         if: steps.release-state.outputs.exists != 'true'
-        # @clover: constraint=major tags=goreleaser-action
-        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
-        with:
-          distribution: goreleaser
-          version: ~> v2.16
-          args: release --clean --release-notes=.changes/${{ github.ref_name }}.md
+        # mise supplies the same locked GoReleaser used by local preflight.
+        run: goreleaser release --clean --release-notes=".changes/${TAG_NAME}.md"
         env:
+          TAG_NAME: ${{ github.ref_name }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SCOOP_GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
 
       - name: Download release checksums
-        if: steps.release-state.outputs.exists == 'true'
+        if: steps.release-state.outputs.exists == 'true' && steps.release-tag.outputs.prerelease == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
           TAG_NAME: ${{ github.ref_name }}
@@ -151,6 +153,7 @@ jobs:
       #     subject-checksums: dist/checksums.txt
 
       - name: Publish Homebrew formula
+        if: steps.release-tag.outputs.prerelease == 'false'
         # @clover: constraint=major tag-prefix=homebrew/ tags=actions
         uses: matcra587/github-actions/packages/homebrew-publish-formula@3b7e5c01d5ae0ccb2aeedf023c69d34b86cf2476 # homebrew/v0.1.1
         with:

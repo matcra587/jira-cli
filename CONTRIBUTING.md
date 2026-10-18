@@ -101,6 +101,18 @@ or add a 'Changelog: skip' trailer if it isn't user-facing.
 
 Don't hand-edit `CHANGELOG.md`; changie assembles it from the fragments, and the docs site's Release Notes page is a one-line include of it.
 
+## Publishing releases
+
+Releases use `mise run release -- <version> [<commit>]` from a clean `main` checkout. The target must already be on `origin/main`; its push CI gate must pass before GitHub publishes the artifacts. Batch the release notes with `mise run release-notes <version>` and commit them before creating the tag.
+
+Use a prerelease version such as `v0.16.0-beta.0` or `v0.16.0-rc.0` to publish a GitHub prerelease. Prereleases leave the stable latest release, Homebrew formula and Scoop bucket unchanged. Stable tags such as `v0.16.0` update all three. The version may omit the leading `v` in the local task; pushed tags require it. Numeric version components and numeric prerelease identifiers cannot contain leading zeros; release tags do not accept build metadata.
+
+```sh
+mise run release -- --dry-run 0.16.0-beta.0
+```
+
+The dry run performs the full local preflight but creates and pushes no tag. `mise run test:release` checks release routing with disposable local repositories and builds fixture archives with publishing disabled.
+
 ## Opening a pull request
 
 1.  Fork the repo and branch off `main`.
