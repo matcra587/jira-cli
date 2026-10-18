@@ -685,8 +685,10 @@ and require unchanged human previews to say they would keep the identity.
     library anywhere.
 *   **Test behavior, not implementation** — envelopes, exit codes, rendered
     output, not internal call sequences.
-*   `mise run test` (unit, fast, with coverage) · `mise run test:integration`
-    · `mise run ci` chains everything and runs the race detector.
+*   `mise run test` runs the untagged suite, including binary contract tests,
+    with coverage. `mise run ci` adds the race detector, tagged hermetic gates
+    and the other checks declared in `tasks.toml`. Native gates require their
+    selected host and remain separate from cross-compilation.
 
 ## Suite map
 
@@ -698,8 +700,16 @@ and require unchanged human previews to say they would keep the identity.
 | Guardrails | `tests/guardrails/` | repo invariants (see below) |
 | Output audit | `tests/audit/` | `//go:build outputaudit`; per-command output axes (M1–M12 machine, H1–H5 human) against captured fixtures. `go test -tags outputaudit ./tests/audit/...` — the decisive check that an output refactor is byte-identical |
 | Flag matrix | `tests/matrix/` | `//go:build flagmatrix`; actual binary effects for every owned flag, including hidden aliases; full runs join executed proofs against the live tree |
-| Integration | `tests/integration/` | binary end-to-end against `httptest` (no build tag) |
-| Live | `tests/live/` | `//go:build live`; real tenant via `mise run test:live` + `JIRA_LIVETEST_PROJECT` (a dedicated probe project); `JIRA_LIVETEST_BINARY` selects a frozen executable for comparisons; excluded from `go test ./...` |
+| Native integration | `tests/integration/` | isolated Windows credential recovery; `windows && nativekeyring`; `mise run test:keyring:windows` on Windows |
+| Live | `tests/live/` | `//go:build live`; owned tenant acceptance via `mise exec -- go test -tags=live -count=1 ./tests/live` with explicit `JIRA_LIVE_*` settings below; excluded from untagged `go test ./...` |
+
+Live writes require `JIRA_LIVE_ACCEPTANCE=1`, `JIRA_LIVE_BINARY` selecting the
+frozen executable, and dedicated `JIRA_LIVE_BASE_URL`, `JIRA_LIVE_PROJECT` and
+`JIRA_LIVE_ISSUE_TYPE` fixtures. Set these only for an authorized owned run and
+follow the ownership, intent and cleanup rules in this file before entry.
+`mise run test:live:guards` explicitly sets `JIRA_LIVE_ACCEPTANCE=0`: it runs
+the tagged package's hermetic guards and skips tenant writes. It does not
+establish live acceptance. There are no `test:live` or `test:integration` tasks.
 
 ## Contract tests are black-box
 
@@ -1525,3 +1535,262 @@ before constructing its native read path; bind ownership independently of desire
 behavior. Complete parent inventories detect duplicate writes. Keep Markdown as
 an exact owned direct-child regular file, reject leaf/ancestor symlinks and preserve
 all observed effects without replay.
+
+## Acceptance boundaries by resource
+
+Paired rank acceptance binds ordered sources and a distinct anchor through
+registered owned recipes before every process. Resolve the designated public
+board filter and rank field, then require two complete independent native and
+current-domain observations for each promised order. Preview/refusal steps retain
+the earlier order; live steps must actually change it. Persist intent before
+writes, never replay uncertain outcomes, and restore the same relative preimage
+before comparing the next lane. Legacy preview completion-history writes must
+stay scoped, ordered and capped; they are not a no-filesystem-effect path.
+Keep the legacy multi-request boundary distinct from the current native
+50-issue request limit. A locally refused legacy capability remains an open
+parity gap even when its characterization test passes.
+
+Refusal adapters require shared one-error envelope admission before indexing.
+Exercise absent, null, empty and non-array error collections in named guards;
+verify review warnings against that complete admission path.
+
+URL-only open acceptance binds normalized keys, retained site prefixes and
+explicit machine handoff state without credentials or HTTP. Inspect its native
+public scoped history and exact owned file effects. Jira existence, browser
+process handoff and GUI/page loading require separate evidence.
+
+Release-note acceptance uses independent pinned source fixtures for complete
+catalogs and raw Markdown. Bind aliases, selection and refusal reasons without
+credentials or HTTP. Keep successful operation identity separate from root
+failure attribution; piped output does not establish interactive pager behavior.
+
+Epic read acceptance binds complete native epic/child observations to exact
+legacy projections and current completeness facts. Retain legacy compact numeric
+rounding explicitly; current native values stay exact. First-page caps and
+search-index timing are separate from complete collection and mutation evidence.
+
+Worklog write acceptance freezes an owned input and persists intent before entry.
+Retain target-bound acknowledgements before independent native readback; never
+replay an unresolved write. Compare common POST/GET effects separately from exact
+controlled-server receipt preservation, including acknowledged incomplete records.
+
+Worklog read acceptance binds independent native records and page facts per issue.
+Retain legacy reduced values/cursors and current complete keyed records; exercise
+empty targets independently and never infer a complete walk from a sparse page.
+
+Board primer acceptance binds scoped native storage and the actual list consumer.
+Keep native read timestamps separate from wrapper/publication acknowledgements;
+verify changed forced values survive zero-request consumer reuse.
+
+Epic cache acceptance preserves native fields/details and explicit legacy summaries.
+Bind token walks to authenticated enhanced-search requests, then inspect stored
+values and cached reuse. Never infer a complete legacy walk from its first page.
+
+Batch collection acceptance binds native values and stored snapshots per resource,
+then verifies forced changes, cached reuse, request order and explicit history effects.
+Partial failures and cancellation remain separate evidence requirements.
+
+Native cache acceptance binds an independent Jira issue identity, the actual
+producer and owned scoped storage before testing local consumers. Keep ordinary
+view's flat identity separate from keyed attachment/watcher read adapters.
+
+Batch metadata previews bind resource order, deduplication and exact local file
+effects. Retain legacy issue-history pollution as an observed difference; current
+previews must leave storage unchanged and never claim a new collection or write.
+
+Local cache acceptance binds complete owned file effects, foreign-scope retention
+and exact refusal reasons. Keep preview plans separate from live removals and
+retain explicit legacy history/classification differences.
+
+Standalone field primers reuse the live duplicate-free membership and stored-order
+owner used by batch collection. Keep fixed fixtures strict about authored order.
+
+Metadata acceptance binds exact native reads and persisted owned snapshots,
+retaining explicit legacy projections and current collection/publication facts.
+Require changed forced data to survive cache reuse; keep untested variants open.
+
+Board acceptance binds native identities and associated projects through actual
+page requests and owned cache effects. Separate output windows from server walks,
+retain type presence and timestamps, and never substitute location metadata.
+
+Identity inspection acceptance binds independent native accounts and public
+scope, preserves unknown fields and refuses partial current identities. Read
+acceptance does not establish identity saving or provider selection.
+
+User discovery acceptance preserves native email presence and fetched-row
+continuation. Bind meaningful human receipts and independent visible identity;
+empty results and short pages never prove directory completeness or permission.
+
+Export acceptance distinguishes owned home and project directories, compares
+exact artifacts and binds receipts to observed publication. Retain legacy
+overwrite effects separately from current collision refusal and replacement.
+
+Guide acceptance binds exact content and source metadata through both doors.
+Preserve optional-member absence and strict original refusal JSON. Reading an
+embedded workflow never proves its commands were executed.
+
+Catalog acceptance uses independent native identities and context bounds.
+Legacy catalog arrays have an exact-operation adapter; ordinary envelopes stay
+strict. Metadata declarations do not establish rendering or write behavior.
+
+Schema acceptance compares independent canonical path sets and complete version
+field types. Legacy raw artifacts and current typed wrappers remain distinct;
+resolve pooled shapes against the extracted artifact, never its envelope.
+
+Synthetic acceptance runs in an owned working directory. Navigation checks bind
+the exact Usage command and child rows; their help never proves child execution.
+
+Paired JQL parsing keeps literal argv ahead of independent native diagnostics.
+Runtime controls precede `--`. Retain the legacy method-based read-only refusal
+separately from current read admission; require complete bounded request bodies.
+
+JQL reference acceptance separates exact synthetic transport from independent
+live Jira observations. Preserve complete current native metadata and each lane's
+summary presence contract; do not normalize fixed-response array order.
+
+Paired local authoring keeps independent literal expectations, strict original
+JSON validation and complete process receipts. JQL reference remains remote;
+local build/conversion/version checks cannot earn live Jira execution credit.
+
+Local alias parity uses owned public fixtures and no credentials or Jira calls.
+Bind receipts to the actual file and verify exact changes and skipped outcomes;
+retain local acceptance separately from paired live Jira evidence.
+
+Legacy targetless transition discovery maps to explicit transition list. Preserve
+complete current native metadata; declare the legacy reduced projection separately.
+
+Paired compound transitions must compare discovered terminal destinations and
+independently verify both status and complete comment storage. Follow
+`.claude/rules/tests.md`; one CLI invocation can require two non-atomic requests.
+
+## Native fixture and process constraints
+
+Bash fixtures transport literal completion words through a quoted environment
+value so MSYS startup cannot glob native caller argv. Preserve generated-script
+execution, caller state and literal candidates. The Windows WSL launcher supplies
+no native Bash evidence; explicit selection of it fails. Keep only unsupported
+filename cases as named skips, retaining Windows space-path checks and Unix cases.
+
+Update cleanup guards prove an owned candidate is readable before publication
+and refuses a nonempty positioned read after return. Keep the closed-file error
+assertion portable; Windows handle-stat errors do not establish os.ErrClosed.
+Verify the guard catches an actually compiled omitted-close mutation.
+
+Config-editor fixtures use the executing owned binary and shared shell quoting,
+with literal argument markers to distinguish selection precedence. Preserve saved
+work, context outcomes and regular-file checks on every host. POSIX permission
+checks use named child subtests; Windows modes supply no ACL evidence and cannot
+skip parent recovery checks.
+
+Guide-export acceptance checks exact content, collisions and hard-link target
+preservation on every host. Keep POSIX mode checks in named platform-specific
+subtests; Windows modes do not prove ACL protection. Attempt native symbolic links
+and skip only the unavailable Windows privilege, separately from invalid-path
+validation. A skipped link case supplies no symbolic-link acceptance evidence.
+
+Linux and Darwin audit terminals share a bounded, cancelable diagnostic collector
+over their native PTY allocators. Retain independent stdout bytes, join the command
+and collector, and refuse an unfinished drain after five seconds. Native diagnostic
+capture is limited to one MiB. Verify retained writers, active cancellation, launch
+failure and invisible diagnostics through owned helpers. Darwin compile checks are
+preparation only; actual macOS execution remains a separate acceptance requirement.
+
+Native Windows amd64 output-audit terminals use the shared invocation owner,
+parent-owned job admission and the selected Go-image write observer. Admit silence
+only after complete writer, loader, process and collector evidence. Keep exact
+stdout separate; console presentation cannot establish empty diagnostics. Native
+console setup precedes CLI admission and its accounting baseline. Job keepers are
+never inherited, and cancellation before assignment still kills the waiting helper.
+Preserve every required audit case and the named native guards described in
+`.claude/rules/tests.md`. Other hosts require their own native acceptance evidence.
+
+Native Windows compile-once command and startup-benchmark fixtures keep `.exe`
+and bind public profile directories while retaining `PATHEXT`. Execute ordinary
+native Go build helpers before crediting their acceptance; follow `.claude/rules/tests.md`.
+Editor-preview fixtures use owned executables, and user-home overrides retain
+Windows profile bindings.
+
+When testing concurrent cache publication, preserve native Windows delete-sharing
+semantics in the independent reader; follow `.claude/rules/tests.md`.
+Hermetic Windows shell fixtures retain `PATHEXT` for native executable discovery
+while isolating profile/config/cache directories. Verify callback execution
+before crediting completion results; follow `.claude/rules/tests.md`.
+Native browser acceptance uses an owned helper with exact URL argv and joined
+termination. Keep machine-mode suppression and URL-only no-request assertions;
+process handoff does not prove GUI rendering or page loading.
+Browser-gating unit fixtures select an owned BROWSER value; default-launcher
+guards assert the platform executable and every literal argument independently.
+A download directory-swap fixture blocked by native Windows delete sharing must
+prove original identity, denied rename, preserved stream failure and partial-file
+cleanup. Keep actual redirected-directory proof separate; never count a failed
+fixture rename as a successful replacement.
+Capture the pre-fault Windows file ID through an opened handle, then close it
+before exercising the writer; pathname Stat loads identity lazily.
+Native Windows paging acceptance uses fresh hidden consoles, literal pager argv
+and independently captured stdin. Verify navigation, cancellation, borrowed modes
+and original-screen restoration. Console-cell display is not original write-byte
+evidence; retain separate exact-byte contracts and all required matrix pairs.
+Assign native paging helpers to an owned job before admitting descendants. Prove
+parent cancellation joins the actual CLI and leaves no active job processes.
+Elvish callback emission uses `$path:dev-null` from the executing shell, never
+a hardcoded Unix path. Separate candidate identity from display descriptions
+for every dynamic callback; exercise real matching and editor insertion.
+Compose inline and CSV prefixes before rich formatting and exclude selected
+values by their identity, including description-bearing metadata candidates.
+Native Windows insertion guards use owned console key events and a bound Tab
+completion marker, then compare literal observer argv and join the shell exit.
+
+Externally selected native update tests keep a renamed installed basename while
+preserving `.exe` on Windows, including disposable flag-matrix installation copies.
+Version/formatter fixture expectations and selectors use the executing runtime
+OS and architecture; retain exact output quoting, delimiters and field order.
+Confirm the original and candidate version commands
+actually execute before interpreting publication/download results. Test only
+disposable installation copies; preserve selected artifacts and retained backups.
+
+Native Windows editor acceptance uses the exported shared supervisor inside fresh
+hidden consoles. Open the owned CONIN$/CONOUT$ handles explicitly; redirected
+standard streams are not proof of terminal allocation. Observe both changed
+native modes before releasing the real editor, then verify exact restoration,
+process termination, literal argv and separation from result stdout. Cover failed
+exit, cancellation, launch failure and second-terminal capture refusal. Run
+`mise run test:editor:windows` on Windows; its nativeconsole-tagged gate fails
+explicitly on other hosts. This owner evidence does not complete public command
+acceptance or native macOS behavior.
+
+Native Windows editor acceptance includes actual `config edit` and issue draft
+resume in fresh hidden consoles through the existing hermetic binary harness.
+Verify both altered/restored modes, literal argv, editor termination and typed
+stdout. Failed or invalid saves retain recoverable work without publishing a
+candidate; draft resume keeps its exact native source and performs no extra Jira
+requests. `mise run test:editor:windows` runs both public commands and the shared
+supervisor guards, retaining explicit wrong-host failure. Public cancellation
+uses actual Control-C and Control-Break in the isolated console with an interrupt-resistant
+editor: require exit 6, `canceled`, prompt termination, restored modes and exact
+recoverable saved work. Send no event to the caller's console. Server-enforced
+writes and native macOS acceptance remain separate requirements.
+
+Native cache acceptance uses descriptor-relative readers matching Windows delete
+sharing, with independent wrapper decoding; see `.claude/rules/tests.md`.
+
+## Differential acceptance ownership
+
+Differential CLI acceptance uses `tests/live/parity_*.go` and the shared live
+process/ownership owners. Pin both digests, isolate the selected legacy profile,
+verify public scope and native identity, and retain uncertain creation receipts
+without replay. Preserve current acknowledgement checks and independent rich
+native-field oracles. Follow `.claude/rules/tests.md`; tracer evidence is scoped
+to its named scenarios and does not complete broader parity acceptance.
+Read comparisons select explicit lane layouts and bind each result key; missing
+arrays or keyed rows cannot establish an empty native collection. Pin owned
+cache roots per lane and prove warm hits/forced refresh with actual requests.
+
+Watcher parity translations derive canonical ownership from the exact legacy
+argv, including shortcut targets and the verified current account. Preserve
+legacy/current receipt differences and compare corresponding native preimages.
+A failed step stops dependent writes; idempotence never authorizes replay.
+
+Paired comment acceptance binds authored bodies and returned resources to owned
+parents, preserves legacy bare-add intent and independently verifies visibility
+and native deletion. Follow `.claude/rules/tests.md` for per-lane ordering,
+pagination and no-request acceptance; passing cases do not establish full parity.

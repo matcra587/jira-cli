@@ -166,8 +166,9 @@ real-shell guards without regressing contextual completion or versioned installa
 *   Contract tests pin envelope shapes; update them deliberately, never
     loosen one to unblock a change.
 *   Live verification targets the dedicated probe project configured via
-    `JIRA_LIVETEST_PROJECT` — never create test issues, comments, or
-    transitions in a real project's board.
+    `JIRA_LIVE_PROJECT`, with the remaining opt-in and ownership requirements
+    in [tests.md](tests.md). Never use an ordinary project's board for test
+    issues, comments or transitions.
 
 Editor consumers share `command.ResolveEditor` and `command.RunEditor`. Preserve
 JIRA_EDITOR, stored editor, VISUAL, EDITOR precedence, literal argv, early executable
@@ -300,3 +301,29 @@ root handle. Literal reparse traversal refuses; ordinary rooted paths retain
 their existing semantics. Native tests cover authored and metadata names,
 ordinary/extended directories, failed streams and sibling preservation. Windows
 delete-sharing refusal is directory identity evidence, not an executed rename.
+
+## Compiler and native-resource invariants
+
+Compiler security updates keep the minimum Go patch, mise pin and generated
+platform artifact locks aligned. Follow `.claude/rules/go.md`; prove the actual
+security gate and distinguish new-toolchain acceptance from older binaries.
+
+Native Windows pipe input uses `internal/cli/input` non-inheritable duplicates.
+Require the native pipe discriminator because FILE_TYPE_PIPE also covers sockets.
+Join cancellation and cleanup, retain borrowed handle flags and pipe modes, and
+prove a later pending read through the original overlapped handle. Keep regular
+files, consoles and nonselected readers borrowed; never add detached read workers.
+Registered stdin commands and accessible text/confirmation forms share this owner.
+Native cancellation/deadline guards withhold EOF and observe actual consumption.
+Use overlapped pipe fixtures for PeekNamedPipe observation; querying a synchronous
+pipe while its duplicate reads may block the observer itself.
+
+Configuration and drafts share `internal/nativepath` for literal path identity.
+Only its initial-open `ErrMissing` permits configuration's missing-descendant
+policy; late metadata/close failures retain their outcome. Draft parents remain
+strict. Literal Windows draft directories use owned handle-relative exclusive
+creation and verify the reopened root against the retained created handle before
+publishing members. Preserve acknowledged directories after late failure.
+Junction ancestors are supported; redirected draft roots and members refuse.
+Run native `test:draft:windows` and real editor acceptance. Console fixtures must
+finish setup before measuring the modes borrowed by the editor.

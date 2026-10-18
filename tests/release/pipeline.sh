@@ -16,6 +16,7 @@ assert_equal() {
 
 fixture_root="$(mktemp -d "${TMPDIR:-/tmp}/jira-release-test.XXXXXX")"
 trap 'rm -rf -- "$fixture_root"' EXIT
+mise_bin="$(command -v mise)"
 
 for tag in v0.0.0 v0.15.2 v0.16.0 v10.20.30; do
 	assert_equal "$(release_prerelease "$tag")" false "stable classification $tag"
@@ -97,7 +98,8 @@ git_fixture init --initial-branch=main --quiet "$fixture_root/task"
 mkdir -p "$fixture_root/task/.mise/tasks/lib" "$fixture_root/bin"
 cp "$repo_root/.mise/tasks/release" "$fixture_root/task/.mise/tasks/release"
 cp "$repo_root/.mise/tasks/lib/release-version.sh" "$fixture_root/task/.mise/tasks/lib/release-version.sh"
-git_fixture -C "$fixture_root/task" add .mise
+: >"$fixture_root/task/.mise.toml"
+git_fixture -C "$fixture_root/task" add .mise .mise.toml
 git_fixture -C "$fixture_root/task" commit --quiet -m 'release fixture'
 git_fixture -C "$fixture_root/task" remote add origin "$fixture_root/origin.git"
 git_fixture -C "$fixture_root/task" push --quiet origin main
@@ -116,9 +118,15 @@ run_release() {
 	release_output="$(cd "$fixture_root/task" && PATH="$fixture_root/bin:$PATH" \
 		GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 \
 		GIT_COMMITTER_NAME='Release Fixture' GIT_COMMITTER_EMAIL='fixture@example.invalid' \
+		MISE_CONFIG_DIR="$fixture_root/config" MISE_GLOBAL_CONFIG_FILE="$fixture_root/global.toml" \
+		MISE_SYSTEM_CONFIG_DIR="$fixture_root/system" MISE_DATA_DIR="$fixture_root/data" \
+		MISE_CACHE_DIR="$fixture_root/cache" MISE_STATE_DIR="$fixture_root/state" \
+		MISE_TMP_DIR="$fixture_root/tmp" MISE_CEILING_PATHS="$fixture_root" \
+		MISE_TRUSTED_CONFIG_PATHS="$fixture_root/task" MISE_OFFLINE=true \
+		MISE_TASK_AUTO_INSTALL=false \
 		RELEASE_TEST_PREFLIGHT_LOG="$fixture_root/preflight" \
 		RELEASE_TEST_HOOK_LOG="$fixture_root/pre-push" \
-		bash .mise/tasks/release "$@" 2>&1)" || release_status=$?
+		"$mise_bin" run release -- "$@" 2>&1)" || release_status=$?
 }
 for version in 0.16.0 v0.16.0-beta.0 0.16.0-rc.0; do
 	run_release --dry-run "$version"

@@ -5,6 +5,9 @@ description: >
   text house style, and command-level review points and gotchas.
 paths:
   - "internal/cli/**/*.go"
+  - "internal/core/**/*.go"
+  - "internal/adf/**/*.go"
+  - "internal/issueedit/**/*.go"
 ---
 
 # Commands
@@ -746,3 +749,68 @@ Transition passes only extracted issue keys, never its positional status.
 File selectors preserve literal lines and deduplicate before their unique-key
 cap. Remote duplicate search identities remain an incomplete-search refusal.
 Exercise actual binary preview/refusal paths and native writer entry counts.
+
+## Target and native-input boundaries
+
+Explicit issue comment/clone/delete/edit/transition targets use
+`command.ResolveTargets` and the existing `ParseIssueKeys` grammar before client
+entry. Keep ordered unique expansion, whole-list refusal and literal deduplicated
+file selectors. Transition passes extracted keys without its status; edit input
+discovery shares this owner. Remote duplicate search results still refuse.
+
+Separate transition comments preserve the actual failed-call classification;
+missing receipts cannot fabricate a comment acknowledgement. Retain the successful
+status change and any usable comment ID, and never recommend repeating that change.
+
+Explicit local `issue input prepare` uses core's pure preparation owner and
+native screen metadata, then emits typed output through `command.Spec`. Keep
+default mutation JSON lossless. Recognize exact built-in plugin identities,
+never marketplace suffixes; fix scalar identity meanings instead of guessing
+IDs from digits. Refuse malformed known values and wrapper collisions without
+partial output. Preserve unchecked values and report them as unverified.
+Reuse shared ADF warnings, bounded/cancelable input and notification suppression.
+Verify prepared known-family values through the actual native writer with independent
+fixtures, exact wire tokens and preview/refusal no-request checks. Do not derive
+expected values from the production codecs or examples.
+
+## Native completion invariants
+
+Native PowerShell callbacks decode UTF-8 within the registered generator's
+owned scope, restoring caller encoding/fallbacks and exit state on every path.
+Retain native process supervision. Verify real Unicode metadata and directory
+continuation; read independent observer receipts without a host-codepage round trip.
+Serialize encoding ownership across applications and runspaces before taking the
+snapshot; keep waiting cancellation responsive and release after exceptions.
+
+Contextual filesystem completion uses one bounded directory-name owner and the
+shared command.CSVCompletion codec. Preserve literal prefixes, completed CSV
+spelling and quoted delimiters; read no file contents or credentials. The callback
+boundary carries the command context and suppresses canceled results. Actual
+shell routing and insertion require generated-script acceptance, separately from
+pure codec/filesystem guards.
+
+Current-word predictors declare the `word_` convention in command metadata.
+The native generator transports one literal `--@word=` argument, forwarded public
+flags and a separate positional terminator. Keep this inside clib's registered
+generator boundary. Bash supplies explicitly quoted replies; Fish CSV replies
+quote every current field to avoid native rank suppression. Elvish preserves the
+selected argument matcher and admits replacement candidates only for their exact
+command and seed. Verify editor insertion and executed argv, including closed
+quotes and metacharacters, rather than crediting candidate enumeration alone.
+Bash 3.2 uses a registered spacing wrapper; current shells suppress spaces after
+directory candidates. Current-word transport rejects unrepresentable bytes in
+the entire argument and decodes completed Bash context independently. Preserve
+hidden boolean aliases in native command resolution without offering them.
+Theme-path completion emits absolute choices from the literal current-directory
+inventory so settings-directory resolution cannot select a different file.
+Manually authored relative settings retain their existing semantics.
+
+Attachment download paths use shared literal absolute selection while retaining
+rooted streaming and staged overwrite. Declare `--to` directory completion through
+shared flag metadata. Zsh unpredicted positional slots need bounded empty actions
+(or an unbounded empty action) so later option values remain completable without
+inventing filenames. Native shell providers retain their own directory spelling;
+verify literal identity and actual insertion, not an assumed trailing separator.
+
+Completed Bash context is decoded without expansion, separately from the current
+token. Preserve inline values and directory continuation in actual native insertion.

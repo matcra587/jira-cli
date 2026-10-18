@@ -7,32 +7,33 @@ run = "mise tasks"
 
 [check]
 description = "Run local verification checks"
+# An empty file-task spec can fall back to raw argv on mise 2026.9.11.
+# Keep a concrete help flag on workflows that accept no arguments.
+usage = '''
+unknown_flags "error"
+flag "-h --help" help="Show task help"
+'''
 depends = ["fmt:check", "lint", "rumdl", "vet", "test"]
 
 [ci]
 description = "Run CI-equivalent checks"
-depends = ["check", "test:race", "test:matrix", "test:live:guards", "test:hooks", "test:release", "audit", "tidy", "workflow:lint", "security"]
+usage = '''
+unknown_flags "error"
+flag "-h --help" help="Show task help"
+'''
+# Finish manifest publication before checks read the module graph.
+run = [
+    { task = "tidy" },
+    { tasks = ["check", "test:race", "test:matrix", "test:live:guards", "test:hooks", "test:release", "test:tasks", "audit", "workflow:lint", "security"] },
+]
 
 [fix]
 description = "Apply automatic formatting and lint fixes"
-depends = ["fmt", "lint:fix", "rumdl:fix"]
-
-[build]
-description = "Build the binary"
-alias = "b"
-file = ".mise/tasks/build"
-sources = [
-  "**/*.go",
-  "go.mod",
-  "go.sum",
-  ".mise/tasks/build",
-  ".mise/tasks/lib/build-env.sh",
-]
-outputs = ["{{ env.DIST_DIR }}/{{ env.BINARY_NAME }}-*"]
-
-[install]
-description = "Install binary to GOPATH/bin"
-file = ".mise/tasks/install"
+usage = '''
+unknown_flags "error"
+flag "-h --help" help="Show task help"
+'''
+run = [{ task = "fmt" }, { tasks = ["lint:fix", "rumdl:fix"] }]
 
 [run]
 description = "Build and run"
@@ -47,12 +48,11 @@ run = ["goreleaser check", "goreleaser healthcheck"]
 
 ["release:preflight"]
 description = "Run the full local preflight used before publishing releases"
-run = ["mise run ci", "mise run release:check", "mise run release:build"]
-
-[release]
-description = "Validate, tag and push a release"
-raw_args = true
-file = ".mise/tasks/release"
+usage = '''
+unknown_flags "error"
+flag "-h --help" help="Show task help"
+'''
+run = [{ task = "ci" }, { task = "release:check" }, { task = "release:build" }]
 
 ["release:build"]
 description = "Build binaries with GoReleaser without publishing"
@@ -60,7 +60,7 @@ run = "goreleaser build --snapshot --clean"
 
 ["release:snapshot"]
 description = "Build a full snapshot release locally"
-run = "goreleaser release --snapshot --clean"
+run = "goreleaser release --snapshot --clean --skip=sign"
 
 [test]
 description = "Run tests with coverage"
@@ -94,6 +94,10 @@ run = ["hk validate", "hk test --step gofumpt"]
 ["test:release"]
 description = "Verify stable and prerelease routing without publishing"
 run = "bash tests/release/pipeline.sh"
+
+["test:tasks"]
+description = "Verify native task arguments, ordering and failure paths"
+run = "uv run --python 3.14 --script tests/tooling/tasks.py"
 
 ["test:keyring"]
 description = "Verify Linux authentication against a private native keyring"
@@ -189,12 +193,12 @@ run = "golangci-lint run --fix"
 
 [rumdl]
 description = "Lint markdown files with rumdl"
-run = "git ls-files '*.md' | xargs -r rumdl check"
+run = "rumdl check"
 
 ["rumdl:fix"]
 description = "Fix markdown files with rumdl"
 raw_args = true
-run = "git ls-files '*.md' | xargs -r rumdl fmt"
+run = "rumdl fmt"
 
 [vet]
 description = "Run go vet"
@@ -212,35 +216,28 @@ run = ["actionlint .github/workflows/*.yml", "zizmor --persona pedantic .github/
 description = "Run hk pre-commit hook"
 run = "hk run pre-commit"
 
-# Read-only freshness probe for the vendored upstream artifacts. Never in
-# ci — it needs the network; run deliberately or from cron.
-[upstream-check]
-description = "Check vendored specs/schemas against live upstream (--type adf|api, --check to gate)"
-raw_args = true
-file = ".mise/tasks/upstream-check"
-
 [deps]
 description = "Download Go module dependencies"
 run = "go mod download"
 
 ["docs:build"]
 description = "Build the documentation site with strict validation"
-run = "uvx --from zensical==0.0.60 zensical build --clean --strict -f zensical.toml"
+run = "uvx --python 3.14 --from zensical==0.0.60 zensical build --clean --strict -f zensical.toml"
 
 ["docs:serve"]
 description = "Serve the documentation site with live reload"
 raw_args = true
-file = ".mise/tasks/docs-serve"
+run = "uvx --python 3.14 --from zensical==0.0.60 zensical serve -f zensical.toml"
 
 ["deps:update"]
 description = "Update direct Go dependencies to latest patch releases"
 env = { DEPS_UPDATE_QUERY = "patch" }
-file = ".mise/tasks/deps-update"
+file = ".mise/lib/deps-update.sh"
 
 ["deps:update:minor"]
 description = "Update direct Go dependencies to latest minor and patch releases"
 env = { DEPS_UPDATE_QUERY = "latest" }
-file = ".mise/tasks/deps-update"
+file = ".mise/lib/deps-update.sh"
 
 [tidy]
 description = "Tidy Go modules and verify no drift"
@@ -252,23 +249,22 @@ run = "go generate ./..."
 
 [clean]
 description = "Remove build and coverage outputs"
+usage = '''
+unknown_flags "error"
+flag "-h --help" help="Show task help"
+'''
 run = "rm -rf bin dist coverage.out"
-
-[version]
-description = "Print build version info"
-quiet = true
-file = ".mise/tasks/version"
 
 ["check-changie"]
 description = "Fail a feat/fix commit that ships no changelog fragment"
 usage = 'arg "<commit_msg_file>" help="Path to the commit message file to check"'
-run = "go run ./cmd/check-changie {{usage.commit_msg_file}}"
+run = 'go run ./cmd/check-changie "${usage_commit_msg_file?}"'
 
 ["release-notes"]
 description = "Batch unreleased fragments into a version and regenerate the changelog"
 usage = 'arg "<version>" help="Release version, e.g. v0.7.8"'
 run = [
-    "changie batch {{usage.version}}",
+    'changie batch -- "${usage_version?}"',
     "changie merge",
 ]
 

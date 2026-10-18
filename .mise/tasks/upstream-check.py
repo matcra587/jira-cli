@@ -1,5 +1,14 @@
-#!/usr/bin/env python3
-# MISE description="Check vendored specs/schemas against live upstream (--type adf|api, --check to gate)"
+#!/usr/bin/env -S uv run --python 3.14 --script
+# [MISE] description="Check vendored specs/schemas against live upstream"
+# [USAGE] unknown_flags "error"
+# [USAGE] flag "--type <type>" help="Pins to check" default="all" {
+# [USAGE]   choices "adf" "api" "all"
+# [USAGE] }
+# [USAGE] flag "--check" help="Exit nonzero if any pin is outdated or unverifiable"
+# /// script
+# requires-python = ">=3.14,<3.15"
+# dependencies = []
+# ///
 """upstream-check: pull what upstream serves today and report whether the
 vendored pins are out of date — and what actually changed, path by path
 inside each definition. Read-only: never rewrites a pin or the working
@@ -12,7 +21,6 @@ UPSTREAM_CHECK_ADF_VERSION overrides the "latest" adf-schema version, so
 the differ itself can be exercised against any published version.
 """
 
-import argparse
 import hashlib
 import io
 import json
@@ -207,19 +215,19 @@ def check_api() -> bool:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--type", choices=["adf", "api", "all"], default="all")
-    parser.add_argument("--check", action="store_true")
-    args = parser.parse_args()
+    selected_type = os.environ.get("usage_type")
+    if selected_type not in ("adf", "api", "all"):
+        sys.exit("upstream-check: use mise run upstream-check --help")
+    check = os.environ.get("usage_check", "false") == "true"
 
     stale = False
-    if args.type in ("adf", "all"):
+    if selected_type in ("adf", "all"):
         stale |= check_adf()
-    if args.type in ("api", "all"):
+    if selected_type in ("api", "all"):
         stale |= check_api()
 
     if stale:
-        if args.check:
+        if check:
             return 1
         print("out of date — nothing was modified; bumps are deliberate.")
     return 0
