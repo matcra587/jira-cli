@@ -6,6 +6,9 @@ description: >
 paths:
   - "internal/cli/**/*.go"
   - "cmd/jira/*.go"
+  - "internal/output/**/*.go"
+  - "internal/envelope/**/*.go"
+  - "internal/adapters/jira/**/*.go"
 ---
 
 # Output & Logging
@@ -324,3 +327,16 @@ with null only where actual JSON permits it. `json.RawMessage` remains native
 JSON and fixed byte arrays remain arrays. Exercise actual registered command
 schemas for native description snapshots, including source and refreshed current
 backups; a top-level shape audit alone cannot establish nested wire-type fidelity.
+
+## Retained observations and batch receipts
+
+Rate-limit observations belong to invocation-local core context state and the
+shared authenticated transport/success/failure boundaries. Deduplicate across
+workers and retries without the global warning queue; preserve completed
+observations after failure/cancellation. Compact success remains bare data.
+
+Published batch guides must require inspecting every `results[].ok`, retained
+`data` and `error` after both zero and nonzero exits. Outer success does not
+establish all-target success; failed rows can retain acknowledged writes.
+Keep executable saved-receipt examples and shared output rules in sync, and
+never advise replaying the original batch.

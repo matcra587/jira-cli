@@ -1,4 +1,12 @@
 #!/usr/bin/env bash
+# [MISE] description="Build the binary"
+# [MISE] alias="b"
+# [USAGE] unknown_flags "error"
+# [USAGE] flag "-h --help" help="Show task help"
+# A concrete flag prevents mise's empty-spec raw-argv fallback. Keep the
+# Usage block contiguous; ordinary comments interrupt its native parser.
+# Always enter Go's own cache: embedded assets and Git version metadata are
+# inputs too, so a source-mtime/glob gate cannot safely skip this command.
 set -euo pipefail
 
 # shellcheck source=.mise/tasks/lib/build-env.sh

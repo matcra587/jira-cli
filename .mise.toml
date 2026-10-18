@@ -38,9 +38,9 @@ uv = "0.12.13"
 
 [env]
 HK_MISE = 1
-MODULE = "github.com/matcra587/jira-cli"
 BINARY_NAME = "jira"
 DIST_DIR = "./dist"
+GOTOOLCHAIN = "local"
 
 [task_config]
-includes = ["tasks.toml"]
+includes = ["tasks.toml", ".mise/tasks"]

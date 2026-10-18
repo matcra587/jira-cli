@@ -7,8 +7,11 @@ paths:
   - "internal/config/**/*.go"
   - "internal/jira/**/*.go"
   - "internal/cli/**/*.go"
-  - "internal/cli/issue/web.go"
-  - "internal/editor/**/*.go"
+  - "internal/adapters/**/*.go"
+  - "internal/credentials/**/*.go"
+  - "internal/issueedit/**/*.go"
+  - "internal/nativepath/**/*.go"
+  - "internal/attachmentfiles/**/*.go"
 ---
 
 # Security

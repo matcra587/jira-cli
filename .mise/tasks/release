@@ -1,27 +1,13 @@
 #!/usr/bin/env bash
+# [MISE] description="Validate, tag and push a release"
+# [USAGE] unknown_flags "error"
+# [USAGE] flag "--dry-run" help="Run preflight without creating or pushing a tag"
+# [USAGE] arg "<version>" help="Stable or prerelease version, e.g. 0.16.0-beta.0"
+# [USAGE] arg "[commit]" help="Already-pushed commit on main (default: HEAD)"
 set -euo pipefail
 
 # shellcheck source=.mise/tasks/lib/release-version.sh
 source "${BASH_SOURCE[0]%/*}/lib/release-version.sh"
-
-usage() {
-	cat <<'EOF'
-usage: mise run release -- [--dry-run] <version> [<commit>]
-
-Create and push the semver tag that triggers .github/workflows/release.yml.
-The version may be passed with or without the leading "v".
-Prereleases (e.g. 0.16.0-beta.0 or 0.16.0-rc.0) publish GitHub prereleases
-without updating Homebrew, Scoop or the stable latest release.
-<commit> defaults to HEAD; pass an already-pushed commit on main to tag a
-point behind the current tip (e.g. a patch release for an earlier commit).
-
-examples:
-  mise run release -- v0.8.1
-  mise run release -- --dry-run 0.8.1
-  mise run release -- --dry-run 0.16.0-beta.0
-  mise run release -- 0.3.1 42463f7
-EOF
-}
 
 fail() {
 	echo "release failed: $*" >&2
@@ -29,18 +15,12 @@ fail() {
 }
 
 dry_run=0
-if [[ "${1:-}" == "--dry-run" ]]; then
+if [[ "${usage_dry_run:-false}" == "true" ]]; then
 	dry_run=1
-	shift
 fi
 
-if [[ $# -lt 1 || $# -gt 2 || "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
-	usage
-	exit 2
-fi
-
-version="$1"
-ref="${2:-}"
+version="${usage_version:?Use mise run release --help}"
+ref="${usage_commit:-}"
 tag="${version#v}"
 tag="v${tag}"
 

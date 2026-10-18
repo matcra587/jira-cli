@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# [MISE] description="Print build version info"
+# [MISE] quiet=true
+# [USAGE] unknown_flags "error"
+# [USAGE] flag "-h --help" help="Show task help"
 set -euo pipefail
 
 # shellcheck source=.mise/tasks/lib/build-env.sh

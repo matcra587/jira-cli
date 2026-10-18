@@ -112,6 +112,11 @@ documented raw-output exception and emit identical bytes in every output mode.
 *   mise provisions the selected tools. `mise run build` creates the disposable
     binary under `dist/` with version flags. `mise run install` replaces the
     installed binary; use it only when installation is part of the task.
+*   File tasks own native `# [MISE]`/`# [USAGE]` metadata; `tasks.toml` owns
+    direct commands and ordered orchestration. Keep parsed values in quoted
+    `usage_*` variables. Build through Go's cache without timestamp skipping,
+    tidy before checks, and finish formatting before Go lint fixes. Python
+    tooling uses uv and Python 3.14; exercise `mise run test:tasks`.
 *   `tasks.toml` defines `mise run check`, `test`, `test:race`, `test:matrix`,
     `audit`, `test:live:guards`, and the wider `ci` gate. Native platform gates
     have explicit host requirements. Cross-compilation does not prove native
@@ -128,3 +133,44 @@ documented raw-output exception and emit identical bytes in every output mode.
     and `JIRA_LIVE_ISSUE_TYPE` fixtures. Follow [tests.md](tests.md) for ownership,
     manifests and independent cleanup checks. `test:live:guards` disables live
     writes and runs the hermetic ownership/cleanup guards.
+
+## Task conventions
+
+Development tasks use native mise discovery and Usage metadata. Keep parsed
+values in quoted `usage_*` variables, and test ordering/refusal paths through
+`mise run test:tasks`. Python tooling runs through uv on Python 3.14.
+
+## Native representation and transport boundaries
+
+*   **cmd/jira → internal/cli/root** — conductor (cli/cobra) dispatch;
+    composition root with lazy Deps (help/version construct no client);
+    the error taxonomy in `internal/cli` maps to the 0–8 exit contract
+    via `WithExitCode`.
+*   **internal/jira** — GENERATED wire types (`cmd/gen-wire`, from the
+    sha256-pinned OpenAPI specs in `internal/jira/spec`) with
+    raw-capture: `Nullable[T]` keeps absent/null/value distinct (build
+    values via `NullableOf`/`NullableNull`, never a bare literal) and
+    `Extra` carries unmodeled fields verbatim.
+*   **internal/adf** — byte-preserving substrate (parse→marshal is a
+    fixed point; unknown nodes and keys survive verbatim) + generated
+    typed views + draft-04 validation. `Document.Marshal()` is the
+    preservation-grade exit; plain `json.Marshal` re-escapes and breaks
+    byte fidelity.
+*   **internal/adapters/jira** — REST client. Request bodies serialize
+    with `jira.MarshalNoEscape`, preserving raw JSON string spelling;
+    `SetEscapeHTML(false)` alone does not preserve line separators on
+    Go 1.27. Safe-retry transport: GET/HEAD/OPTIONS
+    plus the exact POST `search/jql`, `search/approximate-count`, and
+    `jql/parse` reads are the ONLY retryable requests;
+    writes are never auto-replayed, redirects on unsafe methods are
+    refused, `Retry-After` is clamped and jittered.
+*   **internal/cli/completion/native** — licensed backports of reviewed clib
+    Bash/PowerShell/Zsh/Fish/Elvish generator repairs through `complete.RegisterShell`. The root registers
+    them once before exposing generators. Reuse clib's public metadata and
+    validation; do not rewrite printed scripts or break versioned `go install`
+    with a module replacement. Fish and Elvish delegate to their library generators
+    for models without current-word predictors. Nushell uses its library generator.
+*   **internal/cli/cache/transitions.go** — bounded per-issue ID/name/destination
+    hints from explicit successful workflow reads. The observed read starts the
+    five-minute TTL; site/account scope remains adapter-owned. Completion reads
+    local hints only and never uses cached availability as mutation permission.

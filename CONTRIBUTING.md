@@ -21,14 +21,14 @@ Two things hold for every change: CI must pass (`mise run ci`), and review comme
 
 ```sh
 gh repo clone matcra587/jira-cli
-mise --cd jira-cli run install --locked
+mise --cd jira-cli --locked run install
 jira version
 ```
 
 `--cd` runs in the freshly cloned directory, so there's no separate `cd`. `mise run install` auto-provisions the pinned toolchain before the task (`--locked` requires it to be pre-resolved in `mise.lock`), then runs `go install ./cmd/jira` with the version ldflag set, so `jira version` reports the exact `git describe` build. Without that ldflag a build falls back to whatever Go records in its build info, which yields a `-dev` version string.
 
 > [!TIP]
-> `mise run build` writes a release-shaped binary to `./dist/jira-<goos>-<goarch>`. Use it to inspect the exact shape the release pipeline produces.
+> `mise run build` writes a release-shaped binary to `./dist/jira-<goos>-<goarch>`. It always enters Go's build cache so embedded guides, schemas and Git version changes cannot leave a stale binary behind.
 
 ## Project layout
 
@@ -60,6 +60,8 @@ For tighter loops while editing:
 | `mise run test` | tests with coverage (fast) |
 | `mise run test:race` | the same suite under the race detector |
 | `mise run audit` | the output-contract audit on its own; hermetic, stub-driven, runs the real binary |
+| `mise run test:tasks` | native mise arguments, task discovery, ordering and refusal paths |
+| `mise run test:release` | stable/prerelease policy and disposable archive fixtures; no publishing |
 | `mise run fix` | auto-apply fmt + lint + rumdl fixes |
 
 Run a single package or test with `go test` directly:
@@ -113,6 +115,8 @@ mise run release -- --dry-run 0.16.0-beta.0
 
 The dry run performs the full local preflight but creates and pushes no tag. `mise run test:release` checks release routing with disposable local repositories and builds fixture archives with publishing disabled.
 
+`mise run release:snapshot` creates unsigned local archives. Published releases retain cosign signing in the release workflow.
+
 ## Opening a pull request
 
 1.  Fork the repo and branch off `main`.
@@ -147,11 +151,17 @@ The hook globs the working tree, not just staged files, so a stale file elsewher
 Source pages live in `docs/`; the site is [zensical](https://zensical.org), configured in `zensical.toml`. Build or serve it directly:
 
 ```sh
-uvx --from zensical zensical build -f zensical.toml
-uvx --from zensical zensical serve -f zensical.toml
+mise run docs:build
+mise run docs:serve -- --dev-addr 127.0.0.1:8000
 ```
 
-The mise wrappers and the generated command reference under `docs/reference/` were pruned with `cmd/gen-docs`; they return when the generator is rebuilt for the current command tree. Until then, `docs/` documents only what the binary actually ships — a page describing an unbuilt command does not belong in the tree.
+Both tasks use the pinned Zensical package. The server uses its native live reload; no extra watcher or generated configuration is needed. Command discovery lives in the binary; the site documents the commands it currently ships.
+
+## Task maintenance
+
+Use native mise Usage declarations for project arguments and `raw_args` only to forward another CLI's interface. Run `mise run release --help` or `mise run upstream-check --help` for task-specific help. Keep values in quoted `usage_*` environment variables rather than inserting them into shell source.
+
+Python tooling runs through uv on Python 3.14, with inline script metadata. `mise run test:tasks` tests task orchestration using controlled tool substitutes; application tests and native platform gates establish their separate behavior. CI finishes module tidying before running checks, and `fix` finishes Go formatting before starting lint fixes.
 
 ## Getting help
 
