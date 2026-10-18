@@ -4,6 +4,10 @@ version: 2
 project_name: jira
 report_sizes: true
 
+release:
+  prerelease: auto
+  make_latest: '{{ if .Prerelease }}false{{ else }}true{{ end }}'
+
 metadata:
   mod_timestamp: "{{ .CommitTimestamp }}"
 
@@ -46,6 +50,10 @@ archives:
   - id: default
     ids:
       - jira
+    files:
+      - README.md
+      - CHANGELOG.md
+      - LICENSE
     name_template: >-
       {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
     formats:
@@ -56,7 +64,8 @@ archives:
           - zip
 
 scoops:
-  - repository:
+  - skip_upload: auto
+    repository:
       owner: matcra587
       name: scoop-bucket
       branch: main

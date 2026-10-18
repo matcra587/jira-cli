@@ -11,7 +11,7 @@ depends = ["fmt:check", "lint", "rumdl", "vet", "test"]
 
 [ci]
 description = "Run CI-equivalent checks"
-depends = ["check", "test:race", "test:matrix", "test:live:guards", "test:hooks", "audit", "tidy", "workflow:lint", "security"]
+depends = ["check", "test:race", "test:matrix", "test:live:guards", "test:hooks", "test:release", "audit", "tidy", "workflow:lint", "security"]
 
 [fix]
 description = "Apply automatic formatting and lint fixes"
@@ -90,6 +90,10 @@ run = "go test -v -tags=live -count=1 ./tests/live"
 ["test:hooks"]
 description = "Validate hook configuration and native formatter cases"
 run = ["hk validate", "hk test --step gofumpt"]
+
+["test:release"]
+description = "Verify stable and prerelease routing without publishing"
+run = "bash tests/release/pipeline.sh"
 
 ["test:keyring"]
 description = "Verify Linux authentication against a private native keyring"
