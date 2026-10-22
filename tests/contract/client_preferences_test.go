@@ -94,11 +94,12 @@ func TestClientPreferenceActualMigrationAndExactRollback(t *testing.T) {
 			t.Parallel()
 			dir := t.TempDir()
 			source, target, recovery := filepath.Join(dir, "old.toml"), filepath.Join(dir, "new.toml"), filepath.Join(dir, "recovery")
-			const original = "# Entire source retained.\ndefault_profile='work'\n[[profiles]]\nname='work'\nsecret_backend='env'\nrefresh_interval=0\nteam_account_ids=['a,b',' a ','a,b','']\n[[profiles]]\nname='other'\nrefresh_interval=77\nteam_account_ids=['other']\n"
+			// Every migrated profile must stay independent of native credential stores.
+			const original = "# Entire source retained.\ndefault_profile='work'\n[[profiles]]\nname='work'\nsecret_backend='env'\nrefresh_interval=0\nteam_account_ids=['a,b',' a ','a,b','']\n[[profiles]]\nname='other'\nsecret_backend='env'\nrefresh_interval=77\nteam_account_ids=['other']\n"
 			if err := os.WriteFile(source, []byte(original), 0o600); err != nil {
 				t.Fatal(err)
 			}
-			env := []string{"JIRA_KEYRING=false", "JIRA_REFRESH_INTERVAL=60", `JIRA_TEAM_ACCOUNT_IDS=["environment"]`}
+			env := []string{"JIRA_KEYRING=false", "JIRA_REFRESH_INTERVAL=60", `JIRA_TEAM_ACCOUNT_IDS=["environment"]`, "DBUS_SESSION_BUS_ADDRESS=/dev/null"}
 			args := []string{"config", "migrate", "--source", source, "--config", target, "--recovery-dir", recovery, "--no-input", "--output=" + mode}
 			stdout, stderr, exit := runBinaryEnv(t, env, append(slices.Clone(args), "--dry-run")...)
 			if exit != 0 || stderr != "" {

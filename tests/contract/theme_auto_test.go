@@ -97,11 +97,12 @@ func TestAutomaticThemeActualMigrationAndExactRollback(t *testing.T) {
 			t.Parallel()
 			dir := t.TempDir()
 			source, target, recovery := filepath.Join(dir, "old.toml"), filepath.Join(dir, "new.toml"), filepath.Join(dir, "recovery")
-			const original = "# Retain all legacy bytes.\n[THEME]\nNAME=' AUTO '\n[[profiles]]\nname='default'\nsecret_backend='env'\n[[profiles]]\nname='unselected'\n"
+			// Every migrated profile must stay independent of native credential stores.
+			const original = "# Retain all legacy bytes.\n[THEME]\nNAME=' AUTO '\n[[profiles]]\nname='default'\nsecret_backend='env'\n[[profiles]]\nname='unselected'\nsecret_backend='env'\n"
 			if err := os.WriteFile(source, []byte(original), 0o600); err != nil {
 				t.Fatal(err)
 			}
-			env := []string{"JIRA_KEYRING=false", "COLORFGBG=0;15"}
+			env := []string{"JIRA_KEYRING=false", "COLORFGBG=0;15", "DBUS_SESSION_BUS_ADDRESS=/dev/null"}
 			args := []string{"config", "migrate", "--source", source, "--config", target, "--recovery-dir", recovery, "--no-input", "--output=" + mode}
 			stdout, stderr, exit := runBinaryEnv(t, env, append(slices.Clone(args), "--dry-run")...)
 			wantPreview := "theme"
