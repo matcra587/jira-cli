@@ -1,7 +1,7 @@
 ---
 description: >
   Go style and the lint roster golangci-lint enforces (depguard bans, the
-  two ruleguard rules, gosec posture).
+  ruleguard checks, gosec posture).
 paths:
   - "**/*.go"
 ---
@@ -72,7 +72,16 @@ checks are disabled).
 | Rule | Banned | Use instead |
 |------|--------|-------------|
 | `rawPflagDeclaration` | raw pflag setter methods (`StringVar`, `BoolVar`, …) outside `internal/cli/command/` | `command.Add*` helpers, which attach clib metadata in the same call |
-| `unwrappedBlockingCall` | Jira client calls not wrapped in a spinner/progress | `clog.Spinner(...)`/fanout progress |
+| `unwrappedBlockingCall` | current Jira client methods passed a Cobra command's context directly | `command.Spin` and its callback context |
+| `untypedEnvelopeData` | map literals passed to shared envelope writers | registered output types returned through `command.Spec` |
+| `bareRunField` | Cobra's error-discarding `Run` handler | the `RunE` adapter owned by `command.Spec` |
+
+These are syntax checks, not complete control-flow proofs. The spinner rule
+cannot trace arbitrary context variables or helper calls. Raw bare pflag methods
+such as `String` overlap with logging methods and remain outside the name-based
+rule. Typed construction, assembled-tree guardrails and output conformance tests
+check the wider contracts. Keep the spinner method list aligned with the network
+operations in `core.JiraClient`.
 
 The `internal/cli/command/` exemption exists **because** command is the
 register-and-extend wrapper layer — its `flags.go` and bundlers call the raw

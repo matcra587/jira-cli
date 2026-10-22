@@ -306,7 +306,7 @@ no page, or confuse a local output window with a complete server walk.
 ## Enforced vs advisory
 
 CI fails on: raw pflag declarations outside command (`rawPflagDeclaration`),
-unwrapped blocking Jira calls (`unwrappedBlockingCall`), `log`/`log/slog`
+Jira methods passed a command's context directly (`unwrappedBlockingCall`), `log`/`log/slog`
 imports (depguard), direct process-stream references in command packages,
 discarded output-helper results and `Run` handlers that cannot return errors.
 The last three are path-aware AST guardrails rather than ruleguard rules;

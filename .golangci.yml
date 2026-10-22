@@ -40,7 +40,7 @@ linters:
     - gocheckcompilerdirectives  # catch malformed //go: build-tag directives
     - testifylint                # idiomatic testify assertions
 
-    # gocritic is enabled ONLY to run our ruleguard rule (see settings below);
+    # gocritic is enabled ONLY to run our ruleguard rules (see settings below);
     # all its tag-grouped style/diagnostic checks stay off, so it adds no noise.
     - gocritic
 
@@ -222,7 +222,7 @@ linters:
       check-blank: true
 
     gocritic:
-      # gocritic is enabled solely to run the custom ruleguard rule. disable-all
+      # gocritic is enabled solely to run the custom ruleguard rules. disable-all
       # turns off every built-in check (the team deferred gocritic's style /
       # diagnostic checks as noisy); only ruleguard is re-enabled.
       disable-all: true
@@ -312,10 +312,6 @@ linters:
       - path: '^internal/cli/command/'
         linters:
           - gocritic
-      # 0.15 carried per-file G304 exceptions (stdin, editor round-trip, cache,
-      # docs generator, alias/config loaders). None of those files exist yet on
-      # 0.16; each exception is re-justified and re-added when its file is
-      # rebuilt, never carried on faith.
 
 issues:
   max-issues-per-linter: 50
