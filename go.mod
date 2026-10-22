@@ -1,7 +1,7 @@
 module github.com/matcra587/jira-cli
 
 // @clover: constraint=minor tags=go
-go 1.27.1
+go 1.27.3
 
 require (
 	charm.land/bubbles/v2 v2.2.1

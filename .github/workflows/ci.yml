@@ -96,7 +96,7 @@ jobs:
       contents: read
     with:
       # clover: provider=github repository=golangci/golangci-lint constraint=major
-      golangci-version: v2.13.2
+      golangci-version: v2.14.0
       test-args: '-shuffle=on -count=1 ./...'
 
   md-lint:

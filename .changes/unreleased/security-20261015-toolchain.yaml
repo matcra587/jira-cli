@@ -1,0 +1,3 @@
+kind: security
+body: "Build with Go 1.27.3 and require the patched compiler for source installations."
+time: 2026-10-15T03:04:56.184364315-04:00
