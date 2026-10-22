@@ -115,8 +115,9 @@ documented raw-output exception and emit identical bytes in every output mode.
 *   File tasks own native `# [MISE]`/`# [USAGE]` metadata; `tasks.toml` owns
     direct commands and ordered orchestration. Keep parsed values in quoted
     `usage_*` variables. Build through Go's cache without timestamp skipping,
-    tidy before checks, and finish formatting before Go lint fixes. Python
-    tooling uses uv and Python 3.14; exercise `mise run test:tasks`.
+    tidy before building, and keep acceptance builds, lint and race phases
+    separate in CI. Finish formatting before Go lint fixes. Python tooling
+    uses uv and Python 3.14; exercise `mise run test:tasks`.
 *   `tasks.toml` defines `mise run check`, `test`, `test:race`, `test:matrix`,
     `audit`, `test:live:guards`, and the wider `ci` gate. Native platform gates
     have explicit host requirements. Cross-compilation does not prove native

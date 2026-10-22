@@ -111,6 +111,9 @@ jobs:
           install_args: --locked
           cache: true
 
+      - name: Build before acceptance guards
+        run: mise run build
+
       - name: Run acceptance guards
         run: 'mise run test:matrix ::: test:live:guards ::: test:hooks'
 

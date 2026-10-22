@@ -22,9 +22,16 @@ unknown_flags "error"
 flag "-h --help" help="Show task help"
 '''
 # Finish manifest publication before checks read the module graph.
+# Build before acceptance, then keep its bounded binary builds separate from
+# each other, the linters and race instrumentation. Cache misses must work too.
 run = [
     { task = "tidy" },
-    { tasks = ["check", "test:race", "test:matrix", "test:live:guards", "test:hooks", "test:release", "test:tasks", "audit", "workflow:lint", "security"] },
+    { task = "build" },
+    { task = "test:matrix" },
+    { task = "audit" },
+    { task = "check" },
+    { task = "test:race" },
+    { tasks = ["test:live:guards", "test:hooks", "test:release", "test:tasks", "workflow:lint", "security"] },
 ]
 
 [fix]

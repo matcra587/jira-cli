@@ -348,17 +348,21 @@ if name == 'changie' and args[:1] == ['batch'] and failure == 'batch':
                 self.assertNotEqual(result.returncode, 0)
 
     def test_serial_phases_and_failed_prerequisites(self) -> None:
+        # File tasks take precedence over inline fixtures. Replace the build
+        # owner here so its ordering and failure can be observed independently.
+        (self.root / ".mise/tasks/build").unlink()
         cases = {
             "ci": [
                 "tidy",
+                "build",
+                "test:matrix",
+                "audit",
                 "check",
                 "test:race",
-                "test:matrix",
                 "test:live:guards",
                 "test:hooks",
                 "test:release",
                 "test:tasks",
-                "audit",
                 "workflow:lint",
                 "security",
             ],
@@ -366,13 +370,15 @@ if name == 'changie' and args[:1] == ['batch'] and failure == 'batch':
             "release:preflight": ["ci", "release:check", "release:build"],
         }
         for parent, children in cases.items():
-            for failed in (False, True):
-                with self.subTest(parent=parent, failed=failed):
+            serial_count = {"ci": 6, "release:preflight": 3}.get(parent, 1)
+            failed_indices = (None, *range(serial_count))
+            for failed_index in failed_indices:
+                with self.subTest(parent=parent, failed_index=failed_index):
                     self.trace.unlink(missing_ok=True)
                     tasks = {parent: TASKS[parent]}
                     for index, child in enumerate(children):
                         command = f"printf '%s\\n' {shlex.quote(child)} >> {shlex.quote(str(self.trace))}"
-                        if failed and index == 0:
+                        if index == failed_index:
                             command += "\nexit 37"
                         tasks[child] = {"run": command}
                     self.write_config({"tasks": tasks})
@@ -380,16 +386,18 @@ if name == 'changie' and args[:1] == ['batch'] and failure == 'batch':
                     observed = self.trace.read_text().splitlines()
                     self.assertEqual(
                         result.returncode == 0,
-                        not failed,
+                        failed_index is None,
                         result.stdout + result.stderr,
                     )
                     self.assertEqual(observed[0], children[0])
-                    self.assertEqual(
-                        set(observed), set(children[:1] if failed else children)
+                    expected = (
+                        children if failed_index is None else children[: failed_index + 1]
                     )
-                    self.assertEqual(len(observed), 1 if failed else len(children))
-                    if parent == "release:preflight" and not failed:
-                        self.assertEqual(observed, children)
+                    self.assertEqual(set(observed), set(expected))
+                    self.assertEqual(len(observed), len(expected))
+                    self.assertEqual(
+                        observed[:serial_count], expected[:serial_count]
+                    )
 
 
 if __name__ == "__main__":

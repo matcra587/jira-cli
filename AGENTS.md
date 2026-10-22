@@ -74,8 +74,8 @@ values in quoted `usage_*` variables, and test ordering/refusal paths through
 `mise run test:tasks`. Python tooling runs through uv on Python 3.14.
 
 *   `mise run check`: formatting checks, lint, Markdown lint, vet and untagged tests.
-*   `mise run ci`: tidy followed by check, race, matrix, hermetic live guards,
-    hook/release/task checks, output audit, workflow lint and security.
+*   `mise run ci`: tidy, build, matrix, output audit, check and race in order;
+    then hermetic live guards, hook/release/task checks, workflow lint and security.
 *   `mise run audit`: the hermetic output-conformance matrix against the real binary.
 *   `mise exec -- go generate ./internal/jira ./internal/adf`: regenerate from
     vendored pins; keep generated source and freshness checks aligned.
