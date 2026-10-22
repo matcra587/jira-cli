@@ -1,3 +1,0 @@
-kind: changed
-body: "Protect settings, caches, downloads and drafts with bound file/directory identities and retained publication outcomes. Preserve literal Windows junction paths and trailing-dot/space names, refuse substituted nonregular inputs, and retain existing attachment files after failed downloads or pre-publication overwrite failures. A later durability failure retains the acknowledged new file; inspect its receipt before retrying."
-time: 2026-10-02T12:11:15.510965858-04:00

@@ -1,3 +1,0 @@
-kind: added
-body: "Add `issue view --comments N` for the latest N inline comments: the default is one, and `--comments 0` shows only a count hint. Reuse embedded pages where sufficient; supplemental preview reads are human-output work. Explicit `--comments` takes precedence over comment field selection, and embedded-page shortfalls stay visible instead of claiming a complete thread."
-time: 2026-08-05T11:37:53.868603824-04:00

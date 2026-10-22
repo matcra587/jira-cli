@@ -1,3 +1,0 @@
-kind: changed
-body: "Retain selected project/type/board defaults, client refresh/team metadata, cached account scope and automatic themes through versioned migration policies. Fill only absent create fields across `fields`/`update`, never edit/clone; explicit empty flags suppress defaults. Require typed TOML team arrays or strict JSON string arrays for environment/argv, preserving order, duplicates, commas and explicit empty arrays. Retain legacy nonpositive refresh fallback of 30 seconds while requiring positive current values. Retention adds no implicit polling or team filtering."
-time: 2026-10-13T06:32:00-04:00

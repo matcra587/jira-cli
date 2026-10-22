@@ -2006,24 +2006,38 @@ func checkSuccessSchemaTruth(cap Capture, m command.Meta) (bool, string) {
 			return false, "latest release notes must contain one structured release"
 		}
 		release, ok := releases[0].(map[string]any)
-		if !ok || release["version"] != "0.15.2" || release["tag"] != "v0.15.2" || release["date"] != "2026-07-28" || release["url"] != "https://github.com/matcra587/jira-cli/releases/tag/v0.15.2" {
+		if !ok || release["version"] != "0.16.0-beta.0" || release["tag"] != "v0.16.0-beta.0" || release["date"] != "2026-10-21" || release["url"] != "https://github.com/matcra587/jira-cli/releases/tag/v0.16.0-beta.0" {
 			return false, "latest release notes lost embedded version or heading metadata"
 		}
+		wantSections := []struct {
+			kind  string
+			count int
+		}{
+			{kind: "Breaking Changes", count: 19},
+			{kind: "Added", count: 19},
+			{kind: "Changed", count: 29},
+			{kind: "Fixed", count: 2},
+			{kind: "Removed", count: 5},
+			{kind: "Security", count: 2},
+			{kind: "Dependencies", count: 1},
+		}
 		sections, ok := release["sections"].([]any)
-		if !ok || len(sections) != 1 {
+		if !ok || len(sections) != len(wantSections) {
 			return false, "latest release notes lost its change sections"
 		}
-		section, ok := sections[0].(map[string]any)
-		if !ok || section["kind"] != "Fixed" {
-			return false, "latest release notes lost its change kind"
-		}
-		changes, ok := section["changes"].([]any)
-		if !ok || len(changes) != 3 {
-			return false, "latest release notes lost its three change entries"
-		}
-		for _, change := range changes {
-			if text, ok := change.(string); !ok || strings.TrimSpace(text) == "" {
-				return false, "release notes carry an empty or invalid change entry"
+		for i, want := range wantSections {
+			section, ok := sections[i].(map[string]any)
+			if !ok || section["kind"] != want.kind {
+				return false, "latest release notes lost its ordered change kinds"
+			}
+			changes, ok := section["changes"].([]any)
+			if !ok || len(changes) != want.count {
+				return false, "latest release notes lost change entries"
+			}
+			for _, change := range changes {
+				if text, ok := change.(string); !ok || strings.TrimSpace(text) == "" {
+					return false, "release notes carry an empty or invalid change entry"
+				}
 			}
 		}
 		return true, ""

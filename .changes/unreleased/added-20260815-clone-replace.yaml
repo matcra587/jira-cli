@@ -1,3 +1,0 @@
-kind: added
-body: "Add repeatable `issue clone --replace old=new`, applied in order after field overrides to the final summary only. Warn on unmatched replacements; do not rewrite descriptions or arbitrary custom fields. JSON clone overrides and custom-field copying already existed."
-time: 2026-08-15T11:36:40.512719773-04:00

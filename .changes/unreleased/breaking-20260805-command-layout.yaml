@@ -1,3 +1,0 @@
-kind: breaking
-body: "Use explicit resource subcommands: `boards list`, `issue comment add`, `issue weblink add` and `issue transition list`. Replace `search jql QUERY` with `issue list --jql QUERY` and `search saved NAME` with `issue list --saved NAME`. Replace `issue watch KEY` / `issue unwatch KEY` with `issue watchers add KEY --user @me` / `issue watchers remove KEY --user @me`. Runtime help and schema describe the new paths and operation-specific receipts."
-time: 2026-08-05T08:42:29.858687721-04:00

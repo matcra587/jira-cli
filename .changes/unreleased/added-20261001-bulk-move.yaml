@@ -1,3 +1,0 @@
-kind: added
-body: "Add native asynchronous `issue move` with exact bulk payloads, submission/task receipts, bounded `--wait`/`--max-polls` observation and `issue move status` to resume reads without resubmitting. Validate source/destination identities and retain acknowledgements on polling failure. Use `issue move fields` for the former confirmed field-payload operation; previewing a payload does not establish remote acceptance or completed movement."
-time: 2026-10-01T21:10:41.824944581-04:00

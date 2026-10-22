@@ -1,3 +1,0 @@
-kind: added
-body: "Add local `adf edit prepare`, `apply` and `merge` to preserve protected native ADF through anchored Markdown edits and refuse conflicts without partial candidates. These commands do not write to Jira."
-time: 2026-10-02T03:55:44.234164528-04:00

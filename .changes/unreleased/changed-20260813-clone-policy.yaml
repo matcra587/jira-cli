@@ -1,3 +1,0 @@
-kind: changed
-body: "Identify rank fields through their native schema instead of dropping any custom-field string that resembles a rank token. Preserve ordinary matching text, assignee and eligible custom fields while retaining lifecycle exclusions. Explicit-key cloning no longer requires blanket destructive confirmation; selector-based cloning still confirms its resolved scope. Local previews do not claim copied fields they have not read."
-time: 2026-08-13T03:58:53.479635296-04:00

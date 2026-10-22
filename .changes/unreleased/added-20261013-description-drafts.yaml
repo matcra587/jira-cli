@@ -1,3 +1,0 @@
-kind: added
-body: "Add `issue edit prepare`, `draft`, `inspect` and `resume` for descriptions bound to immutable issue ID, site/account and authenticated API route. Preserve exact source bytes, null and unknown ADF state; keep saved Markdown and source before publishing a manifest and never overwrite existing members. Inspection stays local unless `--refresh` requests a bound reread. Editor operations require a terminal before credentials/artifacts; previews publish nothing and launch no editor. These commands produce candidates, not Jira writes or concurrency protection."
-time: 2026-10-13T15:07:00-04:00

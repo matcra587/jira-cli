@@ -16,16 +16,21 @@ import (
 )
 
 type parityReleaseNotesFixture struct {
-	Header   string
-	Releases []map[string]json.RawMessage
+	Header          string
+	Releases        []map[string]json.RawMessage
+	CurrentReleases []map[string]json.RawMessage `json:"current_releases"`
 }
 
 func parityReleaseNotesFixtures(t *testing.T) parityReleaseNotesFixture {
 	t.Helper()
 	raw, err := os.ReadFile("testdata/parity-release-notes-oracles.json")
 	var fixture parityReleaseNotesFixture
-	if err != nil || !jsontext.Value(raw).IsValid() || json.Unmarshal(raw, &fixture) != nil || fixture.Header != "# Release Notes" || len(fixture.Releases) != 61 {
+	if err != nil || !jsontext.Value(raw).IsValid() || json.Unmarshal(raw, &fixture) != nil || fixture.Header != "# Release Notes" || len(fixture.Releases) != 61 || len(fixture.CurrentReleases) != 1 {
 		t.Fatal("independent release-note source fixtures unavailable")
+	}
+	var latest string
+	if json.Unmarshal(fixture.CurrentReleases[0]["version"], &latest) != nil || latest != "0.16.0-beta.0" {
+		t.Fatal("current release-note source fixture has an unexpected version")
 	}
 	return fixture
 }
@@ -66,12 +71,21 @@ func parityReleaseNotesExpected(t *testing.T, fixture parityReleaseNotesFixture,
 }
 
 func TestParityActualBinaryReleaseNotes(t *testing.T) {
-	fixture := parityReleaseNotesFixtures(t)
+	fixtures := parityReleaseNotesFixtures(t)
 	evidence := parityLocalEvidence{Checks: make(map[string][]string)}
 	for _, lane := range []struct{ name, binary, digest string }{{"before", os.Getenv("JIRA_PARITY_BEFORE_BINARY"), os.Getenv("JIRA_PARITY_BEFORE_SHA256")}, {"after", os.Getenv("JIRA_LIVE_BINARY"), os.Getenv("JIRA_PARITY_AFTER_SHA256")}} {
 		t.Run(lane.name, func(t *testing.T) {
 			if lane.binary == "" {
 				t.Skip("requires selected actual binary")
+			}
+			fixture := fixtures
+			if lane.name == "after" {
+				current := append([]map[string]json.RawMessage{}, fixtures.CurrentReleases...)
+				fixture.Releases = append(current, fixtures.Releases...)
+			}
+			var latest string
+			if json.Unmarshal(fixture.Releases[0]["version"], &latest) != nil || latest == "" {
+				t.Fatal("release-note source fixture has no latest version")
 			}
 			var calls atomic.Int32
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -84,8 +98,8 @@ func TestParityActualBinaryReleaseNotes(t *testing.T) {
 				args          []string
 			}{
 				{"history", "", []string{"release-notes"}},
-				{"latest", "0.15.2", []string{"release-notes", "--latest"}},
-				{"version", "0.15.2", []string{"release-notes", "0.15.2"}},
+				{"latest", latest, []string{"release-notes", "--latest"}},
+				{"version", latest, []string{"release-notes", latest}},
 				{"prefixed-version", "0.7.7", []string{"release-notes", "v0.7.7"}},
 				{"alias", "0.7.7", []string{"rn", "0.7.7"}},
 				{"trimmed-version", "0.7.7", []string{"release-notes", " \tv0.7.7\n"}},

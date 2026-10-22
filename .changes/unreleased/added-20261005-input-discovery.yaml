@@ -1,3 +1,0 @@
-kind: added
-body: "Add create/edit `--generate-json` to inspect complete native screen metadata and produce separate fillable request skeletons without submitting changes. Keep metadata and placeholders distinct from validated input."
-time: 2026-10-05T08:11:51.96832219-04:00

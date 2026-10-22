@@ -1,3 +1,0 @@
-kind: changed
-body: "Render issues, comments and ADF through shared terminal views with status-category pills, Jira priority indicators and width-aware wrapping. Preserve complete text in narrow rows, labeled fields and section titles; align counts and columns by display width. Sanitize untrusted names, text and links while keeping machine data native. Preserve native mentions/emoji, layouts, expanded content and task/decision state rather than presenting their existing basic support as a new feature."
-time: 2026-08-02T16:17:21.243276492-04:00

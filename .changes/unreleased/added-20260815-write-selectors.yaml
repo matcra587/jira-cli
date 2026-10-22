@@ -1,3 +1,0 @@
-kind: added
-body: "Add `--jql`, saved-filter-ID `--filter` and `--from-file` selectors on issue edit, delete, transition, clone and comment add. Selectors are exclusive with one another and positional keys. Resolve and display the complete unique target set before confirmation; refuse more than 100 selector targets or incomplete searches. Bare query previews report unresolved targets, while `--dry-run --validate-remote` resolves without writing. File selectors stay local, literal and deduplicated."
-time: 2026-08-15T12:08:27.752591052-04:00

@@ -1,3 +1,0 @@
-kind: changed
-body: "Expand native ADF status colors beyond the six named values to exact `#RRGGBB` values, including mixed-case hex. Refuse shorthand, alpha, missing-hash and whitespace-padded colors; preserve native attributes separately from optional Markdown status authoring."
-time: 2026-10-01T02:59:58.96531439-04:00

@@ -1,3 +1,0 @@
-kind: changed
-body: "Supervise editors and accessible/pipe input with cancellation, exact terminal/descriptor restoration and recoverable saved work. Keep prompt text on stderr for machine modes; refuse incomplete EOF answers and publishing partial answers after cancellation. Preserve literal editor argv, early executable validation and actual process outcomes. Native Windows console/pipe ownership and Unix flags/deadlines remain separate platform paths; cross-compilation alone is not native behavior evidence."
-time: 2026-10-02T09:08:03.818857614-04:00

@@ -1,3 +1,0 @@
-kind: added
-body: "Add the CLI `glyphs=default|nerd` setting, including Powerline status-pill caps and aligned pill widths. Reject invalid values while accepting case/space-normalized spellings. Existing TUI Nerd Font/icon preferences did not provide this CLI setting."
-time: 2026-08-07T00:07:06.508371593-04:00

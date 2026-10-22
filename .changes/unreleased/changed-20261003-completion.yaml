@@ -1,3 +1,0 @@
-kind: changed
-body: "Improve Bash, Zsh, Fish, PowerShell and Elvish completion for literal filenames, Unicode, inline values, quoted CSV and directory continuation. Separate candidate identity from display descriptions and transport literal argv without shell evaluation. Include contextual attachment/theme/source paths, nested help, human columns and scoped cached metadata. Handle legacy Bash quoting/spacing, Fish version differences, PowerShell host encoding and Elvish Windows callbacks explicitly. Generator availability does not establish native acceptance on every host or Nushell acceptance."
-time: 2026-10-03T22:30:21.215653424-04:00

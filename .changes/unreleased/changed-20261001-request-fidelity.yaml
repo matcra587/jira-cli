@@ -1,3 +1,0 @@
-kind: changed
-body: "Preserve complete native request members beyond `fields`/`update`, including `properties`, `historyMetadata`, transition data and unknown extensions. Keep explicit empty containers and property-only edits; refuse malformed known containers and field/input collisions before Jira. Native field input existed before, but the old field-only extraction discarded these sibling request members."
-time: 2026-10-01T14:43:45.386125712-04:00

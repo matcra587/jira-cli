@@ -1,3 +1,0 @@
-kind: changed
-body: "Retain ordered per-target data, created resource IDs, attempted work and native acknowledgements after failures or interruption across issue resources and worklogs. Keep issue-link directions, attachment/web-link identities and source/new-clone identities explicit. Preserve incomplete usable acknowledgements instead of inventing complete resources or no effect. Inspect uncertain outcomes before further writes; do not replay an entire batch or automatically roll back acknowledged work."
-time: 2026-10-01T06:14:15.863822707-04:00
