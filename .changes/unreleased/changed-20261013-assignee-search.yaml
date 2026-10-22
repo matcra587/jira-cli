@@ -1,3 +1,0 @@
-kind: changed
-body: "Retain bare assignee email support while replacing a single search page with a complete bounded visible-user walk. Refuse ambiguous, duplicate, malformed, incomplete or exhausted search windows instead of choosing a partial match. Local previews retain unresolved email with a warning; live or explicit remote validation resolves it. Privacy-hidden email remains native and lookup does not establish exact email equality or assignability."
-time: 2026-10-13T22:48:01.442556307-04:00

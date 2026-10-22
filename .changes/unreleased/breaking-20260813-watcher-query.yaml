@@ -1,3 +1,0 @@
-kind: breaking
-body: "Replace legacy watcher name/email `--user` lookup with explicit `--user-query NAME_OR_EMAIL`. `--user` now takes a literal account ID or `@me` and cannot combine with `--user-query`. Explicit `--validate-remote` on an ID checks that exact active, nondeleted account. Query lookup requires a complete unique visible match; it does not prove exact email equality or assignability."
-time: 2026-08-13T02:35:33-04:00

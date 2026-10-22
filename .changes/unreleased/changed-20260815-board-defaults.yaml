@@ -1,3 +1,0 @@
-kind: changed
-body: "Resolve configured default boards only from existing public snapshots in the selected account namespace, preserving site/name spelling and case-insensitive name lookup without guessing IDs. Refuse ambiguous identities, malformed matching records, incomplete inventories and cancellation. Structured list/mine inherits project only without raw/saved query or active board; local JQL keeps its independent grammar. Live use binds the snapshot site/account to the constructed client; local missing-cache refusal remains credential-free."
-time: 2026-08-15T12:34:51.912404921-04:00

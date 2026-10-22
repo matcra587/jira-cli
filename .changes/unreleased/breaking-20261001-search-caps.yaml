@@ -1,3 +1,0 @@
-kind: breaking
-body: "Change the bounded issue-search drain from 100 pages / 10,000 issues to 50 pages / 5,000 issues. Existing `--unbounded` removes those safety caps explicitly; it is not a new flag. Keep truncation and continuation receipts visible instead of treating the cap as a completed search."
-time: 2026-10-01T18:23:24-04:00

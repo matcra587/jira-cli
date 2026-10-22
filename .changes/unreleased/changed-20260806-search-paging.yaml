@@ -1,3 +1,0 @@
-kind: changed
-body: "Retain native page metadata, explicit truncation/continuation and validated partial results after later failures. Walk advancing cursors through empty pages; reject repeated or malformed pages. Refuse selector-driven writes unless their complete unique target set is known. Separate requested output windows, fetched rows, count estimates and authoritative completion; do not infer the end of a collection from a short or empty page alone."
-time: 2026-08-06T20:29:05.270715941-04:00

@@ -1,3 +1,0 @@
-kind: breaking
-body: "Refuse CSV flag inputs that discard records or normalize line endings before uploads or mutations. Preserve quoted literal LF/CR only when the codec can represent it unchanged; use repeated flags or a literal input route for otherwise unrepresentable values. Shell quoting/completion does not waive this input contract."
-time: 2026-10-05T13:57:46.834254326-04:00

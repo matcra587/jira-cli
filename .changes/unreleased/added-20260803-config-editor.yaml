@@ -1,3 +1,0 @@
-kind: added
-body: "Add `config edit` with a validated scratch candidate, changed-source refusal and retained rejected edits for recovery. Its credential-free `--dry-run` reports the selected file/editor without opening anything. Live editing requires an interactive terminal; failed or canceled editors preserve saved work instead of silently replacing the original settings."
-time: 2026-08-03T00:12:13.450410992-04:00

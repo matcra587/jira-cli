@@ -95,7 +95,7 @@ func TestReleaseNotesBinaryRefusesInvalidSelectionsAndRecovers(t *testing.T) {
 		}
 	}
 	stdout, _, exit := runBinary(t, "release-notes", "--latest", "--output=json")
-	if exit != 0 || !strings.Contains(stdout, `"tag":"v0.15.2"`) {
+	if exit != 0 || !strings.Contains(stdout, `"tag":"v0.16.0-beta.0"`) {
 		t.Fatal("documented recovery command did not select newest release")
 	}
 }
@@ -103,7 +103,7 @@ func TestReleaseNotesBinaryRefusesInvalidSelectionsAndRecovers(t *testing.T) {
 func TestReleaseNotesBinaryDiscoveryHelpCompletionAndJQ(t *testing.T) {
 	t.Parallel()
 	stdout, _, exit := runBinary(t, "release-notes", "--latest", "--output=json", "--jq=.data.releases[0].version")
-	if exit != 0 || stdout != "0.15.2\n" {
+	if exit != 0 || stdout != "0.16.0-beta.0\n" {
 		t.Fatalf("release projection failed: %d %q", exit, stdout)
 	}
 	help, _, exit := runBinary(t, "rn", "--help")
@@ -111,7 +111,7 @@ func TestReleaseNotesBinaryDiscoveryHelpCompletionAndJQ(t *testing.T) {
 		t.Fatal("release alias help missing selection or paging policy")
 	}
 	stdout, _, exit = runBinary(t, "--@complete=release", "--", "release-notes")
-	if exit != 0 || !strings.Contains(stdout, "0.15.2\t2026-07-28") || !strings.Contains(stdout, "0.1.0\t") {
+	if exit != 0 || !strings.Contains(stdout, "0.16.0-beta.0\t2026-10-21") || !strings.Contains(stdout, "0.15.2\t2026-07-28") || !strings.Contains(stdout, "0.1.0\t") {
 		t.Fatalf("release completion missing actual embedded versions: %d %q", exit, stdout)
 	}
 }

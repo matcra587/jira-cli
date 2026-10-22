@@ -1,3 +1,0 @@
-kind: added
-body: "Add local `adf validate`, `adf lint` and `adf explain-node` for bounded native validation, schema hashes, diagnostic locations and context-definition inspection. Valid native documents may still have projection warnings and exit 0; inspect `projection_available` and diagnostics rather than treating absent projection as a clean one. These commands require no Jira credentials or requests."
-time: 2026-10-04T13:33:20.018351103-04:00

@@ -1,3 +1,0 @@
-kind: added
-body: "Add explicit platform/Agile `api` methods with local previews, literal repeated queries, exact body bytes, explicit HTTP preconditions and bounded response capture. Retain permitted headers and exact opaque/binary/empty response bytes, incomplete captures and failure receipts without exposing credential/cookie headers. Distinguish HTTP 412 and attempted work from actual HTTP entry. A precondition protects a write only when the remote server enforces it; a later read or local merge is not server-enforced protection."
-time: 2026-10-01T05:19:34.148102798-04:00

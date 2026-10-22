@@ -1,3 +1,0 @@
-kind: changed
-body: "Replace create/edit verification projections with sorted `verified.fields` rows reporting matches, differs or unverified and native observed values. Read requested field/update IDs plus shared status/summary/updated once; distinguish absent/null states and exact numeric spelling. Compare complete membership for collection replacement and supported final membership for add/remove without rejecting untouched members. Unknown/ambiguous updates, unavailable fields and different ADF remain unverified. Retain acknowledged writes and warnings after failed readback; a later difference neither proves a Jira drop nor prevents concurrent changes."
-time: 2026-10-13T20:55:03.112774117-04:00

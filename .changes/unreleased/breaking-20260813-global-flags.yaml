@@ -1,3 +1,0 @@
-kind: breaking
-body: "Use canonical `--output` instead of `-o`. Select a named profile with `--profile` or `-P`, independently of the file selected by `--config`. Review command help for renamed flags and explicit operation subcommands before reusing older scripts."
-time: 2026-08-13T22:01:51.519663546-04:00

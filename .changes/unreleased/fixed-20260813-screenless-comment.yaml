@@ -1,3 +1,0 @@
-kind: fixed
-body: "Allow one transition invocation to change status and post a comment when the workflow has no transition screen. Report the separate non-atomic comment request, preserve a successful status change if the comment fails, and offer `--atomic-only` to refuse the split."
-time: 2026-08-13T01:53:54.375880778-04:00

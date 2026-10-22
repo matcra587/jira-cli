@@ -1,3 +1,0 @@
-kind: removed
-body: "Remove automatic description submission from bare `issue edit`. Supply authored changes or use explicit description preparation and draft commands; draft editing does not apply changes to Jira."
-time: 2026-08-02T00:03:00-04:00

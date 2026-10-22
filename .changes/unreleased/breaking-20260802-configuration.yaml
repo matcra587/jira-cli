@@ -1,3 +1,0 @@
-kind: breaking
-body: "Use versioned named profile tables with stable credential references. Select a profile with `--profile` or `JIRA_PROFILE` and a file with `--config`. Existing flat settings remain readable. Convert legacy configurations with `config migrate --source FILE`, retaining all profiles by default; `--source-profile NAME` limits input. Use explicit `api_token_env` references instead of implicit profile-derived token variables."
-time: 2026-08-02T23:35:48.139992899-04:00

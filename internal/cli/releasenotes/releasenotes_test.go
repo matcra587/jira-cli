@@ -21,7 +21,7 @@ func TestReleaseNotesSelection(t *testing.T) {
 		tag    string
 	}{
 		{name: "history"},
-		{name: "latest", latest: true, tag: "v0.15.2"},
+		{name: "latest", latest: true, tag: "v0.16.0-beta.0"},
 		{name: "version", query: "0.7.7", tag: "v0.7.7"},
 		{name: "tag", query: "v0.7.7", tag: "v0.7.7"},
 	} {
@@ -50,7 +50,7 @@ func TestReleaseNotesRefusalAndRecovery(t *testing.T) {
 		latest  bool
 		message string
 	}{
-		{query: "missing", message: "available: 0.15.2"},
+		{query: "missing", message: "available: 0.16.0-beta.0"},
 		{query: "0.7.7", latest: true, message: "pass a version or --latest, not both"},
 	} {
 		got, err := buildOutput(tc.query, tc.latest)

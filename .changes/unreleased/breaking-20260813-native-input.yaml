@@ -1,3 +1,0 @@
-kind: breaking
-body: "Retain native Jira `fields`/`update` input, but remove the former flat convenience-key aliases and implicit scalar coercion from mutation payloads. Use explicit wire objects or `issue input prepare` with metadata; numeric-looking strings never imply an ID. Refuse fields supplied by both JSON and flags across either container. Repeatable edit collection flags add values, matching `--remove-*` flags remove them, and native JSON performs whole-list replacement; a value in both add/remove sets is refused."
-time: 2026-08-13T02:50:37.922048422-04:00

@@ -1,3 +1,0 @@
-kind: removed
-body: "Remove the former global `--debug` / `-d` HTTP trace surface from this layout. Existing trace-capture scripts must change; JSON envelopes and retained operation receipts are not a replacement for a request/response trace."
-time: 2026-08-02T00:03:00-04:00

@@ -1,3 +1,0 @@
-kind: changed
-body: Group the concealed JSON credential in a Jira CLI section and tag new 1Password login items jira-cli. Preserve existing item sections, tags and unrelated fields; organisational metadata never establishes credential ownership.
-time: 2026-10-17T17:40:56.082141245-04:00
