@@ -726,6 +726,9 @@ then unmarshal stdout as the envelope:
 *   Route command execution through the compile-once `jiraBinary` helper
     (`tests/contract/version_test.go`), never `go run`/`go build` the CLI per
     test — a per-test compile dominates suite wall time.
+*   Acquire compiled binaries before starting per-command deadlines. Keep the
+    build's own deadline separate so a cold cache cannot exhaust the command's
+    runtime budget before execution begins.
 *   Assert envelope fields **structurally** — unmarshal into a target and
     check fields; never string-match whole JSON blobs.
 *   Error paths assert the error envelope arrives on **stdout** with the

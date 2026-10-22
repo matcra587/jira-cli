@@ -55,9 +55,10 @@ func TestCommentSectionActualTerminalRetainsTitleWithinWidth(t *testing.T) {
 				t.Fatal(err)
 			}
 			dir := t.TempDir()
+			bin := jiraBinary(t)
 			ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 			defer cancel()
-			cmd := exec.CommandContext(ctx, jiraBinary(t), "issue", "comment", "list", "KEY-1", "--limit=100", "--output=human", "--color="+tc.color)
+			cmd := exec.CommandContext(ctx, bin, "issue", "comment", "list", "KEY-1", "--limit=100", "--output=human", "--color="+tc.color)
 			cmd.Dir = dir
 			cmd.Env = append(searchEnv(server.URL), "PATH="+os.Getenv("PATH"), "HOME="+dir, "TERM=xterm-256color", "COLORTERM=truecolor")
 			if tc.noColor {

@@ -124,9 +124,10 @@ type mx3Result struct {
 // run — which is what makes the --force refusal below reachable.
 func mx3Run(t *testing.T, workdir, baseURL string, args ...string) mx3Result {
 	t.Helper()
+	bin := mx3Binary(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, mx3Binary(t), args...)
+	cmd := exec.CommandContext(ctx, bin, args...)
 	cmd.Dir = workdir
 	cmd.Env = mx3Env(workdir, baseURL)
 	cmd.Stdin = strings.NewReader("")

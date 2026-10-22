@@ -58,9 +58,10 @@ func TestIssueViewActualTerminalRetainsRowsWithinWidth(t *testing.T) {
 				t.Fatal(err)
 			}
 			dir := t.TempDir()
+			bin := jiraBinary(t)
 			ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 			defer cancel()
-			cmd := exec.CommandContext(ctx, jiraBinary(t), "issue", "view", "KEY-1", "--comments=0", "--output=human", "--color="+tc.color)
+			cmd := exec.CommandContext(ctx, bin, "issue", "view", "KEY-1", "--comments=0", "--output=human", "--color="+tc.color)
 			cmd.Dir = dir
 			cmd.Env = append(searchEnv(server.URL), "PATH="+os.Getenv("PATH"), "HOME="+dir, "TERM=xterm-256color", "COLORTERM=truecolor")
 			if tc.noColor {

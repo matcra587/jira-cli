@@ -52,9 +52,10 @@ func TestADFReadableActualTerminalRetainsNativeText(t *testing.T) {
 			if err := os.WriteFile(input, []byte(native), 0o600); err != nil {
 				t.Fatal(err)
 			}
+			bin := jiraBinary(t)
 			ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 			defer cancel()
-			cmd := exec.CommandContext(ctx, jiraBinary(t), "adf", "render", "--input", input, "--output=human", "--color="+tc.color)
+			cmd := exec.CommandContext(ctx, bin, "adf", "render", "--input", input, "--output=human", "--color="+tc.color)
 			cmd.Dir = dir
 			cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + dir, "JIRA_KEYRING=false", "TERM=xterm-256color", "COLORTERM=truecolor", "HTTP_PROXY=http://127.0.0.1:1", "HTTPS_PROXY=http://127.0.0.1:1"}
 			if tc.noColor {

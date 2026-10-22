@@ -19,6 +19,7 @@ import (
 
 func aliasHelpTerminal(t *testing.T, env, args []string) string {
 	t.Helper()
+	bin := jiraBinary(t)
 	master, slave := editorPTY(t)
 	if err := unix.IoctlSetWinsize(int(slave.Fd()), unix.TIOCSWINSZ, &unix.Winsize{Row: 40, Col: 120}); err != nil {
 		t.Fatal(err)
@@ -34,7 +35,7 @@ func aliasHelpTerminal(t *testing.T, env, args []string) string {
 	}()
 	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, jiraBinary(t), args...)
+	cmd := exec.CommandContext(ctx, bin, args...)
 	cmd.Dir = t.TempDir()
 	cmd.Env = append([]string{
 		"PATH=" + os.Getenv("PATH"), "HOME=" + cmd.Dir,
