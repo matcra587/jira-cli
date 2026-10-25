@@ -1,0 +1,3 @@
+kind: dependencies
+body: Update Go dependencies and tool modules, including clib 0.8.2, koanf 2.4.1 and docent 0.4.1, and refresh transitive dependencies.
+time: 2026-10-25T19:17:03.75480463-04:00
