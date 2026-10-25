@@ -28,7 +28,12 @@ func TestUpdateProcessCancelsDescendants(t *testing.T) {
 		finished <- err
 	}()
 	// Always join the owned runner, including a readiness assertion failure.
-	defer func() { cancel(); <-finished }()
+	defer func() {
+		cancel()
+		if err := <-finished; err != nil {
+			t.Logf("update runner cleanup: %v", err)
+		}
+	}()
 	var child *os.Process
 	for child == nil {
 		pidData, readErr := os.ReadFile(filepath.Join(root, "pid"))

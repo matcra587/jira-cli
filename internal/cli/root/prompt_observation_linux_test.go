@@ -73,7 +73,9 @@ func TestPromptObservationClassifiesCompletion(t *testing.T) {
 					}
 				default:
 					expired <- time.Time{}
-					<-finished
+					if err := <-finished; err != nil {
+						t.Logf("owned task cleanup: %v", err)
+					}
 					t.Fatalf("observer ignored %s completion", event)
 				}
 			})
@@ -138,7 +140,9 @@ func TestPromptObservationRechecksMarkerOnCompletion(t *testing.T) {
 					}
 				default:
 					expired <- time.Time{}
-					<-finished
+					if err := <-finished; err != nil {
+						t.Logf("owned task cleanup: %v", err)
+					}
 					t.Fatalf("observer ignored marker after %s", event)
 				}
 			})
@@ -170,7 +174,9 @@ func TestPromptObservationAcceptsChangedScreen(t *testing.T) {
 			}
 		default:
 			expired <- time.Time{}
-			<-finished
+			if err := <-finished; err != nil {
+				t.Logf("owned task cleanup: %v", err)
+			}
 			t.Fatal("observer ignored changed screen")
 		}
 	})
@@ -256,7 +262,9 @@ func TestPromptObservationAcceptsQueuedChildOutput(t *testing.T) {
 		buffer := make([]byte, len(marker))
 		if _, err := io.ReadFull(master, buffer); err != nil {
 			expired <- time.Time{}
-			<-finished
+			if err := <-finished; err != nil {
+				t.Logf("owned task cleanup: %v", err)
+			}
 			t.Fatal(err)
 		}
 		screen = string(buffer)
@@ -269,7 +277,9 @@ func TestPromptObservationAcceptsQueuedChildOutput(t *testing.T) {
 			}
 		default:
 			expired <- time.Time{}
-			<-finished
+			if err := <-finished; err != nil {
+				t.Logf("owned task cleanup: %v", err)
+			}
 			t.Fatal("observer ignored captured native marker")
 		}
 	})

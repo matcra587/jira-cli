@@ -10,31 +10,31 @@ lockfile = true
 go = "1.27.3"
 # Use the release binary locally and the same version in the shared CI workflow.
 # @clover: constraint=major tags=golangci-lint
-golangci-lint = "2.14.0"
+golangci-lint = "2.15.0"
 # @clover: constraint=major tags=actionlint
 actionlint = "1.7.12"
 # @clover: constraint=major tags=betterleaks
-betterleaks = "1.8.1"
+betterleaks = "1.9.0"
 # @clover: constraint=major tags=goreleaser
-goreleaser = "2.18.1"
+goreleaser = "2.19.0"
 # @clover: constraint=major tags=changie
 changie = "1.26.0"
 # @clover: constraint=major tag-prefix=jq- tags=jq
 jq = "1.8.2"
 # @clover: constraint=major tags=cosign
-cosign = "3.1.3"
+cosign = "3.1.4"
 # @clover: constraint=major tags=zizmor
-zizmor = "1.30.1"
+zizmor = "1.31.1"
 # @clover: constraint=major tags=rumdl
-rumdl = "0.2.71"
+rumdl = "0.3.0"
 # @clover: id=hk constraint=major tags=hk
-hk = "1.58.1"
+hk = "2.8.1"
 # @clover: constraint=major tags=pkl
-pkl = "0.32.1"
+pkl = "0.32.2"
 # @clover: constraint=major tags=shellcheck
 shellcheck = "0.11.0"
 # @clover: constraint=major tags=uv
-uv = "0.12.13"
+uv = "0.13.5"
 
 [env]
 HK_MISE = 1

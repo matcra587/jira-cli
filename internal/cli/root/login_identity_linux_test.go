@@ -125,7 +125,9 @@ func TestInteractiveLoginPreservesSDKSelection(t *testing.T) {
 	defer func() {
 		if !waited {
 			cancel()
-			<-finished
+			if err := <-finished; err != nil {
+				t.Logf("owned task cleanup: %v", err)
+			}
 		}
 	}()
 	timer := time.NewTimer(3 * time.Second)

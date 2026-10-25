@@ -77,7 +77,9 @@ func TestAccessiblePasswordTerminalContext(t *testing.T) {
 							cancel()
 							_ = master.Close()
 							_ = slave.Close()
-							<-finished
+							if err := <-finished; err != nil {
+								t.Logf("native password cleanup: %v", err)
+							}
 						}
 					}()
 					if !tc.startup {
@@ -176,7 +178,9 @@ func TestPasswordTerminalRestorationFailureRetainsCancellation(t *testing.T) {
 			cancel()
 			_ = master.Close()
 			_ = slave.Close()
-			<-finished
+			if err := <-finished; err != nil {
+				t.Logf("native password cleanup: %v", err)
+			}
 		}
 	}()
 	ready := time.NewTimer(2 * time.Second)
@@ -279,7 +283,9 @@ func TestPasswordBorrowedReadDeadline(t *testing.T) {
 				if !waited {
 					_ = master.Close()
 					_ = slave.Close()
-					<-finished
+					if err := <-finished; err != nil {
+						t.Logf("owned task cleanup: %v", err)
+					}
 				}
 			}()
 			<-started
@@ -343,7 +349,9 @@ func TestAccessiblePasswordDescriptorValidation(t *testing.T) {
 					cancel()
 					_ = master.Close()
 					_ = slave.Close()
-					<-finished
+					if err := <-finished; err != nil {
+						t.Logf("owned task cleanup: %v", err)
+					}
 				}
 			}()
 			ready := time.NewTimer(2 * time.Second)

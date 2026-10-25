@@ -108,7 +108,9 @@ func runTokenInputContextProcess(t *testing.T, site string, deadline bool) ([]by
 	defer func() {
 		if !waited {
 			cancel()
-			<-finished
+			if err := <-finished; err != nil {
+				t.Logf("owned task cleanup: %v", err)
+			}
 		}
 	}()
 	observed := time.NewTimer(time.Second)

@@ -264,7 +264,7 @@ if name == 'changie' and args[:1] == ['batch'] and failure == 'batch':
                         "--python",
                         "3.14",
                         "--from",
-                        "zensical==0.0.60",
+                        "zensical==0.0.72",
                         "zensical",
                         "serve",
                         "-f",

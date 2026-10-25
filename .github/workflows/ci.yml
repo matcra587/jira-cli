@@ -37,7 +37,7 @@ jobs:
 
       - name: Install mise
         # @clover: constraint=major tags=mise-action
-        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        uses: jdx/mise-action@82a612c5ab8bcda7cc5db6b7e81a8e7584c3dc6e # v5.2.3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           install_args: --locked
@@ -105,7 +105,7 @@ jobs:
 
       - name: Install mise
         # @clover: constraint=major tags=mise-action
-        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        uses: jdx/mise-action@82a612c5ab8bcda7cc5db6b7e81a8e7584c3dc6e # v5.2.3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           install_args: --locked
@@ -126,7 +126,7 @@ jobs:
       contents: read
     with:
       # clover: provider=github repository=golangci/golangci-lint constraint=major
-      golangci-version: v2.14.0
+      golangci-version: v2.15.0
       test-args: '-shuffle=on -count=1 ./...'
 
   md-lint:

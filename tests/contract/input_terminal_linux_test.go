@@ -89,7 +89,9 @@ func TestAccessibleInputTerminalContext(t *testing.T) {
 								cancel()
 								_ = master.Close()
 								_ = slave.Close()
-								<-finished
+								if err := <-finished; err != nil {
+									t.Logf("native input cleanup: %v", err)
+								}
 							}
 						}()
 						select {

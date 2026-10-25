@@ -286,7 +286,9 @@ func parityCompletionPTY(t *testing.T, sh parityCompletionShell, home, site stri
 		// when the selected shell has already exited.
 		_ = cmd.Cancel()
 		if !joined {
-			<-done
+			if err := <-done; err != nil {
+				t.Logf("native editor cleanup: %v", err)
+			}
 		}
 	}()
 	if err := unix.SetNonblock(fd, true); err != nil {

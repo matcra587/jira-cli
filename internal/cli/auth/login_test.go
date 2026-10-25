@@ -91,8 +91,8 @@ func TestPipedTokenCancelsBlockedInput(t *testing.T) {
 					}
 				default:
 					_ = input.Close()
-					<-finished
-					t.Fatal("piped token ignored command context and required forced input cleanup")
+					cleanupErr := <-finished
+					t.Fatalf("piped token ignored command context and required forced input cleanup: %v", cleanupErr)
 				}
 				if clientCalls != 0 || storeCalls != 0 {
 					t.Fatalf("expired token input opened clients=%d, stores=%d", clientCalls, storeCalls)

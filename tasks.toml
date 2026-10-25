@@ -229,12 +229,12 @@ run = "go mod download"
 
 ["docs:build"]
 description = "Build the documentation site with strict validation"
-run = "uvx --python 3.14 --from zensical==0.0.60 zensical build --clean --strict -f zensical.toml"
+run = "uvx --python 3.14 --from zensical==0.0.72 zensical build --clean --strict -f zensical.toml"
 
 ["docs:serve"]
 description = "Serve the documentation site with live reload"
 raw_args = true
-run = "uvx --python 3.14 --from zensical==0.0.60 zensical serve -f zensical.toml"
+run = "uvx --python 3.14 --from zensical==0.0.72 zensical serve -f zensical.toml"
 
 ["deps:update"]
 description = "Update direct Go dependencies to latest patch releases"

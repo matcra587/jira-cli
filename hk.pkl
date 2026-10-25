@@ -1,9 +1,9 @@
 // clover: from=hk find=download/v<version>/hk@<version>
-amends "package://github.com/jdx/hk/releases/download/v1.58.1/hk@1.58.1#/Config.pkl"
+amends "package://github.com/jdx/hk/releases/download/v2.8.1/hk@2.8.1#/Config.pkl"
 // clover: from=hk find=download/v<version>/hk@<version>
-import "package://github.com/jdx/hk/releases/download/v1.58.1/hk@1.58.1#/Builtins.pkl"
+import "package://github.com/jdx/hk/releases/download/v2.8.1/hk@2.8.1#/Builtins.pkl"
 
-min_hk_version = "1.54.0"
+min_hk_version = "2.8.1"
 
 local gofumptTestEnv = new Mapping<String, String> {
     ["GOWORK"] = "off"
@@ -43,8 +43,8 @@ local gofumpt = (Builtins.go_fumpt) {
             [name] = (test) {
                 files = List("test.go")
                 write {
-                    ["go.mod"] = read("go.mod")
-                    ["go.sum"] = read("go.sum")
+                    ["go.mod"] = read("go.mod").text
+                    ["go.sum"] = read("go.sum").text
                 }
                 env = gofumptTestEnv
             }
@@ -53,8 +53,8 @@ local gofumpt = (Builtins.go_fumpt) {
             tmpdir = true
             files = List("test.go")
             write {
-                ["go.mod"] = read("go.mod")
-                ["go.sum"] = read("go.sum")
+                ["go.mod"] = read("go.mod").text
+                ["go.sum"] = read("go.sum").text
                 ["test.go"] = "package name\nfunc (\n"
             }
             env = gofumptTestEnv

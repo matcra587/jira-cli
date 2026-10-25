@@ -204,7 +204,9 @@ func TestAttachmentRuntimeContentCeilingDoesNotSendExtraByte(t *testing.T) {
 			defer func() {
 				_ = pr.Close()
 				if !joined {
-					<-done
+					if err := <-done; err != nil {
+						t.Logf("attachment writer cleanup: %v", err)
+					}
 				}
 			}()
 			reader := multipart.NewReader(pr, form.Boundary())

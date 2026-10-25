@@ -169,7 +169,9 @@ func TestAuditUnixCollectorBoundedAfterCommand(t *testing.T) {
 					}
 				}
 				if !joined {
-					<-done
+					if err := <-done; err != nil {
+						t.Logf("owned task cleanup: %v", err)
+					}
 				}
 			}()
 			select {
@@ -196,7 +198,9 @@ func TestAuditUnixCollectorBoundedAfterCommand(t *testing.T) {
 					t.Error(closeErr)
 				}
 				duplicate = nil
-				<-done
+				if err := <-done; err != nil {
+					t.Logf("owned task cleanup: %v", err)
+				}
 				joined = true
 				if cmd.ProcessState == nil || !cmd.ProcessState.Success() {
 					t.Fatal("native retained-writer helper did not actually exit successfully", cmd.ProcessState)
@@ -241,7 +245,9 @@ func TestAuditUnixTerminalRunningCancellation(t *testing.T) {
 	defer func() {
 		cancel(nil)
 		if !joined {
-			<-done
+			if err := <-done; err != nil {
+				t.Logf("owned task cleanup: %v", err)
+			}
 		}
 	}()
 	waitContext, stopWait := context.WithTimeout(t.Context(), 5*time.Second)

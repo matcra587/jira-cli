@@ -191,7 +191,9 @@ func runPromptContextProcess(t *testing.T, site, marker string, deadline bool, a
 	defer func() {
 		if !waited {
 			cancel()
-			<-finished
+			if err := <-finished; err != nil {
+				t.Logf("owned task cleanup: %v", err)
+			}
 		}
 	}()
 	observed := time.NewTimer(time.Second)
