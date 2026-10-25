@@ -1,6 +1,6 @@
-#!/usr/bin/env -S uv run --python 3.14 --script
+#!/usr/bin/env -S uv run --python 3.15 --script
 # /// script
-# requires-python = ">=3.14,<3.15"
+# requires-python = ">=3.15,<3.16"
 # dependencies = []
 # ///
 """Execute native mise task contracts in owned, tool-free fixtures.
@@ -23,7 +23,8 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MISE = shutil.which("mise")
-TASKS = tomllib.loads((REPO_ROOT / "tasks.toml").read_text())
+with (REPO_ROOT / "tasks.toml").open("rb") as task_file:
+    TASKS = tomllib.load(task_file)
 
 
 def toml_value(value: Any) -> str:
@@ -43,11 +44,12 @@ def toml_value(value: Any) -> str:
 
 class NativeTaskTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.assertEqual(sys.version_info[:2], (3, 14))
+        self.assertEqual(sys.version_info[:2], (3, 15))
         self.assertIsNotNone(MISE, "run through mise run test:tasks")
-        directory = tempfile.TemporaryDirectory(prefix="jira-task-test-")
-        self.addCleanup(directory.cleanup)
-        self.base = Path(directory.name)
+        directory = self.enterContext(
+            tempfile.TemporaryDirectory(prefix="jira-task-test-")
+        )
+        self.base = Path(directory)
         self.root = self.base / "project"
         self.root.mkdir()
         self.bin = self.base / "bin"
@@ -262,7 +264,7 @@ if name == 'changie' and args[:1] == ['batch'] and failure == 'batch':
                     "uvx",
                     [
                         "--python",
-                        "3.14",
+                        "3.15",
                         "--from",
                         "zensical==0.0.72",
                         "zensical",
@@ -391,13 +393,13 @@ if name == 'changie' and args[:1] == ['batch'] and failure == 'batch':
                     )
                     self.assertEqual(observed[0], children[0])
                     expected = (
-                        children if failed_index is None else children[: failed_index + 1]
+                        children
+                        if failed_index is None
+                        else children[: failed_index + 1]
                     )
                     self.assertEqual(set(observed), set(expected))
                     self.assertEqual(len(observed), len(expected))
-                    self.assertEqual(
-                        observed[:serial_count], expected[:serial_count]
-                    )
+                    self.assertEqual(observed[:serial_count], expected[:serial_count])
 
 
 if __name__ == "__main__":

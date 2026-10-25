@@ -117,7 +117,7 @@ documented raw-output exception and emit identical bytes in every output mode.
     `usage_*` variables. Build through Go's cache without timestamp skipping,
     tidy before building, and keep acceptance builds, lint and race phases
     separate in CI. Finish formatting before Go lint fixes. Python tooling
-    uses uv and Python 3.14; exercise `mise run test:tasks`.
+    uses uv and Python 3.15; exercise `mise run test:tasks`.
 *   `tasks.toml` defines `mise run check`, `test`, `test:race`, `test:matrix`,
     `audit`, `test:live:guards`, and the wider `ci` gate. Native platform gates
     have explicit host requirements. Cross-compilation does not prove native
@@ -139,7 +139,7 @@ documented raw-output exception and emit identical bytes in every output mode.
 
 Development tasks use native mise discovery and Usage metadata. Keep parsed
 values in quoted `usage_*` variables, and test ordering/refusal paths through
-`mise run test:tasks`. Python tooling runs through uv on Python 3.14.
+`mise run test:tasks`. Python tooling runs through uv on Python 3.15.
 
 ## Native representation and transport boundaries
 

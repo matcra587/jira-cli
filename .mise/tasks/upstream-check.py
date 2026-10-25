@@ -1,4 +1,4 @@
-#!/usr/bin/env -S uv run --python 3.14 --script
+#!/usr/bin/env -S uv run --python 3.15 --script
 # [MISE] description="Check vendored specs/schemas against live upstream"
 # [USAGE] unknown_flags "error"
 # [USAGE] flag "--type <type>" help="Pins to check" default="all" {
@@ -6,7 +6,7 @@
 # [USAGE] }
 # [USAGE] flag "--check" help="Exit nonzero if any pin is outdated or unverifiable"
 # /// script
-# requires-python = ">=3.14,<3.15"
+# requires-python = ">=3.15,<3.16"
 # dependencies = []
 # ///
 """upstream-check: pull what upstream serves today and report whether the
@@ -31,12 +31,13 @@ import tarfile
 import urllib.error
 import urllib.request
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
 
-ADF_SCHEMA_README = "internal/adf/schema/README.md"
-ADF_SCHEMA_FILE = "internal/adf/schema/full.json"
-API_SPEC_GO = "internal/jira/spec/spec.go"
-API_SPEC_DIR = "internal/jira/spec"
+ADF_SCHEMA_README = Path("internal/adf/schema/README.md")
+ADF_SCHEMA_FILE = Path("internal/adf/schema/full.json")
+API_SPEC_GO = Path("internal/jira/spec/spec.go")
+API_SPEC_DIR = Path("internal/jira/spec")
 NPM_REGISTRY = "https://registry.npmjs.org/@atlaskit/adf-schema"
 
 # Definitions with more changed paths than this get elided — a reshaped
@@ -113,8 +114,7 @@ def report_definitions(old: dict[str, Any], new: dict[str, Any]) -> None:
 
 
 def check_adf() -> bool:
-    with open(ADF_SCHEMA_README, encoding="utf-8") as f:
-        readme = f.read()
+    readme = ADF_SCHEMA_README.read_text(encoding="utf-8")
     match = re.search(r"Version: \*\*([^*]+)\*\*", readme)
     if match is None:
         sys.exit(
@@ -139,10 +139,10 @@ def check_adf() -> bool:
                 "  package no longer ships json-schema/v1/full.json — investigate before bumping"
             )
             return True
-        fetched_raw = member.read()
+        with member:
+            fetched_raw = member.read()
 
-    with open(ADF_SCHEMA_FILE, "rb") as f:
-        pinned_raw = f.read()
+    pinned_raw = ADF_SCHEMA_FILE.read_bytes()
     if sha256(pinned_raw) == sha256(fetched_raw):
         # The package versions faster than the schema: three of the last
         # four releases shipped a byte-identical full.json.
@@ -164,8 +164,7 @@ def check_adf() -> bool:
 def check_api() -> bool:
     # The pins live in spec.go as Go struct literals; pull each field out by
     # name rather than assuming declaration order.
-    with open(API_SPEC_GO, encoding="utf-8") as f:
-        src = f.read()
+    src = API_SPEC_GO.read_text(encoding="utf-8")
     # The findall also matches the `[]Pin{Platform, Agile}` list literal in
     # Pins(); only blocks that actually carry fields are pins.
     pins = [
@@ -202,8 +201,7 @@ def check_api() -> bool:
         upstream_version = fetched.get("info", {}).get("version", "?")
         print(f"{pin['File']}: pinned {pin['Version']}, upstream {upstream_version}")
 
-        with open(f"{API_SPEC_DIR}/{pin['File']}", encoding="utf-8") as f:
-            pinned = json.load(f)
+        pinned = json.loads((API_SPEC_DIR / pin["File"]).read_text(encoding="utf-8"))
         report_definitions(
             pinned.get("components", {}).get("schemas", {}),
             fetched.get("components", {}).get("schemas", {}),

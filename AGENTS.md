@@ -71,7 +71,7 @@ scoped owner. CLAUDE.md imports this file rather than maintaining a second copy.
 
 Development tasks use native mise discovery and Usage metadata. Keep parsed
 values in quoted `usage_*` variables, and test ordering/refusal paths through
-`mise run test:tasks`. Python tooling runs through uv on Python 3.14.
+`mise run test:tasks`. Python tooling runs through uv on Python 3.15.
 
 *   `mise run check`: formatting checks, lint, Markdown lint, vet and untagged tests.
 *   `mise run ci`: tidy, build, matrix, output audit, check and race in order;

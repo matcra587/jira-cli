@@ -161,7 +161,7 @@ Both tasks use the pinned Zensical package. The server uses its native live relo
 
 Use native mise Usage declarations for project arguments and `raw_args` only to forward another CLI's interface. Run `mise run release --help` or `mise run upstream-check --help` for task-specific help. Keep values in quoted `usage_*` environment variables rather than inserting them into shell source.
 
-Python tooling runs through uv on Python 3.14, with inline script metadata. `mise run test:tasks` tests task orchestration using controlled tool substitutes; application tests and native platform gates establish their separate behavior. CI finishes module tidying before running checks, and `fix` finishes Go formatting before starting lint fixes.
+Python tooling runs through uv on Python 3.15, with inline script metadata. `mise run test:tasks` tests task orchestration using controlled tool substitutes; application tests and native platform gates establish their separate behavior. CI finishes module tidying before running checks, and `fix` finishes Go formatting before starting lint fixes.
 
 ## Getting help
 

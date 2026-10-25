@@ -104,7 +104,7 @@ run = "bash tests/release/pipeline.sh"
 
 ["test:tasks"]
 description = "Verify native task arguments, ordering and failure paths"
-run = "uv run --python 3.14 --script tests/tooling/tasks.py"
+run = "uv run --python 3.15 --script tests/tooling/tasks.py"
 
 ["test:keyring"]
 description = "Verify Linux authentication against a private native keyring"
@@ -229,12 +229,12 @@ run = "go mod download"
 
 ["docs:build"]
 description = "Build the documentation site with strict validation"
-run = "uvx --python 3.14 --from zensical==0.0.72 zensical build --clean --strict -f zensical.toml"
+run = "uvx --python 3.15 --from zensical==0.0.72 zensical build --clean --strict -f zensical.toml"
 
 ["docs:serve"]
 description = "Serve the documentation site with live reload"
 raw_args = true
-run = "uvx --python 3.14 --from zensical==0.0.72 zensical serve -f zensical.toml"
+run = "uvx --python 3.15 --from zensical==0.0.72 zensical serve -f zensical.toml"
 
 ["deps:update"]
 description = "Update direct Go dependencies to latest patch releases"
