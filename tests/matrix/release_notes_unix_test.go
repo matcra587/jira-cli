@@ -1,4 +1,4 @@
-//go:build flagmatrix && linux
+//go:build flagmatrix && (linux || darwin)
 
 package matrix
 

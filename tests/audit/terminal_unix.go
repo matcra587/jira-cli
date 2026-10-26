@@ -14,6 +14,8 @@ import (
 
 	"github.com/gechr/x/terminal"
 	"golang.org/x/sys/unix"
+
+	"github.com/matcra587/jira-cli/tests/internal/nativepty"
 )
 
 const auditDiagnosticLimit = 1 << 20
@@ -24,7 +26,7 @@ func runAuditTerminal(ctx context.Context, cmd *exec.Cmd, stderr *bytes.Buffer) 
 			err = errors.Join(err, cause)
 		}
 	}()
-	master, slave, err := openAuditPTY()
+	master, slave, err := nativepty.Open()
 	if err != nil {
 		return 0, fmt.Errorf("terminal invocation is unrun: %w", err)
 	}

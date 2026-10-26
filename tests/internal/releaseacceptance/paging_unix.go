@@ -1,4 +1,4 @@
-//go:build linux
+//go:build linux || darwin
 
 package releaseacceptance
 
@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,6 +19,7 @@ import (
 	"golang.org/x/term"
 
 	changelog "github.com/matcra587/jira-cli"
+	"github.com/matcra587/jira-cli/tests/internal/nativepty"
 )
 
 // VerifyPaging checks actual terminal paging and headless policy on a rebuilt CLI.
@@ -182,29 +182,15 @@ func VerifyPaging(t *testing.T, binary string) {
 
 func openTerminal(t *testing.T) (*os.File, *os.File) {
 	t.Helper()
-	descriptor, err := unix.Open("/dev/ptmx", unix.O_RDWR|unix.O_NOCTTY|unix.O_CLOEXEC, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	master := os.NewFile(uintptr(descriptor), "release-notes-terminal")
-	t.Cleanup(func() {
-		if err := master.Close(); err != nil {
-			t.Error(err)
-		}
-	})
-	if err := unix.IoctlSetPointerInt(descriptor, unix.TIOCSPTLCK, 0); err != nil {
-		t.Fatal(err)
-	}
-	number, err := unix.IoctlGetInt(descriptor, unix.TIOCGPTN)
-	if err != nil {
-		t.Fatal(err)
-	}
-	slave, err := os.OpenFile(fmt.Sprintf("/dev/pts/%d", number), os.O_RDWR, 0)
+	master, slave, err := nativepty.Open()
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
 		if err := slave.Close(); err != nil {
+			t.Error(err)
+		}
+		if err := master.Close(); err != nil {
 			t.Error(err)
 		}
 	})

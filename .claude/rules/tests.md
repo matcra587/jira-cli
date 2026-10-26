@@ -1682,6 +1682,11 @@ independently verify both status and complete comment storage. Follow
 
 ## Native fixture and process constraints
 
+Release-note pager contracts and flag-matrix proofs run on Linux and macOS
+using the shared native PTY fixture, including configured pager input, direct
+`--no-pager` output, headless refusal to page and terminal-mode restoration.
+Darwin cross-compilation does not establish native pager acceptance.
+
 Elvish insertion setup is compiled only where its callers run: Linux and
 Windows with `nativeconsole`. Shared helpers must not become unused on macOS
 or ordinary Windows builds.
