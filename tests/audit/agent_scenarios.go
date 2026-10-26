@@ -36,7 +36,7 @@ func init() {
 	}
 	dryRunPreview["agent.export"] = func(data map[string]any) (bool, string) {
 		artifacts, ok := data["artifacts"].([]any)
-		if !ok || len(artifacts) != 11 || data["attempted"] != false || data["format"] != "agent-skill" {
+		if !ok || len(artifacts) != 12 || data["attempted"] != false || data["format"] != "agent-skill" {
 			return false, "guide preview lost the complete unpublished portable corpus"
 		}
 		for _, artifact := range artifacts {
