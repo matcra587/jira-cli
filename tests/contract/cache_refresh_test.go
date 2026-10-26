@@ -60,7 +60,12 @@ func TestCacheRefreshBinaryOfflinePreviewPreservesResourceOrder(t *testing.T) {
 				name, _ := row["resource"].(string)
 				names = append(names, name)
 				item, _ := row["data"].(map[string]any)
-				if _, exists := row["issue"]; exists || row["ok"] != true || item["resource"] != name || item["dry_run"] != true || item["ttl_minutes"] != float64(7) || item["force"] != true || item["unbounded"] != true || item["would_fetch"] != true || item["attempted"] != false || item["saved"] != false {
+				for _, field := range []string{"ttl_minutes", "force", "unbounded", "age_seconds"} {
+					if _, exists := item[field]; exists {
+						t.Fatalf("cache receipt repeats request or derived field %q: %v", field, item)
+					}
+				}
+				if _, exists := row["issue"]; exists || row["ok"] != true || item["resource"] != name || item["dry_run"] != true || item["would_fetch"] != true || item["attempted"] != false || item["saved"] != false || item["from_cache"] != false || item["cache_state"] != "missing" || item["complete"] != false || item["pages"] != float64(0) || item["count"] != float64(0) {
 					t.Fatalf("cache refresh preview row=%v, want resource identity and truthful offline plan", row)
 				}
 			}

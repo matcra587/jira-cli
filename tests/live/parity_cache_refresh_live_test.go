@@ -237,7 +237,7 @@ func TestParityActualBinaryCacheRefreshCollection(t *testing.T) {
 								if phase == "initial" {
 									state = "missing"
 								}
-								want := parityMetadataExpected{Resource: fixture.Name, Items: items, TTL: fixture.TTL, Pages: 1, Cached: cached, Force: force, State: state, Earliest: written, Latest: time.Now()}
+								want := parityMetadataExpected{Resource: fixture.Name, Items: items, Pages: 1, Cached: cached, State: state, Earliest: written, Latest: time.Now()}
 								if lane.name == "before" {
 									want.Stamp = written.UTC().Format(time.RFC3339)
 								} else if cached {
@@ -442,7 +442,7 @@ func TestLiveParityCacheRefreshCollection(t *testing.T) {
 						if phase == "initial" {
 							state = "missing"
 						}
-						want := parityMetadataExpected{Resource: fixture.Name, Items: stored, TTL: fixture.TTL, Pages: pages[fixture.Name], Cached: cached, Force: force, State: state, Earliest: written, Latest: time.Now()}
+						want := parityMetadataExpected{Resource: fixture.Name, Items: stored, Pages: pages[fixture.Name], Cached: cached, State: state, Earliest: written, Latest: time.Now()}
 						if lane.Name == "before" {
 							want.Stamp = written.UTC().Format(time.RFC3339)
 						} else if cached {

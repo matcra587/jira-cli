@@ -92,10 +92,7 @@ func primerCommand(deps PrimeDeps, name string, spec command.Spec[envelope.Cache
 
 func runPrime(ctx context.Context, deps PrimeDeps, inv command.Invocation, resource MetadataResource, opts primeOptions) (envelope.CachePrimeOutput, error) {
 	ttl := resource.DefaultTTL
-	out := envelope.CachePrimeOutput{MutationState: envelope.MutationState{DryRun: inv.DryRun}, Resource: resource.Name, TTLMinutes: int(ttl / time.Minute), Force: opts.force, Unbounded: opts.unbounded}
-	if opts.ttlMinutes > 0 {
-		out.TTLMinutes = opts.ttlMinutes
-	}
+	out := envelope.CachePrimeOutput{MutationState: envelope.MutationState{DryRun: inv.DryRun}, Resource: resource.Name}
 	out.Items = []json.RawMessage{}
 	if err := (Options{TTLMinutes: opts.ttlMinutes}).Validate(); err != nil {
 		return out, err
@@ -122,7 +119,6 @@ func runPrime(ctx context.Context, deps PrimeDeps, inv command.Invocation, resou
 	if inv.DryRun || !out.WouldFetch {
 		if !written.IsZero() {
 			out.WrittenAt = written.UTC().Format(time.RFC3339Nano)
-			out.AgeSeconds = max(int64(time.Since(written).Seconds()), 0)
 		}
 		out.CacheMetadata = value
 		out.FromCache = !written.IsZero() && state != "malformed"
@@ -174,7 +170,6 @@ func runPrime(ctx context.Context, deps PrimeDeps, inv command.Invocation, resou
 	}
 	out.Saved = true
 	out.WrittenAt = time.Now().UTC().Format(time.RFC3339Nano)
-	out.AgeSeconds = 0
 	return out, ctx.Err()
 }
 

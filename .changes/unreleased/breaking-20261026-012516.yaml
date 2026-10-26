@@ -1,0 +1,3 @@
+kind: breaking
+body: Trim cache priming and refresh receipts by removing force, unbounded, ttl_minutes and age_seconds; retain native items, collection limits, freshness state and write outcomes.
+time: 2026-10-26T01:25:16.671276324-04:00

@@ -135,6 +135,9 @@ sets `from_cache=true`, `attempted=false` and `saved=false`.
 In a preview, `would_fetch` tells you whether the real invocation would collect
 new metadata.
 Old data can remain available for inspection without being fresh.
+Priming receipts omit the input echoes `force`, `unbounded` and `ttl_minutes`,
+and the derived `age_seconds`. Keep `written_at` if you need to calculate age.
+`cache inspect` still reports resource freshness and its default TTL.
 
 ### Is the cached collection complete?
 

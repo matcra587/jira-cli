@@ -169,7 +169,7 @@ func TestParityActualBinaryEpicCache(t *testing.T) {
 							} else if force && lane.name == "before" {
 								state = "refresh"
 							}
-							want := parityMetadataExpected{Resource: "epics", Profile: "fixture", State: state, Items: items, TTL: 240, Pages: pages, Cached: cached, Force: force, Earliest: written, Latest: time.Now()}
+							want := parityMetadataExpected{Resource: "epics", Profile: "fixture", State: state, Items: items, Pages: pages, Cached: cached, Earliest: written, Latest: time.Now()}
 							if lane.name == "before" {
 								want.Stamp = written.UTC().Format(time.RFC3339)
 							} else if cached {
@@ -359,7 +359,7 @@ func TestLiveParityEpicCache(t *testing.T) {
 			if lane.Name == "before" {
 				state = "refresh"
 			}
-			want := parityMetadataExpected{Resource: "epics", Profile: lane.Profile, State: state, Items: stored, TTL: 240, Pages: pages, Force: true, Earliest: written, Latest: time.Now()}
+			want := parityMetadataExpected{Resource: "epics", Profile: lane.Profile, State: state, Items: stored, Pages: pages, Earliest: written, Latest: time.Now()}
 			if lane.Name == "before" {
 				want.Stamp = written.UTC().Format(time.RFC3339)
 			}

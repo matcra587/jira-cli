@@ -216,7 +216,7 @@ func TestLiveCacheMetadataCollectors(t *testing.T) {
 				t.Fatal("cold native primer preview fabricated collection or storage")
 			}
 			primed := prime(liveEnv)
-			if !primed.Attempted || !primed.Saved || primed.FromCache || !primed.Complete || primed.Count != value.Count || primed.TTLMinutes != int(resource.DefaultTTL.Minutes()) {
+			if !primed.Attempted || !primed.Saved || primed.FromCache || !primed.Complete || primed.Count != value.Count {
 				t.Fatal("native public primer failed to persist the complete selected resource")
 			}
 			reused := prime(liveEnv)
@@ -301,7 +301,7 @@ func TestLiveCacheMetadataCollectors(t *testing.T) {
 	}
 	for i, resource := range metacache.MetadataResources() {
 		row := primed.Results[i]
-		if row.Resource != resource.Name || !row.OK || row.Err != nil || row.Data == nil || !row.Data.Attempted || !row.Data.Saved || !row.Data.Complete || row.Data.FromCache || row.Data.TTLMinutes != int(resource.DefaultTTL.Minutes()) {
+		if row.Resource != resource.Name || !row.OK || row.Err != nil || row.Data == nil || !row.Data.Attempted || !row.Data.Saved || !row.Data.Complete || row.Data.FromCache {
 			t.Fatal("native refresh lost ordered collection/storage facts")
 		}
 		frame, raw, exit := r.invoke(t, t.Context(), liveEnv, "cache", resource.Name)
@@ -336,7 +336,7 @@ func TestLiveCacheMetadataCollectors(t *testing.T) {
 		t.Fatal("native forced refresh omitted selected resources")
 	}
 	for _, row := range forced.Results {
-		if !row.OK || row.Data == nil || !row.Data.Attempted || !row.Data.Saved || row.Data.FromCache || !row.Data.Unbounded || row.Data.TTLMinutes != 7 {
+		if !row.OK || row.Data == nil || !row.Data.Attempted || !row.Data.Saved || row.Data.FromCache {
 			t.Fatal("native forced refresh ignored freshness or collection controls")
 		}
 	}

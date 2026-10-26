@@ -88,7 +88,7 @@ func TestPublicMetadataPrimersUseConsumerFormatsAndFreshHits(t *testing.T) {
 				if err := json.Unmarshal(invoke("cache", resource.Name, "--output=json", "--no-input"), &frame); err != nil {
 					t.Fatal(err)
 				}
-				if !frame.OK || frame.Data.Count != 1 || frame.Data.Attempted == fresh || frame.Data.FromCache != fresh || frame.Data.Saved == fresh || !frame.Data.Complete || frame.Data.TTLMinutes != int(resource.DefaultTTL.Minutes()) || clientFactories != 1 {
+				if !frame.OK || frame.Data.Count != 1 || frame.Data.Attempted == fresh || frame.Data.FromCache != fresh || frame.Data.Saved == fresh || !frame.Data.Complete || clientFactories != 1 {
 					t.Fatalf("public primer=%+v factories=%d", frame, clientFactories)
 				}
 			}

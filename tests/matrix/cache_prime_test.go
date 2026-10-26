@@ -81,11 +81,11 @@ func TestCachePrimerFlagsAffectActualFreshnessAndOfflinePreview(t *testing.T) {
 			mx3AgeCacheEntries(t, work, 2*time.Minute)
 			calls = len(rec.all())
 			control = cachePrimeData(t, mx3Run(t, work, site, "cache", resource.Name, "--ttl-minutes=0", "--output=json"))
-			if !control.FromCache || control.TTLMinutes != int(resource.DefaultTTL.Minutes()) || len(rec.all()) != calls {
+			if !control.FromCache || control.CacheState != "fresh" || len(rec.all()) != calls {
 				t.Fatal("nonpositive TTL failed resource default freshness")
 			}
 			shortened := cachePrimeData(t, mx3Run(t, work, site, "cache", resource.Name, "--ttl-minutes=1", "--output=json"))
-			if shortened.FromCache || !shortened.Saved || shortened.TTLMinutes != 1 || len(rec.all()) <= calls {
+			if shortened.FromCache || !shortened.Saved || shortened.CacheState != "stale" || len(rec.all()) <= calls {
 				t.Fatal("short TTL did not refetch the same aged entry")
 			}
 			Prove(t, "jira cache "+resource.Name, "ttl-minutes", "resource default reuses the two-minute-old entry; one minute makes the same entry stale and fetches again")

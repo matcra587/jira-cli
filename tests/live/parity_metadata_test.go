@@ -145,10 +145,9 @@ func parityMetadataLegacyItems(native []json.RawMessage, name string) ([]json.Ra
 type parityMetadataExpected struct {
 	Resource, Profile, State, Stamp string
 	Items                           []json.RawMessage
-	TTL, Pages                      int
-	Cached, Force                   bool
+	Pages                           int
+	Cached                          bool
 	Earliest, Latest                time.Time
-	ReadStarted                     time.Time
 }
 
 func parityMetadataProjection(data []byte, lane string, want parityMetadataExpected) bool {
@@ -187,17 +186,8 @@ func parityMetadataProjection(data []byte, lane string, want parityMetadataExpec
 			expected["cache_state"] = "empty"
 		}
 	} else {
-		var age int64
-		minimumAge := int64(0)
-		if want.Cached && !want.ReadStarted.IsZero() {
-			minimumAge = max(int64(want.ReadStarted.Sub(written).Seconds()), 0)
-		}
-		if json.Unmarshal(actual["age_seconds"], &age) != nil || age < minimumAge || age > int64(want.Latest.Sub(written).Seconds())+1 || !want.Cached && age != 0 {
-			return false
-		}
-		expected["age_seconds"], expected["dry_run"] = age, false
+		expected["dry_run"] = false
 		expected["resource"], expected["items"], expected["pages"], expected["complete"] = want.Resource, want.Items, want.Pages, true
-		expected["ttl_minutes"], expected["force"], expected["unbounded"] = want.TTL, want.Force, false
 		expected["would_fetch"], expected["attempted"], expected["saved"] = !want.Cached, !want.Cached, !want.Cached
 	}
 	encoded, err := json.Marshal(expected)
@@ -543,10 +533,7 @@ func TestParityActualBinaryMetadataPrimers(t *testing.T) {
 							} else if tc.name == "custom-ttl-expired" {
 								state = "stale"
 							}
-							want := parityMetadataExpected{Resource: fixture.Name, Profile: "fixture", State: state, Items: items, TTL: fixture.TTL, Pages: pages, Cached: tc.cached, Force: tc.force, Earliest: began, Latest: readFinished, ReadStarted: readStarted}
-							if tc.ttl > 0 {
-								want.TTL = tc.ttl
-							}
+							want := parityMetadataExpected{Resource: fixture.Name, Profile: "fixture", State: state, Items: items, Pages: pages, Cached: tc.cached, Earliest: began, Latest: readFinished}
 							if tc.age {
 								want.Earliest = written
 							}
@@ -599,7 +586,7 @@ func TestParityMetadataLegacyProjectionMatchesIndependentFixtures(t *testing.T) 
 func TestParityMetadataProjectionRejectsChangedFacts(t *testing.T) {
 	const native = `{"id":"customfield_10001","name":"Owned","schema":{"type":"string"},"future":900719925474099312345}`
 	const before = `{"fields":[{"id":"customfield_10001","name":"Owned","type":"string"}],"profile":"fixture","count":1,"from_cache":true,"fetched_at":"2026-01-01T00:00:00Z","cache_state":"fresh","cache_source_state":"fresh","cache_empty":false}`
-	const after = `{"dry_run":false,"items":[` + native + `],"count":1,"pages":1,"complete":true,"resource":"fields","ttl_minutes":20160,"force":false,"unbounded":false,"would_fetch":false,"attempted":false,"from_cache":true,"cache_state":"fresh","saved":false,"written_at":"2026-01-01T00:00:00Z","age_seconds":0}`
+	const after = `{"dry_run":false,"items":[` + native + `],"count":1,"pages":1,"complete":true,"resource":"fields","would_fetch":false,"attempted":false,"from_cache":true,"cache_state":"fresh","saved":false,"written_at":"2026-01-01T00:00:00Z"}`
 	stamp := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	for _, lane := range []string{"before", "after"} {
 		t.Run(lane, func(t *testing.T) {
@@ -608,7 +595,7 @@ func TestParityMetadataProjectionRejectsChangedFacts(t *testing.T) {
 				valid = before
 				items = []json.RawMessage{json.RawMessage(`{"id":"customfield_10001","name":"Owned","type":"string"}`)}
 			}
-			want := parityMetadataExpected{Resource: "fields", Profile: "fixture", State: "fresh", Stamp: stamp.Format(time.RFC3339), Items: items, TTL: 20160, Pages: 1, Cached: true, Earliest: stamp, Latest: stamp.Add(time.Second)}
+			want := parityMetadataExpected{Resource: "fields", Profile: "fixture", State: "fresh", Stamp: stamp.Format(time.RFC3339), Items: items, Pages: 1, Cached: true, Earliest: stamp, Latest: stamp.Add(time.Second)}
 			if !parityMetadataProjection([]byte(valid), lane, want) {
 				t.Fatal("independent valid metadata receipt refused")
 			}
@@ -631,16 +618,16 @@ func TestParityMetadataProjectionRejectsChangedFacts(t *testing.T) {
 					change{"native-number", "900719925474099312345", "900719925474099312344"},
 					change{"native-extension", `,"future":900719925474099312345`, ``},
 					change{"resource", `"resource":"fields"`, `"resource":"statuses"`},
-					change{"ttl", `"ttl_minutes":20160`, `"ttl_minutes":60`},
+					change{"obsolete-ttl_minutes", `"pages":1`, `"pages":1,"ttl_minutes":0`},
 					change{"pages", `"pages":1`, `"pages":2`},
 					change{"completeness", `"complete":true`, `"complete":false`},
-					change{"force", `"force":false`, `"force":true`},
-					change{"unbounded", `"unbounded":false`, `"unbounded":true`},
+					change{"obsolete-force", `"pages":1`, `"pages":1,"force":false`},
+					change{"obsolete-unbounded", `"pages":1`, `"pages":1,"unbounded":false`},
 					change{"would-fetch", `"would_fetch":false`, `"would_fetch":true`},
 					change{"attempted", `"attempted":false`, `"attempted":true`},
 					change{"saved", `"saved":false`, `"saved":true`},
 					change{"preview", `"dry_run":false`, `"dry_run":true`},
-					change{"negative-age", `"age_seconds":0`, `"age_seconds":-1`},
+					change{"obsolete-age_seconds", `"pages":1`, `"pages":1,"age_seconds":0`},
 				)
 			}
 			for _, tc := range cases {
@@ -649,25 +636,6 @@ func TestParityMetadataProjectionRejectsChangedFacts(t *testing.T) {
 						t.Fatal("changed native value or collection/publication fact earned metadata credit")
 					}
 				})
-			}
-		})
-	}
-}
-
-func TestParityMetadataAgedReceiptRequiresObservedAge(t *testing.T) {
-	const valid = `{"dry_run":false,"items":["owned"],"count":1,"pages":1,"complete":true,"resource":"labels","ttl_minutes":60,"force":false,"unbounded":false,"would_fetch":false,"attempted":false,"from_cache":true,"cache_state":"fresh","saved":false,"written_at":"2026-01-01T00:00:00Z","age_seconds":120}`
-	stamp := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	want := parityMetadataExpected{Resource: "labels", State: "fresh", Stamp: stamp.Format(time.RFC3339), Items: []json.RawMessage{json.RawMessage(`"owned"`)}, TTL: 60, Pages: 1, Cached: true, Earliest: stamp, ReadStarted: stamp.Add(120 * time.Second), Latest: stamp.Add(121 * time.Second)}
-	if !parityMetadataProjection([]byte(valid), "after", want) {
-		t.Fatal("independent aged cache receipt was refused")
-	}
-	for _, tc := range []struct {
-		name string
-		age  string
-	}{{"aged-zero", "0"}, {"before-read", "119"}, {"after-finish", "123"}} {
-		t.Run(tc.name, func(t *testing.T) {
-			if parityMetadataProjection([]byte(strings.Replace(valid, `"age_seconds":120`, `"age_seconds":`+tc.age, 1)), "after", want) {
-				t.Fatal("age outside the independently bounded read interval earned freshness credit")
 			}
 		})
 	}
@@ -703,9 +671,9 @@ func TestParityMetadataLegacyWrapperRejectsForeignPublication(t *testing.T) {
 }
 
 func TestParityMetadataPublicationChronology(t *testing.T) {
-	const valid = `{"dry_run":false,"items":["owned"],"count":1,"pages":1,"complete":true,"resource":"labels","ttl_minutes":60,"force":false,"unbounded":false,"would_fetch":true,"attempted":true,"from_cache":false,"cache_state":"missing","saved":true,"written_at":"2026-01-01T00:00:00.000001Z","age_seconds":0}`
+	const valid = `{"dry_run":false,"items":["owned"],"count":1,"pages":1,"complete":true,"resource":"labels","would_fetch":true,"attempted":true,"from_cache":false,"cache_state":"missing","saved":true,"written_at":"2026-01-01T00:00:00.000001Z"}`
 	disk := time.Date(2026, 1, 1, 0, 0, 0, 500, time.UTC)
-	want := parityMetadataExpected{Resource: "labels", State: "missing", Items: []json.RawMessage{json.RawMessage(`"owned"`)}, TTL: 60, Pages: 1, Earliest: disk, Latest: disk.Add(time.Second)}
+	want := parityMetadataExpected{Resource: "labels", State: "missing", Items: []json.RawMessage{json.RawMessage(`"owned"`)}, Pages: 1, Earliest: disk, Latest: disk.Add(time.Second)}
 	if !parityMetadataProjection([]byte(valid), "after", want) {
 		t.Fatal("receipt acknowledging an earlier disk publication was refused")
 	}

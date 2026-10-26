@@ -60,16 +60,12 @@ type CachePrimeOutput struct {
 	MutationState
 	CacheMetadata
 	Resource   string `json:"resource"`
-	TTLMinutes int    `json:"ttl_minutes"`
-	Force      bool   `json:"force"`
-	Unbounded  bool   `json:"unbounded"`
 	WouldFetch bool   `json:"would_fetch"`
 	Attempted  bool   `json:"attempted"`
 	FromCache  bool   `json:"from_cache"`
 	CacheState string `json:"cache_state"`
 	Saved      bool   `json:"saved"`
 	WrittenAt  string `json:"written_at,omitempty"`
-	AgeSeconds int64  `json:"age_seconds"`
 }
 
 // CacheRefreshOutput preserves every selected resource in request order,

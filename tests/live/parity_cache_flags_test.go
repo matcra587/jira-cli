@@ -24,22 +24,21 @@ func TestParityActualBinaryCachePrimerFlags(t *testing.T) {
 	}
 	evidence := parityLocalEvidence{Checks: make(map[string][]string)}
 	t.Cleanup(func() { saveParityLocal(t, "cache-primer-flags-local", evidence) })
-	// Independent public TTL and command inventory, not the production catalog.
+	// Independent command inventory, not the production catalog.
 	for _, resource := range []struct {
 		id, name  string
-		ttl       int
 		unbounded bool
 	}{
-		{"C034", "labels", 60, true},
-		{"C037", "projects", 10080, true},
-		{"C030", "epics", 240, true},
-		{"C031", "fields", 20160, false},
-		{"C033", "issuetypes", 43200, false},
-		{"C035", "linktypes", 129600, false},
-		{"C028", "boards", 40320, true},
-		{"C040", "statuses", 43200, false},
-		{"C036", "priorities", 129600, true},
-		{"C039", "resolutions", 129600, true},
+		{"C034", "labels", true},
+		{"C037", "projects", true},
+		{"C030", "epics", true},
+		{"C031", "fields", false},
+		{"C033", "issuetypes", false},
+		{"C035", "linktypes", false},
+		{"C028", "boards", true},
+		{"C040", "statuses", false},
+		{"C036", "priorities", true},
+		{"C039", "resolutions", true},
 	} {
 		for _, mode := range []string{"json", "compact"} {
 			for _, scenario := range []string{"defaults", "custom", "nonpositive"} {
@@ -56,12 +55,10 @@ func TestParityActualBinaryCachePrimerFlags(t *testing.T) {
 					home := t.TempDir()
 					config := parityCachePublicConfig(t, home, lane.Name, server.URL)
 					args := []string{"cache", resource.name, "--dry-run"}
-					ttl, force, unbounded := resource.ttl, false, false
 					switch scenario {
 					case "custom":
-						ttl, force, unbounded = 7, true, resource.unbounded
 						args = append(args, "--ttl-minutes=7", "--force")
-						if unbounded {
+						if resource.unbounded {
 							args = append(args, "--unbounded")
 						}
 					case "nonpositive":
@@ -73,7 +70,7 @@ func TestParityActualBinaryCachePrimerFlags(t *testing.T) {
 					if calls.Load() != 0 || !reflect.DeepEqual(before, parityLocalTree(t, home)) {
 						t.Fatal("metadata preview contacted Jira or changed owned storage")
 					}
-					want := map[string]any{"dry_run": true, "items": []any{}, "count": 0, "pages": 0, "complete": false, "resource": resource.name, "ttl_minutes": ttl, "force": force, "unbounded": unbounded, "would_fetch": true, "attempted": false, "from_cache": false, "cache_state": "missing", "saved": false, "age_seconds": 0}
+					want := map[string]any{"dry_run": true, "items": []any{}, "count": 0, "pages": 0, "complete": false, "resource": resource.name, "would_fetch": true, "attempted": false, "from_cache": false, "cache_state": "missing", "saved": false}
 					parityCacheLocalData(t, result, lane.Name, mode, "cache."+resource.name, want)
 					if err := parityFingerprint(lane.Binary, lane.Digest); err != nil {
 						t.Fatal(err)
@@ -195,30 +192,18 @@ func TestParityActualBinaryCacheCollectionBounds(t *testing.T) {
 					previousWritten = written
 					data := parityAuthoringData(t, result.Stdout, lane.Name, "cache."+fixture.name, 0)
 					var stamp string
-					var age int64
-					if json.Unmarshal(data["written_at"], &stamp) != nil || json.Unmarshal(data["age_seconds"], &age) != nil {
-						t.Fatal("collection receipt lacks a timestamp or age")
+					if json.Unmarshal(data["written_at"], &stamp) != nil {
+						t.Fatal("collection receipt lacks its publication timestamp")
 					}
 					observed, err := time.Parse(time.RFC3339Nano, stamp)
-					minimumAge := int64(0)
-					if step.cached {
-						minimumAge = max(int64(readStarted.Sub(written).Seconds()), 0)
-					}
-					if err != nil || observed.Before(began) || observed.Before(written) || observed.After(readFinished) || step.cached && !observed.Equal(written) || age < minimumAge || age > int64(readFinished.Sub(written).Seconds())+1 || !step.cached && age != 0 {
-						t.Fatal("collection receipt changed publication time or cache age")
-					}
-					ttl := 129600
-					switch fixture.name {
-					case "labels":
-						ttl = 60
-					case "projects":
-						ttl = 10080
+					if err != nil || observed.Before(began) || observed.Before(written) || observed.After(readFinished) || step.cached && !observed.Equal(written) {
+						t.Fatal("collection receipt changed publication time")
 					}
 					state := "fresh"
 					if step.name == "bounded" {
 						state = "missing"
 					}
-					want := map[string]any{"dry_run": false, "items": items[:count], "count": count, "pages": step.pages, "complete": complete, "resource": fixture.name, "ttl_minutes": ttl, "force": false, "unbounded": step.unbounded, "would_fetch": !step.cached, "attempted": !step.cached, "from_cache": step.cached, "cache_state": state, "saved": !step.cached, "age_seconds": age, "written_at": stamp}
+					want := map[string]any{"dry_run": false, "items": items[:count], "count": count, "pages": step.pages, "complete": complete, "resource": fixture.name, "would_fetch": !step.cached, "attempted": !step.cached, "from_cache": step.cached, "cache_state": state, "saved": !step.cached, "written_at": stamp}
 					if !complete {
 						want["next_start"], want["truncated_reason"] = count, reason
 					}

@@ -75,7 +75,7 @@ func TestCacheRefreshFlagsAffectActualFreshnessAndOfflinePreview(t *testing.T) {
 	calls = len(rec.all())
 	control = run("--ttl-minutes=0")
 	for _, row := range control.Results {
-		if row.Data == nil || !row.Data.FromCache || row.Data.TTLMinutes <= 1 {
+		if row.Data == nil || !row.Data.FromCache || row.Data.CacheState != "fresh" {
 			t.Fatal("resource default ignored freshness")
 		}
 	}
@@ -84,7 +84,7 @@ func TestCacheRefreshFlagsAffectActualFreshnessAndOfflinePreview(t *testing.T) {
 	}
 	shortened := run("--ttl-minutes=1")
 	for _, row := range shortened.Results {
-		if row.Data == nil || row.Data.FromCache || !row.Data.Saved || row.Data.TTLMinutes != 1 {
+		if row.Data == nil || row.Data.FromCache || !row.Data.Saved || row.Data.CacheState != "stale" {
 			t.Fatal("shortened TTL did not refresh aged resource")
 		}
 	}

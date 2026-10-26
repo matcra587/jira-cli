@@ -102,7 +102,7 @@ func TestLiveParityMetadataPrimers(t *testing.T) {
 				if lane.Name == "before" {
 					state = "refresh"
 				}
-				want := parityMetadataExpected{Resource: fixture.Name, Profile: lane.Profile, State: state, Items: items, TTL: fixture.TTL, Pages: pages, Force: true, Earliest: began, Latest: time.Now()}
+				want := parityMetadataExpected{Resource: fixture.Name, Profile: lane.Profile, State: state, Items: items, Pages: pages, Earliest: began, Latest: time.Now()}
 				if fixture.Name == "fields" {
 					// Independent Jira field reads can reorder equivalent rows.
 					// Bind complete native membership to the stored order, then

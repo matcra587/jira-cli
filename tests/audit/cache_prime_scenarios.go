@@ -73,7 +73,7 @@ func init() {
 			Scenario{ID: op + "-help", Op: op, Category: CategoryHelp, Args: []string{"cache", name, "--help"}},
 		)
 		stylingExpected[op] = false
-		successDataShape[op] = struct{ required, optional []string }{required: []string{"dry_run", "items", "count", "pages", "complete", "resource", "ttl_minutes", "force", "unbounded", "would_fetch", "attempted", "from_cache", "cache_state", "saved", "age_seconds"}, optional: []string{"payload", "truncated_reason", "next_start", "next_page_token", "written_at"}}
+		successDataShape[op] = struct{ required, optional []string }{required: []string{"dry_run", "items", "count", "pages", "complete", "resource", "would_fetch", "attempted", "from_cache", "cache_state", "saved"}, optional: []string{"payload", "truncated_reason", "next_start", "next_page_token", "written_at"}}
 		dryRunTense[op] = struct {
 			wantProspective string
 			forbidCompleted []string

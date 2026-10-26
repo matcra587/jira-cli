@@ -149,11 +149,7 @@ func TestCachePrimerForceTTLAndStorageFailuresRetainNativeReceipt(t *testing.T) 
 				return metadataResponse("[" + string(fieldMetadata().Items[0]) + "]"), nil
 			}}
 			out, err := runPrime(t.Context(), primerDeps(store, reader), command.Invocation{}, resource, primeOptions{force: tc.force, ttlMinutes: tc.ttl})
-			wantTTL := int(resource.DefaultTTL / time.Minute)
-			if tc.ttl > 0 {
-				wantTTL = tc.ttl
-			}
-			if !out.Attempted || !out.WouldFetch || out.FromCache || out.Saved == tc.writeFail || out.Count != 1 || !out.Complete || out.TTLMinutes != wantTTL || calls != 1 || store.sets != 1 || store.forgets != 0 {
+			if !out.Attempted || !out.WouldFetch || out.FromCache || out.Saved == tc.writeFail || out.Count != 1 || !out.Complete || calls != 1 || store.sets != 1 || store.forgets != 0 {
 				t.Fatalf("publication receipt=%+v err=%v", out, err)
 			}
 			raw, _, ok := memory.Get(resource.Key("https://example.com"))
@@ -234,7 +230,7 @@ func TestCachePrimerLateCancellationRetainsPublicationAcknowledgment(t *testing.
 	}}
 	resource, _ := metadataResource("fields")
 	out, err := runPrime(ctx, primerDeps(store, reader), command.Invocation{}, resource, primeOptions{})
-	if !errors.Is(err, context.Canceled) || !out.Saved || !out.Attempted || out.FromCache || out.WrittenAt == "" || out.AgeSeconds != 0 || out.Count != 1 || store.sets != 1 || store.forgets != 0 {
+	if !errors.Is(err, context.Canceled) || !out.Saved || !out.Attempted || out.FromCache || out.WrittenAt == "" || out.Count != 1 || store.sets != 1 || store.forgets != 0 {
 		t.Fatalf("late cancellation lost acknowledgment: %+v err=%v", out, err)
 	}
 	value, _, state := InspectMetadata(&memory, "https://example.com", "fields", resource.DefaultTTL, nil)
@@ -266,8 +262,8 @@ func TestCachePrimerPreflightStopsBeforeScopeAndClientConstruction(t *testing.T)
 				t.Fatal("invalid input opened storage")
 				return MetadataScope{}, nil
 			}}
-			out, err := runPrime(ctx, deps, command.Invocation{}, resource, primeOptions{ttlMinutes: tc.ttl})
-			if cli.MapError(err).Code != tc.code || tc.ttl > 0 && out.TTLMinutes != tc.ttl {
+			_, err := runPrime(ctx, deps, command.Invocation{}, resource, primeOptions{ttlMinutes: tc.ttl})
+			if cli.MapError(err).Code != tc.code {
 				t.Fatal(err)
 			}
 		})

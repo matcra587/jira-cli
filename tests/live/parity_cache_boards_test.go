@@ -155,7 +155,7 @@ func parityBoardCacheStored(t *testing.T, path, lane, identity string, rows []pa
 	return written, payload
 }
 
-func parityBoardCacheReceipt(data []byte, lane, profile, state string, cached, force bool, rows, pages int, written time.Time, payload json.RawMessage, ended time.Time) bool {
+func parityBoardCacheReceipt(data []byte, lane, profile, state string, cached bool, rows, pages int, written time.Time, payload json.RawMessage, ended time.Time) bool {
 	if !jsontext.Value(data).IsValid() {
 		return false
 	}
@@ -168,15 +168,14 @@ func parityBoardCacheReceipt(data []byte, lane, profile, state string, cached, f
 	case "after":
 		var actual map[string]json.RawMessage
 		var stamp string
-		var age int64
-		if json.Unmarshal(data, &actual) != nil || json.Unmarshal(actual["written_at"], &stamp) != nil || json.Unmarshal(actual["age_seconds"], &age) != nil {
+		if json.Unmarshal(data, &actual) != nil || json.Unmarshal(actual["written_at"], &stamp) != nil {
 			return false
 		}
 		ack, err := time.Parse(time.RFC3339Nano, stamp)
-		if err != nil || ack.Before(written) || ack.After(ended) || cached && !ack.Equal(written) || age < 0 || age > int64(ended.Sub(written).Seconds())+1 || !cached && age != 0 {
+		if err != nil || ack.Before(written) || ack.After(ended) || cached && !ack.Equal(written) {
 			return false
 		}
-		want = map[string]any{"dry_run": false, "resource": "boards", "items": []any{}, "payload": payload, "count": rows, "pages": pages, "complete": true, "ttl_minutes": 40320, "force": force, "unbounded": false, "would_fetch": !cached, "attempted": !cached, "from_cache": cached, "cache_state": state, "saved": !cached, "written_at": stamp, "age_seconds": age}
+		want = map[string]any{"dry_run": false, "resource": "boards", "items": []any{}, "payload": payload, "count": rows, "pages": pages, "complete": true, "would_fetch": !cached, "attempted": !cached, "from_cache": cached, "cache_state": state, "saved": !cached, "written_at": stamp}
 	default:
 		return false
 	}
@@ -307,7 +306,7 @@ func TestParityActualBinaryBoardCache(t *testing.T) {
 									t.Fatal(err)
 								}
 							}
-							if !parityBoardCacheReceipt(data, lane.name, "fixture", state, cached, force, len(rows), pages, written, payload, time.Now()) {
+							if !parityBoardCacheReceipt(data, lane.name, "fixture", state, cached, len(rows), pages, written, payload, time.Now()) {
 								t.Fatalf("board primer lost independently stored identities/projects or collection/publication facts: %s", result.Stdout)
 							}
 							id := fmt.Sprintf("C028.boards.primer.empty=%t.%s.%s", empty, phase, mode)
@@ -376,7 +375,7 @@ func TestLiveParityBoardCache(t *testing.T) {
 				state = "refresh"
 			}
 			data, err := json.Marshal(parityAuthoringCleanData(t, stdout, lane.Name, "cache.boards"))
-			if err != nil || !parityBoardCacheReceipt(data, lane.Name, lane.Profile, state, false, true, len(rows), pages, written, payload, time.Now()) {
+			if err != nil || !parityBoardCacheReceipt(data, lane.Name, lane.Profile, state, false, len(rows), pages, written, payload, time.Now()) {
 				t.Fatal("native board primer differs from independent identities/projects and stored/output facts")
 			}
 			p.check(t, lane, "C028.boards.native")
@@ -386,7 +385,7 @@ func TestLiveParityBoardCache(t *testing.T) {
 				t.Fatal("native cached board primer failed or changed owned files")
 			}
 			data, err = json.Marshal(parityAuthoringCleanData(t, stdout, lane.Name, "cache.boards"))
-			if err != nil || !parityBoardCacheReceipt(data, lane.Name, lane.Profile, "fresh", true, false, len(rows), pages, written, payload, time.Now()) {
+			if err != nil || !parityBoardCacheReceipt(data, lane.Name, lane.Profile, "fresh", true, len(rows), pages, written, payload, time.Now()) {
 				t.Fatal("native cached board receipt changed its stored values or timestamps")
 			}
 			p.check(t, lane, "C028.boards.native-cached")
@@ -436,10 +435,10 @@ func TestParityBoardCacheReceiptRejectsChangedAcknowledgements(t *testing.T) {
 			state, countKey := "refresh", "boards_count"
 			if lane == "after" {
 				state, countKey = "missing", "count"
-				valid = `{"dry_run":false,"resource":"boards","items":[],"payload":` + string(payload) + `,"count":1,"pages":2,"complete":true,"ttl_minutes":40320,"force":true,"unbounded":false,"would_fetch":true,"attempted":true,"from_cache":false,"cache_state":"missing","saved":true,"written_at":"2026-01-01T00:00:00.000000001Z","age_seconds":0}`
+				valid = `{"dry_run":false,"resource":"boards","items":[],"payload":` + string(payload) + `,"count":1,"pages":2,"complete":true,"would_fetch":true,"attempted":true,"from_cache":false,"cache_state":"missing","saved":true,"written_at":"2026-01-01T00:00:00.000000001Z"}`
 			}
 			accept := func(raw []byte) bool {
-				return parityBoardCacheReceipt(raw, lane, "fixture", state, false, true, 1, 2, written, payload, written.Add(time.Second))
+				return parityBoardCacheReceipt(raw, lane, "fixture", state, false, 1, 2, written, payload, written.Add(time.Second))
 			}
 			if !accept([]byte(valid)) {
 				t.Fatal("independent board publication receipt refused")
@@ -452,7 +451,7 @@ func TestParityBoardCacheReceiptRejectsChangedAcknowledgements(t *testing.T) {
 			if lane == "before" {
 				mutations = append(mutations, change{"false-prime", "primed", false})
 			} else {
-				for _, key := range []string{"saved", "attempted", "complete", "would_fetch", "force"} {
+				for _, key := range []string{"saved", "attempted", "complete", "would_fetch"} {
 					mutations = append(mutations, change{"false-" + key, key, false})
 				}
 				mutations = append(mutations, change{"lost-native-payload", "payload", nil})

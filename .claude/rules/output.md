@@ -71,6 +71,11 @@ Issue views request all native fields by default, with metadata expansions
 opt-in through `--expand`. Narrowing `--fields` does not add expansions. Preserve
 all metadata Jira actually returns at `issue.details`, including unknown members.
 
+Cache priming and refresh receipts retain native items, collection bounds,
+preview/fetch/reuse facts and storage acknowledgements. Do not echo force,
+unbounded or TTL inputs or duplicate `written_at` as an age. Cache inspection
+owns detailed freshness diagnostics.
+
 ## Write ownership
 
 The output path is command → `command` → `cli` → Cobra's `io.Writer`.

@@ -41,11 +41,7 @@ func parityCacheRefreshPreview(data []byte, lane string, repeated bool) bool {
 			}
 			rows = append(rows, map[string]any{"key": name, "ok": true, "data": map[string]any{"status": "would-refresh", "from_cache": false, "count": 0, "fetched_at": "0001-01-01T00:00:00Z", "duration_ms": duration, "dry_run": true}})
 		case "after":
-			ttl := 60
-			if name == "fields" {
-				ttl = 20160
-			}
-			rows = append(rows, map[string]any{"resource": name, "ok": true, "data": map[string]any{"dry_run": true, "items": []any{}, "count": 0, "pages": 0, "complete": false, "resource": name, "ttl_minutes": ttl, "force": false, "unbounded": false, "would_fetch": true, "attempted": false, "from_cache": false, "cache_state": "missing", "saved": false, "age_seconds": 0}})
+			rows = append(rows, map[string]any{"resource": name, "ok": true, "data": map[string]any{"dry_run": true, "items": []any{}, "count": 0, "pages": 0, "complete": false, "resource": name, "would_fetch": true, "attempted": false, "from_cache": false, "cache_state": "missing", "saved": false}})
 		default:
 			return false
 		}

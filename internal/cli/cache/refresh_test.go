@@ -47,8 +47,7 @@ func TestCacheRefreshPreviewSelectionAndDefaultTTLs(t *testing.T) {
 				t.Fatalf("runRefresh(%v)=%+v, %v scopes=%d clients=%d", tc.args, out, err, scopes.Load(), clients.Load())
 			}
 			for i, row := range out.Results {
-				resource, _ := metadataResource(tc.want[i])
-				if row.Resource != tc.want[i] || !row.OK || row.Err != nil || row.Data == nil || !row.Data.DryRun || !row.Data.WouldFetch || row.Data.Attempted || row.Data.Saved || row.Data.TTLMinutes != int(resource.DefaultTTL.Minutes()) || len(row.Data.Items) != 0 {
+				if row.Resource != tc.want[i] || !row.OK || row.Err != nil || row.Data == nil || !row.Data.DryRun || !row.Data.WouldFetch || row.Data.Attempted || row.Data.Saved || row.Data.CacheState != "missing" || row.Data.Complete || len(row.Data.Items) != 0 {
 					t.Fatalf("runRefresh(%v) row[%d]=%+v", tc.args, i, row)
 				}
 			}
