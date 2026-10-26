@@ -70,6 +70,15 @@ In `json`/`compact` modes nothing else may write to stdout.
 Issue views request all native fields by default, with metadata expansions
 opt-in through `--expand`. Narrowing `--fields` does not add expansions. Preserve
 all metadata Jira actually returns at `issue.details`, including unknown members.
+Human issue headers use `Nullable.Set` to omit fields absent from the response.
+Apply the existing value sinks and `OrDash` only to present fields, so fetched
+null or empty values display `-`. This applies to glance cells and labeled rows;
+field selection and JSON/compact payloads remain unchanged.
+Apply the same presence checks to current-account identity rows. Default issue
+table columns require a returned field in at least one row; mixed rows and
+explicit selections display `not returned` for absent cells and `-` for fetched
+empty cells. An embedded comment page without a usable explicit total is unknown,
+never evidence of zero comments.
 
 Cache priming and refresh receipts retain native items, collection bounds,
 preview/fetch/reuse facts and storage acknowledgements. Do not echo force,

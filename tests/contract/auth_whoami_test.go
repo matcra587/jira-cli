@@ -146,6 +146,58 @@ func TestAuthWhoamiHumanUsesNativeIdentity(t *testing.T) {
 	}
 }
 
+func TestAuthWhoamiHumanFieldPresence(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, body string
+		want       map[string]string
+	}{
+		{name: "absent", body: `{"accountId":"fixture-person"}`, want: map[string]string{}},
+		{
+			name: "null", body: `{"accountId":"fixture-person","displayName":null,"emailAddress":null,"accountType":null,"timeZone":null,"active":null}`,
+			want: map[string]string{"Display name": "-", "Email address": "-", "Account type": "-", "Time zone": "-", "Active": "-"},
+		},
+		{
+			name: "empty and false", body: `{"accountId":"fixture-person","displayName":"","emailAddress":"","accountType":"","timeZone":"","active":false}`,
+			want: map[string]string{"Display name": "-", "Email address": "-", "Account type": "-", "Time zone": "-", "Active": "false"},
+		},
+	} {
+		for _, args := range [][]string{{"auth", "whoami"}, {"me"}} {
+			t.Run(tc.name+"/"+strings.Join(args, " "), func(t *testing.T) {
+				t.Parallel()
+				var calls atomic.Int32
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					calls.Add(1)
+					if r.Method != http.MethodGet || r.URL.Path != "/rest/api/3/myself" {
+						t.Errorf("identity read = %s %s", r.Method, r.URL)
+					}
+					_, _ = io.WriteString(w, tc.body)
+				}))
+				t.Cleanup(server.Close)
+				stdout, stderr, exit := runBinaryEnv(t, editReceiptEnv(server.URL), append(args, "--output=human", "--color=never")...)
+				if exit != 0 || stderr != "" || calls.Load() != 1 {
+					t.Fatalf("identity: exit=%d calls=%d stdout=%q stderr=%q", exit, calls.Load(), stdout, stderr)
+				}
+				got := map[string]string{}
+				for line := range strings.SplitSeq(strings.TrimSpace(stdout), "\n") {
+					label, value, ok := strings.Cut(line, ":")
+					if !ok {
+						t.Fatalf("unexpected identity row: %q", line)
+					}
+					got[label] = strings.TrimSpace(value)
+				}
+				want := map[string]string{"Site": server.URL, "Account ID": "fixture-person"}
+				for key, value := range tc.want {
+					want[key] = value
+				}
+				if !reflect.DeepEqual(got, want) {
+					t.Fatalf("identity rows = %v; want %v", got, want)
+				}
+			})
+		}
+	}
+}
+
 func TestAuthWhoamiDiscoveryAndExamples(t *testing.T) {
 	t.Parallel()
 	stdout, stderr, exit := runBinary(t, "agent", "schema", "--path=auth whoami", "--output=json")

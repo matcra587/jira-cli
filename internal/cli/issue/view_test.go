@@ -298,6 +298,9 @@ func TestFitGlanceSummary(t *testing.T) {
 	if got := fitGlanceSummary(long, key, status, 6); got != long {
 		t.Errorf("sub-budget width truncated: %q", got)
 	}
+	if got := fitGlanceSummary("1234567890", key, "", 17); got != "1234567…" {
+		t.Errorf("summary without a status = %q; want %q", got, "1234567…")
+	}
 }
 
 // fakeIssueClient is a minimal core.JiraClient double: GetIssue returns
@@ -1329,14 +1332,11 @@ func TestRenderCommentsPreviewUncappedOmitsBannerWhenComplete(t *testing.T) {
 	}
 }
 
-// TestRenderCommentsPreviewUncappedNoCommentsPrintsExplicit mirrors
-// TestRenderCommentsPreviewKnownZeroTotalAnswersAnExplicitAsk for the
-// uncapped shape: zero comments still gets one plain line, not an empty
-// section.
-func TestRenderCommentsPreviewUncappedNoCommentsPrintsExplicit(t *testing.T) {
+// An unreturned comment page cannot establish that the thread is empty.
+func TestRenderCommentsPreviewUncappedUnknownDoesNotClaimEmpty(t *testing.T) {
 	got := renderPreview(t, "ABC-1", commentsPreview{uncapped: true}, clog.ColorNever)
-	if !strings.Contains(got, "No comments.") {
-		t.Errorf("output = %q, want the explicit no-comments line", got)
+	if !strings.Contains(got, "Comment preview unavailable.") || strings.Contains(got, "No comments.") {
+		t.Errorf("unknown comment preview = %q; want unavailable, not empty", got)
 	}
 }
 

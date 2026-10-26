@@ -713,6 +713,10 @@ establish live acceptance. There are no `test:live` or `test:integration` tasks.
 
 ## Contract tests are black-box
 
+Issue-view header cases distinguish absent, null, empty and populated native
+fields through the binary. Bind exact human rows and glance cells, native
+JSON/compact field maps, requested fields and the single issue read.
+
 Query precedence guards use an uncached default_board in existing list/mine
 raw and saved query fixtures across preview, search, count and browser routes.
 Bind exact submitted or URL JQL, mine account scope and absence of board reads

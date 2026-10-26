@@ -173,6 +173,7 @@ func newIssueList(deps Deps, currentAccount bool) *cobra.Command {
 			"before treating results as complete. Resume with --next-page-token.\n" +
 			"\n" +
 			"--fields selects native fields; --columns changes only the human table.\n" +
+			"Default columns omit fields absent from every result; missing cells say 'not returned'.\n" +
 			"--detail adds all fields and metadata; --expand selects metadata explicitly.\n" +
 			"--as-jql previews the query; explicit board selectors may read Jira to resolve\n" +
 			"scope. --count returns an approximate count; --web opens the search.",
@@ -999,6 +1000,9 @@ func renderList(v *output.View, env envelope.Envelope, site string, estimate cou
 		return nil
 	}
 
+	if len(columns) == 0 {
+		columns = availableIssueListFields(out.Issues)
+	}
 	output.Table(v, cli.ResolvedTheme(), issueListColumns(site, statusPillWidth(out.Issues, issueRowFromView), columns), out.Issues)
 
 	v.Line()

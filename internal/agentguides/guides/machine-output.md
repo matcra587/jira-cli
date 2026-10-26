@@ -94,7 +94,18 @@ all fields and the full list expansion preset. Each accepted search page's
 native metadata remains in `search_pages`, with issues collected separately.
 Inspect page warnings as well as the CLI's own truncation/error receipts.
 
+Human issue headers omit fields Jira did not return. Fetched null or empty
+header values display `-`. For example, `--fields summary` leaves out Assignee;
+`--fields summary,assignee` shows the returned name or `-` when unassigned.
+Human issue lists omit default columns absent from every returned issue. A missing
+cell in a retained column says `not returned`; a fetched empty cell shows `-`.
+Explicit `--columns` retains your selection. Current-account identity rows follow
+the same absent-versus-empty rule as issue headers.
+
 ### Read comments in the human issue view
+
+An unavailable embedded comment page says `Comment preview unavailable.`. Only
+a returned zero count supports `No comments.`.
 
 `issue view` shows the latest comment by default. `--comments N` selects the
 latest N; zero shows a count hint. A complete embedded comment page avoids a

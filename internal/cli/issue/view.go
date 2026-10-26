@@ -75,8 +75,10 @@ func newView(deps Deps) *cobra.Command {
 		Long: "Show one issue with all native fields. --fields narrows the Jira read;\n" +
 			"--expand opts into metadata such as names, schema or editmeta.\n" +
 			"\n" +
+			"Human headers omit fields Jira did not return; fetched null or empty values use '-'.\n" +
 			"Human output shows the latest comment by default. --comments N selects the\n" +
-			"preview size; 0 shows a count hint. An explicit --comments value takes precedence\n" +
+			"preview; an unavailable embedded page is reported without claiming zero comments.\n" +
+			"Use 0 for a count hint. An explicit --comments value takes precedence\n" +
 			"over --fields requesting comments. Machine output preserves fetched fields and\n" +
 			"metadata without making a separate comment-preview request.\n" +
 			"\n" +
@@ -545,12 +547,12 @@ func commentTotalFromFields(f jira.IssueFields) (int, bool) {
 	// Extra, ...) on the count-hint-only path, parsing content this function
 	// does not read.
 	var page struct {
-		Total int `json:"total"`
+		Total jira.Nullable[int] `json:"total"`
 	}
-	if err := json.Unmarshal(raw, &page); err != nil {
+	if err := json.Unmarshal(raw, &page); err != nil || !page.Total.Set || page.Total.Null || page.Total.Value < 0 {
 		return 0, false
 	}
-	return page.Total, true
+	return page.Total.Value, true
 }
 
 // commentPageFromFields decodes an issue's full embedded fields.comment
@@ -563,6 +565,9 @@ func commentTotalFromFields(f jira.IssueFields) (int, bool) {
 // field was never fetched, or it did not parse as the expected page
 // shape.
 func commentPageFromFields(f jira.IssueFields) (jira.CommentPage, bool) {
+	if _, known := commentTotalFromFields(f); !known {
+		return jira.CommentPage{}, false
+	}
 	raw, ok := f.Extra["comment"]
 	if !ok {
 		return jira.CommentPage{}, false
@@ -678,10 +683,8 @@ func buildOutput(read core.IssueRead) envelope.IssueViewOutput {
 // parsed and walked through internal/adf.Render, styled by
 // descriptionStyler below — see renderDescription.
 //
-// Every field is built with its sink already applied; an absent field
-// (empty DisplayName, no Priority set) is not filtered here — Fields
-// skips it, ANSI-wrapped or not, so this stays a plain list of what the
-// row WOULD say rather than a second place that re-decides emptiness.
+// Nullable.Set decides whether a header field was returned. Only present
+// fields reach the sinks; OrDash keeps fetched null or empty values visible.
 //
 // preview is the comment preview runView resolved (--comments N, or
 // --fields comment's uncapped read), carried from Run rather than
@@ -721,27 +724,53 @@ func renderView(v *output.View, env envelope.Envelope, preview commentsPreview, 
 	// value regardless — only these display copies are sanitized.
 	plainKey := cli.Text(out.Issue.Key)
 	key := cli.IssueKey(site, out.Issue.Key)
-	status := cli.Status(val(f.Status).Name.Value, statusCategoryKey(f))
-	summary := fitGlanceSummary(cli.Text(val(f.Summary)), plainKey, status, v.Output().Width())
-	v.Line(key, summary, status)
+	var status string
+	if f.Status.Set {
+		status = cli.OrDash(cli.Status(val(f.Status).Name.Value, statusCategoryKey(f)))
+	}
+	glance := []string{key}
+	if f.Summary.Set {
+		summary := cli.OrDash(cli.Text(val(f.Summary)))
+		glance = append(glance, fitGlanceSummary(summary, plainKey, status, v.Output().Width()))
+	}
+	if f.Status.Set {
+		glance = append(glance, status)
+	}
+	v.Line(glance...)
 
 	// The who/what/when strip, as one aligned block.
-	fields := []output.Field{
-		{Label: "Type", Value: cli.Type(val(f.Issuetype).Name.Value, val(f.Issuetype).HierarchyLevel.Value)},
-		{Label: "Priority", Value: cli.PriorityWithIcon(val(f.Priority).Name.Value)},
-		// Unassigned is a real answer, not a missing one, so it says so
-		// rather than dropping the row: an absent Assignee line reads as
-		// "this view did not fetch that", which is a different thing.
-		{Label: "Assignee", Value: cli.OrDash(cli.Entity(val(f.Assignee).DisplayName.Value))},
-		{Label: "Reporter", Value: cli.Entity(val(f.Reporter).DisplayName.Value)},
+	var fields []output.Field
+	if f.Issuetype.Set {
+		fields = append(fields, output.Field{
+			Label: "Type",
+			Value: cli.OrDash(cli.Type(val(f.Issuetype).Name.Value, val(f.Issuetype).HierarchyLevel.Value)),
+		})
 	}
-	if labels := f.Labels.Value; len(labels) > 0 {
+	if f.Priority.Set {
+		fields = append(fields, output.Field{
+			Label: "Priority",
+			Value: cli.OrDash(cli.PriorityWithIcon(val(f.Priority).Name.Value)),
+		})
+	}
+	if f.Assignee.Set {
+		fields = append(fields, output.Field{
+			Label: "Assignee",
+			Value: cli.OrDash(cli.Entity(val(f.Assignee).DisplayName.Value)),
+		})
+	}
+	if f.Reporter.Set {
+		fields = append(fields, output.Field{
+			Label: "Reporter",
+			Value: cli.OrDash(cli.Entity(val(f.Reporter).DisplayName.Value)),
+		})
+	}
+	if f.Labels.Set {
 		// Each label gets its OWN entity color, not the joined string
 		// colored as one identity — otherwise an issue's whole label set
 		// would share one arbitrary color instead of each label reading
 		// consistently wherever it recurs.
-		colored := xslices.Map(labels, cli.Label)
-		fields = append(fields, output.Field{Label: "Labels", Value: strings.Join(colored, ", ")})
+		colored := xslices.Map(f.Labels.Value, cli.Label)
+		fields = append(fields, output.Field{Label: "Labels", Value: cli.OrDash(strings.Join(colored, ", "))})
 	}
 	v.Fields(fields...)
 
@@ -852,7 +881,7 @@ func renderCommentsPreview(v *output.View, plainKey string, preview commentsPrev
 			v.Line(commentCountHint(preview.total, plainKey))
 			return
 		}
-		v.Line(cli.Text("No comments."))
+		v.Line(cli.Text("Comment preview unavailable."))
 		return
 	}
 
@@ -916,8 +945,8 @@ func renderDescription(v *output.View, raw []byte) {
 }
 
 // fitGlanceSummary truncates the glance line's summary to what width
-// leaves after the key, the status, and the two 2-space gutters View.Line
-// joins the three cells with (hence -4), so the one-line glance never
+// leaves after the key, any fetched status, and the 2-space gutters View.Line
+// joins the present cells with, so the one-line glance never
 // runs off the right edge. width 0 (non-TTY) returns the summary
 // unchanged — and the full summary always stays in fields.summary for
 // --output=json regardless. key and status are measured by VISIBLE width
@@ -926,7 +955,10 @@ func fitGlanceSummary(summary, key, status string, width int) string {
 	if width <= 0 {
 		return summary
 	}
-	avail := width - ansi.StringWidth(key) - ansi.StringWidth(status) - 4
+	avail := width - ansi.StringWidth(key) - 2
+	if status != "" {
+		avail -= ansi.StringWidth(status) + 2
+	}
 	if avail <= 0 {
 		return summary
 	}

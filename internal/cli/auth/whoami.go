@@ -17,7 +17,7 @@ const identityDescription = "Read the account Jira authenticates with the resolv
 	"Duplicate native members or case variants fail with current_user_response_invalid before identity saving. " +
 	"Machine output retains the complete native account in `data.user`, " +
 	"including privacy-hidden email, absent fields and additional Jira fields. " +
-	"Human output shows the returned account identity, type, time zone and activity. " +
+	"Human output omits unreturned identity fields and shows '-' for fetched null or empty values. " +
 	"Default identity inspection is a read; it does not save account settings or display the API token."
 
 // newWhoami returns the current account with its complete native Jira fields.
@@ -81,13 +81,25 @@ func renderIdentityHuman(v *output.View, out envelope.AuthWhoamiOutput) error {
 	fields := []output.Field{
 		{Label: "Site", Value: cli.Text(out.BaseURL)},
 		{Label: "Account ID", Value: cli.Text(u.AccountID.Value)},
-		{Label: "Display name", Value: cli.OrDash(cli.Text(u.DisplayName.Value))},
-		{Label: "Email address", Value: cli.OrDash(cli.Text(u.EmailAddress.Value))},
-		{Label: "Account type", Value: cli.OrDash(cli.Text(u.AccountType.Value))},
-		{Label: "Time zone", Value: cli.OrDash(cli.Text(u.TimeZone.Value))},
 	}
-	if u.Active.Set && !u.Active.Null {
-		fields = append(fields, output.Field{Label: "Active", Value: strconv.FormatBool(u.Active.Value)})
+	if u.DisplayName.Set {
+		fields = append(fields, output.Field{Label: "Display name", Value: cli.OrDash(cli.Text(u.DisplayName.Value))})
+	}
+	if u.EmailAddress.Set {
+		fields = append(fields, output.Field{Label: "Email address", Value: cli.OrDash(cli.Text(u.EmailAddress.Value))})
+	}
+	if u.AccountType.Set {
+		fields = append(fields, output.Field{Label: "Account type", Value: cli.OrDash(cli.Text(u.AccountType.Value))})
+	}
+	if u.TimeZone.Set {
+		fields = append(fields, output.Field{Label: "Time zone", Value: cli.OrDash(cli.Text(u.TimeZone.Value))})
+	}
+	if u.Active.Set {
+		active := "-"
+		if !u.Active.Null {
+			active = strconv.FormatBool(u.Active.Value)
+		}
+		fields = append(fields, output.Field{Label: "Active", Value: active})
 	}
 	v.Fields(fields...)
 	return nil

@@ -15,6 +15,7 @@ import (
 	"github.com/matcra587/jira-cli/internal/cli"
 	"github.com/matcra587/jira-cli/internal/envelope"
 	"github.com/matcra587/jira-cli/internal/jira"
+	"github.com/matcra587/jira-cli/internal/output"
 )
 
 // issueTransitionColumns shares entity and status sinks with other issue tables.
@@ -147,6 +148,9 @@ type issueColumnSpec struct {
 	header string
 	flex   bool
 	cell   func(issueRow, issueColumnOpts) table.Cell
+	// present checks the native key, before the plain-value projection loses it.
+	// Nil means the column is issue identity rather than a selected Jira field.
+	present func(jira.IssueFields) bool
 	// requires names the Jira field this column's value is READ FROM, or
 	// "" when the column needs no field at all.
 	//
@@ -218,37 +222,43 @@ var issueColumnTable = map[issueField]issueColumnSpec{
 	},
 	fieldStatus: {
 		header: "STATUS", requires: "status",
+		present: func(f jira.IssueFields) bool { return f.Status.Set },
 		cell: func(r issueRow, o issueColumnOpts) table.Cell {
 			return table.StyledCell(cli.StatusPadded(r.StatusName, r.StatusCategory, o.statusWidth), cli.Text(r.StatusName))
 		},
 	},
 	fieldPriority: {
 		header: "P", requires: "priority",
+		present: func(f jira.IssueFields) bool { return f.Priority.Set },
 		cell: func(r issueRow, _ issueColumnOpts) table.Cell {
 			return table.StyledCell(cli.PriorityIcon(r.PriorityName), cli.Text(r.PriorityName))
 		},
 	},
 	fieldType: {
 		header: "TYPE", requires: "issuetype",
+		present: func(f jira.IssueFields) bool { return f.Issuetype.Set },
 		cell: func(r issueRow, _ issueColumnOpts) table.Cell {
 			return table.StyledCell(cli.Type(r.TypeName, r.TypeHierarchy), cli.Text(r.TypeName))
 		},
 	},
 	fieldSummary: {
 		header: "SUMMARY", requires: "summary",
-		flex: true,
+		present: func(f jira.IssueFields) bool { return f.Summary.Set },
+		flex:    true,
 		cell: func(r issueRow, _ issueColumnOpts) table.Cell {
 			return table.TextCell(cli.Text(r.Summary))
 		},
 	},
 	fieldAssignee: {
 		header: "ASSIGNEE", requires: "assignee",
+		present: func(f jira.IssueFields) bool { return f.Assignee.Set },
 		cell: func(r issueRow, _ issueColumnOpts) table.Cell {
 			return table.StyledCell(cli.OrDash(cli.Entity(r.AssigneeName)), cli.Text(r.AssigneeName))
 		},
 	},
 	fieldUpdated: {
 		header: "UPDATED", requires: "updated",
+		present: func(f jira.IssueFields) bool { return f.Updated.Set },
 		cell: func(r issueRow, _ issueColumnOpts) table.Cell {
 			return table.TextCell(cli.Time(cli.Text(r.Updated)))
 		},
@@ -513,7 +523,34 @@ func issueListColumns(site string, statusWidth int, fields []issueField) []table
 	if len(fields) == 0 {
 		fields = issueListFields
 	}
-	return issueColumnsFor(fields, issueColumnOpts{site: site, statusWidth: statusWidth}, issueRowFromView)
+	columns := issueColumnsFor(fields, issueColumnOpts{site: site, statusWidth: statusWidth}, issueRowFromView)
+	for i, field := range fields {
+		present, render := issueColumnTable[field].present, columns[i].Render
+		columns[i].Render = func(row envelope.IssueView, ctx *table.RenderContext) table.Cell {
+			if present != nil && !present(row.Fields) {
+				return table.TextCell("not returned")
+			}
+			cell := render(row, ctx)
+			if output.IsBlank(cell.Text) {
+				return table.TextCell("-")
+			}
+			return cell
+		}
+	}
+	return columns
+}
+
+// availableIssueListFields omits default columns absent from every returned row.
+// Explicit selections retain their order and display an unavailable cell instead.
+func availableIssueListFields(rows []envelope.IssueView) []issueField {
+	var fields []issueField
+	for _, field := range issueListFields {
+		present := issueColumnTable[field].present
+		if present == nil || slices.ContainsFunc(rows, func(row envelope.IssueView) bool { return present(row.Fields) }) {
+			fields = append(fields, field)
+		}
+	}
+	return fields
 }
 
 // issueLinkColumns builds `issue link list`'s table: the shared
