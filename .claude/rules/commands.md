@@ -521,6 +521,10 @@ identity, preserve context, and reuse the checked client without another provide
 resolution or remote identity request. Local as-jql and missing-cache refusal
 remain credential-free; file preferences alone cannot prove live binding.
 
+Markdown conversion uses Goldmark's Text.Merge for contiguous literal fragments.
+Colon-triggered parser splits must not fragment ordinary ADF text. Keep marks,
+hard/soft breaks, actual directives and preserved native documents independent.
+
 `config theme --name` and `config set theme` use shared `config.ThemeChoices`.
 Advertise the application `auto` selector through the same flag/schema/completion
 metadata as concrete presets. The custom palette `base` remains a concrete

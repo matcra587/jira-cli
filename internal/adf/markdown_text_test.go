@@ -10,6 +10,7 @@ import (
 func TestFromMarkdownTextDecodesCommonMarkSyntax(t *testing.T) {
 	for _, tc := range []struct {
 		name, source, want string
+		nodes              int
 	}{
 		{name: "escaped punctuation", source: `a \*literal\* \[label\] \\path`, want: `a *literal* [label] \path`},
 		{name: "named references", source: `a &amp; &lt;tag&gt; &copy; &NotEqualTilde;`, want: "a & <tag> © ≂̸"},
@@ -18,13 +19,20 @@ func TestFromMarkdownTextDecodesCommonMarkSyntax(t *testing.T) {
 		{name: "escaped ampersand", source: `a \&amp; \&#65;`, want: `a &amp; &#65;`},
 		{name: "non escapes", source: `a \q &unknown; &amp &#12345678;`, want: `a \q &unknown; &amp &#12345678;`},
 		{name: "invalid numeric scalar", source: `a &#0; &#xD800; &#x110000;`, want: "a � � �"},
+		{name: "literal time", source: "At 20:48 UTC.\n", want: "At 20:48 UTC.", nodes: 1},
+		{name: "repeated colons", source: "Time: 20:48:12", want: "Time: 20:48:12", nodes: 1},
+		{name: "unfinished directive", source: "See :status[unfinished", want: "See :status[unfinished", nodes: 1},
 		{name: "plain Unicode", source: "a 雪 👩🏽‍💻 é", want: "a 雪 👩🏽‍💻 é"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			doc, warnings := mdConvert(t, tc.source)
 			mdAssertNoWarnings(t, warnings)
+			children := mdBlock(t, doc, 0).Content()
+			if tc.nodes != 0 && len(children) != tc.nodes {
+				t.Fatalf("literal text split into %d nodes, want %d", len(children), tc.nodes)
+			}
 			var text strings.Builder
-			for _, child := range mdBlock(t, doc, 0).Content() {
+			for _, child := range children {
 				if child.Type() != "text" || len(child.Marks()) != 0 {
 					t.Fatalf("literal source became formatted or non-text content: %s", child.Type())
 				}

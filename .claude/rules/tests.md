@@ -765,6 +765,8 @@ and cannot establish complete flag coverage.
 
 ## Goldens
 
+Converter tests bind literal-colon text-node boundaries as well as text values.
+
 *   ADF fixtures live alongside `internal/adf` tests, including the explicit
     Markdown, rendering and preservation cases. Published schema goldens use
     `internal/cli/root/agent_schema_test.go` and its `testdata/` directory.

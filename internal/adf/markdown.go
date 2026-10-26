@@ -595,11 +595,7 @@ func (c *mdConverter) tableRow(row ast.Node, cellType NodeType) Node {
 // inlineChildren converts the inline children of a block node to ADF
 // inline nodes, threading marks down onto leaf text nodes.
 func (c *mdConverter) inlineChildren(n ast.Node) []Node {
-	var out []Node
-	for child := n.FirstChild(); child != nil; child = child.NextSibling() {
-		out = append(out, c.inline(child, nil)...)
-	}
-	return out
+	return c.inlineRun(n, nil)
 }
 
 // inline converts one inline goldmark node, applying the accumulated
@@ -810,6 +806,12 @@ func imageAltText(img *ast.Image, source []byte) string {
 func (c *mdConverter) inlineRun(n ast.Node, marks []Mark) []Node {
 	var out []Node
 	for child := n.FirstChild(); child != nil; child = child.NextSibling() {
+		// Colon trigger splits. Goldmark segment/break rules.
+		if run, ok := child.(*ast.Text); ok {
+			for next := child.NextSibling(); next != nil && run.Merge(next, c.source); next = child.NextSibling() {
+				n.RemoveChild(n, next)
+			}
+		}
 		out = append(out, c.inline(child, marks)...)
 	}
 	return out
