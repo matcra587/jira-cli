@@ -67,6 +67,7 @@ linters:
             # below otherwise hides $gostd's "go" entry from go/* imports.
             - go/
             - github.com/matcra587/jira-cli
+            # Includes x/maps for shallow, non-mutating migration documents.
             - github.com/gechr
             - github.com/spf13/cobra
             - github.com/spf13/pflag

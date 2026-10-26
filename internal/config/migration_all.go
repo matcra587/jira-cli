@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	xmaps "github.com/gechr/x/maps"
 	"github.com/google/uuid"
 	koanftoml "github.com/knadh/koanf/parsers/toml"
 
@@ -156,8 +157,11 @@ func prepareProfileMigration(ctx context.Context, data []byte, path, selected st
 	if ids != nil && !maps.Equal(ids, m.ids) {
 		return nil, ErrLegacyRecovery
 	}
-	document := maps.Clone(globals)
-	document["format_version"], document["default_profile"], document["profiles"] = int64(1), m.defaultProfile, profiles
+	document := xmaps.Merge(globals, map[string]any{
+		"format_version":  ProfileFormatVersion,
+		"default_profile": m.defaultProfile,
+		"profiles":        profiles,
+	})
 	m.candidate, err = koanftoml.Parser().Marshal(document)
 	if err != nil {
 		return nil, ErrLegacyConfig
