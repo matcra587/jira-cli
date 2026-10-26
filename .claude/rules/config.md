@@ -412,8 +412,8 @@ empty flags suppress them. They never alter edit/clone requests. Structured issu
 list/mine inherits project only without raw/saved query or active board. Local
 JQL build keeps its independent project/date grammar and inherits board only.
 Configured board scope uses `boardscope.ResolveCached`, never credential-backed
-cache construction or implicit remote warming. Its provenance permits safe
-parenthesized raw-query narrowing; explicit board/raw selectors remain exclusive.
+cache construction or implicit remote warming. Raw/saved queries override
+default_board before cache lookup; explicit board/raw selectors remain exclusive.
 Retain mine account scope, ordering precedence and snapshot timestamp in every
 output branch. Preference/cache cancellation or load failure cannot broaden a
 query. Mapping policy 4 derives older policies 1–3 without adding new defaults.

@@ -713,6 +713,11 @@ establish live acceptance. There are no `test:live` or `test:integration` tasks.
 
 ## Contract tests are black-box
 
+Query precedence guards use an uncached default_board in existing list/mine
+raw and saved query fixtures across preview, search, count and browser routes.
+Bind exact submitted or URL JQL, mine account scope and absence of board reads
+and provenance.
+
 Published batch-inspection expressions must run against real binary receipts
 for all-success, mixed-success, total-failure and acknowledged-write/follow-up
 failure cases. Verify every target remains visible and failed-row selection

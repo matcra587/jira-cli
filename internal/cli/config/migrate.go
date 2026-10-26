@@ -32,6 +32,8 @@ func newMigrate(deps Deps) *cobra.Command {
 			"--source selects the explicit input; --config selects the destination. A flat input becomes the default profile. " +
 			"--source-profile explicitly selects a legacy subset. Global --profile selects runtime settings and does not filter migration. " +
 			"The source default and all supported preferences are retained.\n\n" +
+			"Migration does not warm board caches. Before using a retained default_board with structured issue filters, " +
+			"run issue list --board NAME --refresh --as-jql for that profile. Explicit --jql and --saved override default_board.\n\n" +
 			"--dry-run reads local files only and creates nothing. It does not inspect credentials. " +
 			"Unmapped preferences block conversion; --defer-tui retains recognized TUI settings only in exact recovery bytes. " +
 			"Legacy environment token references are preserved without reading their values.\n\n" +

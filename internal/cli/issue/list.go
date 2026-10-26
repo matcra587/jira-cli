@@ -548,7 +548,7 @@ func newIssueList(deps Deps, currentAccount bool) *cobra.Command {
 			if err != nil {
 				return envelope.IssueListOutput{}, err
 			}
-			defaultBoard := !cmd.Flags().Changed(flagBoard) && !cmd.Flags().Changed(flagBoardID) && strings.TrimSpace(preferences.DefaultBoard) != ""
+			defaultBoard := strings.TrimSpace(jqlInput.JQL) == "" && saved == "" && !cmd.Flags().Changed(flagBoard) && !cmd.Flags().Changed(flagBoardID) && strings.TrimSpace(preferences.DefaultBoard) != ""
 			if !defaultBoard && !board.given() && strings.TrimSpace(jqlInput.JQL) == "" && saved == "" && len(jqlInput.Project) == 0 && !cmd.Flags().Changed("project") && strings.TrimSpace(preferences.DefaultProject) != "" {
 				jqlInput.Project = []string{strings.TrimSpace(preferences.DefaultProject)}
 			}
@@ -696,8 +696,8 @@ func newIssueList(deps Deps, currentAccount bool) *cobra.Command {
 	}
 	spec.Long += "\n\ndefault_project supplies an omitted structured project when no raw/saved query or board is active. " +
 		"default_board uses only a retained named-board saved-filter snapshot for the configured public site and account; it never warms remotely. " +
-		"Explicit board selectors override it; --board= suppresses it. Missing or malformed snapshots refuse the query. " +
-		"Configured board scope narrows raw/saved queries and keeps mine account scope. Machine results retain default_board provenance and cached_at. " +
+		"Explicit --jql, --saved and board selectors override it; --board= suppresses it. Raw/saved queries need no board cache. " +
+		"Missing or malformed snapshots refuse structured queries that inherit the board. Mine keeps its required account scope. Machine results retain default_board provenance and cached_at. " +
 		"Human --as-jql remains bare pipeable JQL. Live search/count/browser refuses when the resolved site/account differs from the snapshot's public context."
 	spec.Long += "\n\n--saved NAME reads NAME.jql from queries_path, with optional YAML or TOML frontmatter. " +
 		"Metadata name, description and project are retained at .saved_query; project never adds a hidden constraint. " +

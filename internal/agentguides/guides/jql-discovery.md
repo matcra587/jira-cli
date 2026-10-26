@@ -99,12 +99,13 @@ semantic validity. These commands do not automatically run or repair a query.
 
 `board_cache_unavailable` means local composition cannot use a board snapshot.
 Run `issue list` with an explicit matching `--board` or `--board-id` and
-`--refresh --as-jql`, then retry `jql build`. For an inherited `default_board`,
+`--refresh --as-jql`, then retry the original command. For an inherited `default_board`,
 pass its name explicitly as `--board NAME`.
 Local build never fetches or silently drops a requested scope.
 Explicit board selectors on `issue list --as-jql` use normal authenticated board
 resolution and can read Jira. An inherited `default_board` uses only its local
-snapshot, including with saved queries. `--refresh` does not fetch it.
+snapshot for structured queries. Explicit `--jql` and `--saved` override it
+before cache lookup. `--refresh` does not fetch an inherited snapshot.
 The browser URL is optional and does not launch a browser. Built queries and
 cached scope do not prove current board membership or server validity.
 
@@ -127,7 +128,8 @@ envelopes and `raw-api` for native requests beyond these domain commands.
 Use `issue mine` when every result must be assigned to the current account.
 `default_project` fills an omitted structured project only without raw/saved
 query or active board. `default_board` uses the retained named-board filter for
-list/mine and narrows raw/saved query conditions. Explicit board/raw selectors
+structured list/mine queries. Explicit `--jql` and `--saved` override it without
+requiring a board cache. Explicit board/raw selectors
 remain exclusive. Machine `board.precedence=default_board` and `cached_at`
 identify this snapshot. Human `--as-jql` stays a bare pipeable query.
 Human `--web` prints one browser URL line. Human `--count` prints one result line.

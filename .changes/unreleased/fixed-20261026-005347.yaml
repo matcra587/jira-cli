@@ -1,0 +1,3 @@
+kind: fixed
+body: Let explicit raw and saved issue queries override the default board without a cached snapshot, while preserving current-account scope. Clarify how to warm retained board defaults after migration.
+time: 2026-10-26T00:53:47.546329331-04:00

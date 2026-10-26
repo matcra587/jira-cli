@@ -47,27 +47,30 @@ func TestIssueListDefaultsRespectRawInputAndLocalBuilderGrammar(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, test := range []struct {
-		name string
-		args []string
-		want string
+		name  string
+		args  []string
+		want  string
+		board string
 	}{
 		{name: "ordinary list", args: []string{"issue", "list", "--as-jql"}, want: `project in ("DEFAULT")`},
 		{name: "mine", args: []string{"issue", "mine", "--as-jql"}, want: `project in ("DEFAULT") AND assignee = currentUser() ORDER BY updated ASC`},
 		{name: "explicit project", args: []string{"issue", "list", "--as-jql", "--project=FLAGGED"}, want: `project in ("FLAGGED")`},
-		{name: "explicit raw query", args: []string{"issue", "list", "--as-jql", "--jql=project = RAW"}, want: "project = RAW"},
+		{name: "explicit raw query", args: []string{"issue", "list", "--as-jql", "--jql=project = RAW"}, want: "project = RAW", board: "Uncached board"},
+		{name: "mine raw query", args: []string{"issue", "mine", "--as-jql", "--jql=project = RAW OR labels = urgent ORDER BY key ASC"}, want: "assignee = currentUser() AND (project = RAW OR labels = urgent) ORDER BY key ASC", board: "Uncached board"},
 		{name: "independent local builder", args: []string{"jql", "build"}, want: "updated >= -365d ORDER BY updated DESC"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			args := append(test.args, "--config", path, "--output=json", "--no-input")
-			stdout, stderr, exit := runBinaryEnv(t, []string{"JIRA_KEYRING=false"}, args...)
+			stdout, stderr, exit := runBinaryEnv(t, []string{"JIRA_KEYRING=false", "JIRA_DEFAULT_BOARD=" + test.board}, args...)
 			var frame struct {
 				OK   bool `json:"ok"`
 				Data struct {
-					JQL string `json:"jql"`
+					JQL   string          `json:"jql"`
+					Board json.RawMessage `json:"board"`
 				} `json:"data"`
 			}
-			if exit != 0 || stderr != "" || json.Unmarshal([]byte(stdout), &frame) != nil || !frame.OK || frame.Data.JQL != test.want {
+			if exit != 0 || stderr != "" || json.Unmarshal([]byte(stdout), &frame) != nil || !frame.OK || frame.Data.JQL != test.want || len(frame.Data.Board) != 0 {
 				t.Fatalf("default query precedence changed: exit=%d stdout=%s stderr=%s", exit, stdout, stderr)
 			}
 		})

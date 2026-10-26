@@ -31,9 +31,10 @@ func TestDefaultBoardParserPreservesScopeAndUsesOnlyPublicCache(t *testing.T) {
 		want  string
 		board bool
 	}{
-		{name: "list default board", args: []string{"--as-jql"}, want: "(" + boardQuery[:strings.Index(boardQuery, " ORDER BY")] + ") ORDER BY Rank ASC", board: true},
+		{name: "list default board", args: []string{"--as-jql"}, want: "(project = BOARD OR labels = scope) ORDER BY Rank ASC", board: true},
 		{name: "mine board ordering", mine: true, args: []string{"--as-jql"}, want: "(project = BOARD OR labels = scope) AND assignee = currentUser() ORDER BY Rank ASC", board: true},
-		{name: "raw remains inside board", args: []string{"--as-jql", "--jql=status = Done OR labels = urgent ORDER BY created DESC"}, want: "(project = BOARD OR labels = scope) AND (status = Done OR labels = urgent) ORDER BY created DESC", board: true},
+		{name: "raw overrides board", args: []string{"--as-jql", "--jql=status = Done OR labels = urgent ORDER BY created DESC"}, want: "status = Done OR labels = urgent ORDER BY created DESC"},
+		{name: "mine raw overrides board", mine: true, args: []string{"--as-jql", "--jql=status = Done OR labels = urgent ORDER BY created DESC"}, want: "assignee = currentUser() AND (status = Done OR labels = urgent) ORDER BY created DESC"},
 		{name: "empty board selects project", args: []string{"--as-jql", "--board="}, want: `project in ("DEFAULT")`},
 		{name: "explicit project narrows board", args: []string{"--as-jql", "--project=FLAGGED"}, want: `(project = BOARD OR labels = scope) AND project in ("FLAGGED") ORDER BY Rank ASC`, board: true},
 	} {
@@ -75,22 +76,24 @@ func TestDefaultBoardParserPreservesScopeAndUsesOnlyPublicCache(t *testing.T) {
 				t.Fatal(err)
 			}
 			var frame struct {
-				Data struct {
+				OK     bool             `json:"ok"`
+				Errors []envelope.Error `json:"errors"`
+				Data   struct {
 					JQL   string `json:"jql"`
-					Board struct {
+					Board *struct {
 						Precedence string `json:"precedence"`
 						CachedAt   string `json:"cached_at"`
 					} `json:"board"`
 				} `json:"data"`
 			}
-			if json.Unmarshal(stdout.Bytes(), &frame) != nil || frame.Data.JQL != test.want {
+			if json.Unmarshal(stdout.Bytes(), &frame) != nil || !frame.OK || len(frame.Errors) != 0 || frame.Data.JQL != test.want {
 				t.Fatalf("default scope/order changed: %s", &stdout)
 			}
-			if test.board && (lookups != 1 || frame.Data.Board.Precedence != "default_board" || frame.Data.Board.CachedAt == "") {
+			if test.board && (lookups != 1 || frame.Data.Board == nil || frame.Data.Board.Precedence != "default_board" || frame.Data.Board.CachedAt == "") {
 				t.Fatal("default snapshot provenance missing")
 			}
-			if !test.board && lookups != 0 {
-				t.Fatal("empty board did not suppress cached lookup")
+			if !test.board && (lookups != 0 || frame.Data.Board != nil) {
+				t.Fatal("overridden board caused a lookup or retained provenance")
 			}
 		})
 	}

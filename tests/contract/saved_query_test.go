@@ -40,7 +40,7 @@ func TestSavedQueryPreviewPreservesLocalMetadataWithoutCredentials(t *testing.T)
 				if mode != "agent" {
 					args = append(args, "--output="+mode)
 				}
-				stdout, stderr, exit := runBinaryEnv(t, []string{"JIRA_QUERIES_PATH=" + dir, "JIRA_KEYRING=false", "JIRA_API_TOKEN=", "JIRA_EMAIL=", "AGENT=1"}, args...)
+				stdout, stderr, exit := runBinaryEnv(t, []string{"JIRA_QUERIES_PATH=" + dir, "JIRA_DEFAULT_BOARD=Uncached board", "JIRA_KEYRING=false", "JIRA_API_TOKEN=", "JIRA_EMAIL=", "AGENT=1"}, args...)
 				if exit != 0 || stderr != "" {
 					t.Fatalf("local saved query failed: exit=%d stdout=%s stderr=%s", exit, stdout, stderr)
 				}
@@ -59,7 +59,7 @@ func TestSavedQueryPreviewPreservesLocalMetadataWithoutCredentials(t *testing.T)
 					SavedQuery *struct{ Key, Name, Description, Project, JQL string } `json:"saved_query"`
 				}
 				data := adfData(t, stdout, format, "issue.list", true)
-				if err := json.Unmarshal(data, &out); err != nil || out.JQL != "project = ABC ORDER BY key ASC" || out.Issues == nil || len(out.Issues) != 0 || out.SavedQuery == nil || out.SavedQuery.Key != "inbox" || out.SavedQuery.JQL != out.JQL {
+				if err := json.Unmarshal(data, &out); err != nil || out.JQL != "project = ABC ORDER BY key ASC" || out.Issues == nil || len(out.Issues) != 0 || out.Board != nil || out.SavedQuery == nil || out.SavedQuery.Key != "inbox" || out.SavedQuery.JQL != out.JQL {
 					t.Fatalf("saved query preview lost its query, identity or metadata: err=%v data=%s", err, data)
 				}
 				if tc.name == "plain" {
@@ -116,7 +116,7 @@ func TestSavedQueryUsesSharedCursorWalkAndRetainsSourceOnFailure(t *testing.T) {
 				if mode != "agent" {
 					args = append(args, "--output="+mode)
 				}
-				env := append(searchEnv(server.URL), "JIRA_QUERIES_PATH="+dir, "AGENT=1", "JIRA_READ_ONLY=true")
+				env := append(searchEnv(server.URL), "JIRA_QUERIES_PATH="+dir, "JIRA_DEFAULT_BOARD=Uncached board", "AGENT=1", "JIRA_READ_ONLY=true")
 				stdout, stderr, exit := runBinaryEnv(t, env, args...)
 				wantExit := 0
 				if failed {
@@ -140,7 +140,7 @@ func TestSavedQueryUsesSharedCursorWalkAndRetainsSourceOnFailure(t *testing.T) {
 					SavedQuery *struct{ Key, JQL string } `json:"saved_query"`
 				}
 				data := adfData(t, stdout, format, "issue.list", !failed)
-				if err := json.Unmarshal(data, &out); err != nil || out.SavedQuery == nil || out.SavedQuery.Key != "inbox" || out.SavedQuery.JQL != "project = ABC ORDER BY key ASC" || len(out.Issues) == 0 || out.Issues[0].Key != "ABC-1" {
+				if err := json.Unmarshal(data, &out); err != nil || out.Board != nil || out.SavedQuery == nil || out.SavedQuery.Key != "inbox" || out.SavedQuery.JQL != "project = ABC ORDER BY key ASC" || len(out.Issues) == 0 || out.Issues[0].Key != "ABC-1" {
 					t.Fatalf("saved-query receipt discarded validated source or rows: err=%v data=%s", err, data)
 				}
 				if !failed && (len(out.Issues) != 2 || out.Issues[1].Key != "ABC-2" || !out.Pagination.IsLast || out.Truncated) {
@@ -238,7 +238,7 @@ func TestSavedQueryMineRetainsAccountScopeAndRejectsGroupingEscape(t *testing.T)
 			t.Parallel()
 			dir := savedQueryDirectory(t, tc.body)
 			args := append([]string{"issue", "mine", "--saved=inbox", "--as-jql", "--output=human"}, tc.args...)
-			stdout, stderr, exit := runBinaryEnv(t, []string{"JIRA_QUERIES_PATH=" + dir, "JIRA_KEYRING=false", "JIRA_API_TOKEN="}, args...)
+			stdout, stderr, exit := runBinaryEnv(t, []string{"JIRA_QUERIES_PATH=" + dir, "JIRA_DEFAULT_BOARD=Uncached board", "JIRA_KEYRING=false", "JIRA_API_TOKEN="}, args...)
 			if tc.failed {
 				if exit != cli.ExitValidation || stdout != "" {
 					t.Fatalf("invalid saved-query account scope passed: exit=%d stdout=%s stderr=%s", exit, stdout, stderr)
@@ -269,9 +269,9 @@ func TestSavedQueryCountAndWebUseTheAuthoredQuery(t *testing.T) {
 				_, _ = w.Write([]byte(`{"count":42}`))
 			}))
 			t.Cleanup(server.Close)
-			stdout, stderr, exit := runBinaryEnv(t, append(searchEnv(server.URL), "JIRA_QUERIES_PATH="+dir, "AGENT=1", "JIRA_READ_ONLY=true"), "issue", "list", "--saved=inbox", "--"+mode, "--output=json")
+			stdout, stderr, exit := runBinaryEnv(t, append(searchEnv(server.URL), "JIRA_QUERIES_PATH="+dir, "JIRA_DEFAULT_BOARD=Uncached board", "AGENT=1", "JIRA_READ_ONLY=true"), "issue", "list", "--saved=inbox", "--"+mode, "--output=json")
 			var out envelope.IssueListOutput
-			if exit != 0 || stderr != "" || json.Unmarshal(adfData(t, stdout, "json", "issue.list", true), &out) != nil || out.SavedQuery == nil || out.SavedQuery.JQL != query || out.Issues == nil || len(out.Issues) != 0 {
+			if exit != 0 || stderr != "" || json.Unmarshal(adfData(t, stdout, "json", "issue.list", true), &out) != nil || out.Board != nil || out.SavedQuery == nil || out.SavedQuery.JQL != query || out.Issues == nil || len(out.Issues) != 0 {
 				t.Fatalf("saved-query short circuit lost its source or result: exit=%d stdout=%s stderr=%s", exit, stdout, stderr)
 			}
 			if mode == "count" {

@@ -120,7 +120,7 @@ func TestIssueMineReadsPinnedQueryThroughTheBinary(t *testing.T) {
 			}))
 			t.Cleanup(server.Close)
 			args := []string{"issue", "mine", "--jql=project = ABC OR project = DEF ORDER BY key ASC", "--fields=*all", "--limit=2"}
-			env := searchEnv(server.URL)
+			env := append(searchEnv(server.URL), "JIRA_DEFAULT_BOARD=Uncached board")
 			if mode == "agent" {
 				env = append(env, "AGENT=1")
 			} else {
@@ -142,7 +142,7 @@ func TestIssueMineReadsPinnedQueryThroughTheBinary(t *testing.T) {
 			}
 			var out envelope.IssueListOutput
 			data := adfData(t, stdout, format, "issue.mine", true)
-			if err := json.Unmarshal(data, &out); err != nil || len(out.Issues) != 1 || out.Issues[0].Key != "ABC-1" || !out.Pagination.IsLast || out.Pagination.Returned != 1 || out.Truncated || !strings.Contains(string(data), `"customfield_10011":null`) {
+			if err := json.Unmarshal(data, &out); err != nil || out.Board != nil || len(out.Issues) != 1 || out.Issues[0].Key != "ABC-1" || !out.Pagination.IsLast || out.Pagination.Returned != 1 || out.Truncated || !strings.Contains(string(data), `"customfield_10011":null`) {
 				t.Fatalf("native list data or pagination lost: err=%v data=%s", err, data)
 			}
 		})
@@ -244,12 +244,12 @@ func TestIssueMineWebRetainsPinnedQueryWithoutSearch(t *testing.T) {
 	var requests atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { requests.Add(1); w.WriteHeader(http.StatusBadRequest) }))
 	t.Cleanup(server.Close)
-	stdout, _, exit := runBinaryEnv(t, searchEnv(server.URL), "issue", "mine", "--web", "--jql=project = ABC OR project = DEF ORDER BY key ASC", "--output=json")
+	stdout, stderr, exit := runBinaryEnv(t, append(searchEnv(server.URL), "JIRA_DEFAULT_BOARD=Uncached board"), "issue", "mine", "--web", "--jql=project = ABC OR project = DEF ORDER BY key ASC", "--output=json")
 	var frame struct {
 		OK   bool                     `json:"ok"`
 		Data envelope.IssueListOutput `json:"data"`
 	}
-	if exit != 0 || requests.Load() != 0 || json.Unmarshal([]byte(stdout), &frame) != nil || !frame.OK || len(frame.Data.Issues) != 0 {
+	if exit != 0 || stderr != "" || requests.Load() != 0 || json.Unmarshal([]byte(stdout), &frame) != nil || !frame.OK || frame.Data.Board != nil || len(frame.Data.Issues) != 0 {
 		t.Fatalf("web search contacted Jira or lost typed result: exit=%d requests=%d stdout=%s", exit, requests.Load(), stdout)
 	}
 	parsed, err := url.Parse(frame.Data.WebURL)

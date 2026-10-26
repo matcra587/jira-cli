@@ -510,6 +510,9 @@ blank context remains a pure validation refusal. Preserve actual parser presence
 for empty board names, invalid zero IDs and selector conflicts. Default scope
 provenance belongs in shared `command.JQLInput`, not a bypass around composition.
 Use the shared public cached-board owner for both issue lists and local JQL.
+Raw `--jql` and `--saved` override default_board before local cache lookup.
+Keep mine's required current-account scope. Structured queries still inherit
+board context and refuse missing snapshots. Explicit board/raw conflicts remain.
 
 After local default-board resolution, live search/count/browser must bind that
 snapshot's public site/account to the constructed client's BaseURL and public

@@ -87,6 +87,12 @@ profile's `default_project`, `default_issue_type` and `default_board`, including
 explicit empty defaults. Policies 1–3 retain their original candidate derivation.
 Reopening an older journal does not add working defaults retroactively.
 
+Migration does not warm retained board scope. Before using a nonempty
+`default_board` with structured filters, run
+`jira issue list --board NAME --refresh --as-jql --profile PROFILE` with the
+retained board name and profile. Explicit `--jql` and `--saved` override this
+default and need no board cache. `--board=` suppresses it for structured queries.
+
 Policy 5
 retains the selected `theme.name=auto` as a flat selector using the v0.16 passive
 background hint and dark fallback. Policies 1–4 keep their original derivation
