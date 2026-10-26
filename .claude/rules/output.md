@@ -67,6 +67,10 @@ HTML escaping off and restores the two line-separator escapes
 (`U+2028`/`U+2029`) `encoding/json` forces even so.
 In `json`/`compact` modes nothing else may write to stdout.
 
+Issue views request all native fields by default, with metadata expansions
+opt-in through `--expand`. Narrowing `--fields` does not add expansions. Preserve
+all metadata Jira actually returns at `issue.details`, including unknown members.
+
 ## Write ownership
 
 The output path is command → `command` → `cli` → Cobra's `io.Writer`.

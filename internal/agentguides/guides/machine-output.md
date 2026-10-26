@@ -86,9 +86,10 @@ Identity and fields keep their existing slots. Native omitted fields, explicit
 nulls and values such as false, zero, an empty list or an empty object remain
 distinct. Treat each successful native read as current facts. A failed decode
 does not supply a partial replacement for the earlier data. `issue view` requests
-renderedFields, names, schema, transitions, operations and editmeta by default.
-Explicit `--fields` uses renderedFields, names and schema. `--expand` replaces
-the preset, including `--expand=` to disable it. Search `--detail` requests
+all native fields without metadata expansions. Use `--fields` to narrow fields
+and `--expand` to request metadata. To restore the earlier view response, pass
+`--expand=renderedFields,names,schema,transitions,operations,editmeta`. Any metadata
+Jira returns is preserved, including unsolicited members. Search `--detail` requests
 all fields and the full list expansion preset. Each accepted search page's
 native metadata remains in `search_pages`, with issues collected separately.
 Inspect page warnings as well as the CLI's own truncation/error receipts.

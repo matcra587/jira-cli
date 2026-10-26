@@ -110,7 +110,7 @@ func newView(deps Deps) *cobra.Command {
 			"nor `--fields` comment's own decode happens for a non-human " +
 			"render — --output=json/compact skip both entirely, since they " +
 			"exist to feed a preview those modes never draw.\n\n" +
-			"Native metadata is retained at .issue.details. The default expansion preset is renderedFields,names,schema,transitions,operations,editmeta; narrowed --fields uses renderedFields,names,schema. --expand replaces that preset, and --expand= disables it.",
+			"Native metadata is retained at .issue.details. Expansions are opt-in: use --expand to request names, schema, renderedFields or other metadata. All native fields remain available unless --fields narrows them.",
 		Example: "# the issue, with its latest comment inline\n" +
 			"$ jira issue view KEY-123\n\n" +
 			"# the count hint only, no comment body\n" +
@@ -133,7 +133,7 @@ func newView(deps Deps) *cobra.Command {
 					"suppresses that, even alongside a wildcard)",
 				command.FlagOpts{Terse: "Fields", Placeholder: "list", Complete: "predictor=cachefield,comma"})
 			command.AddStringSliceVar(c, &expand, "expand", nil,
-				"Native issue expansions (comma-separated); replaces the preset; --expand= disables them",
+				"Native issue expansions (comma-separated); none requested by default",
 				command.FlagOpts{Terse: "Expansions", Placeholder: "list", Enum: strings.Split(command.IssueExpansionValues, ",")})
 			command.AddIntVar(c, &comments, "comments", 1,
 				"Show the latest N comments inline in the human view (1: the "+
@@ -172,9 +172,8 @@ func newView(deps Deps) *cobra.Command {
 				// c.Flags().Changed, NOT commentsN > 0: --comments 0 is a
 				// legitimate explicit "just the hint", indistinguishable
 				// from "never asked" by value alone.
-				explicit:       cmd.Flags().Changed("comments"),
-				expand:         expand,
-				expandExplicit: cmd.Flags().Changed("expand"),
+				explicit: cmd.Flags().Changed("comments"),
+				expand:   expand,
 			}
 			out, prev, err := runView(ctx, deps, key, fields, opts)
 			preview = prev
@@ -234,10 +233,9 @@ type commentsPreview struct {
 // still beat --fields comment — n alone cannot tell that apart from
 // --comments never having been typed at all.
 type viewOpts struct {
-	n              int
-	explicit       bool
-	expand         []string
-	expandExplicit bool
+	n        int
+	explicit bool
+	expand   []string
 }
 
 // runView fetches key (narrowed to fields, when set) and assembles the
@@ -315,15 +313,8 @@ func runView(ctx context.Context, deps Deps, key string, fields []string, opts v
 	if err != nil {
 		return zero, commentsPreview{}, err
 	}
-	expand := opts.expand
-	if !opts.expandExplicit {
-		expand = strings.Split(command.IssueViewExpansions, ",")
-		if len(fields) > 0 {
-			expand = strings.Split(command.IssueFieldExpansions, ",")
-		}
-	}
 	read, err := command.Spin(ctx, "Loading "+key, func(ctx context.Context) (core.IssueRead, error) {
-		return client.GetIssue(ctx, key, requestFields(fields), expand...)
+		return client.GetIssue(ctx, key, requestFields(fields), opts.expand...)
 	})
 	if err != nil {
 		return zero, commentsPreview{}, err

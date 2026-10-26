@@ -1,0 +1,3 @@
+kind: breaking
+body: Request issue-view metadata explicitly with --expand; default views retain all native fields without requesting metadata expansions.
+time: 2026-10-26T01:23:37.461256416-04:00

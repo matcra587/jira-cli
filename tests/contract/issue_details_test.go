@@ -62,8 +62,8 @@ func TestIssueReadExpansionsThroughTheBinary(t *testing.T) {
 		args             []string
 		search           bool
 	}{
-		{"view default", "issue.view", "renderedFields,names,schema,transitions,operations,editmeta", []string{"issue", "view", "ABC-1", "--comments=0"}, false},
-		{"view narrowed", "issue.view", "renderedFields,names,schema", []string{"issue", "view", "ABC-1", "--fields=summary", "--comments=0"}, false},
+		{"view default", "issue.view", "", []string{"issue", "view", "ABC-1", "--comments=0"}, false},
+		{"view narrowed", "issue.view", "", []string{"issue", "view", "ABC-1", "--fields=summary", "--comments=0"}, false},
 		{"view explicit", "issue.view", "changelog,names", []string{"issue", "view", "ABC-1", "--expand=changelog,names", "--comments=0"}, false},
 		{"view disabled", "issue.view", "", []string{"issue", "view", "ABC-1", "--expand=", "--comments=0"}, false},
 		{"list detail", "issue.list", "renderedFields,names,schema,transitions,operations,changelog", []string{"issue", "list", "--project=ABC", "--detail"}, true},

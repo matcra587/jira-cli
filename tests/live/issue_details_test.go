@@ -31,8 +31,8 @@ func TestLiveIssueDetails(t *testing.T) {
 		name, fields, expand string
 		args                 []string
 	}{
-		{"full", "*all", "renderedFields,names,schema,transitions,operations,editmeta", []string{"issue", "view", key}},
-		{"narrow", "summary", "renderedFields,names,schema", []string{"issue", "view", key, "--fields=summary"}},
+		{"full", "*all", "renderedFields,names,schema,transitions,operations,editmeta", []string{"issue", "view", key, "--expand=renderedFields,names,schema,transitions,operations,editmeta"}},
+		{"narrow", "summary", "renderedFields,names,schema", []string{"issue", "view", key, "--fields=summary", "--expand=renderedFields,names,schema"}},
 	} {
 		native := rawRead(t, r, "api", "get", "/rest/api/3/issue/"+key, "--query=fields="+tc.fields, "--query=expand="+tc.expand)
 		var observed map[string]json.RawMessage

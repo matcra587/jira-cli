@@ -9,11 +9,8 @@ import (
 )
 
 // Issue expansion names come from the pinned platform issue/search schemas.
-// The view and list presets intentionally differ: full views include editmeta,
-// while the historical list detail preset includes changelog instead.
+// Only list --detail selects a preset; issue view expansions are opt-in.
 const (
-	IssueViewExpansions  = "renderedFields,names,schema,transitions,operations,editmeta"
-	IssueFieldExpansions = "renderedFields,names,schema"
 	IssueListExpansions  = "renderedFields,names,schema,transitions,operations,changelog"
 	IssueExpansionValues = "renderedFields,names,schema,transitions,operations,editmeta,changelog,versionedRepresentations"
 )
