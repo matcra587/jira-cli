@@ -123,6 +123,24 @@ operators. Empty values and control characters are refused before any lookup.
 Consult `machine-output` for
 envelopes and `raw-api` for native requests beyond these domain commands.
 
+Repeated positive values on one filter combine with OR; status exclusions and
+different filters combine with AND. Values are quoted before they enter JQL. Board scope can be narrowed with
+structured filters. Ambiguous board names or a non-final name-lookup page refuse;
+use an explicit `--board-id`. `--refresh` bypasses an explicit board's cache.
+
+### Walk and resume search results
+
+`--limit` bounds the total across pages. `--all` drains within safety caps and
+refuses an explicit `--limit`. `--all --unbounded` lifts collection and empty-page
+caps; cancellation and missing or repeated cursors still stop the walk. Results
+are collected in memory. `is_last` establishes completion; a truncation reason
+means the search was stopped, not exhausted. Keep `next_page_token` to resume.
+
+Invalid page shapes, repeated issue keys and oversized pages fail with
+`search_response_invalid`. Later failures retain earlier validated issues and
+page metadata; `--jq` does not filter that failure receipt. Human `--columns`
+only selects and orders table columns; requesting an unfetched field is refused.
+
 ### Limit results to your assigned issues
 
 Use `issue mine` when every result must be assigned to the current account.

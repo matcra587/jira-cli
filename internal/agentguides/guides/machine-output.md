@@ -94,6 +94,19 @@ all fields and the full list expansion preset. Each accepted search page's
 native metadata remains in `search_pages`, with issues collected separately.
 Inspect page warnings as well as the CLI's own truncation/error receipts.
 
+### Read comments in the human issue view
+
+`issue view` shows the latest comment by default. `--comments N` selects the
+latest N; zero shows a count hint. A complete embedded comment page avoids a
+second read; an incomplete page needs a dedicated comment fetch.
+
+Explicit `--fields comment`, `comments` or `*all` instead shows the comments in
+the returned page, newest first, without another read. Names are case-insensitive;
+`-comment` or `-comments` suppresses this selection, even beside a wildcard.
+`*navigable` does not select comments. A partial page reports the known count and
+points to `issue comment list`. Explicit `--comments`, including zero, wins over
+field selection. Machine modes skip preview reads and keep the fetched native data.
+
 Raw JSON values retain authored escape spelling in machine output. Ordinary
 string values emit literal HTML and line separators. `--jq` transforms parsed
 values and does not preserve the original JSON spelling.

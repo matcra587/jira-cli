@@ -72,65 +72,26 @@ func newView(deps Deps) *cobra.Command {
 		Passthrough: true,
 		Use:         "view ISSUE_KEY",
 		Short:       "Show one issue",
-		Long: "Show an issue's identity and fields.\n\n" +
-			"The human view is the scannable answer to \"what is this ticket\": " +
-			"key, summary and status on one line, then the who/what/when, then " +
-			"the fields. Machine modes carry the full field set — including a " +
-			"tenant's custom fields, which ride through verbatim rather than " +
-			"being dropped for lacking a typed field.\n\n" +
-			"`--fields` narrows what Jira returns; without it the default set " +
-			"comes back.\n\n" +
-			"`--comments` controls the human view's inline comment preview " +
-			"(machine modes always carry the full field set the fetch " +
-			"returned): 1 (the default) renders the single latest comment " +
-			"inline; N>0 renders the latest N; `--comments 0` shows a count " +
-			"hint naming `jira issue comment list` instead — the previous " +
-			"default's behavior, still reachable. The latest N is served from " +
-			"the issue response's own embedded comment page, with no second " +
-			"fetch, whenever that page demonstrably carries the whole thread; " +
-			"otherwise it falls back to a dedicated fetch, exactly as an " +
-			"explicit --comments N always has.\n\n" +
-			"Asking `--fields` for the comment field asks for the comments " +
-			"themselves (matching `acli`'s convention): the human view then " +
-			"renders every comment the response's own embedded page carried, " +
-			"newest first, with no count hint — no second fetch, since the " +
-			"field was already in the response. Naming `comment` or its plural " +
-			"`comments` counts, " +
-			"case-insensitively; so does Jira's own `*all` wildcard (`*navigable` " +
-			"does not — Jira's navigable set excludes comments); a minus-" +
-			"exclusion (`-comment` or `-comments`) always suppresses the ask, " +
-			"even alongside a wildcard, regardless of order. A \"Showing N of " +
-			"TOTAL\" banner still appears if the embedded page itself fell short " +
-			"of the issue's real total — this path never makes a second fetch to " +
-			"complete it; the banner names `jira issue comment list` instead. An " +
-			"explicit `--comments N` (even `--comments 0`) always wins over a " +
-			"`--fields` comment ask: a cap you typed beats an ask you only " +
-			"implied — this holds even though the default is no longer 0, since " +
-			"the default is never explicit. Neither --comments N's own fetch " +
-			"nor `--fields` comment's own decode happens for a non-human " +
-			"render — --output=json/compact skip both entirely, since they " +
-			"exist to feed a preview those modes never draw.\n\n" +
-			"Native metadata is retained at .issue.details. Expansions are opt-in: use --expand to request names, schema, renderedFields or other metadata. All native fields remain available unless --fields narrows them.",
-		Example: "# the issue, with its latest comment inline\n" +
-			"$ jira issue view KEY-123\n\n" +
-			"# the count hint only, no comment body\n" +
-			"$ jira issue view KEY-123 --comments 0\n\n" +
-			"# the latest 3 comments, inline\n" +
-			"$ jira issue view KEY-123 --comments 3\n\n" +
-			"# every comment the response carried, in one fetch\n" +
-			"$ jira issue view KEY-123 --fields comments\n\n" +
-			"# just the fields you want, as json\n" +
-			"$ jira issue view KEY-123 --fields summary,status --output=json\n\n" +
-			"# pull one value out (--jq forces json; no --output needed)\n" +
-			"$ jira issue view KEY-123 --jq '.data.issue.fields.status.name'",
+		Long: "Show one issue with all native fields. --fields narrows the Jira read;\n" +
+			"--expand opts into metadata such as names, schema or editmeta.\n" +
+			"\n" +
+			"Human output shows the latest comment by default. --comments N selects the\n" +
+			"preview size; 0 shows a count hint. An explicit --comments value takes precedence\n" +
+			"over --fields requesting comments. Machine output preserves fetched fields and\n" +
+			"metadata without making a separate comment-preview request.\n" +
+			"\n" +
+			"For comment selection, native JSON paths and parsing, run\n" +
+			"jira agent guide machine-output.",
+		Example: "$ jira issue view KEY-123\n" +
+			"\n" +
+			"$ jira issue view KEY-123 --fields summary,status --output=json\n" +
+			"\n" +
+			"$ jira issue view KEY-123 --expand names,schema,editmeta --output=json",
 		Args: command.ArgSpec{Min: 1, Max: 1, Positions: []command.Arg{{Name: "ISSUE_KEY", Predictor: "issuekey"}}},
 		Flags: func(c *cobra.Command) {
 			cmd = c
 			command.AddStringSliceVar(c, &fields, "fields", nil,
-				"Restrict the fields Jira returns (comma-separated); naming "+
-					"'comment'/'comments' or Jira's '*all' wildcard renders every "+
-					"comment in the response ('-comment'/'-comments' always "+
-					"suppresses that, even alongside a wildcard)",
+				"Native fields to return (comma-separated); comment or *all also selects the human comment preview",
 				command.FlagOpts{Terse: "Fields", Placeholder: "list", Complete: "predictor=cachefield,comma"})
 			command.AddStringSliceVar(c, &expand, "expand", nil,
 				"Native issue expansions (comma-separated); none requested by default",

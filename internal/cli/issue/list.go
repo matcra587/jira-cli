@@ -164,135 +164,23 @@ func newIssueList(deps Deps, currentAccount bool) *cobra.Command {
 		RetainOnError: func(out envelope.IssueListOutput) bool { return len(out.Issues) > 0 || len(out.SearchPages) > 0 },
 		Use:           "list",
 		Short:         "Search issues by JQL or filters",
-		Long: "Search issues with a JQL query, or with convenience filters that " +
-			"compose one for you.\n\n" +
-			"--detail requests all native fields plus renderedFields,names,schema,transitions,operations,changelog. --expand chooses an explicit expansion list; --expand= disables expansions. Native issue metadata is retained at .issues[].details and page metadata at .search_pages[].\n\n" +
-			"`--project`, `--assignee`, `--status`, `--type` and `--label` are " +
-			"the escape hatch's convenience shorthand: each is repeatable, and " +
-			"repeated values on the SAME flag combine with OR (`--label bug " +
-			"--label urgent` matches either label), while DIFFERENT flags " +
-			"combine with AND (`--project ABC --status Open` matches both) — " +
-			"Assignee and reporter values me/currentUser() mean the current account; none/empty/unassigned mean EMPTY. " +
-			"Status values !NAME exclude a status; <, <=, > and >= compare the categories To Do, In Progress and Done. " +
-			"Positive status predicates combine with OR; exclusions combine with AND. Use --jql for literal names beginning with these operators. " +
-			"The usual facet-search shape means a second value on one facet " +
-			"widens it and a second facet narrows the result.\n\n" +
-			"`--jql` is the raw escape hatch everything above composes into " +
-			"when it is absent. It is NOT composed with the convenience " +
-			"filters: giving --jql alongside any of them is refused rather " +
-			"than guessed at, because there is no way to silently combine an " +
-			"explicit query the caller wrote and verified themselves with an " +
-			"implied filter without changing what that query means, in a way " +
-			"the caller cannot see before it runs. Fold the filter into --jql " +
-			"yourself instead.\n\n" +
-			"`--board` lists the issues on an Agile board, by name, and " +
-			"`--board-id` does the same by number. A board IS a saved " +
-			"filter, so this is a SCOPE the convenience filters narrow " +
-			"further — `--board Sprint --status Done` means what it reads " +
-			"like. It is refused alongside `--jql` for the reason those " +
-			"filters are: a board is already a complete query and so is " +
-			"yours, so one would have to be ignored.\n\n" +
-			"Board names are matched loosely by Jira and are not unique, so " +
-			"`--board` refuses rather than guesses when several match — and " +
-			"the refusal lists each candidate with the `--board-id` that " +
-			"names it exactly. Name lookup reads one bounded page; even an exact " +
-			"name is refused on a non-final page because unread pages may contain " +
-			"a duplicate. A board's own ordering is kept unless " +
-			"`--order-by` asks for a different one. Resolving a board costs " +
-			"three reads, so the answer is cached for a day; `--refresh` " +
-			"ignores the cache and `--ttl-minutes` changes how long it " +
-			"lives.\n\n" +
-			"Every filter value is quoted and escaped before it ever reaches " +
-			"Jira, so a project key or label containing a quote or backslash " +
-			"cannot alter the query's structure.\n\n" +
-			"`--limit` is how many issues you want, not one request's page " +
-			"size: this command fetches successive pages on its own, behind " +
-			"a single spinner, until it has collected that many or the search " +
-			"runs out. This endpoint has no offset, only an internal cursor " +
-			"this command walks on its own between pages.\n\n" +
-			fmt.Sprintf("Empty pages are followed when their cursor advances. The walk "+
-				"stops after %d consecutive empty pages unless --all --unbounded "+
-				"is given. A missing or repeated cursor stops every walk. These "+
-				"stops report truncated=true and a truncated_reason; they do not "+
-				"mean the search is exhausted.\n\n", command.MaxSearchEmptyPages) +
-			"Missing or null completion/issue-array fields, repeated issue keys and pages exceeding the requested count fail with search_response_invalid. " +
-			"Later read failures retain earlier validated issues in the error frame; --jq never filters that failure receipt. " +
-			"When both the page and issue safety bounds are reached, truncated_reason names max_issues.\n\n" +
-			"`--all` drains the whole search instead, up to a fixed safety " +
-			"cap (see --all's own help); it is refused alongside an explicit " +
-			"--limit rather than silently picking a winner between them.\n\n" +
-			"`--next-page-token` resumes a PRIOR invocation's own cursor " +
-			"— its value rides machine output as " +
-			"`data.pagination.next_page_token`, never a human view, which " +
-			"names only the flag to raise. There is no total; `is_last` is " +
-			"the authoritative end-of-results signal.\n\n" +
-			"`--order-by` sorts the result by one of a fixed set of " +
-			"fields (run with an unknown one to see the accepted set); " +
-			"`--reverse` flips that field's own default direction. Both " +
-			"are refused alongside --jql for the same reason the " +
-			"convenience filters are: an explicit query owns its own " +
-			"ordering.\n\n" +
-			"`--created-after`/`--created-before`/`--updated-after`/" +
-			"`--updated-before` bound the search by date — an absolute " +
-			"date (`2026-08-01`) or Jira's own relative form " +
-			"(`-7d`, `-2w`).\n\n" +
-			"`--reporter` and `--priority` compose exactly like " +
-			"`--assignee`/`--status` above; `--watching` matches only " +
-			"issues the current user watches.\n\n" +
-			"`--count` reports how many issues match, without fetching " +
-			"any of them — refused alongside `--limit`/`--all`, which " +
-			"have nothing to act on when nothing is being fetched.\n\n" +
-			"`--unbounded` lifts `--all`'s safety cap, and needs `--all` " +
-			"beside it. Use it when a capped drain reported `truncated` " +
-			"and you genuinely want the rest. It also lifts the consecutive " +
-			"empty-page cap, but cancellation and unusable cursors can still " +
-			"stop it. A query matching hundreds of " +
-			"thousands of issues will collect every one of them in memory.\n\n" +
-			"`--as-jql` prints the composed query and stops, so it is how " +
-			"to check what the convenience filters built before spending a " +
-			"search on it, and the output is ready to paste straight back " +
-			"into `--jql`. Refused alongside `--count`, `--web`, `--limit` " +
-			"and `--all`, none of which has anything to act on when no " +
-			"search runs.\n\n" +
-			"It contacts Jira not at all EXCEPT with `--board`, whose query " +
-			"only the site knows: resolving a board is three reads, and " +
-			"printing the composed query without them would print a query " +
-			"missing the very scope that was asked for. No search runs " +
-			"either way — the reads resolve the board, they do not execute " +
-			"the result.\n\n" +
-			"`--columns` chooses and orders the columns of the HUMAN table, " +
-			"and is distinct from `--fields`: `--fields` decides what Jira " +
-			"sends, `--columns` decides what is drawn from it. The columns " +
-			"appear in the order you name them. Asking for a column whose " +
-			"field `--fields` did not request is refused rather than drawn " +
-			"blank, since a column of dashes reads as an empty value and " +
-			"not as an unfetched one. Machine output is unaffected — it " +
-			"carries every field that was fetched, and `--jq` selects from " +
-			"it.",
-		Example: "# every open issue in one project\n" +
-			"$ jira issue list --project ABC --status Open\n\n" +
-			"# issues carrying either label\n" +
-			"$ jira issue list --label bug --label urgent\n\n" +
-			"# the raw escape hatch\n" +
-			"$ jira issue list --jql 'assignee = currentUser() ORDER BY updated DESC'\n\n" +
-			"# a bigger pull, auto-paginated behind one spinner\n" +
-			"$ jira issue list --project ABC --limit 500\n\n" +
-			"# every matching issue, up to the safety cap\n" +
-			"$ jira issue list --project ABC --all\n\n" +
-			"# resume a prior response's cursor (data.pagination.next_page_token)\n" +
-			"$ jira issue list --project ABC --next-page-token abc123\n\n" +
-			"# see the composed query without running it\n" +
-			"$ jira issue list --project ABC --status Open --as-jql\n\n" +
-			"# just the columns you want, in your own order\n" +
-			"$ jira issue list --project ABC --columns key,summary,assignee\n\n" +
-			"# every match, cap lifted\n" +
-			"$ jira issue list --project ABC --all --unbounded\n\n" +
-			"# the issues on a board, by name\n" +
-			"$ jira issue list --board 'Platform Sprint'\n\n" +
-			"# the same board, narrowed — the board is a scope, not a whole query\n" +
-			"$ jira issue list --board 'Platform Sprint' --status Done\n\n" +
-			"# by number, which is unambiguous and skips the name lookup\n" +
-			"$ jira issue list --board-id 42",
+		Long: "Search with --jql, --saved NAME, or structured filters. Repeated positive values\n" +
+			"on one filter combine with OR; status exclusions and different filters use AND.\n" +
+			"Raw and saved queries cannot mix with structured filters or board selectors.\n" +
+			"\n" +
+			"--limit bounds the total fetched across pages. --all drains within safety caps;\n" +
+			"--all --unbounded lifts those caps. Inspect pagination.is_last and truncated\n" +
+			"before treating results as complete. Resume with --next-page-token.\n" +
+			"\n" +
+			"--fields selects native fields; --columns changes only the human table.\n" +
+			"--detail adds all fields and metadata; --expand selects metadata explicitly.\n" +
+			"--as-jql previews the query; explicit board selectors may read Jira to resolve\n" +
+			"scope. --count returns an approximate count; --web opens the search.",
+		Example: "$ jira issue list --project ABC --status Open\n" +
+			"\n" +
+			"$ jira issue list --jql 'assignee = currentUser() ORDER BY updated DESC'\n" +
+			"\n" +
+			"$ jira issue list --project ABC --all --output=json",
 		Flags: func(c *cobra.Command) {
 			cmd = c
 			jqlHelp := "Raw JQL query — the escape hatch every convenience filter composes into; refused alongside any of them"
@@ -674,36 +562,27 @@ func newIssueList(deps Deps, currentAccount bool) *cobra.Command {
 		spec.Op = "issue.mine"
 		spec.Use = "mine"
 		spec.Short = "List issues assigned to the current account"
-		spec.Long = "List issues assigned to the authenticated account. Every query includes " +
-			"assignee = currentUser(); there is no --assignee override.\n\n" +
-			"Convenience filters narrow that scope. --jql adds parenthesized conditions, " +
-			"so OR cannot escape the account scope. Its trailing ORDER BY wins over " +
-			"--order-by. Without raw JQL or board scope, the default is updated ASC; " +
-			"--reverse flips an explicit or default sort direction. With raw JQL or " +
-			"board scope it requires --order-by; raw ORDER BY still takes precedence.\n\n" +
-			"Uses the same fields, human columns, cursor walk and failure receipts as " +
-			"issue list. --limit bounds the total; --all drains pages within the " +
-			"documented safety caps, and --unbounded lifts them. --next-page-token " +
-			"resumes a prior search. --fields '*all' requests all native fields; --detail also requests native expansions. --expand replaces that preset. Issue metadata is at .issues[].details; native page metadata is at .search_pages[].\n\n" +
-			"--as-jql previews the query without credentials or a search; explicit " +
-			"board scope requires its normal board resolution. --count requests an " +
-			"approximate count; --web opens the composed search."
+		spec.Long = "List issues assigned to the current account. Every query keeps\n" +
+			"assignee = currentUser(); there is no --assignee override. Structured filters,\n" +
+			"--jql and --saved conditions narrow that scope. Raw ORDER BY takes precedence.\n" +
+			"\n" +
+			"Paging, field selection and output follow issue list. Use --as-jql to inspect\n" +
+			"the query, --count for an approximate count, or --web to open the search."
 		spec.Example = "$ jira issue mine --project ABC --status '!Done'\n\n" +
 			"# Narrow custom conditions to the current account\n" +
 			"$ jira issue mine --jql 'project = ABC OR project = DEF ORDER BY key ASC'\n\n" +
 			"# Preview locally\n" +
 			"$ jira issue mine --project ABC --as-jql --output=json"
 	}
-	spec.Long += "\n\ndefault_project supplies an omitted structured project when no raw/saved query or board is active. " +
-		"default_board uses only a retained named-board saved-filter snapshot for the configured public site and account; it never warms remotely. " +
-		"Explicit --jql, --saved and board selectors override it; --board= suppresses it. Raw/saved queries need no board cache. " +
-		"Missing or malformed snapshots refuse structured queries that inherit the board. Mine keeps its required account scope. Machine results retain default_board provenance and cached_at. " +
-		"Human --as-jql remains bare pipeable JQL. Live search/count/browser refuses when the resolved site/account differs from the snapshot's public context."
-	spec.Long += "\n\n--saved NAME reads NAME.jql from queries_path, with optional YAML or TOML frontmatter. " +
-		"Metadata name, description and project are retained at .saved_query; project never adds a hidden constraint. " +
-		"--saved, --jql and board selectors are alternatives. Ordinary list keeps raw-query filter exclusivity; mine narrows the saved query beneath its account scope. " +
-		"--as-jql reads local files without credentials or Jira requests. Shared paging, field/detail, count and browser routes apply."
-	spec.Example += "\n\n# Inspect and run a named local query\n$ jira issue " + spec.Use + " --saved inbox --as-jql\n$ jira issue " + spec.Use + " --saved inbox --all"
+	spec.Long += "\n" +
+		"\n" +
+		"Without raw/saved query or board scope, default_project fills an omitted project.\n" +
+		"default_board uses a cached filter; --jql, --saved or board selectors override it;\n" +
+		"--board= suppresses it. Missing inherited scope refuses the query. Machine\n" +
+		"results include cached_at. --saved reads NAME.jql from queries_path.\n" +
+		"\n" +
+		"For filters, board resolution and pagination, run jira agent guide jql-discovery.\n" +
+		"For JSON paths and failure receipts, run jira agent guide machine-output."
 	return command.MustNew(spec)
 }
 
