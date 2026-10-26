@@ -142,16 +142,6 @@ func enrich(cmd *cobra.Command, tree *docent.Command) error {
 			tree.Extensions["operation_arguments"] = variantArgs
 		}
 	}
-	// Hidden compatibility flags are accepted but deliberately unadvertised.
-	// Docent includes them; filtering is a host policy, without mutating Cobra.
-	local, persistent := cmd.LocalFlags(), cmd.PersistentFlags()
-	tree.Flags = slices.DeleteFunc(tree.Flags, func(flag docent.Flag) bool {
-		f := local.Lookup(flag.Name)
-		if flag.Persistent {
-			f = persistent.Lookup(flag.Name)
-		}
-		return f != nil && f.Hidden
-	})
 	byName := make(map[string]*cobra.Command, len(cmd.Commands()))
 	for _, child := range cmd.Commands() {
 		byName[child.Name()] = child
