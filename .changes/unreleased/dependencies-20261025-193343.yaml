@@ -1,3 +1,0 @@
-kind: dependencies
-body: Update development tools and CI actions, including hk 2.8.1, golangci-lint 2.15.0, GoReleaser 2.19.0 and Zensical 0.0.72.
-time: 2026-10-25T19:33:43.891387348-04:00

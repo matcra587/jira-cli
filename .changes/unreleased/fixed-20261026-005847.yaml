@@ -1,3 +1,0 @@
-kind: fixed
-body: Return complete requested relationship sentences after issue-link type resolution, including validated previews and failed-write receipts. Keep bare previews unresolved and write outcomes separate.
-time: 2026-10-26T00:58:47.037958028-04:00
