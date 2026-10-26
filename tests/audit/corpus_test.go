@@ -2836,22 +2836,15 @@ func checkSuccessDeterminismPair(cap, sibling Capture) (bool, string) {
 	return true, ""
 }
 
-// checkFailureSurface is M11 for machine-mode failure captures: ONE
-// legal shape — the full typed error frame on stdout (exit mirrored in
-// meta, at least one error carrying code, message, and hint), with the
-// human line on stderr. There is no pre-resolution carve-out: the
-// selector resolves from the raw argv, so a flag-parse or arg-validation
-// failure has a known format like every other failure ("no known
-// format" was the false premise that made typos unparseable). The
-// NoSuccessEnvelope declaration is exactly what it says — about
-// SUCCESS; failure frames are the uniform grammar for every op,
-// envelope-free surfaces included.
+// checkFailureSurface: M11. Full typed frame on stdout; silent stderr.
+// Exit mirrored in meta. Error code/message/hint required, even before parse.
+// NoSuccessEnvelope: success only; failures keep uniform frames.
 func checkFailureSurface(cap Capture, _ command.Meta) (bool, string) {
 	if cap.ExitCode != cap.Scenario.ExpectExit {
 		return false, fmt.Sprintf("exit = %d, want %d", cap.ExitCode, cap.Scenario.ExpectExit)
 	}
-	if strings.TrimSpace(cap.Stderr) == "" {
-		return false, "failure produced no human diagnostics on stderr"
+	if cap.Stderr != "" {
+		return false, "machine failure emitted diagnostics outside its typed frame"
 	}
 	if cap.Stdout == "" {
 		return false, "failure left stdout empty — every failure the binary can produce must reach the machine envelope in machine modes"

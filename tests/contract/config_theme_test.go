@@ -134,7 +134,7 @@ func TestConfigThemeActualInvalidInputRefusesBothDeclarationsBeforePublication(t
 			}
 			stdout, stderr, exit := runBinaryEnv(t, []string{"JIRA_KEYRING=false"}, args...)
 			var result apiFrame
-			if exit != 3 || !strings.Contains(stderr, tc.message) || json.Unmarshal([]byte(stdout), &result) != nil || result.OK || len(result.Errors) != 1 || result.Errors[0].Code != "flag_value_invalid" || result.Errors[0].Field != tc.field {
+			if exit != 3 || stderr != "" || json.Unmarshal([]byte(stdout), &result) != nil || result.OK || len(result.Errors) != 1 || !strings.Contains(result.Errors[0].Message, tc.message) || result.Errors[0].Code != "flag_value_invalid" || result.Errors[0].Field != tc.field {
 				t.Fatalf("invalid theme input lost refusal: %s exit=%d stdout=%q stderr=%q", tc.name, exit, stdout, stderr)
 			}
 		}

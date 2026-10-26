@@ -718,6 +718,9 @@ raw and saved query fixtures across preview, search, count and browser routes.
 Bind exact submitted or URL JQL, mine account scope and absence of board reads
 and provenance.
 
+Machine failures keep a single parseable frame when streams are combined; human
+mode retains its error and hint.
+
 Link handler tests bind resolved preview sentences in source order with one type
 read and no write; bare previews claim none. Failed write receipts retain intent
 sentences separately from outcomes.

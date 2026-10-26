@@ -91,11 +91,11 @@ func TestBareRootFiltersAndRetainsDiscoveryOnFilterFailure(t *testing.T) {
 		}
 		stdout, stderr, exit := runBinary(t, "--output="+mode, "--jq="+prefix+".missing[]")
 		var f frame
-		if exit != 3 || !strings.Contains(stderr, "jq expression failed:") || json.Unmarshal([]byte(stdout), &f) != nil || f.OK || f.Meta.Command != "root" || len(f.Errors) != 1 {
+		if exit != 3 || stderr != "" || json.Unmarshal([]byte(stdout), &f) != nil || f.OK || f.Meta.Command != "root" || len(f.Errors) != 1 {
 			t.Fatal("root filter failure did not retain its typed failure frame")
 		}
 		var failure envelope.Error
-		if json.Unmarshal(f.Errors[0], &failure) != nil || failure.Code != "jq_eval_failed" {
+		if json.Unmarshal(f.Errors[0], &failure) != nil || failure.Code != "jq_eval_failed" || !strings.Contains(failure.Message, "jq expression failed:") {
 			t.Fatal("root filter failure changed error classification")
 		}
 		var out envelope.AgentSchemaOutput

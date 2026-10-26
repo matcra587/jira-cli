@@ -192,15 +192,10 @@ func checkErrorFeedback(t *testing.T, captures map[string]Capture, member Member
 	if capture.ExitCode == 0 {
 		t.Error("failure scenario exited 0 — no error signal at all")
 	}
-	// One feedback contract for every failure, pre-parse included: the
-	// typed error frame on stdout (the selector resolves from the raw
-	// argv, so even a flag-parse failure knows its format — the earlier
-	// "no known format" carve-out was a false premise that made typos,
-	// the most common agent failure, unparseable) plus the human line on
-	// stderr. M11 validates the frame's full shape; this checklist row
-	// asks only that the contract surface exists at all.
-	if strings.TrimSpace(capture.Stderr) == "" {
-		t.Error("failing invocation produced no diagnostics on stderr")
+	// Typed feedback on stdout, including pre-parse failures. No human duplicate.
+	// M11 checks full shape; this row checks channel presence.
+	if capture.Stderr != "" {
+		t.Error("machine failure emitted diagnostics outside its typed frame")
 	}
 	if capture.Stdout == "" {
 		t.Error("failing invocation left stdout empty — the machine feedback channel is the error frame")

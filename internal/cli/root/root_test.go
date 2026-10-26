@@ -372,7 +372,7 @@ func TestHumanModeFailureKeepsStdoutClean(t *testing.T) {
 // reaches.
 func TestHumanStatusCarriesNoLevelColumn(t *testing.T) {
 	stderr := captureStderr(t, func() {
-		runQuiet(t, []string{"verson"})
+		runQuiet(t, []string{"verson", "--output=human"})
 	})
 
 	if stderr == "" {
@@ -444,7 +444,7 @@ func TestHumanFailureOffersOneRouteForward(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			stderr := captureStderr(t, func() { runQuiet(t, tt.args) })
+			stderr := captureStderr(t, func() { runQuiet(t, append([]string{"--output=human"}, tt.args...)) })
 			if hints := strings.Count(stderr, "💡"); hints != 1 {
 				t.Errorf("got %d advice lines, want exactly 1:\n%s", hints, stderr)
 			}

@@ -1,0 +1,3 @@
+kind: fixed
+body: Keep JSON and compact failures in one structured stdout frame without duplicate human diagnostics on stderr. Preserve human-mode advice and output-destination error reporting.
+time: 2026-10-26T00:59:18.187843827-04:00

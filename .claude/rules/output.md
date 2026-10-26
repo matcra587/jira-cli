@@ -139,7 +139,9 @@ write failure as secondary context; it does not try the failed stream again.
     broken-pipe/quota failures and nil short writes that Clog finalisers would
     otherwise hide — the reason raw encoders are banned.
 *   Error envelopes go to **stdout** (success and failure alike), even under
-    `compact`; human diagnostics go to **stderr** through clog.
+    `compact`. Resolved machine failures emit no duplicate human error or hint
+    on stderr. Human diagnostics use **stderr** through clog. A failed envelope
+    write still reports its destination failure on stderr and exits 8.
 *   Warnings carry a taxonomy (`unknown_adf_node`, `lossy_adf_conversion`,
     `rate_limit_near`, …) — reuse existing codes before minting new ones.
 *   Jira near-limit replies use `core.WithRateLimitObservation` state scoped to

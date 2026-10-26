@@ -154,7 +154,7 @@ func TestNativeInputAliasOnlyDisagreementPrecedesIO(t *testing.T) {
 				OK     bool             `json:"ok"`
 				Errors []envelope.Error `json:"errors"`
 			}
-			if exit != cli.ExitValidation || json.Unmarshal([]byte(stdout), &frame) != nil || frame.OK || len(frame.Errors) != 1 || frame.Errors[0].Code != cli.CodeFlagConflict || frame.Errors[0].Field != "json-input" || !strings.Contains(stderr, "--json-input") {
+			if exit != cli.ExitValidation || json.Unmarshal([]byte(stdout), &frame) != nil || frame.OK || len(frame.Errors) != 1 || frame.Errors[0].Code != cli.CodeFlagConflict || frame.Errors[0].Field != "json-input" || stderr != "" || !strings.Contains(frame.Errors[0].Message, "--json-input") {
 				t.Fatalf("alias-only ambiguity was not refused before I/O: exit=%d stdout=%q stderr=%q", exit, stdout, stderr)
 			}
 		})

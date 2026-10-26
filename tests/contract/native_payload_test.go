@@ -156,17 +156,18 @@ func TestNativeIssueMalformedContainersFailBeforeHTTP(t *testing.T) {
 					if err := json.Unmarshal([]byte(stdout), &out); err != nil {
 						t.Fatal(err)
 					}
-					if exit != 3 || !strings.Contains(stderr, "--json-input") || out.OK || out.Meta.Command != "issue."+route || len(out.Errors) != 1 || requests.Load() != 0 {
+					if exit != 3 || stderr != "" || out.OK || out.Meta.Command != "issue."+route || len(out.Errors) != 1 || requests.Load() != 0 {
 						t.Fatalf("native %s(%s) refusal: exit=%d stderr=%q ok=%t errors=%d HTTP=%d, want input failure before HTTP", route, body, exit, stderr, out.OK, len(out.Errors), requests.Load())
 					}
 					var failure struct {
-						Code  string `json:"code"`
-						Field string `json:"field"`
+						Code    string `json:"code"`
+						Field   string `json:"field"`
+						Message string `json:"message"`
 					}
 					if err := json.Unmarshal(out.Errors[0], &failure); err != nil {
 						t.Fatal(err)
 					}
-					if failure.Code != "flag_value_invalid" || failure.Field != "json-input" {
+					if failure.Code != "flag_value_invalid" || failure.Field != "json-input" || !strings.Contains(failure.Message, "--json-input") {
 						t.Errorf("native %s(%s) error = %+v, want flag_value_invalid for json-input", route, body, failure)
 					}
 				}

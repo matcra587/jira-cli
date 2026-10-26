@@ -241,8 +241,14 @@ func TestADFStatusBinaryBodyRoutes(t *testing.T) {
 						}
 						return
 					}
-					if action == "failure" && (exit != 3 || !strings.Contains(stderr, "fixture write refused")) || action != "failure" && (exit != 0 || stderr != "") {
+					if stderr != "" || action == "failure" && exit != 3 || action != "failure" && exit != 0 {
 						t.Fatalf("body route status: exit %d, stderr %q", exit, stderr)
+					}
+					if action == "failure" {
+						var failure apiFrame
+						if json.Unmarshal([]byte(stdout), &failure) != nil || len(failure.Errors) != 1 || !strings.Contains(failure.Errors[0].Message, "fixture write refused") {
+							t.Fatal("write failure lost structured diagnostic", stdout)
+						}
 					}
 					data := adfData(t, stdout, mode, op, action != "failure")
 					var document json.RawMessage

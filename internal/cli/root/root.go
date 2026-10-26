@@ -555,17 +555,10 @@ func (s *failureSink) seed(root *cobra.Command, args []string) {
 	s.resolved = true
 }
 
-// exitCode is the one error boundary. Machine modes get the full error
-// frame on stdout (R2: errors keep the frame in EVERY mode — an agent
-// must never have to parse stderr prose); the human line, hint, and any
-// "did you mean" candidates go to stderr through clog in every mode.
-// seed runs before cobra parses, so by the time any failure lands here
-// the format is resolved on every path the binary can take.
-// exitCode is conductor's WithExitCode callback, which cobra invokes
-// AFTER unwinding — no live command context survives that far, and an
-// error frame never carries a --jq filter (Assemble drops it), so there
-// is nothing on this path left to cancel. Callers that still hold a
-// context use exitCodeContext instead.
+// exitCode: Conductor failure boundary, after Cobra unwinds.
+// Machine frame -> stdout. Human error/hint -> stderr.
+// seed resolves format before parse. Failure frames ignore --jq.
+// No live invocation context here; use exitCodeContext when available.
 func (s *failureSink) exitCode(err error) int {
 	return s.exitCodeContext(context.Background(), err)
 }
@@ -656,8 +649,10 @@ func (s *failureSink) exitCodeContext(ctx context.Context, err error) int {
 			exit = cli.ExitOutput
 		}
 	}
-	// Machine strings retain their original bytes. Terminal diagnostics pass
-	// through the same sanitizer as Jira-authored human result fields.
+	if s.resolved && s.format != output.FormatHuman {
+		return exit
+	}
+	// Human diagnostics: same terminal sinks as Jira fields.
 	clog.Error().Msg(cli.Text(e.Message))
 	// Show one route forward, not two. A suggestion IS the answer; the
 	// hint's job is to recover a reader who has no lead, so printing

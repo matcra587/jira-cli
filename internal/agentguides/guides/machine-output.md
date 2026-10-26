@@ -220,7 +220,10 @@ Missing permission can return an empty successful search. Privacy can hide email
 ## Save
 
 Keep exit status with stdout. Retain the complete failure frame and any receipt
-in its `data`. Stderr prose is not the machine contract. Identity fields are
+in its `data`. JSON and compact failures emit no duplicate human error or hint
+on stderr, so combining streams keeps the frame parseable. A failed output write
+can still report a destination error on stderr. Human mode retains its error and
+hint on stderr. Identity fields are
 objects such as `issue.key`. Multi-key results retain input order and report
 per-key success or failure. Inspect every entry before deciding what remains.
 
