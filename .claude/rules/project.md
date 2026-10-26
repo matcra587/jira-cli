@@ -52,8 +52,8 @@ stores or output policies independently inside handlers.
 
 1.  `cmd/jira/main.go` obtains Conductor's signal context and returns the exit
     code from `root.Run(ctx, args)`.
-2.  Root assembles the real tree and runtime, registering native generators
-    before exposing completion. `root/complete.go` handles completion actions
+2.  Root assembles the real tree and runtime, applying native overrides to each
+    completion generator. `root/complete.go` handles completion actions
     before Cobra parsing; a handled callback returns without running a command.
 3.  Root seeds the failure output selector, expands configured aliases, applies
     their final global flags, and resolves the theme. Command-path checks and
@@ -166,8 +166,8 @@ values in quoted `usage_*` variables, and test ordering/refusal paths through
     writes are never auto-replayed, redirects on unsafe methods are
     refused, `Retry-After` is clamped and jittered.
 *   **internal/cli/completion/native** — licensed backports of reviewed clib
-    Bash/PowerShell/Zsh/Fish/Elvish generator repairs through `complete.RegisterShell`. The root registers
-    them once before exposing generators. Reuse clib's public metadata and
+    Bash/PowerShell/Zsh/Fish/Elvish generator repairs through `complete.WithShellGenerator`.
+    The root configures each generator before exposing it. Reuse clib's public metadata and
     validation; do not rewrite printed scripts or break versioned `go install`
     with a module replacement. Fish and Elvish delegate to their library generators
     for models without current-word predictors. Nushell uses its library generator.

@@ -96,7 +96,7 @@ version often trails the library; check what the pin actually provides.
 
 The licensed `internal/cli/completion/native` Bash/PowerShell/Zsh backports are a specific
 exception for demonstrated defects in the published clib generators. They use
-`complete.RegisterShell`, retain the reviewed native implementations, and delegate
+`complete.WithShellGenerator` on each generator, retain the reviewed native implementations, and delegate
 public model/validation/sorting to the pin. Preserve provenance and the MIT
 license. This is not permission to hand-write new scripts or duplicate working
 library behavior. Remove the backports when a published version passes the same

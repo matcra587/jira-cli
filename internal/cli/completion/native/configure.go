@@ -1,10 +1,7 @@
-// Package native backports clib generator repairs and explicit current-word callbacks while
-// retaining clib's public model, validation and installation owners.
 package native
 
 import (
 	"strings"
-	"sync"
 
 	"github.com/gechr/clib/complete"
 )
@@ -29,27 +26,26 @@ const (
 	OrderShell   = complete.OrderShell
 )
 
-// Register installs the backports before the composition root publishes its
-// first generator. All application generator access follows that barrier, so
-// concurrent program construction cannot race on clib's registration map.
+// Configure installs the backports on one generator before it is published.
+// Other generators retain their selected shell clients; no global registry changes.
 // Fish and Elvish delegate ordinary models to their built-in generators.
-var Register = sync.OnceFunc(func() {
-	complete.RegisterShell("bash", GenerateBash)
-	complete.RegisterShell("zsh", GenerateZsh)
-	complete.RegisterShell("pwsh", GeneratePwsh)
-	complete.RegisterShell("fish", func(g *Generator) (string, error) {
+func Configure(generator *Generator) {
+	complete.WithShellGenerator("bash", GenerateBash)(generator)
+	complete.WithShellGenerator("zsh", GenerateZsh)(generator)
+	complete.WithShellGenerator("pwsh", GeneratePwsh)(generator)
+	complete.WithShellGenerator("fish", func(g *Generator) (string, error) {
 		if hasCurrentWordPredictor(g) {
 			return GenerateFish(g)
 		}
 		return complete.GenerateFish(g)
-	})
-	complete.RegisterShell("elvish", func(g *Generator) (string, error) {
+	})(generator)
+	complete.WithShellGenerator("elvish", func(g *Generator) (string, error) {
 		if hasCurrentWordPredictor(g) {
 			return GenerateElvish(g)
 		}
 		return complete.GenerateElvish(g)
-	})
-})
+	})(generator)
+}
 
 func ValidateGenerator(generator *Generator) error {
 	return complete.ValidateGenerator(generator)

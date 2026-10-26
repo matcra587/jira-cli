@@ -40,9 +40,9 @@ scoped owner. CLAUDE.md imports this file rather than maintaining a second copy.
 *   Eligible transition hints belong to an issue, site and account, expire after
     five minutes, and never authorize a write. Preserve read timestamps and
     invalidate known outdated hints. Native input paths are context, not files to read.
-*   The composition root registers the licensed native Bash/PowerShell/Zsh/Fish/Elvish generator backports
-    in `internal/cli/completion/native` before exposing generators. Use clib's model
-    and registration boundary; do not rewrite emitted shell scripts or add a local
+*   The composition root applies the licensed native Bash/PowerShell/Zsh/Fish/Elvish backports
+    from `internal/cli/completion/native` to each generator with clib's
+    `WithShellGenerator`. Keep overrides local; do not rewrite emitted shell scripts or add a local
     module replacement that breaks versioned `go install`.
 *   Resolve one named profile per invocation, preserving credential/site binding
     and secret-free files, logs, envelopes and argv. Migration retains every

@@ -71,7 +71,6 @@ func assertBashPrefix(t *testing.T, dir, prefix string) {
 func bashStaticReplies(t *testing.T, values []string, comma, described bool, prefix string) []string {
 	t.Helper()
 	bash := testBash(t)
-	native.Register()
 	spec := complete.Spec{LongFlag: "value", HasArg: true, CommaList: comma, Values: values}
 	if described {
 		spec.Values = nil
@@ -80,6 +79,7 @@ func bashStaticReplies(t *testing.T, values []string, comma, described bool, pre
 		}
 	}
 	generator := &complete.Generator{AppName: "fixture", Specs: []complete.Spec{spec}}
+	native.Configure(generator)
 	var script bytes.Buffer
 	if err := generator.Print(&script, "bash"); err != nil {
 		t.Fatal(err)
@@ -137,8 +137,8 @@ if (( ${#COMPREPLY[@]} )); then printf '%s\0' "${COMPREPLY[@]}"; fi
 
 func TestBashPositionalCompletionKeepsCallerVariables(t *testing.T) {
 	bash := testBash(t)
-	native.Register()
 	generator := &complete.Generator{AppName: "fixture", DynamicArgs: []string{"argument"}}
+	native.Configure(generator)
 	var script bytes.Buffer
 	if err := generator.Print(&script, "bash"); err != nil {
 		t.Fatal(err)
@@ -168,7 +168,6 @@ printf '%s\n' "${COMPREPLY[@]}"
 
 func TestBashFileCompletionKeepsCallerStateAndLiteralPaths(t *testing.T) {
 	bash := testBash(t)
-	native.Register()
 	for _, extension := range []bool{false, true} {
 		mode := "file hint"
 		if extension {
@@ -180,7 +179,9 @@ func TestBashFileCompletionKeepsCallerStateAndLiteralPaths(t *testing.T) {
 				spec.ValueHint, spec.Extension = "", "txt"
 			}
 			var script bytes.Buffer
-			if err := (&complete.Generator{AppName: "fixture", Specs: []complete.Spec{spec}}).Print(&script, "bash"); err != nil {
+			generator := &complete.Generator{AppName: "fixture", Specs: []complete.Spec{spec}}
+			native.Configure(generator)
+			if err := generator.Print(&script, "bash"); err != nil {
 				t.Fatal(err)
 			}
 			dir := t.TempDir()

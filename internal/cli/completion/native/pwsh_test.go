@@ -138,7 +138,7 @@ func pwshReplies(t *testing.T, generator *complete.Generator, line, cursorPrefix
 func pwshRepliesWithOptions(t *testing.T, generator *complete.Generator, line, cursorPrefix, candidates string, options pwshReplyOptions) ([]pwshMatch, []string) {
 	t.Helper()
 	executable := testPowerShell(t)
-	native.Register()
+	native.Configure(generator)
 	var script bytes.Buffer
 	if err := generator.Print(&script, "pwsh"); err != nil {
 		t.Fatal(err)

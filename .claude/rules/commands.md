@@ -290,8 +290,8 @@ only in the change that registers its kind.
 *   clib is pinned in `go.mod`; `dynamic-args` / `predictor=` / `FlagExtra` are
     versioned APIs. Verify them against the selected source before changing the
     dependency ([go.md](go.md)).
-*   The root registers reviewed native Bash/PowerShell/Zsh/Fish/Elvish backports once through clib's
-    `complete.RegisterShell`, before exposing any generator. The owner is
+*   The root applies reviewed native Bash/PowerShell/Zsh/Fish/Elvish backports through clib's
+    `complete.WithShellGenerator` to each generator before exposing it. The owner is
     `internal/cli/completion/native`; it reuses the library's public model,
     validation and installation. Do not rewrite emitted scripts, lose other
     shells, import unfinished proposals, or add a module replacement that breaks

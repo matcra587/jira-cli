@@ -22,11 +22,11 @@ func TestPowerShellCompletionCoordinatesRunspaces(t *testing.T) {
 	for _, mode := range []string{"success", "exception", "canceled waiter"} {
 		t.Run(mode, func(t *testing.T) {
 			executable := testPowerShell(t)
-			native.Register()
 			dir := t.TempDir()
 			for _, name := range []string{"fixture-one", "fixture-two"} {
 				var script bytes.Buffer
 				generator := complete.Generator{AppName: name, DynamicArgs: []string{"value"}}
+				native.Configure(&generator)
 				if err := generator.Print(&script, "pwsh"); err != nil {
 					t.Fatal(err)
 				}

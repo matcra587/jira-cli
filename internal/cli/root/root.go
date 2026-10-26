@@ -147,7 +147,6 @@ func newProgram(deps *Deps, stdout, stderr io.Writer) (*concobra.Program, *failu
 // newProgramWithTheme retains one construction path while allowing startup to
 // defer settings resolution until aliases have selected the invocation config.
 func newProgramWithTheme(deps *Deps, stdout, stderr io.Writer, resolveTheme func() *theme.Theme) (*concobra.Program, *failureSink) {
-	native.Register()
 	// Before conductor: its EnvPrefix option makes clog and clib re-read
 	// the environment, and an unusable theme name has to be taken out of
 	// their way first or they print about it themselves.
@@ -210,6 +209,7 @@ func newProgramWithTheme(deps *Deps, stdout, stderr io.Writer, resolveTheme func
 	// noise to hide.
 	program := concobra.New(runtime, root,
 		concobra.WithGenerator(func(gen *complete.Generator) {
+			native.Configure(gen)
 			normalizeCompletionHelp(gen)
 			command.ForwardCompletion(root, gen)
 		}),

@@ -1,11 +1,11 @@
 # Native clib generator backports
 
 This package carries Bash, PowerShell, Zsh, Fish and Elvish generator fixes from clib v0.7.17
-through its supported `complete.RegisterShell` extension boundary. It preserves
+through clib 0.8.2's `complete.WithShellGenerator` extension boundary. It preserves
 the public clib `Generator`, flag/argument metadata, validation, script printing,
 installation, and other shell generators. No emitted script is rewritten.
 
-The selected clib model omits the current argument from dynamic callbacks.
+The legacy clib callback protocol omits the current argument from dynamic callbacks.
 Predictor names beginning with `word_` explicitly request the shared literal
 `--@word=` transport, followed by public forwarded flags and a separate completed
 positional terminator. These callbacks match complete arguments themselves.
@@ -36,9 +36,14 @@ Provenance:
     `complete.go`. Public model, sorting and validation remain library-owned.
 *   The adjacent `LICENSE` retains upstream's MIT terms and copyright.
 
-Registration occurs once before the composition root exposes any generator;
-there is no package initializer or per-invocation registry mutation. Do not
-register additional generators at runtime while another program can print one.
+The composition root configures each generator before exposing it. Overrides
+belong to that generator; other clib users retain their own shell clients. No
+package initializer or global registry mutation is needed.
+
+The native Cobra bridge in clib 0.8.2 is not a compatible replacement yet. Its
+comma handling repeats already-selected quoted identities, its lexical `--`
+check also matches flag values, and its Bash client changes ANSI-C-quoted UTF-8
+paths. Retain the backports until those cases pass with the published bridge.
 
 Keep this package narrow. Remove a backport only after a published dependency
 passes the same real-shell guards and preserves contextual and insertion behavior.
