@@ -9,6 +9,13 @@ order: 40
 
 ## Decide
 
+For `issue link create`, a bare `--dry-run` echoes the requested type without
+resolving direction. Add `--validate-remote` to read the site's link types and
+inspect complete requested relationships in `data.sentences`, in source order.
+For example, `KEY-1 blocks KEY-2` and `KEY-1 is blocked by KEY-2` show opposite
+directions. Sentences describe intent; inspect `data.results` for write outcomes.
+Neither preview writes to Jira.
+
 Choose the domain command and explicit targets. For Jira resource mutations,
 start with `--dry-run` and inspect the prepared request. A bare mutation preview
 changes nothing and sends no Jira request. Where supported, `--validate-remote`

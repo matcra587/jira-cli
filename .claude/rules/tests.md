@@ -718,6 +718,10 @@ raw and saved query fixtures across preview, search, count and browser routes.
 Bind exact submitted or URL JQL, mine account scope and absence of board reads
 and provenance.
 
+Link handler tests bind resolved preview sentences in source order with one type
+read and no write; bare previews claim none. Failed write receipts retain intent
+sentences separately from outcomes.
+
 Published batch-inspection expressions must run against real binary receipts
 for all-success, mixed-success, total-failure and acknowledged-write/follow-up
 failure cases. Verify every target remains visible and failed-row selection

@@ -521,6 +521,11 @@ identity, preserve context, and reuse the checked client without another provide
 resolution or remote identity request. Local as-jql and missing-cache refusal
 remain credential-free; file preferences alone cannot prove live binding.
 
+Link creation previews stay local unless --validate-remote requests type lookup.
+After resolution, publish complete requested sentences in source order through
+the typed output, including previews and retained failures. Sentences describe
+intent, never acknowledgements. Bare previews cannot claim resolved direction.
+
 Markdown conversion uses Goldmark's Text.Merge for contiguous literal fragments.
 Colon-triggered parser splits must not fragment ordinary ADF text. Keep marks,
 hard/soft breaks, actual directives and preserved native documents independent.

@@ -161,23 +161,9 @@ type LinkedIssuePriority struct {
 	Name string `json:"name"`
 }
 
-// IssueLinkCreateOutput is the `issue.link.create` operation's payload:
-// the link made from each named issue to one other.
-//
-// **The composed request is a SENTENCE, and publishing it that way is
-// the point.** Jira's link endpoint takes two ends named inward and
-// outward, which is a vocabulary a caller should never have to hold (see
-// jira.LinkIssueRequest for what it actually means). This envelope
-// publishes what was asked for instead — a relation phrase, a target,
-// and the resolved type — so `data.relation` plus `data.to.key` reads
-// back as the link that was made, exactly as IssueLinkView.Relation
-// reads on the list side.
-//
-// Everything except Results survives BOTH paths, with one documented
-// hole: Type and Relation come from the site's own link-type list, and a
-// bare `--dry-run` never reads it. See TypeResolved, which is how a
-// preview says so rather than leaving a caller to guess whether an empty
-// type meant "unknown" or "none".
+// IssueLinkCreateOutput: requested relationships and per-key outcomes.
+// Bare previews cannot resolve type, relation or sentences.
+// Sentences: intent only. Results: acknowledgements and uncertainty.
 type IssueLinkCreateOutput struct {
 	// MutationState carries dry_run on both paths.
 	MutationState
@@ -213,6 +199,9 @@ type IssueLinkCreateOutput struct {
 	// publishes as the link it made is what `link list` will publish as
 	// the link that exists.
 	Relation string `json:"relation,omitempty"`
+	// Sentences: requested relationships, source order. Absent until resolved.
+	// No acknowledgement implied; failed writes may still have taken effect.
+	Sentences []string `json:"sentences,omitempty"`
 	// Results is one entry per key, in argv order. Joined acknowledgements
 	// and failures survive total failure, cancellation and timeout. A failed
 	// write can still have stored a link; inspect before retrying.
@@ -289,6 +278,9 @@ func init() {
 			},
 			"relation": map[string]any{
 				"description": "The phrase each link reads with, from the named issue toward `to` — the same field issue.link.list publishes per link.",
+			},
+			"sentences": map[string]any{
+				"description": "Complete requested relationships in source order, such as KEY-123 blocks KEY-456. Present after type resolution, including --dry-run --validate-remote. Absent on bare previews. These describe intent, not write acknowledgements; inspect results for outcomes.",
 			},
 			"results": map[string]any{
 				"description": "One entry per key, in the order given. Each successful entry's data is empty: Jira's link endpoint answers 201 with no body, so there is no created link to report. A failed key does not fail the others.",

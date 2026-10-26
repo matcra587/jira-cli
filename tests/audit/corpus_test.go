@@ -1461,7 +1461,7 @@ var successDataShape = map[string]struct {
 	// such type" — and the second would be a failure, not a success.
 	"issue.link.create": {
 		required: []string{"dry_run", "to", "type_input", "type_resolved", "results"},
-		optional: []string{"type", "relation"},
+		optional: []string{"type", "relation", "sentences"},
 	},
 	// The only success payload in this table with no issue and no
 	// results — a link id is site-wide, so there is nothing else to

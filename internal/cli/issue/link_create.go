@@ -117,8 +117,11 @@ func newLinkCreate(deps Deps) *cobra.Command {
 			"KEY-456 --type blocks` reads left to right: KEY-123 blocks KEY-456. " +
 			"Underneath, Jira names the two ends of a link \"inward\" and " +
 			"\"outward\" and leaves it to the caller to work out which is which; " +
-			"this command does that for you and prints the sentence it made so " +
-			"you can see it landed the way round you meant.\n\n" +
+			"this command resolves that direction on live runs and with " +
+			"`--dry-run --validate-remote`. Human output prints the relationship; " +
+			"machine output returns complete requested sentences at `data.sentences` " +
+			"in source order. A bare `--dry-run` cannot resolve direction or return " +
+			"these sentences without the site's type list.\n\n" +
 			"`--type` takes either a link type's NAME (`Blocks`) or either of " +
 			"its two phrasings (`blocks`, `is blocked by`), matched without " +
 			"regard to case. The phrasing is what picks the direction: `--type " +
@@ -460,6 +463,9 @@ func runLinkCreate(ctx context.Context, deps Deps, inv command.Invocation, opts 
 	out.TypeResolved = true
 	out.Type = &resolved.view
 	out.Relation = resolved.relation
+	out.Sentences = xslices.Map(inv.Args, func(key string) string {
+		return key + " " + resolved.relation + " " + opts.to
+	})
 
 	if inv.DryRun {
 		// The remote preview stops here: it has answered the only question

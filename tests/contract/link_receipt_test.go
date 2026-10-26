@@ -28,6 +28,7 @@ type linkReceiptFrame struct {
 		TypeResolved bool                                    `json:"type_resolved"`
 		Type         *envelope.IssueLinkTypeView             `json:"type"`
 		Relation     string                                  `json:"relation"`
+		Sentences    []string                                `json:"sentences"`
 		Results      []envelope.KeyedResult[json.RawMessage] `json:"results"`
 	} `json:"data"`
 	Errors []envelope.Error `json:"errors"`
@@ -219,7 +220,7 @@ func TestLinkTotalFailureRetainsOrderedOutcomes(t *testing.T) {
 				if json.Unmarshal([]byte(stdout), &frame) != nil || frame.OK || frame.Meta.ExitCode == nil || *frame.Meta.ExitCode != cli.ExitAuth || len(frame.Errors) != 1 || frame.Errors[0].Code != "jira_forbidden" || frame.Data == nil || len(frame.Data.Results) != 2 {
 					t.Fatal("link total failure discarded ordered outcomes")
 				}
-				if verb == "create" && (frame.Data.To.Key != "KEY-9" || !frame.Data.TypeResolved || frame.Data.Type == nil || frame.Data.Type.Name != "Blocks" || frame.Data.Relation != "blocks") {
+				if verb == "create" && (frame.Data.To.Key != "KEY-9" || !frame.Data.TypeResolved || frame.Data.Type == nil || frame.Data.Type.Name != "Blocks" || frame.Data.Relation != "blocks" || !slices.Equal(frame.Data.Sentences, []string{"KEY-1 blocks KEY-9", "KEY-2 blocks KEY-9"})) {
 					t.Fatal("link failure discarded the resolved authored relationship")
 				}
 				for i, code := range []string{"jira_not_found", "jira_forbidden"} {

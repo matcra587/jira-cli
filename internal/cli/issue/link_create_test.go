@@ -317,6 +317,9 @@ func TestLinkCreateBarePreviewResolvesNothing(t *testing.T) {
 	if out.Type != nil || out.Relation != "" {
 		t.Errorf("preview published type %+v / relation %q, having resolved neither", out.Type, out.Relation)
 	}
+	if len(out.Sentences) != 0 {
+		t.Fatal("bare preview claimed resolved sentences", out.Sentences)
+	}
 	if out.TypeInput != "blocks" {
 		t.Errorf("type_input = %q, want what the caller typed — it is all this preview knows", out.TypeInput)
 	}
@@ -341,7 +344,7 @@ func TestLinkCreateRemotePreviewResolvesButWritesNothing(t *testing.T) {
 	opts := linkCreateOpts("is blocked by")
 	opts.validateRemote = true
 
-	out, err := runLinkCreate(t.Context(), linkWriteDeps(fake), invocation(true, "KEY-123"), opts)
+	out, err := runLinkCreate(t.Context(), linkWriteDeps(fake), invocation(true, "KEY-123", "KEY-124"), opts)
 	if err != nil {
 		t.Fatalf("runLinkCreate: %v", err)
 	}
@@ -350,6 +353,9 @@ func TestLinkCreateRemotePreviewResolvesButWritesNothing(t *testing.T) {
 	}
 	if out.Relation != "is blocked by" {
 		t.Errorf("relation = %q, want the resolved reverse phrasing", out.Relation)
+	}
+	if len(out.Sentences) != 2 || out.Sentences[0] != "KEY-123 is blocked by KEY-456" || out.Sentences[1] != "KEY-124 is blocked by KEY-456" {
+		t.Fatal("remote preview lost complete directional sentence", out.Sentences)
 	}
 	if fake.typeReads != 1 {
 		t.Errorf("read the type list %d times, want once", fake.typeReads)
