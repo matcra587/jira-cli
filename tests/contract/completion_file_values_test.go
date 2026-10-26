@@ -76,7 +76,11 @@ func TestDraftDirectoryCompletionDelegatesNativeFallbackWithoutArtifactReads(t *
 	if exit != 0 || stderr != "" {
 		t.Fatal("Bash generator did not run", exit, stderr)
 	}
-	bash, err := exec.LookPath("bash")
+	binary := os.Getenv("JIRA_TEST_BASH_BINARY")
+	if binary == "" {
+		binary = "bash"
+	}
+	bash, err := exec.LookPath(binary)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,9 +103,9 @@ func TestDraftDirectoryCompletionDelegatesNativeFallbackWithoutArtifactReads(t *
 	if err := os.WriteFile(filepath.Join(dir, "candidate-file"), nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	// Bash's plusdirs option asks Readline to add native directory candidates
-	// after the function returns. Observe the actual generator's request, then
-	// exercise Bash's own compgen fallback; this is not a Readline/PTY receipt.
+	// Modern Bash delegates directory candidates to Readline's plusdirs option.
+	// Bash 3.2 has no compopt and returns compgen candidates directly. Exercise
+	// both contracts without mistaking this driver for a Readline/PTY receipt.
 	const directoryDriver = `source "$1" || exit 40
 native_dirs=false
 compopt() { [[ "$*" == '-o plusdirs' ]] && native_dirs=true; return 0; }
@@ -109,8 +113,13 @@ shift
 COMP_WORDS=(jira "$@")
 COMP_CWORD=$((${#COMP_WORDS[@]} - 1))
 _jira jira "${COMP_WORDS[COMP_CWORD]}" "${COMP_WORDS[COMP_CWORD-1]}" || exit 41
-[[ "$native_dirs" == true && ${#COMPREPLY[@]} == 0 ]] || exit 42
-while IFS= read -r candidate; do printf '%s\0' "$candidate"; done < <(compgen -d -- "${COMP_WORDS[COMP_CWORD]}")
+if (( BASH_VERSINFO[0] >= 4 )); then
+    [[ "$native_dirs" == true && ${#COMPREPLY[@]} == 0 ]] || exit 42
+    while IFS= read -r candidate; do printf '%s\0' "$candidate"; done < <(compgen -d -- "${COMP_WORDS[COMP_CWORD]}")
+else
+    [[ "$native_dirs" == false ]] || exit 43
+    printf '%s\0' "${COMPREPLY[@]}"
+fi
 `
 	for _, args := range [][]string{
 		{"issue", "edit", "draft", "KEY-1", "--directory", "candidate"},

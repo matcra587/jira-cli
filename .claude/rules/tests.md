@@ -1682,6 +1682,11 @@ independently verify both status and complete comment storage. Follow
 
 ## Native fixture and process constraints
 
+Directory-hint fixtures check both Bash 3.2 direct candidates and Bash 4+
+Readline `plusdirs` delegation. Keep exact literal directory membership and file
+exclusion checks; a modern-shell option is not required on older Bash. Select
+legacy runtimes with `JIRA_TEST_BASH_BINARY` and exercise actual inserted argv.
+
 Bash fixtures transport literal completion words through a quoted environment
 value so MSYS startup cannot glob native caller argv. Preserve generated-script
 execution, caller state and literal candidates. The Windows WSL launcher supplies
