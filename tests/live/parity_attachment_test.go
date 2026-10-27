@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/matcra587/jira-cli/internal/envelope"
+	"github.com/matcra587/jira-cli/internal/jira"
 )
 
 type parityAttachmentAttempt struct {
@@ -378,7 +379,7 @@ func TestLiveParityAttachments(t *testing.T) {
 					t.Fatal("native upload does not uniquely match authored files; never replay")
 				}
 				seen[file.Filename] = true
-				p.owner.registerAttachment(t, key, envelope.AttachmentView{ID: file.ID, Filename: file.Filename, Size: file.Size})
+				p.owner.registerAttachment(t, key, envelope.AttachmentView{ID: file.ID, Filename: file.Filename, Size: jira.NullableOf(file.Size)})
 			}
 			p.evidence.Attachments[attempt].Bound = true
 			p.save(t)

@@ -72,8 +72,8 @@ func TestLiveWatcherQuery(t *testing.T) {
 				t.Fatal("watcher query lost ordered acknowledgement or readback")
 			}
 			stored := rawOwnedWatchers(t, r, key)
-			found := slices.ContainsFunc(stored.Watchers, func(w envelope.WatcherView) bool { return w.AccountID == r.watcherAccountID })
-			if found != (verb == "add") || stored.IsWatching != (verb == "add") {
+			found := slices.ContainsFunc(stored.Watchers.Value, func(w envelope.WatcherView) bool { return w.AccountID == r.watcherAccountID })
+			if found != (verb == "add") || stored.IsWatching != jira.NullableOf(verb == "add") {
 				t.Fatal("independent stored watchers disagree with query action")
 			}
 		}

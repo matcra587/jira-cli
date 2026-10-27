@@ -13,6 +13,7 @@ import (
 	"github.com/matcra587/jira-cli/internal/cli"
 	"github.com/matcra587/jira-cli/internal/core"
 	"github.com/matcra587/jira-cli/internal/envelope"
+	"github.com/matcra587/jira-cli/internal/jira"
 )
 
 func TestIssueWriteVerifyChecksRequestedNativeFields(t *testing.T) {
@@ -118,7 +119,7 @@ func TestIssueWriteVerificationUsesExactNativeFieldsBeforeTypedProjection(t *tes
 				t.Fatal("native field readback was not published")
 			}
 			verified := out.Results[0].Data.Verified
-			if len(verified.Fields) != 1 || verified.Fields[0].Outcome != tc.outcome || string(verified.Fields[0].Observed.Value) != tc.observed || verified.Status != "Open" {
+			if len(verified.Fields) != 1 || verified.Fields[0].Outcome != tc.outcome || string(verified.Fields[0].Observed.Value) != tc.observed || verified.Status != jira.NullableOf("Open") {
 				t.Fatalf("typed decoding replaced native evidence: %+v", verified)
 			}
 		})
@@ -259,6 +260,117 @@ func TestIssueWriteVerificationRetainsAcknowledgementOnIncompleteReadback(t *tes
 						if json.Unmarshal([]byte(stdout), &frame) != nil || len(frame.Warnings) == 0 {
 							t.Fatal("incomplete verification lost its machine warning")
 						}
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestIssueWriteVerificationMetadataPresence(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct{ name, fields, wantSummary, wantStatus, human string }{
+		{name: "absent", fields: `{}`, human: "Readback metadata unavailable."},
+		{name: "summary only", fields: `{"summary":"authored"}`, wantSummary: `"authored"`, human: "Summary:  authored"},
+		{name: "status only", fields: `{"status":{"name":"Open"}}`, wantStatus: `"Open"`, human: "Status:  Open"},
+		{name: "null", fields: `{"summary":null,"status":null,"updated":null}`, wantSummary: `null`, wantStatus: `null`, human: "Summary:  -"},
+		{name: "empty", fields: `{"summary":"","status":{"name":""},"updated":""}`, wantSummary: `""`, wantStatus: `""`, human: "Summary:  -"},
+		{name: "missing status name", fields: `{"status":{"id":"1"}}`, human: "Readback metadata unavailable."},
+		{name: "null status name", fields: `{"status":{"name":null}}`, wantStatus: `null`, human: "Status:  -"},
+	} {
+		for _, verb := range []string{"create", "edit"} {
+			for _, mode := range []string{"human", "json", "compact"} {
+				t.Run(tc.name+"/"+verb+"/"+mode, func(t *testing.T) {
+					t.Parallel()
+					var writes, reads atomic.Int32
+					server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						if r.Method == http.MethodGet {
+							reads.Add(1)
+							if r.URL.Path != "/rest/api/3/issue/KEY-1" {
+								t.Errorf("readback path = %s", r.URL.Path)
+							}
+							_, _ = io.WriteString(w, `{"id":"1","key":"KEY-1","fields":`+tc.fields+`}`)
+							return
+						}
+						writes.Add(1)
+						if verb == "create" {
+							if r.Method != http.MethodPost || r.URL.Path != "/rest/api/3/issue" {
+								t.Errorf("create = %s %s", r.Method, r.URL)
+							}
+							w.WriteHeader(http.StatusCreated)
+							_, _ = io.WriteString(w, `{"id":"1","key":"KEY-1"}`)
+						} else {
+							if r.Method != http.MethodPut || r.URL.Path != "/rest/api/3/issue/KEY-1" {
+								t.Errorf("edit = %s %s", r.Method, r.URL)
+							}
+							w.WriteHeader(http.StatusNoContent)
+						}
+					}))
+					t.Cleanup(server.Close)
+					args := []string{"issue", verb}
+					if verb == "create" {
+						args = append(args, "--project=KEY", "--type=Task")
+					} else {
+						args = append(args, "KEY-1")
+					}
+					args = append(args, "--summary=authored", "--verify", "--no-input", "--color=never", "--output="+mode)
+					stdout, stderr, exit := runBinaryEnv(t, editReceiptEnv(server.URL), args...)
+					if exit != 0 || writes.Load() != 1 || reads.Load() != 1 {
+						t.Fatalf("verify: exit=%d writes=%d reads=%d stdout=%q stderr=%q", exit, writes.Load(), reads.Load(), stdout, stderr)
+					}
+					if mode == "human" {
+						if !strings.Contains(stdout, tc.human) || strings.Contains(stdout, `reads back as ""`) || strings.Contains(stdout, "status .") {
+							t.Fatalf("readback = %q; want %q", stdout, tc.human)
+						}
+						if tc.wantSummary == "" && strings.Contains(stdout, "Summary:") {
+							t.Fatalf("invented summary: %q", stdout)
+						}
+						if tc.wantStatus == "" && strings.Contains(stdout, "Status:") {
+							t.Fatalf("invented status: %q", stdout)
+						}
+						if tc.wantSummary == "" && (!strings.Contains(stderr, `field "summary" remains unverified`) || !strings.Contains(stderr, "field-not-returned")) {
+							t.Fatalf("missing summary warning = %q", stderr)
+						}
+						if tc.wantSummary == `"authored"` && verb == "edit" && stderr != "" {
+							t.Fatalf("successful readback stderr = %q", stderr)
+						}
+						return
+					}
+					if stderr != "" {
+						t.Fatalf("machine stderr = %q", stderr)
+					}
+					var data map[string]json.RawMessage
+					if err := json.Unmarshal(adfData(t, stdout, mode, "issue."+verb, true), &data); err != nil {
+						t.Fatal(err)
+					}
+					if verb == "edit" {
+						var rows []struct {
+							OK   bool
+							Data map[string]json.RawMessage
+						}
+						if err := json.Unmarshal(data["results"], &rows); err != nil {
+							t.Fatal(err)
+						}
+						if len(rows) != 1 || !rows[0].OK {
+							t.Fatalf("edit results = %s", data["results"])
+						}
+						data = rows[0].Data
+					}
+					var metadata map[string]json.RawMessage
+					if err := json.Unmarshal(data["verified"], &metadata); err != nil {
+						t.Fatal(err)
+					}
+					for field, want := range map[string]string{"summary": tc.wantSummary, "status": tc.wantStatus} {
+						if got := string(metadata[field]); got != want {
+							t.Errorf("verified %s = %q; want %q", field, got, want)
+						}
+					}
+					var native map[string]json.RawMessage
+					if err := json.Unmarshal([]byte(tc.fields), &native); err != nil {
+						t.Fatal(err)
+					}
+					if string(metadata["updated"]) != string(native["updated"]) {
+						t.Errorf("updated = %s; want %s", metadata["updated"], native["updated"])
 					}
 				})
 			}

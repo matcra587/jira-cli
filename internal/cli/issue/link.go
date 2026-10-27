@@ -109,6 +109,9 @@ func newLinkList(deps Deps) *cobra.Command {
 			"so they arrive whole with the issue they belong to. That is also " +
 			"why `--parallelism` is worth having here — the work is one issue " +
 			"read per key.\n\n" +
+			"A missing link list stays absent in machine output; returned null " +
+			"stays null. Human output reports unavailable lists separately from " +
+			"an observed empty list.\n\n" +
 			"`--web` is refused here. It opens one page and this command reads " +
 			"a list of keys, so there is no single thing to open: run `jira " +
 			"issue view KEY --web` for whichever issue you want to look at.",
@@ -261,7 +264,14 @@ func readLinks(ctx context.Context, client core.JiraClient, key string) keyOutco
 		// rather than the failure it actually is.
 		return failedResult(key, fmt.Errorf("issue.link.list: empty issue response for %q", key))
 	}
-	data := envelope.IssueLinkListData{Links: linkViews(val(read.Issue.Fields).Issuelinks.Value)}
+	var data envelope.IssueLinkListData
+	if links := val(read.Issue.Fields).Issuelinks; links.Set {
+		if links.Null {
+			data.Links = jira.NullableNull[[]envelope.IssueLinkView]()
+		} else {
+			data.Links = jira.NullableOf(linkViews(links.Value))
+		}
+	}
 	return keyOutcome{result: envelope.KeyedResult[envelope.IssueLinkListData]{
 		Issue: envelope.IssueRef{
 			ID:   read.Issue.ID.Value,
@@ -423,10 +433,18 @@ func renderLinkResult(v *output.View, site string, r envelope.KeyedResult[envelo
 		v.Hint(r.Err.Hint)
 		return
 	}
-	if len(r.Data.Links) == 0 {
+	if !r.Data.Links.Set {
+		v.Line("Links were not returned.")
+		return
+	}
+	if r.Data.Links.Null {
+		v.Line("Links unavailable.")
+		return
+	}
+	if len(r.Data.Links.Value) == 0 {
 		v.Line(cli.Text("No links."))
 		return
 	}
 	output.Table(v, cli.ResolvedTheme(),
-		issueLinkColumns(site, statusPillWidth(r.Data.Links, issueRowFromLink)), r.Data.Links)
+		issueLinkColumns(site, statusPillWidth(r.Data.Links.Value, issueRowFromLink)), r.Data.Links.Value)
 }

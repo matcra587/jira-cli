@@ -43,7 +43,7 @@ func TestAttachmentListJoinedObservationPreservesOriginalCause(t *testing.T) {
 		t.Fatal("attachment list rebuilt its original joined read cause")
 	}
 	row := out.Results[0]
-	if row.OK || row.Err == nil || row.Err.Code != "jira_forbidden" || row.Issue.Key != "NEW-2" || row.Data == nil || len(row.Data.Attachments) != 1 || row.Data.Attachments[0].ID != "10042" || row.Data.Attachments[0].Filename != "report.txt" || row.Data.Attachments[0].Size != 3 {
+	if row.OK || row.Err == nil || row.Err.Code != "jira_forbidden" || row.Issue.Key != "NEW-2" || row.Data == nil || len(row.Data.Attachments) != 1 || row.Data.Attachments[0].ID != "10042" || row.Data.Attachments[0].Filename != "report.txt" || row.Data.Attachments[0].Size != jira.NullableOf(int64(3)) {
 		t.Fatal("attachment list discarded usable joined data or claimed uninterrupted success")
 	}
 }
@@ -62,7 +62,7 @@ func TestAttachmentListHumanRetainsJoinedObservation(t *testing.T) {
 		t.Run(map[bool]string{false: "attachment", true: "empty array"}[empty], func(t *testing.T) {
 			attachments := []envelope.AttachmentView{}
 			if !empty {
-				attachments = append(attachments, envelope.AttachmentView{ID: "10042", Filename: "report.txt\x1b[31m\a", Size: 3})
+				attachments = append(attachments, envelope.AttachmentView{ID: "10042", Filename: "report.txt\x1b[31m\a", Size: jira.NullableOf(int64(3))})
 			}
 			out := envelope.IssueAttachmentListOutput{}
 			out.Results = []envelope.KeyedResult[envelope.IssueAttachmentListData]{{
@@ -116,7 +116,7 @@ func TestAttachmentListDeadlinePublishesJoinedObservation(t *testing.T) {
 				if len(attachments) != 0 {
 					t.Fatal("empty observation invented an attachment")
 				}
-			} else if len(attachments) != 1 || attachments[0].ID != "10042" || attachments[0].Filename != "report.txt" || attachments[0].Size != 3 {
+			} else if len(attachments) != 1 || attachments[0].ID != "10042" || attachments[0].Filename != "report.txt" || attachments[0].Size != jira.NullableOf(int64(3)) {
 				t.Fatal("joined observation lost native attachment fields")
 			}
 		})

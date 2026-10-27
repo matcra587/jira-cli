@@ -237,7 +237,7 @@ func compareOwnedLinks(t *testing.T, r *liveRun, keys []string) {
 	for i, key := range keys {
 		native := rawIssueLinks(t, r, key)
 		row := domain.Data.Results[i]
-		if !row.OK || row.Issue.Key != key || row.Data == nil || len(row.Data.Links) != len(native) {
+		if !row.OK || row.Issue.Key != key || row.Data == nil || !row.Data.Links.Set || row.Data.Links.Null || len(row.Data.Links.Value) != len(native) {
 			t.Fatal("native and domain link identities or counts differ")
 		}
 		seen := make(map[string]bool)
@@ -252,7 +252,7 @@ func compareOwnedLinks(t *testing.T, r *liveRun, keys []string) {
 			} else {
 				far, phrase, direction = link.Inward.Key, link.Type.Inward, "inward"
 			}
-			got := row.Data.Links[j]
+			got := row.Data.Links.Value[j]
 			if r.ownedLiveIssue(far) == nil || got.ID != link.ID || got.Issue.Key != far || got.Relation != phrase || got.Direction != direction || got.Type.ID != link.Type.ID || got.Type.Name != link.Type.Name || got.Type.Inward != link.Type.Inward || got.Type.Outward != link.Type.Outward {
 				t.Fatal("domain link projection changed the native identity, far end, type or direction")
 			}

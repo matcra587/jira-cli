@@ -46,6 +46,21 @@ func editVerificationWarnings(out envelope.IssueEditOutput) []envelope.Warning {
 }
 
 func renderVerificationFields(v *output.View, verified *envelope.VerifiedIssue) {
+	var fields []output.Field
+	if verified.Summary.Set {
+		fields = append(fields, output.Field{Label: "Summary", Value: cli.OrDash(cli.Text(verified.Summary.Value))})
+	}
+	if verified.Status.Set {
+		fields = append(fields, output.Field{Label: "Status", Value: cli.OrDash(cli.Text(verified.Status.Value))})
+	}
+	if verified.Updated.Set {
+		fields = append(fields, output.Field{Label: "Updated", Value: cli.OrDash(cli.Time(cli.Text(verified.Updated.Value)))})
+	}
+	if len(fields) == 0 {
+		v.Line("Readback metadata unavailable.")
+	} else {
+		v.Fields(fields...)
+	}
 	var matches, differs, unverified int
 	for _, field := range verified.Fields {
 		switch field.Outcome {

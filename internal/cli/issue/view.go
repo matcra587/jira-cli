@@ -786,62 +786,13 @@ func renderView(v *output.View, env envelope.Envelope, preview commentsPreview, 
 	return nil
 }
 
-// renderCommentsPreview renders the issue view's comment preview — three
-// shapes, chosen by the precedence runView already resolved into preview,
-// plus one silence rule that overrides all three:
-//
-//  0. A KNOWN-ZERO total (preview.totalKnown && preview.total == 0):
-//     nothing at all, regardless of requested or uncapped — no "Comments"
-//     header, no "No comments." line, no banner. An issue that genuinely
-//     has no comments is the quiet, honest outcome whether this preview
-//     was reached by the default N, an explicit --comments N, or
-//     --fields comment's uncapped read: there is nothing to separate
-//     from the rest of the view with a header, so none is drawn.
-//  1. --comments 0, explicit (requested == 0 and !uncapped — reachable
-//     only by typing it now that the flag's own default is 1): nothing
-//     at all unless the issue is known to have comments, in which case
-//     one hint line names the count (singular "comment" at exactly 1)
-//     and points at the dedicated paginated verb — commentCountHint
-//     below. A total that could not be learned at all (totalKnown false
-//     — see commentTotalFromFields) is treated the same as zero: silent,
-//     never an error. (A known-zero total takes case 0 above instead,
-//     which renders identically here — --comments 0's own hint is
-//     already silent for it — so this case does not need to repeat it.)
-//  2. --comments N>0, default or explicit (with or without --fields
-//     comment also present — an explicit --comments always wins, see
-//     runView): a "Comments" section header, the latest N each as an
-//     author • relative-time line with the shared ADF body renderer
-//     below it, then a "Showing N of TOTAL" banner when the total is
-//     known to exceed what is shown (simpler than renderCommentList's
-//     own StartAt+Returned<Total formula because this preview always
-//     starts at the newest comment). At the default N==1, an issue with
-//     exactly one comment renders that one comment and no banner (1 is
-//     not < 1); an issue with zero comments takes case 0 instead.
-//  3. --fields asked for comment (see fieldsRequestComment) and
-//     --comments was never explicitly set (preview.uncapped): the same
-//     "Comments" section and per-comment rendering as case 2, over every
-//     comment the response's own embedded page carried, newest first —
-//     no second fetch. This is uncapped by CHOICE, not by construction:
-//     Jira's own embedded page can itself be capped for a large thread
-//     (unproven but unfalsified — every probed issue had few enough
-//     comments that maxResults never bound the page), so the SAME
-//     "Showing N of TOTAL" banner as case 2 still appears whenever the
-//     page's own total says there is more than it carried. What
-//     uncapped changes is only that no SECOND fetch ever happens to
-//     "complete" the set — the banner points at the paginated verb,
-//     which exists for exactly that.
-//
-// Cases 2 and 3 both fall back to one line when preview.latest came back
-// empty despite NOT being a known-zero total (case 0 already handles
-// that) — a decode failure, or an empty embedded array Jira sent
-// alongside a positive total: this falls back to the SAME count-hint
-// line case 1 uses, naming the paginated verb, since the total itself
-// says there is something to see even though nothing rendered. The
-// "Comments" header and the quiet per-comment line (rather than
-// promoting each to its own section rule) are deliberate in both cases 2
-// and 3: unlike issue comment list, whose whole output IS comments, here
-// the comments sit alongside other sections, so one header separates
-// them. The two surfaces share the body renderer, not the header shape.
+// renderCommentsPreview renders the comment preview selected by runView.
+// A known-zero total is silent by default; an explicit request gets "No comments."
+// --comments 0 shows only a known positive count. Other requests render available
+// comments, or a count hint when the total is positive but no comments returned.
+// An unknown total with no comments reports an unavailable preview, never emptiness.
+// Both capped and embedded previews show a continuation hint when the known total
+// exceeds the returned comments; embedded previews never make a second fetch.
 //
 // plainKey is deliberately the SANITIZED-but-never-linked key (renderView
 // passes its own plainKey, not the hyperlinked one v.Line's glance

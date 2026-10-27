@@ -731,7 +731,9 @@ func renderWatcherWriteResults(
 			// cli.Number takes an int, so reaching for it would mean a
 			// narrowing conversion for a decoration. One idiom for one
 			// number, in both places that print it.
-			v.Line(cli.Text(fmt.Sprintf("  %d now watching.", r.Data.Readback.WatchCount)))
+			if count := r.Data.Readback.WatchCount; count.Set && !count.Null {
+				v.Line(cli.Text(fmt.Sprintf("  %d now watching.", count.Value)))
+			}
 		}
 		if r.Data.ReadbackError != nil {
 			v.Line(cli.Text("  Readback failed: " + r.Data.ReadbackError.Message))

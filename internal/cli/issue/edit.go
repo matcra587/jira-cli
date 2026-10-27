@@ -117,7 +117,8 @@ func newEdit(deps Deps) *cobra.Command {
 			"`--assignee` accepts an account ID or bare email. Email resolves the unique visible active search match before live writes or explicit remote previews; local previews retain it with an unresolved warning. Missing, ambiguous or incomplete searches refuse. Privacy can hide email, and resolution does not prove exact email equality or assignability. Native JSON account IDs stay literal.\n\n" +
 			"`--verify` reads every requested field once after each acknowledged " +
 			"edit. `verified.fields` reports matches, differs or unverified with " +
-			"native observed values; absent and null remain distinct. Known collection " +
+			"native observed values; absent and null remain distinct, including " +
+			"summary, status and updated metadata. Known collection " +
 			"add/remove checks use final membership. Unsupported operations, missing " +
 			"fields and different ADF remain unverified. Readback failure or differences " +
 			"retain the successful edit and emit warnings; inspect before further " +
@@ -623,8 +624,7 @@ func renderEditResults(v *output.View, out envelope.IssueEditOutput) {
 		renderFieldPreflight(v, r.Data.FieldPreflight)
 		switch {
 		case r.Data.Verified != nil:
-			v.Line(key + cli.Text(fmt.Sprintf(": updated — reads back as %q, status %s.",
-				r.Data.Verified.Summary, r.Data.Verified.Status)))
+			v.Line(key + ": updated.")
 			renderVerificationFields(v, r.Data.Verified)
 		case r.Data.VerifyFailed:
 			v.Line(key + cli.Text(": updated, but reading it back failed."))

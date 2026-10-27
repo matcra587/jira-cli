@@ -72,7 +72,7 @@ func TestLinkDeadlinePublishesJoinedOutcomes(t *testing.T) {
 			}
 			if verb == "list" {
 				out, ok := retained.Data.(envelope.IssueLinkListOutput)
-				if !ok || len(out.Results) != 1 || out.Results[0].Issue.Key != "KEY-1" || !out.Results[0].OK || out.Results[0].Data == nil || len(out.Results[0].Data.Links) != 0 {
+				if !ok || len(out.Results) != 1 || out.Results[0].Issue.Key != "KEY-1" || !out.Results[0].OK || out.Results[0].Data == nil || !out.Results[0].Data.Links.Set || out.Results[0].Data.Links.Null || len(out.Results[0].Data.Links.Value) != 0 {
 					t.Fatal("late joined read lost its target or complete empty link observation")
 				}
 			} else {

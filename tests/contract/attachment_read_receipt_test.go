@@ -14,6 +14,7 @@ import (
 
 	"github.com/matcra587/jira-cli/internal/cli"
 	"github.com/matcra587/jira-cli/internal/envelope"
+	"github.com/matcra587/jira-cli/internal/jira"
 )
 
 type attachmentReadFrame struct {
@@ -233,7 +234,7 @@ func TestAttachmentListInterruptRetainsCompletedAndQueuedOutcomes(t *testing.T) 
 					t.Fatal("interrupted attachment list changed requested order")
 				}
 				if i == 0 {
-					if !row.OK || row.Err != nil || row.Data == nil || len(row.Data.Attachments) != 1 || row.Data.Attachments[0].ID != "10042" || row.Data.Attachments[0].Filename != "report.txt" || row.Data.Attachments[0].Size != 3 {
+					if !row.OK || row.Err != nil || row.Data == nil || len(row.Data.Attachments) != 1 || row.Data.Attachments[0].ID != "10042" || row.Data.Attachments[0].Filename != "report.txt" || row.Data.Attachments[0].Size != jira.NullableOf(int64(3)) {
 						t.Fatal("interrupted attachment list changed observed metadata")
 					}
 				} else if row.OK || row.Data != nil || row.Err == nil || row.Err.Code != cli.CodeCanceled {

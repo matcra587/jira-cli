@@ -106,6 +106,7 @@ func newCreate(deps Deps) *cobra.Command {
 			"`--assignee` accepts an account ID or bare email. Email resolves the unique visible active search match before live writes or explicit remote previews; local previews retain it with an unresolved warning. Missing, ambiguous or incomplete searches refuse. Privacy can hide email, and resolution does not prove exact email equality or assignability. Native JSON account IDs stay literal.\n\n" +
 			"`--verify` reads the new issue back and reports its stored " +
 			"summary, status and comparisons for every requested field. " +
+			"Missing metadata stays absent; returned null remains null. " +
 			"Each comparison reports matches, differs or unverified and preserves " +
 			"the observed native value. Missing fields, unsupported operations and " +
 			"different ADF stay unverified; Jira can normalize ADF. Differences " +
@@ -429,9 +430,6 @@ func renderCreateResult(v *output.View, out envelope.IssueCreateOutput) {
 	v.Line("Created " + cli.Entity(out.Issue.Key) + cli.Text("."))
 	switch {
 	case out.Verified != nil:
-		// Jira-authored, so it goes through cli.Text before it can reach a
-		// terminal (axis H4).
-		v.Line(cli.Text(fmt.Sprintf("Reads back as %q, status %s.", out.Verified.Summary, out.Verified.Status)))
 		renderVerificationFields(v, out.Verified)
 	case out.VerifyFailed:
 		v.Hint("The issue was created, but reading it back failed — run `jira issue view " + out.Issue.Key + "` to check it.")

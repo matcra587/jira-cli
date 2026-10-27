@@ -348,10 +348,13 @@ func verifyIssue(ctx context.Context, client core.JiraClient, key string, reques
 		return nil, err
 	}
 	verified := &envelope.VerifiedIssue{
-		Summary: fields.Summary.Value,
-		Status:  fields.Status.Value.Name.Value,
-		Updated: fields.Updated.Value,
+		Summary: fields.Summary,
+		Status:  fields.Status.Value.Name,
+		Updated: fields.Updated,
 		Fields:  make([]envelope.VerifiedField, 0, len(compared)),
+	}
+	if fields.Status.Null {
+		verified.Status = jira.NullableNull[string]()
 	}
 	for _, field := range compared {
 		verified.Fields = append(verified.Fields, envelope.VerifiedField{
@@ -362,23 +365,34 @@ func verifyIssue(ctx context.Context, client core.JiraClient, key string, reques
 		// The generated model is case-insensitive for compatibility. Read
 		// presentation metadata from exact native spellings too, so a future
 		// Name member cannot overwrite status.name in the confirmation.
-		raw, err := jira.MarshalNoEscape(map[string]json.RawMessage{
-			"summary": nativeFields["summary"], "status": nativeFields["status"], "updated": nativeFields["updated"],
-		})
+		selected := make(map[string]json.RawMessage)
+		for _, field := range []string{"summary", "status", "updated"} {
+			if value, present := nativeFields[field]; present {
+				selected[field] = value
+			}
+		}
+		raw, err := jira.MarshalNoEscape(selected)
 		if err != nil {
 			return nil, err
 		}
 		var metadata struct {
-			Summary string `json:"summary"`
-			Status  struct {
-				Name string `json:"name"`
-			} `json:"status"`
-			Updated string `json:"updated"`
+			Summary jira.Nullable[string]                     `json:"summary"`
+			Status  jira.Nullable[map[string]json.RawMessage] `json:"status"`
+			Updated jira.Nullable[string]                     `json:"updated"`
 		}
 		if err := jsonv2.Unmarshal(raw, &metadata); err != nil {
 			return nil, err
 		}
-		verified.Summary, verified.Status, verified.Updated = metadata.Summary, metadata.Status.Name, metadata.Updated
+		verified.Summary, verified.Updated = metadata.Summary, metadata.Updated
+		var status jira.Nullable[string]
+		if metadata.Status.Null {
+			status = jira.NullableNull[string]()
+		} else if rawName, present := metadata.Status.Value["name"]; present {
+			if err := jsonv2.Unmarshal(rawName, &status); err != nil {
+				return nil, err
+			}
+		}
+		verified.Status = status
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err

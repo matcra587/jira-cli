@@ -35,7 +35,7 @@ type IssueWeblinkListOutput struct {
 type IssueWeblinkListData struct {
 	// Weblinks is every remote link on this issue, in the order Jira
 	// returned them. An issue with none carries an empty array, never
-	// null, exactly as IssueLinkListData.Links does.
+	// null, after the native list has passed validation.
 	Weblinks []WeblinkView `json:"weblinks"`
 }
 

@@ -82,7 +82,7 @@ func wireWatchers(count int64, isWatching bool, watchers ...jira.UserDetails) *j
 	return &jira.Watchers{
 		IsWatching: jira.NullableOf(isWatching),
 		WatchCount: jira.NullableOf(count),
-		Watchers:   jira.NullableOf(watchers),
+		Watchers:   jira.NullableOf(append([]jira.UserDetails{}, watchers...)),
 		Self:       jira.NullableOf("https://example.atlassian.net/rest/api/3/issue/10500/watchers"),
 	}
 }
@@ -130,7 +130,7 @@ func TestWatcherViewsNarrowEveryPublishedField(t *testing.T) {
 			t.Errorf("%s = %q, want %q", c.field, c.got, c.want)
 		}
 	}
-	if !w.Active {
+	if w.Active != jira.NullableOf(true) {
 		t.Error("active = false, want true — a dropped bool is invisible in every string check above")
 	}
 }
@@ -149,7 +149,7 @@ func TestWatcherViewsCarryDeactivatedAccounts(t *testing.T) {
 	if len(got) != 2 {
 		t.Fatalf("views = %d, want both watchers — a deactivated account is not filtered out", len(got))
 	}
-	if got[1].Active {
+	if got[1].Active != jira.NullableOf(false) {
 		t.Error("views[1].active = true, want false")
 	}
 }
@@ -182,11 +182,11 @@ func TestRunWatchersListPublishesTheCountBesideTheArray(t *testing.T) {
 		t.Fatalf("results = %+v, want one successful entry", out.Results)
 	}
 	data := out.Results[0].Data
-	if len(data.Watchers) != 0 {
-		t.Errorf("watchers = %d, want none visible", len(data.Watchers))
+	if !data.Watchers.Set || data.Watchers.Null || len(data.Watchers.Value) != 0 {
+		t.Errorf("watchers = %d, want none visible", len(data.Watchers.Value))
 	}
-	if data.WatchCount != 7 {
-		t.Errorf("watch_count = %d, want 7 — the count is what distinguishes a hidden list from an empty one", data.WatchCount)
+	if data.WatchCount != jira.NullableOf(int64(7)) {
+		t.Errorf("watch_count = %d, want 7 — the count is what distinguishes a hidden list from an empty one", data.WatchCount.Value)
 	}
 }
 
@@ -207,7 +207,7 @@ func TestRunWatchersListPublishesIsWatching(t *testing.T) {
 	if len(out.Results) != 1 || out.Results[0].Data == nil {
 		t.Fatalf("results = %+v, want one successful entry", out.Results)
 	}
-	if !out.Results[0].Data.IsWatching {
+	if out.Results[0].Data.IsWatching != jira.NullableOf(true) {
 		t.Error("is_watching = false, want true")
 	}
 }
@@ -274,7 +274,7 @@ func TestRunWatchersListKeepsSuccessesWhenOneKeyFails(t *testing.T) {
 	if len(out.Results) != 2 {
 		t.Fatalf("results = %d, want 2", len(out.Results))
 	}
-	if first := out.Results[0]; !first.OK || first.Data == nil || len(first.Data.Watchers) != 1 {
+	if first := out.Results[0]; !first.OK || first.Data == nil || len(first.Data.Watchers.Value) != 1 {
 		t.Fatalf("results[0] = %+v, want the successful key with its one watcher", first)
 	}
 	second := out.Results[1]
@@ -305,7 +305,7 @@ func renderWatchers(t *testing.T, out envelope.IssueWatchersListOutput, mode clo
 
 // watchersResult is a small builder for a successful keyed result.
 func watchersResult(key string, count int64, watchers ...envelope.WatcherView) envelope.KeyedResult[envelope.IssueWatchersListData] {
-	data := envelope.IssueWatchersListData{Watchers: watchers, WatchCount: count}
+	data := envelope.IssueWatchersListData{Watchers: jira.NullableOf(append([]envelope.WatcherView{}, watchers...)), WatchCount: jira.NullableOf(count)}
 	return envelope.KeyedResult[envelope.IssueWatchersListData]{
 		Issue: envelope.IssueRef{Key: key},
 		OK:    true,
@@ -318,7 +318,7 @@ func TestRenderWatchersListDrawsOneSectionPerKey(t *testing.T) {
 	out.Results = []envelope.KeyedResult[envelope.IssueWatchersListData]{
 		watchersResult("ABC-1", 1, envelope.WatcherView{
 			AccountID: "acct-1", DisplayName: "Ada Watcher",
-			AccountType: "atlassian", Active: true,
+			AccountType: "atlassian", Active: jira.NullableOf(true),
 		}),
 		watchersResult("ABC-2", 0),
 	}
@@ -368,8 +368,8 @@ func TestRenderWatchersListShowsDeactivatedAccounts(t *testing.T) {
 	out.Results = []envelope.KeyedResult[envelope.IssueWatchersListData]{
 		watchersResult("ABC-1",
 			2,
-			envelope.WatcherView{AccountID: "acct-1", DisplayName: "Ada Watcher", AccountType: "atlassian", Active: true},
-			envelope.WatcherView{AccountID: "acct-2", DisplayName: "Departed Colleague", AccountType: "atlassian"},
+			envelope.WatcherView{AccountID: "acct-1", DisplayName: "Ada Watcher", AccountType: "atlassian", Active: jira.NullableOf(true)},
+			envelope.WatcherView{AccountID: "acct-2", DisplayName: "Departed Colleague", AccountType: "atlassian", Active: jira.NullableOf(false)},
 		),
 	}
 

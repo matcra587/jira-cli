@@ -1,0 +1,3 @@
+kind: breaking
+body: 'Preserve unavailable watcher facts, issue-link lists, attachment sizes and create/edit verification metadata: machine output omits absent keys and retains explicit null instead of inventing false, zero, empty strings or arrays; human output distinguishes unavailable data from observed empty values.'
+time: 2026-10-26T23:19:59.929347489-04:00

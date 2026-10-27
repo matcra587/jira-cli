@@ -2350,9 +2350,8 @@ func checkIssueListFields(data map[string]any) (bool, string) {
 // depend on actually render, not merely that "results" is present as a
 // key.
 //
-// Every result's links must be an ARRAY — a key with no links publishes
-// an empty one, never null, which is the contract a caller iterating it
-// without a nil check depends on — and at least one result must carry a
+// This fixture explicitly returns link arrays, including an empty array.
+// The output must retain them, and at least one result must carry a
 // link, or the per-link field checks below would be vacuous against a
 // fixture that had quietly stopped serving links at all.
 func checkIssueLinkListFields(data map[string]any) (bool, string) {
@@ -2372,7 +2371,7 @@ func checkIssueLinkListFields(data map[string]any) (bool, string) {
 		}
 		links, ok := payload["links"].([]any)
 		if !ok {
-			return false, fmt.Sprintf("results[%d].data.links is not an array — a key with no links must publish an empty array, never null", i)
+			return false, fmt.Sprintf("results[%d].data.links lost the fixture's explicit array", i)
 		}
 		linked += len(links)
 		for j, rawLink := range links {
@@ -2546,21 +2545,23 @@ func checkAttachmentFields(result, index int, raw any) (bool, string) {
 // must prove the fields the table's columns and a machine caller both
 // depend on actually render, not merely that "results" is present.
 //
-// The count-beside-the-array contract is what this check has that its
-// attachment counterpart does not. `watchers` alone is ambiguous —
-// empty means "nobody" or "you may not see who" — so watch_count must
-// be present on EVERY entry, as a real number, including the ones whose
-// array is populated.
+// The fixture returns explicit counts and membership for all three keys.
+// Only TST-2 returns a watcher array; TST-3 reports zero and TST-4 reports
+// seven without a list. Missing lists must remain absent in the output.
 func checkIssueWatchersListFields(data map[string]any) (bool, string) {
 	results, ok := data["results"].([]any)
-	if !ok {
-		return false, "results is not an array"
+	if !ok || len(results) != 3 {
+		return false, "results must retain all three watcher fixtures"
 	}
 	watching, restricted := 0, 0
 	for i, raw := range results {
 		entry, ok := raw.(map[string]any)
 		if !ok {
 			return false, fmt.Sprintf("results[%d] is not an object", i)
+		}
+		identity, _ := entry["issue"].(map[string]any)
+		if identity["key"] != []string{"TST-2", "TST-3", "TST-4"}[i] {
+			return false, fmt.Sprintf("results[%d] lost its requested watcher identity", i)
 		}
 		payload, ok := entry["data"].(map[string]any)
 		if !ok {
@@ -2577,17 +2578,22 @@ func checkIssueWatchersListFields(data map[string]any) (bool, string) {
 				return false, fmt.Sprintf("results[%d].data.%s is not in the published contract — this command publishes watchers, watch_count and is_watching, pagination included (the watcher endpoint takes no paging parameters)", i, key)
 			}
 		}
-		watchers, ok := payload["watchers"].([]any)
-		if !ok {
-			return false, fmt.Sprintf("results[%d].data.watchers is not an array — a key with no watchers must publish an empty array, never null", i)
+		var watchers []any
+		if i == 0 {
+			watchers, ok = payload["watchers"].([]any)
+			if !ok || len(watchers) != 3 {
+				return false, "populated watcher fixture must retain all three accounts"
+			}
+		} else if _, present := payload["watchers"]; present {
+			return false, fmt.Sprintf("results[%d].data.watchers fabricated a list absent from the fixture", i)
 		}
 		// encoding/json decodes every JSON number into a float64 here, so
 		// this asserts "arrived as a number" as well as "present".
 		count, ok := payload["watch_count"].(float64)
-		if !ok {
+		if !ok || count != []float64{3, 0, 7}[i] {
 			return false, fmt.Sprintf("results[%d].data.watch_count = %v (%T), want a JSON number — it is the only thing that distinguishes a hidden watcher list from an empty one", i, payload["watch_count"], payload["watch_count"])
 		}
-		if _, ok := payload["is_watching"].(bool); !ok {
+		if member, ok := payload["is_watching"].(bool); !ok || member != (i == 0) {
 			return false, fmt.Sprintf("results[%d].data.is_watching = %v (%T), want a JSON boolean", i, payload["is_watching"], payload["is_watching"])
 		}
 		if len(watchers) == 0 && count > 0 {
@@ -2608,7 +2614,7 @@ func checkIssueWatchersListFields(data map[string]any) (bool, string) {
 	// stops serving it — a corpus that only ever saw populated and
 	// genuinely-empty results would pass while the distinction rotted.
 	if restricted == 0 {
-		return false, "no result carries a non-zero watch_count with an empty watchers array; the success fixture must serve the permission-restricted response"
+		return false, "no result retains the positive watcher count with an absent list"
 	}
 	return true, ""
 }

@@ -114,6 +114,10 @@ summary/status/time metadata. Inspect `verified.fields` on create and
 `results[].data.verified.fields` on edit. Sorted rows report `matches`, `differs`
 or `unverified`, their comparison reason and the native `observed` value when
 returned. An absent `observed` remains different from explicit null.
+The `verified` summary, status and updated time also preserve missing keys and
+explicit null. Human output omits missing metadata rows and shows `-` for returned
+null or empty values. If none of these fields returns, it says `Readback metadata
+unavailable.`; the field comparison results still apply.
 Known Jira identities, including cascading-select children, and unordered
 collections use identity/membership checks.
 Arbitrary native numbers retain their exact spelling. Known collection updates

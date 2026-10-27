@@ -271,7 +271,7 @@ func TestRunLinkListKeepsSuccessesWhenOneKeyFails(t *testing.T) {
 	}
 
 	first := out.Results[0]
-	if !first.OK || first.Data == nil || len(first.Data.Links) != 1 {
+	if !first.OK || first.Data == nil || len(first.Data.Links.Value) != 1 {
 		t.Fatalf("results[0] = %+v, want the successful key with its one link", first)
 	}
 	if first.Err != nil {
@@ -429,7 +429,7 @@ func renderLinks(t *testing.T, out envelope.IssueLinkListOutput, mode clog.Color
 
 // linkResult is a small builder for a successful keyed result.
 func linkResult(key string, links ...envelope.IssueLinkView) envelope.KeyedResult[envelope.IssueLinkListData] {
-	data := envelope.IssueLinkListData{Links: links}
+	data := envelope.IssueLinkListData{Links: jira.NullableOf(append([]envelope.IssueLinkView{}, links...))}
 	return envelope.KeyedResult[envelope.IssueLinkListData]{
 		Issue: envelope.IssueRef{Key: key},
 		OK:    true,

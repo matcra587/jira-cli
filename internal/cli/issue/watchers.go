@@ -98,6 +98,9 @@ func newWatchersList(deps Deps) *cobra.Command {
 			"many — `data.results[].data.watch_count` is populated either " +
 			"way — but sends no names, and the command says so rather than " +
 			"reporting an empty list.\n\n" +
+			"Missing watcher lists, totals, membership and activity stay absent " +
+			"in machine output; returned null stays null. Unavailable facts do " +
+			"not mean no watchers or an inactive account.\n\n" +
 			"`--web` is refused here. It opens one page and this command reads " +
 			"a list of keys, so there is no single thing to open: run `jira " +
 			"issue view KEY --web` for whichever issue you want to look at.",
@@ -220,9 +223,15 @@ func readWatchers(ctx context.Context, client core.JiraClient, key string) watch
 		return failedWatchersResult(key, fmt.Errorf("issue.watchers.list: empty watchers response for %q", key))
 	}
 	data := envelope.IssueWatchersListData{
-		Watchers:   watcherViews(val(read.Watchers.Watchers)),
-		WatchCount: read.Watchers.WatchCount.Value,
-		IsWatching: read.Watchers.IsWatching.Value,
+		WatchCount: read.Watchers.WatchCount,
+		IsWatching: read.Watchers.IsWatching,
+	}
+	if watchers := read.Watchers.Watchers; watchers.Set {
+		if watchers.Null {
+			data.Watchers = jira.NullableNull[[]envelope.WatcherView]()
+		} else {
+			data.Watchers = jira.NullableOf(watcherViews(watchers.Value))
+		}
 	}
 	// The identity carries only the key, and this is the one place a
 	// SUCCESSFUL keyed result here differs from its siblings'. Link and
@@ -274,7 +283,7 @@ func watcherViews(watchers []jira.UserDetails) []envelope.WatcherView {
 		out = append(out, envelope.WatcherView{
 			AccountID:   w.AccountID.Value,
 			DisplayName: w.DisplayName.Value,
-			Active:      w.Active.Value,
+			Active:      w.Active,
 			AccountType: w.AccountType.Value,
 		})
 	}
@@ -327,14 +336,24 @@ func renderWatchersResult(v *output.View, r envelope.KeyedResult[envelope.IssueW
 		v.Hint(r.Err.Hint)
 		return
 	}
-	if len(r.Data.Watchers) == 0 {
-		if r.Data.WatchCount > 0 {
-			v.Line(cli.Text(fmt.Sprintf("%d watching, but this account cannot see who.", r.Data.WatchCount)))
+	watchers, count := r.Data.Watchers, r.Data.WatchCount
+	if len(watchers.Value) == 0 {
+		if count.Set && !count.Null && count.Value > 0 {
+			v.Line(cli.Text(fmt.Sprintf("%d watching, but this account cannot see who.", count.Value)))
 			v.Hint("Seeing watcher names needs the \"View voters and watchers\" permission on the project.")
 			return
 		}
-		v.Line(cli.Text("No watchers."))
+		switch {
+		case count.Set && !count.Null && count.Value == 0:
+			v.Line("No watchers.")
+		case !watchers.Set:
+			v.Line("Watchers were not returned.")
+		case watchers.Null:
+			v.Line("Watchers unavailable.")
+		default:
+			v.Line("No visible watchers; total unavailable.")
+		}
 		return
 	}
-	output.Table(v, cli.ResolvedTheme(), issueWatchersColumns(), r.Data.Watchers)
+	output.Table(v, cli.ResolvedTheme(), issueWatchersColumns(), watchers.Value)
 }

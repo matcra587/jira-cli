@@ -1,5 +1,7 @@
 package envelope
 
+import "github.com/matcra587/jira-cli/internal/jira"
+
 // IssueLinkListOutput is the `issue.link.list` operation's payload: the
 // issue links of one or more issues, one keyed result per requested key.
 //
@@ -39,9 +41,8 @@ type IssueLinkListOutput struct {
 // rides at data.results[].data.
 type IssueLinkListData struct {
 	// Links is every link on this issue, in the order Jira returned
-	// them. An issue with no links carries an empty array, never null: a
-	// caller iterating it must not have to special-case the common case.
-	Links []IssueLinkView `json:"links"`
+	// them. An explicit empty array means no links; absent/null remains unknown.
+	Links jira.Nullable[[]IssueLinkView] `json:"links,omitzero"`
 }
 
 // IssueLinkView is one link, shaped for the CLI's contract rather than

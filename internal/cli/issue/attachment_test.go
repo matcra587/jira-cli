@@ -133,8 +133,8 @@ func TestAttachmentViewsNarrowEveryPublishedField(t *testing.T) {
 	}
 	// The size stays an integer count of bytes all the way through the
 	// envelope; formatting it is the human table's job alone.
-	if a.Size != 812 {
-		t.Errorf("size = %d, want 812 — the envelope publishes raw bytes, never a formatted string", a.Size)
+	if a.Size != jira.NullableOf(int64(812)) {
+		t.Errorf("size = %d, want 812 — the envelope publishes raw bytes, never a formatted string", a.Size.Value)
 	}
 }
 
@@ -229,7 +229,7 @@ func TestRenderAttachmentListDrawsOneSectionPerKey(t *testing.T) {
 	out := envelope.IssueAttachmentListOutput{}
 	out.Results = []envelope.KeyedResult[envelope.IssueAttachmentListData]{
 		attachmentResult("ABC-1", envelope.AttachmentView{
-			ID: "10500", Filename: "crash-log.txt", MimeType: "text/plain", Size: 812,
+			ID: "10500", Filename: "crash-log.txt", MimeType: "text/plain", Size: jira.NullableOf(int64(812)),
 			Created: "2024-02-20T14:45:00.000-0500",
 			Author:  envelope.AuthorRef{DisplayName: "Ada Uploader"},
 		}),
@@ -259,7 +259,7 @@ func TestRenderAttachmentListShowsSizesAsHumanUnits(t *testing.T) {
 	out := envelope.IssueAttachmentListOutput{}
 	out.Results = []envelope.KeyedResult[envelope.IssueAttachmentListData]{
 		attachmentResult("ABC-1", envelope.AttachmentView{
-			ID: "1", Filename: "heap.hprof", Size: 3_355_443,
+			ID: "1", Filename: "heap.hprof", Size: jira.NullableOf(int64(3_355_443)),
 			Author: envelope.AuthorRef{DisplayName: "Ada Uploader"},
 		}),
 	}

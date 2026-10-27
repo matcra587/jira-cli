@@ -21,6 +21,7 @@ import (
 
 	"github.com/matcra587/jira-cli/internal/cli"
 	"github.com/matcra587/jira-cli/internal/envelope"
+	"github.com/matcra587/jira-cli/internal/jira"
 )
 
 type attachmentReceiptFrame struct {
@@ -220,7 +221,7 @@ func TestAttachmentInterruptRetainsCompletedAndQueuedOutcomes(t *testing.T) {
 					t.Fatal("cancellation reordered upload outcomes")
 				}
 				if i == 0 {
-					if !r.OK || r.Data == nil || len(r.Data.Attachments) != 1 || r.Data.Attachments[0].ID != "10042" || r.Data.Attachments[0].Filename != "authored.txt" || r.Data.Attachments[0].Size != 8 {
+					if !r.OK || r.Data == nil || len(r.Data.Attachments) != 1 || r.Data.Attachments[0].ID != "10042" || r.Data.Attachments[0].Filename != "authored.txt" || r.Data.Attachments[0].Size != jira.NullableOf(int64(8)) {
 						t.Fatal("cancellation discarded a completed resource identity")
 					}
 				} else if r.OK || r.Data != nil || r.Err == nil || r.Err.Code != cli.CodeCanceled {

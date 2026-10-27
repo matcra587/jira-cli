@@ -632,7 +632,7 @@ func TestVerifyReadsBackAndAFailedReadbackDoesNotFailTheWrite(t *testing.T) {
 		if err != nil {
 			t.Fatalf("runCreate: %v", err)
 		}
-		if out.Verified == nil || out.Verified.Status != "To Do" {
+		if out.Verified == nil || out.Verified.Status != jira.NullableOf("To Do") {
 			t.Fatalf("verified = %+v, want the stored status", out.Verified)
 		}
 		if out.VerifyFailed {

@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/matcra587/jira-cli/internal/envelope"
+	"github.com/matcra587/jira-cli/internal/jira"
 )
 
 type ownedAttachment struct {
@@ -109,7 +110,7 @@ func (r *liveRun) registerAttachment(t *testing.T, key string, attachment envelo
 	t.Helper()
 	issue := r.ownedLiveIssue(key)
 	id, err := strconv.ParseUint(attachment.ID, 10, 64)
-	if issue == nil || err != nil || id == 0 || attachment.Size < 0 || attachment.Filename == "" {
+	if issue == nil || err != nil || id == 0 || !attachment.Size.Set || attachment.Size.Null || attachment.Size.Value < 0 || attachment.Filename == "" {
 		t.Fatal("attachment receipt lacks an active owned issue and numeric resource identity")
 	}
 	for _, owned := range r.manifest.Issues {
@@ -117,7 +118,7 @@ func (r *liveRun) registerAttachment(t *testing.T, key string, attachment envelo
 			t.Fatal("attachment upload returned an already registered identity")
 		}
 	}
-	issue.Attachments = append(issue.Attachments, ownedAttachment{ID: attachment.ID, Filename: attachment.Filename, Size: attachment.Size})
+	issue.Attachments = append(issue.Attachments, ownedAttachment{ID: attachment.ID, Filename: attachment.Filename, Size: attachment.Size.Value})
 	r.save(t)
 }
 
@@ -216,8 +217,8 @@ func TestLiveAttachments(t *testing.T) {
 	seenNames := map[string]bool{}
 	for _, attachment := range upload.Data.Results[0].Data.Attachments {
 		data, ok := want[attachment.Filename]
-		if !ok || seenNames[attachment.Filename] || attachment.Size != int64(len(data)) || !slices.ContainsFunc(stored, func(a ownedAttachment) bool {
-			return a.ID == attachment.ID && a.Filename == attachment.Filename && a.Size == attachment.Size
+		if !ok || seenNames[attachment.Filename] || attachment.Size != jira.NullableOf(int64(len(data))) || !slices.ContainsFunc(stored, func(a ownedAttachment) bool {
+			return a.ID == attachment.ID && a.Filename == attachment.Filename && jira.NullableOf(a.Size) == attachment.Size
 		}) || !slices.ContainsFunc(listed, func(a envelope.AttachmentView) bool {
 			return a.ID == attachment.ID && a.Filename == attachment.Filename && a.Size == attachment.Size
 		}) {
@@ -254,7 +255,7 @@ func TestLiveAttachments(t *testing.T) {
 		}
 		path := filepath.Join(dir, attachment.Filename)
 		data, err := os.ReadFile(path)
-		if exit != 0 || !frame.OK || json.Unmarshal(raw, &out) != nil || err != nil || !bytes.Equal(data, want[attachment.Filename]) || out.Data.BytesWritten == nil || *out.Data.BytesWritten != attachment.Size || out.Data.Path != path || out.Data.Overwrote == nil || *out.Data.Overwrote {
+		if exit != 0 || !frame.OK || json.Unmarshal(raw, &out) != nil || err != nil || !bytes.Equal(data, want[attachment.Filename]) || out.Data.BytesWritten == nil || jira.NullableOf(*out.Data.BytesWritten) != attachment.Size || out.Data.Path != path || out.Data.Overwrote == nil || *out.Data.Overwrote {
 			t.Fatal("live download changed exact bytes or its publication receipt")
 		}
 		frame, _, exit = r.invoke(t, t.Context(), nil, "issue", "attachment", "download", attachment.ID, "--to", dir)
@@ -271,7 +272,7 @@ func TestLiveAttachments(t *testing.T) {
 		frame, raw, exit = r.invoke(t, t.Context(), []string{"JIRA_READ_ONLY=true"}, "issue", "attachment", "download", attachment.ID, "--to", dir, "--overwrite")
 		data, err = os.ReadFile(path)
 		out.Data = envelope.IssueAttachmentDownloadOutput{}
-		if exit != 0 || !frame.OK || json.Unmarshal(raw, &out) != nil || err != nil || !bytes.Equal(data, want[attachment.Filename]) || out.Data.BytesWritten == nil || *out.Data.BytesWritten != attachment.Size || out.Data.Path != path || out.Data.Overwrote == nil || !*out.Data.Overwrote {
+		if exit != 0 || !frame.OK || json.Unmarshal(raw, &out) != nil || err != nil || !bytes.Equal(data, want[attachment.Filename]) || out.Data.BytesWritten == nil || jira.NullableOf(*out.Data.BytesWritten) != attachment.Size || out.Data.Path != path || out.Data.Overwrote == nil || !*out.Data.Overwrote {
 			t.Fatal("live overwrite lost bytes or receipt")
 		}
 		if err := os.Remove(path); err != nil {
@@ -333,7 +334,7 @@ func TestLiveAttachments(t *testing.T) {
 			if !slices.ContainsFunc(remaining, func(a ownedAttachment) bool {
 				return a.ID == sibling.ID && a.Filename == sibling.Filename && a.Size == sibling.Size
 			}) || !slices.ContainsFunc(listed, func(a envelope.AttachmentView) bool {
-				return a.ID == sibling.ID && a.Filename == sibling.Filename && a.Size == sibling.Size
+				return a.ID == sibling.ID && a.Filename == sibling.Filename && a.Size == jira.NullableOf(sibling.Size)
 			}) {
 				t.Fatal("attachment deletion changed a surviving sibling")
 			}

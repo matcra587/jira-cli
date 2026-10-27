@@ -79,6 +79,12 @@ table columns require a returned field in at least one row; mixed rows and
 explicit selections display `not returned` for absent cells and `-` for fetched
 empty cells. An embedded comment page without a usable explicit total is unknown,
 never evidence of zero comments.
+Keep `Nullable` state through watcher collections/counts/membership/activity,
+link collections, attachment sizes and create/edit verification metadata. Sparse
+responses must not become false, zero or empty arrays in machine output. Collection
+availability and privacy-hidden watcher lists remain distinct from observed emptiness.
+Verification metadata uses the same header presence rules and exact native member
+names; missing presentation fields do not alter acknowledged writes or authored-field checks.
 
 Cache priming and refresh receipts retain native items, collection bounds,
 preview/fetch/reuse facts and storage acknowledgements. Do not echo force,

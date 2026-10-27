@@ -9,6 +9,15 @@ paths:
 
 # Tests
 
+Sparse-response guards distinguish absent, null, empty and nonempty values through
+the real binary in human, JSON and compact modes. Cover identity and issue headers,
+default and explicit issue columns, embedded comments, watcher facts, links,
+attachment sizes and create/edit verification metadata. Assert omitted keys and
+rows, unavailable messages, and observed false/zero/empty controls. Missing
+readback metadata must retain acknowledged writes and unverified-field warnings;
+exact native names must win over differently capitalized members. Use synthetic
+HTTP responses, check request counts and demonstrate named failures before fixes.
+
 Near-limit warning guards exercise actual auth/issue commands in JSON, compact
 and human modes on success and HTTP refusal. Verify true, false, absent and
 malformed headers, exact request admission and explicit `lossy:false`. Cover

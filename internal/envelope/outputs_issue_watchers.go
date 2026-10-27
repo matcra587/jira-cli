@@ -1,5 +1,7 @@
 package envelope
 
+import "github.com/matcra587/jira-cli/internal/jira"
+
 // IssueWatchersListOutput is the `issue.watchers.list` operation's
 // payload: the watchers of one or more issues, one keyed result per
 // requested key.
@@ -49,48 +51,15 @@ type IssueWatchersListOutput struct {
 	KeyedResults[IssueWatchersListData]
 }
 
-// IssueWatchersListData is one issue's watchers — the operation object
-// that rides at data.results[].data.
-//
-// Three members where the two keyed reads before it published one
-// array and nothing else, because here the array alone can lie.
-//
-// Jira returns the `watchers` array only to a caller holding the "View
-// voters and watchers" project permission. Everyone else gets the same
-// 200, with `watchCount` populated and the array empty or absent — so
-// "nobody is watching" and "you may not see who is watching" arrive as
-// the same array and are not the same fact. Publishing the count beside
-// it makes them distinguishable: watch_count 7 with an empty watchers
-// array says precisely what happened, and a caller (or the human
-// renderer below it) can say so instead of reporting an empty room.
+// IssueWatchersListData preserves unavailable, null and observed watcher facts.
+// A positive count can accompany an unavailable list when visibility is restricted.
 type IssueWatchersListData struct {
-	// Watchers is everyone watching this issue, in the order Jira
-	// returned them. An issue with none carries an empty array, never
-	// null, exactly as IssueAttachmentListData.Attachments does: a caller
-	// iterating data.results[].data.watchers must not have to
-	// special-case the common case.
-	//
-	// It may also be empty because the caller cannot see the list at all
-	// — compare WatchCount, which is populated either way. `length` on
-	// this array is therefore the number of watchers VISIBLE to the
-	// caller, which is not always the number of watchers.
-	Watchers []WatcherView `json:"watchers"`
-	// WatchCount is how many accounts watch this issue, as Jira reports
-	// it — authoritative even when Watchers is empty, which is the whole
-	// reason it is published rather than left for a caller to compute
-	// with `watchers | length`.
-	WatchCount int64 `json:"watch_count"`
-	// IsWatching reports whether the ACCOUNT THIS CLI AUTHENTICATED AS
-	// watches the issue — not a property of the issue, but of the caller's
-	// relationship to it, which is why it sits beside the list rather
-	// than inside a WatcherView.
-	//
-	// Published because it is the one field here a verb acts on: it is
-	// exactly the state `issue watchers add` and `issue watchers remove`
-	// toggle for the current user, so an agent deciding whether to call
-	// either reads this rather than scanning the array for its own
-	// account id — which it would first have to know.
-	IsWatching bool `json:"is_watching"`
+	// Watchers retains the returned array. Absence and null do not mean empty.
+	Watchers jira.Nullable[[]WatcherView] `json:"watchers,omitzero"`
+	// WatchCount is the returned total, which may exceed the visible list.
+	WatchCount jira.Nullable[int64] `json:"watch_count,omitzero"`
+	// IsWatching is the authenticated account's returned membership state.
+	IsWatching jira.Nullable[bool] `json:"is_watching,omitzero"`
 }
 
 // WatcherView is one watcher, shaped for the CLI's contract.
@@ -129,8 +98,8 @@ type WatcherView struct {
 	// surface runs it through a sanitizing sink.
 	DisplayName string `json:"display_name"`
 	// Active reports whether the account is enabled. A deactivated
-	// account keeps watching the issues it watched.
-	Active bool `json:"active"`
+	// account keeps watching the issues it watched. Absence is not false.
+	Active jira.Nullable[bool] `json:"active,omitzero"`
 	// AccountType is Jira's own classification of the account —
 	// 'atlassian' for an ordinary user, 'app' for an integration,
 	// 'customer' for a Service Desk customer. Empty when the response

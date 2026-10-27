@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/matcra587/jira-cli/internal/envelope"
+	"github.com/matcra587/jira-cli/internal/jira"
 )
 
 // Select only the declared lane layout. Shape probing or fallback would allow
@@ -58,7 +59,7 @@ func parityWatchersMatch(data json.RawMessage, lane string, want envelope.IssueW
 		Count    *int64 `json:"watch_count"`
 		Watching *bool  `json:"is_watching"`
 	}
-	if json.Unmarshal(data, &got) != nil || got.Watchers == nil || got.Count == nil || got.Watching == nil || *got.Count != want.WatchCount || *got.Watching != want.IsWatching || len(*got.Watchers) != len(want.Watchers) {
+	if !want.Watchers.Set || want.Watchers.Null || json.Unmarshal(data, &got) != nil || got.Watchers == nil || got.Count == nil || got.Watching == nil || jira.NullableOf(*got.Count) != want.WatchCount || jira.NullableOf(*got.Watching) != want.IsWatching || len(*got.Watchers) != len(want.Watchers.Value) {
 		return false
 	}
 	seen := map[string]bool{}
@@ -67,11 +68,11 @@ func parityWatchersMatch(data json.RawMessage, lane string, want envelope.IssueW
 			return false
 		}
 		seen[*user.AccountID] = true
-		index := slices.IndexFunc(want.Watchers, func(w envelope.WatcherView) bool { return w.AccountID == *user.AccountID })
-		if index < 0 || want.Watchers[index].DisplayName != *user.DisplayName {
+		index := slices.IndexFunc(want.Watchers.Value, func(w envelope.WatcherView) bool { return w.AccountID == *user.AccountID })
+		if index < 0 || want.Watchers.Value[index].DisplayName != *user.DisplayName {
 			return false
 		}
-		if lane == "after" && (user.Active == nil || user.AccountType == nil || *user.Active != want.Watchers[index].Active || *user.AccountType != want.Watchers[index].AccountType) {
+		if lane == "after" && (user.Active == nil || user.AccountType == nil || jira.NullableOf(*user.Active) != want.Watchers.Value[index].Active || *user.AccountType != want.Watchers.Value[index].AccountType) {
 			return false
 		}
 	}
@@ -176,7 +177,7 @@ func TestParityReadLayouts(t *testing.T) {
 }
 
 func TestParityReadPresence(t *testing.T) {
-	empty := envelope.IssueWatchersListData{Watchers: []envelope.WatcherView{}}
+	empty := envelope.IssueWatchersListData{Watchers: jira.NullableOf([]envelope.WatcherView{}), WatchCount: jira.NullableOf(int64(0)), IsWatching: jira.NullableOf(false)}
 	for _, lane := range []string{"before", "after"} {
 		if !parityWatchersMatch(json.RawMessage(`{"watchers":[],"watch_count":0,"is_watching":false}`), lane, empty) {
 			t.Fatal("complete empty watcher state refused")
@@ -187,7 +188,7 @@ func TestParityReadPresence(t *testing.T) {
 			}
 		}
 	}
-	want := envelope.IssueWatchersListData{Watchers: []envelope.WatcherView{{AccountID: "owned", DisplayName: "Fixture", Active: true, AccountType: "atlassian"}}, WatchCount: 1, IsWatching: true}
+	want := envelope.IssueWatchersListData{Watchers: jira.NullableOf([]envelope.WatcherView{{AccountID: "owned", DisplayName: "Fixture", Active: jira.NullableOf(true), AccountType: "atlassian"}}), WatchCount: jira.NullableOf(int64(1)), IsWatching: jira.NullableOf(true)}
 	legacy := json.RawMessage(`{"watchers":[{"account_id":"owned","display_name":"Fixture"}],"watch_count":1,"is_watching":true}`)
 	if !parityWatchersMatch(legacy, "before", want) || parityWatchersMatch(legacy, "after", want) {
 		t.Fatal("legacy metadata omission lost its declared lane meaning")

@@ -57,8 +57,8 @@ func TestLiveWatcherLiteralAccountPreflight(t *testing.T) {
 			t.Fatal("validated watcher write lost acknowledgement or readback")
 		}
 		stored := rawOwnedWatchers(t, r, key)
-		present := slices.ContainsFunc(stored.Watchers, func(w envelope.WatcherView) bool { return w.AccountID == r.watcherAccountID })
-		if present != (verb == "add") || stored.IsWatching != (verb == "add") {
+		present := slices.ContainsFunc(stored.Watchers.Value, func(w envelope.WatcherView) bool { return w.AccountID == r.watcherAccountID })
+		if present != (verb == "add") || stored.IsWatching != jira.NullableOf(verb == "add") {
 			t.Fatal("independent watcher state differs from requested self subscription")
 		}
 	}

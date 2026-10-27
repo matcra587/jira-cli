@@ -159,14 +159,14 @@ type IssueEditData struct {
 // back the whole created comment for free, there is a real cost here for a
 // caller to opt into.
 type VerifiedIssue struct {
-	// Summary is the stored summary, empty when the issue has none.
-	Summary string `json:"summary"`
+	// Summary retains whether the readback returned a summary, null or a value.
+	Summary jira.Nullable[string] `json:"summary,omitzero"`
 	// Status is the stored status name.
-	Status string `json:"status"`
+	Status jira.Nullable[string] `json:"status,omitzero"`
 	// Updated is Jira's own RFC 3339 timestamp, verbatim — wire timestamps
 	// are exempt from the CLI's UTC-RFC-3339 rule by design (M5), like
 	// every other wire-sourced time in this contract.
-	Updated string `json:"updated"`
+	Updated jira.Nullable[string] `json:"updated,omitzero"`
 	// Fields reports only authored field IDs, in sorted order. Observed native
 	// absence/null/value remains distinct; unsupported checks stay unverified.
 	Fields []VerifiedField `json:"fields"`

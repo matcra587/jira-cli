@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/matcra587/jira-cli/internal/envelope"
+	"github.com/matcra587/jira-cli/internal/jira"
 )
 
 func parityFixtureRun(t *testing.T, lane, binary, site string, extra []string, args ...string) (liveFrame, []byte, int) {
@@ -193,7 +194,7 @@ func TestParityActualBinaryReads(t *testing.T) {
 			}
 			stdout := invoke("GET /rest/api/3/issue/PAIR-1/watchers", "issue", "watchers", "list", "PAIR-1")
 			data, err := parityReadData(stdout, lane.name, "watchers", "PAIR-1")
-			want := envelope.IssueWatchersListData{Watchers: []envelope.WatcherView{{AccountID: "owned", DisplayName: "Fixture", Active: true, AccountType: "atlassian"}}, WatchCount: 1, IsWatching: true}
+			want := envelope.IssueWatchersListData{Watchers: jira.NullableOf([]envelope.WatcherView{{AccountID: "owned", DisplayName: "Fixture", Active: jira.NullableOf(true), AccountType: "atlassian"}}), WatchCount: jira.NullableOf(int64(1)), IsWatching: jira.NullableOf(true)}
 			if err != nil || !parityWatchersMatch(data, lane.name, want) {
 				t.Fatal("actual watcher projection differs from independent visible user")
 			}

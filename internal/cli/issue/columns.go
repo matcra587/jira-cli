@@ -641,13 +641,19 @@ func issueAttachmentColumns() []table.Column[envelope.AttachmentView] {
 		{
 			Name: "size", Header: "SIZE",
 			Render: func(a envelope.AttachmentView, _ *table.RenderContext) table.Cell {
+				if !a.Size.Set {
+					return table.TextCell("not returned")
+				}
+				if a.Size.Null {
+					return table.TextCell("-")
+				}
 				// StyledCell, not TextCell: cli.Bytes may carry SGR bytes,
 				// and primer must measure and sort by the plain form. The
 				// plain copy is the same rendered string with styling off
 				// rather than the raw integer — a column sorted by
 				// "1048576" while displaying "1.0 MiB" would sort by a
 				// value the reader cannot see.
-				return table.StyledCell(cli.Bytes(a.Size), human.FormatIECBytes(float64(a.Size)))
+				return table.StyledCell(cli.Bytes(a.Size.Value), human.FormatIECBytes(float64(a.Size.Value)))
 			},
 		},
 		{
@@ -737,8 +743,14 @@ func issueWatchersColumns() []table.Column[envelope.WatcherView] {
 		{
 			Name: "active", Header: "ACTIVE",
 			Render: func(w envelope.WatcherView, _ *table.RenderContext) table.Cell {
+				if !w.Active.Set {
+					return table.TextCell("not returned")
+				}
+				if w.Active.Null {
+					return table.TextCell("-")
+				}
 				active := "no"
-				if w.Active {
+				if w.Active.Value {
 					active = "yes"
 				}
 				return table.TextCell(cli.Text(active))

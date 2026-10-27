@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/matcra587/jira-cli/internal/envelope"
+	"github.com/matcra587/jira-cli/internal/jira"
 )
 
 func parityWatcherControl(stdout []byte, lane, key, account string, shortcut, preview bool) bool {
@@ -172,14 +173,14 @@ func parityWatcherArgs(lane, key, account string, args []string) ([]string, erro
 }
 
 func parityWatcherEffect(before, after envelope.IssueWatchersListData, account string, add bool) bool {
-	if before.WatchCount != int64(len(before.Watchers)) || after.WatchCount != int64(len(after.Watchers)) {
+	if !before.Watchers.Set || before.Watchers.Null || before.WatchCount != jira.NullableOf(int64(len(before.Watchers.Value))) || !after.Watchers.Set || after.Watchers.Null || after.WatchCount != jira.NullableOf(int64(len(after.Watchers.Value))) {
 		return false
 	}
 	without := func(state envelope.IssueWatchersListData) ([]envelope.WatcherView, bool, bool) {
-		others := make([]envelope.WatcherView, 0, len(state.Watchers))
+		others := make([]envelope.WatcherView, 0, len(state.Watchers.Value))
 		found := false
 		seen := map[string]bool{}
-		for _, user := range state.Watchers {
+		for _, user := range state.Watchers.Value {
 			if user.AccountID == "" || seen[user.AccountID] {
 				return nil, false, false
 			}
@@ -203,7 +204,7 @@ func parityWatcherEffect(before, after envelope.IssueWatchersListData, account s
 	}
 	left, wasWatching, validBefore := without(before)
 	right, isWatching, validAfter := without(after)
-	return account != "" && validBefore && validAfter && before.IsWatching == wasWatching && after.IsWatching == isWatching && isWatching == add && slices.Equal(left, right)
+	return account != "" && validBefore && validAfter && before.IsWatching == jira.NullableOf(wasWatching) && after.IsWatching == jira.NullableOf(isWatching) && isWatching == add && slices.Equal(left, right)
 }
 
 func TestParityActualBinaryWatcherWrites(t *testing.T) {
@@ -333,10 +334,10 @@ func TestParityActualBinaryWatcherWrites(t *testing.T) {
 						flags = []string{"--no-readback"}
 					}
 					frame, stdout, exit, observed = invoke(nil, flags...)
-					want := envelope.IssueWatchersListData{Watchers: []envelope.WatcherView{}, IsWatching: step.add}
+					want := envelope.IssueWatchersListData{Watchers: jira.NullableOf([]envelope.WatcherView{}), WatchCount: jira.NullableOf(int64(0)), IsWatching: jira.NullableOf(step.add)}
 					if step.add {
-						want.WatchCount = 1
-						want.Watchers = []envelope.WatcherView{{AccountID: "owned", DisplayName: "Fixture", Active: true, AccountType: "atlassian"}}
+						want.WatchCount = jira.NullableOf(int64(1))
+						want.Watchers = jira.NullableOf([]envelope.WatcherView{{AccountID: "owned", DisplayName: "Fixture", Active: jira.NullableOf(true), AccountType: "atlassian"}})
 					}
 					if exit != 0 || !frame.OK || !parityWatcherWrite(stdout, lane.name, "PAIR-1", "owned", noReadback, want) || !slices.Equal(observed, parityWatcherRequests(lane.name, step.shortcut != "", noReadback, false, step.add)) {
 						t.Fatalf("actual watcher request/receipt sequence changed: %v; %s", observed, stdout)
@@ -425,13 +426,13 @@ func TestParityWatcherOwnership(t *testing.T) {
 			t.Fatal("unsafe actual legacy watcher recipe admitted")
 		}
 	}
-	before := envelope.IssueWatchersListData{Watchers: []envelope.WatcherView{{AccountID: "other"}}, WatchCount: 1}
-	after := envelope.IssueWatchersListData{Watchers: []envelope.WatcherView{{AccountID: "other"}, {AccountID: "owned"}}, WatchCount: 2, IsWatching: true}
+	before := envelope.IssueWatchersListData{Watchers: jira.NullableOf([]envelope.WatcherView{{AccountID: "other"}}), WatchCount: jira.NullableOf(int64(1)), IsWatching: jira.NullableOf(false)}
+	after := envelope.IssueWatchersListData{Watchers: jira.NullableOf([]envelope.WatcherView{{AccountID: "other"}, {AccountID: "owned"}}), WatchCount: jira.NullableOf(int64(2)), IsWatching: jira.NullableOf(true)}
 	if !parityWatcherEffect(before, after, "owned", true) || parityWatcherEffect(before, before, "owned", true) {
 		t.Fatal("watcher effect admission changed")
 	}
-	after.Watchers = after.Watchers[1:]
-	after.WatchCount = 1
+	after.Watchers.Value = after.Watchers.Value[1:]
+	after.WatchCount = jira.NullableOf(int64(1))
 	if parityWatcherEffect(before, after, "owned", true) {
 		t.Fatal("another account's subscription disappeared")
 	}
@@ -499,7 +500,7 @@ func TestLiveParityWatcherWrites(t *testing.T) {
 						return p.invoke(t, lane, extra, actual...)
 					}
 					before := rawOwnedWatchers(t, p.owner, key)
-					if before.WatchCount != int64(len(before.Watchers)) {
+					if !before.Watchers.Set || before.Watchers.Null || before.WatchCount != jira.NullableOf(int64(len(before.Watchers.Value))) {
 						t.Fatal("watcher fixture does not expose complete membership")
 					}
 					preimageKey := "watchers." + step.id

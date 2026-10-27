@@ -322,7 +322,7 @@ func TestLinkInterruptRetainsCompletedAndQueuedOutcomes(t *testing.T) {
 						}
 						if verb == "list" {
 							var data envelope.IssueLinkListData
-							if json.Unmarshal(*row.Data, &data) != nil || len(data.Links) != 1 || data.Links[0].ID != "10042" || data.Links[0].Issue.Key != "KEY-9" || data.Links[0].Relation != "blocks" {
+							if json.Unmarshal(*row.Data, &data) != nil || len(data.Links.Value) != 1 || data.Links.Value[0].ID != "10042" || data.Links.Value[0].Issue.Key != "KEY-9" || data.Links.Value[0].Relation != "blocks" {
 								t.Fatal("interrupted link read lost its identity or direction")
 							}
 						}

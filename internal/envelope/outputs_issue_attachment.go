@@ -1,5 +1,7 @@
 package envelope
 
+import "github.com/matcra587/jira-cli/internal/jira"
+
 // IssueAttachmentListOutput is the `issue.attachment.list` operation's
 // payload: the attachments of one or more issues, one keyed result per
 // requested key.
@@ -92,8 +94,8 @@ type AttachmentView struct {
 	// Size is the attachment's size in BYTES, unformatted. The human
 	// table renders it as "1.4 MiB"; the envelope publishes the integer,
 	// because a machine caller summing or thresholding sizes must not
-	// have to parse a display string back into a number.
-	Size int64 `json:"size"`
+	// have to parse a display string back into a number. Missing/null is not zero.
+	Size jira.Nullable[int64] `json:"size,omitzero"`
 	// Created is the upload timestamp, as the wire spells it — Jira's own
 	// colonless-offset format, passed through rather than normalized,
 	// exactly as CommentView.Created is.

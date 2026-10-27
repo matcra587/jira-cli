@@ -102,6 +102,14 @@ cell in a retained column says `not returned`; a fetched empty cell shows `-`.
 Explicit `--columns` retains your selection. Current-account identity rows follow
 the same absent-versus-empty rule as issue headers.
 
+Watcher lists, totals, membership and activity, issue-link lists, and attachment
+sizes preserve missing keys and explicit `null`. An absent value does not mean
+`false`, zero or an empty array. Human tables say `not returned` for missing
+activity or size and `-` for null. Missing collections report that they are
+unavailable; only an observed empty collection or a returned zero watcher count
+supports an empty-result message. A positive watcher count can accompany a hidden
+list.
+
 ### Read comments in the human issue view
 
 An unavailable embedded comment page says `Comment preview unavailable.`. Only

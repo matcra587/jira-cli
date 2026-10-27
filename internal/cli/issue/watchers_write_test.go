@@ -1,6 +1,7 @@
 package issue
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gechr/clog"
 	"github.com/spf13/cobra"
 
 	adapterjira "github.com/matcra587/jira-cli/internal/adapters/jira"
@@ -17,6 +19,7 @@ import (
 	"github.com/matcra587/jira-cli/internal/core"
 	"github.com/matcra587/jira-cli/internal/envelope"
 	"github.com/matcra587/jira-cli/internal/jira"
+	"github.com/matcra587/jira-cli/internal/output"
 )
 
 // The keyed MECHANICS — argv ordering under a concurrent fan-out,
@@ -225,11 +228,11 @@ func TestWatcherWriteReadsBackByDefault(t *testing.T) {
 		if r.Data.Readback == nil || r.Data.ReadbackError != nil {
 			t.Fatalf("results[%d] carries no readback; the default is to read the set back", i)
 		}
-		if r.Data.Readback.WatchCount != 2 {
-			t.Errorf("results[%d] watch_count = %d, want the server's own count", i, r.Data.Readback.WatchCount)
+		if r.Data.Readback.WatchCount != jira.NullableOf(int64(2)) {
+			t.Errorf("results[%d] watch_count = %d, want the server's own count", i, r.Data.Readback.WatchCount.Value)
 		}
-		if len(r.Data.Readback.Watchers) != 1 {
-			t.Errorf("results[%d] carries %d watchers, want the set the readback returned", i, len(r.Data.Readback.Watchers))
+		if len(r.Data.Readback.Watchers.Value) != 1 {
+			t.Errorf("results[%d] carries %d watchers, want the set the readback returned", i, len(r.Data.Readback.Watchers.Value))
 		}
 	}
 }
@@ -360,7 +363,7 @@ func TestWatcherDeadlineRetainsLateJoinedOutcomes(t *testing.T) {
 			deps := Deps{JiraClient: func(ctx context.Context) (core.JiraClient, error) { return client, nil }}
 			if verb == "list" {
 				out, err := runWatchersList(ctx, deps, []string{"KEY-1"}, 1)
-				if !errors.Is(err, context.DeadlineExceeded) || len(out.Results) != 1 || !out.Results[0].OK || out.Results[0].Data == nil || out.Results[0].Issue.Key != "KEY-1" || out.Results[0].Data.WatchCount != 0 || out.Results[0].Data.IsWatching {
+				if !errors.Is(err, context.DeadlineExceeded) || len(out.Results) != 1 || !out.Results[0].OK || out.Results[0].Data == nil || out.Results[0].Issue.Key != "KEY-1" || out.Results[0].Data.WatchCount != jira.NullableOf(int64(0)) || out.Results[0].Data.IsWatching != jira.NullableOf(false) {
 					t.Fatal("deadline discarded a late joined watcher read or changed cancellation")
 				}
 				return
@@ -696,5 +699,32 @@ func TestResolveWatcherLiteralAdoptsSharedExactAccountPreflight(t *testing.T) {
 	client, err := resolveWatcherUser(t.Context(), deps, true, true, &user)
 	if err != nil || client != fake || fake.lookups != 1 || constructed != 1 || user != "literal-account" {
 		t.Fatal("watcher literal bypassed shared exact-account preflight", err, fake.lookups, constructed, user)
+	}
+}
+
+func TestRenderWatcherWriteCountPresence(t *testing.T) {
+	withStyle(t, false)
+	for _, tc := range []struct {
+		name  string
+		count jira.Nullable[int64]
+		want  string
+	}{
+		{name: "absent", want: "ABC-1: watcher added.\n"},
+		{name: "null", count: jira.NullableNull[int64](), want: "ABC-1: watcher added.\n"},
+		{name: "zero", count: jira.NullableOf(int64(0)), want: "ABC-1: watcher added.\n  0 now watching.\n"},
+		{name: "positive", count: jira.NullableOf(int64(3)), want: "ABC-1: watcher added.\n  3 now watching.\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			view := output.NewView(&buf, clog.ColorNever)
+			renderWatcherWriteResults(view, watcherAdd, []envelope.KeyedResult[envelope.IssueWatchersWriteData]{
+				{Issue: envelope.IssueRef{Key: "ABC-1"}, OK: true, Data: &envelope.IssueWatchersWriteData{
+					Readback: &envelope.IssueWatchersListData{WatchCount: tc.count},
+				}},
+			})
+			if got := buf.String(); got != tc.want {
+				t.Fatalf("watcher acknowledgement = %q; want %q", got, tc.want)
+			}
+		})
 	}
 }

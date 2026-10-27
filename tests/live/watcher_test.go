@@ -90,16 +90,16 @@ func rawOwnedWatchers(t *testing.T, r *liveRun, key string) envelope.IssueWatche
 			t.Fatal("raw watcher read has no stable account identity")
 		}
 		seen[watcher.AccountID.Value] = true
-		views = append(views, envelope.WatcherView{AccountID: watcher.AccountID.Value, DisplayName: watcher.DisplayName.Value, Active: watcher.Active.Value, AccountType: watcher.AccountType.Value})
+		views = append(views, envelope.WatcherView{AccountID: watcher.AccountID.Value, DisplayName: watcher.DisplayName.Value, Active: watcher.Active, AccountType: watcher.AccountType.Value})
 	}
-	return envelope.IssueWatchersListData{Watchers: views, WatchCount: wire.WatchCount.Value, IsWatching: wire.IsWatching.Value}
+	return envelope.IssueWatchersListData{Watchers: jira.NullableOf(views), WatchCount: wire.WatchCount, IsWatching: wire.IsWatching}
 }
 
 func sameWatcherState(a, b envelope.IssueWatchersListData) bool {
-	if a.WatchCount != b.WatchCount || a.IsWatching != b.IsWatching || len(a.Watchers) != len(b.Watchers) {
+	if a.WatchCount != b.WatchCount || a.IsWatching != b.IsWatching || a.Watchers.Set != b.Watchers.Set || a.Watchers.Null != b.Watchers.Null || len(a.Watchers.Value) != len(b.Watchers.Value) {
 		return false
 	}
-	left, right := slices.Clone(a.Watchers), slices.Clone(b.Watchers)
+	left, right := slices.Clone(a.Watchers.Value), slices.Clone(b.Watchers.Value)
 	slices.SortFunc(left, func(a, b envelope.WatcherView) int { return strings.Compare(a.AccountID, b.AccountID) })
 	slices.SortFunc(right, func(a, b envelope.WatcherView) int { return strings.Compare(a.AccountID, b.AccountID) })
 	return slices.Equal(left, right)
@@ -197,10 +197,10 @@ func TestLiveWatchers(t *testing.T) {
 			}
 			stored := rawOwnedWatchers(t, r, key)
 			found := false
-			for _, watcher := range stored.Watchers {
+			for _, watcher := range stored.Watchers.Value {
 				found = found || watcher.AccountID == user.AccountID.Value
 			}
-			if stored.IsWatching != step.watching || found != step.watching {
+			if stored.IsWatching != jira.NullableOf(step.watching) || found != step.watching {
 				t.Fatal("acknowledged watcher write does not match independently stored state")
 			}
 			if step.noReadback && !sameWatcherState(previous[key], stored) {

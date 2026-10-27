@@ -21,6 +21,7 @@ import (
 
 	"github.com/matcra587/jira-cli/internal/cli"
 	"github.com/matcra587/jira-cli/internal/envelope"
+	"github.com/matcra587/jira-cli/internal/jira"
 )
 
 func TestWatcherFailureReceiptBrokenPipeUsesOutputExitContract(t *testing.T) {
@@ -332,7 +333,7 @@ func TestWatcherInterruptRetainsCompletedAndQueuedOutcomes(t *testing.T) {
 						}
 						if verb == "list" {
 							var data envelope.IssueWatchersListData
-							if json.Unmarshal(row.Data, &data) != nil || data.WatchCount != 1 || !data.IsWatching || len(data.Watchers) != 1 || data.Watchers[0].AccountID != "account-fixture" {
+							if json.Unmarshal(row.Data, &data) != nil || data.WatchCount != jira.NullableOf(int64(1)) || data.IsWatching != jira.NullableOf(true) || len(data.Watchers.Value) != 1 || data.Watchers.Value[0].AccountID != "account-fixture" {
 								t.Fatal("watcher interruption discarded completed identity/count/state")
 							}
 						}

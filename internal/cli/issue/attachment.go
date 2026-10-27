@@ -108,6 +108,9 @@ func newAttachmentList(deps Deps) *cobra.Command {
 			"with the issue they belong to — there is no page to be on, and a " +
 			"limit applied here would only hide rows the command had already " +
 			"fetched. Use `--jq` if you want fewer of them.\n\n" +
+			"A missing attachment size stays absent in machine output; returned " +
+			"null stays null. Human output shows not returned or a dash, " +
+			"respectively. Neither means a zero-byte file.\n\n" +
 			"`--web` is refused here. It opens one page and this command reads " +
 			"a list of keys, so there is no single thing to open: run `jira " +
 			"issue view KEY --web` for whichever issue you want to look at.",
@@ -287,7 +290,7 @@ func attachmentViews(attachments []jira.Attachment) []envelope.AttachmentView {
 			ID:       a.ID.Value,
 			Filename: a.Filename.Value,
 			MimeType: a.MimeType.Value,
-			Size:     a.Size.Value,
+			Size:     a.Size,
 			Created:  a.Created.Value,
 			Author: envelope.AuthorRef{
 				AccountID:   author.AccountID.Value,
