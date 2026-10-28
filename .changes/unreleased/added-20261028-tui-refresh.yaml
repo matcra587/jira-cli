@@ -1,0 +1,3 @@
+kind: added
+body: Refresh the dashboard automatically or on terminal focus, pause background reads, and highlight newly observed or changed issues. Configure refresh behavior in Settings while preserving drafts and the loaded issue window.
+time: 2026-10-28T15:00:00-04:00

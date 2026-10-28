@@ -64,9 +64,11 @@ type Options struct {
 // Model owns UI state on Tea's update loop. Fetch closures capture the shared
 // session context, so screen shutdown cancels admitted HTTP reads.
 type Model struct {
+	refresh                      refreshState
+	clock                        refreshClock
 	hierarchy                    hierarchyWorkspace
 	hierarchyRead                func(core.IssueHierarchyReference) (core.IssueHierarchyRead, error)
-	hierarchySearch              func(string, string) (envelope.IssueListOutput, error)
+	hierarchySearch              func(string, string, int) (envelope.IssueListOutput, error)
 	autoPageCursor               string
 	descriptionDrafts            map[descriptionIdentity]*descriptionDraft
 	descriptionReadRequest       uint64
@@ -93,7 +95,7 @@ type Model struct {
 	tasks                        *task.Manager
 	input                        textinput.Model
 	preview                      viewport.Model
-	search                       func(string, string) (envelope.IssueListOutput, error)
+	search                       func(string, string, int) (envelope.IssueListOutput, error)
 	detail                       func(string) (detailResult, error)
 	issues                       []envelope.IssueView
 	progress                     *command.SearchProgress
@@ -145,6 +147,7 @@ func New(ctx context.Context, client Client, options Options) *Model {
 	}
 	labels = append(labels, "Search", hierarchyTab)
 	m := &Model{
+		refresh: refreshState{markers: make(map[string]rowChange)}, clock: newRefreshClock(ctx),
 		options: options, themeName: options.Theme, site: client.BaseURL(), tabs: carousel.New(labels...),
 		drafts: make(map[string]string), rows: list.New(), tasks: task.New(), preview: viewport.New(),
 		query: myWorkQuery, customQuery: options.Query,

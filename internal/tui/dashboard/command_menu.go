@@ -97,6 +97,7 @@ func (d *commandDialog) Update(msg tea.Msg) (dialog.Dialog, tea.Cmd, dialog.Resu
 
 func (m *Model) openCommands() {
 	entries := []palette.Entry{
+		{Name: "Pause or resume automatic refresh", Desc: "Keep manual refresh available while automatic reads are paused", Key: "R"},
 		{Name: "Hierarchy roots", Desc: "Browse configured Epics or Initiative roots", Key: "H"},
 		{Name: "Hierarchy around issue", Desc: "Read native ancestors and select this issue among siblings", Key: "ctrl+g"},
 		{Name: "Open issue in browser", Desc: "Hand off the selected issue URL", Key: "O"},

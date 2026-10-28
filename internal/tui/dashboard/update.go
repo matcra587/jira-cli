@@ -7,7 +7,33 @@ import (
 
 // Update routes input to one focus owner and commits only current fetches.
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	next, cmd := m.update(msg)
+	if next != m {
+		return next, cmd
+	}
+	return m, tea.Batch(cmd, m.flushRefresh())
+}
+
+func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case refreshTick:
+		m.consumeRefreshTick(msg)
+		return m, nil
+	case tea.BlurMsg:
+		m.refresh.blurred = true
+		m.stopRefreshClock()
+		return m, nil
+	case tea.FocusMsg:
+		wasBlurred := m.refresh.blurred
+		m.refresh.blurred = false
+		focusRefresh := m.enabled("tui_refresh_on_focus")
+		if m.settings != nil {
+			focusRefresh = m.settings.baseline["tui_refresh_on_focus"]
+		}
+		if wasBlurred && focusRefresh {
+			m.requestRefresh(refreshAutomatic)
+		}
+		return m, nil
 	case tea.WindowSizeMsg:
 		m.width, m.height = max(0, msg.Width), max(0, msg.Height)
 		m.resize()
@@ -114,6 +140,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		var detail tea.Cmd
 		if before != m.selectedKey() {
+			m.acknowledgeRow()
 			detail = m.selectDetail()
 		}
 		if msg.Button == tea.MouseWheelDown {
@@ -193,6 +220,7 @@ func (m *Model) updateKey(msg tea.KeyPressMsg) tea.Cmd {
 	case "z":
 		return m.toggleListZoom()
 	case "ctrl+w":
+		m.acknowledgeRow()
 		if m.split() {
 			m.previewFocused = !m.previewFocused
 		} else {
@@ -240,21 +268,23 @@ func (m *Model) updateKey(msg tea.KeyPressMsg) tea.Cmd {
 			m.tabs.Prev()
 		}
 		return m.switchView()
+	case "R":
+		m.toggleRefreshPause()
+		return nil
 	case "r":
 		if m.detailSection == 1 && (m.detailFocused || m.previewFocused) {
 			return m.loadComments(false)
 		}
-		if m.loading {
-			return nil
-		}
 		m.detailErr = nil
-		return m.load(false)
+		m.requestRefresh(refreshManual)
+		return nil
 	case "m":
 		if m.detailSection == 1 && (m.detailFocused || m.previewFocused) {
 			return m.loadComments(true)
 		}
 		return m.load(true)
 	case "enter":
+		m.acknowledgeRow()
 		if m.emptySearch() {
 			return m.editQuery()
 		}
@@ -303,6 +333,7 @@ func (m *Model) updateKey(msg tea.KeyPressMsg) tea.Cmd {
 	}
 	var detail tea.Cmd
 	if before != m.selectedKey() {
+		m.acknowledgeRow()
 		detail = m.selectDetail()
 	}
 	switch key {
@@ -354,6 +385,10 @@ func (m *Model) acceptTask(msg task.FinishedMsg) (tea.Model, tea.Cmd) {
 	case hierarchyScope:
 		return m, m.acceptHierarchy(msg)
 	case listScope:
+		if m.refresh.inflight && (m.refreshBusy() || m.refresh.background && !m.automaticRefreshAllowed()) {
+			m.refresh.held = &msg
+			return m, nil
+		}
 		return m, m.acceptList(msg)
 	case detailScope:
 		m.acceptDetail(msg)

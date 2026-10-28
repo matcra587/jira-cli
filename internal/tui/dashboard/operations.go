@@ -25,6 +25,7 @@ type operation struct {
 }
 
 func (m *Model) startOperation(kind, target string) uint64 {
+	m.fenceRefreshForWrite()
 	m.nextOperation++
 	m.operations = append(m.operations, operation{id: m.nextOperation, kind: kind, target: target, state: "pending", started: time.Now().UTC()})
 	if len(m.operations) > operationHistoryLimit {

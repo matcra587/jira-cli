@@ -28,7 +28,7 @@ func SettingValueChoices(key string) []string {
 	switch key {
 	case "secret_backend":
 		return []string{string(core.CredentialBackendKeyring), string(core.CredentialBackendEnvironment), string(core.CredentialBackendOnePassword)}
-	case "keyring", "read_only", "tui_preview", "tui_status", "tui_assignee", "tui_labels", "tui_priority", "tui_issue_type", "tui_compact", "tui_updated", "tui_auto_page":
+	case "keyring", "read_only", "tui_preview", "tui_status", "tui_assignee", "tui_labels", "tui_priority", "tui_issue_type", "tui_compact", "tui_updated", "tui_auto_page", "tui_refresh_on_focus", "tui_change_markers":
 		return []string{"true", "false"}
 	case "tui_preview_dock":
 		return []string{string(PreviewDockAuto), string(PreviewDockRight), string(PreviewDockBottom)}
@@ -96,6 +96,8 @@ func parseSettingValue(key, value string) (any, error) {
 		return string(dock), nil
 	case "tui_preview_size":
 		return parseTUIPreviewSize(value)
+	case "tui_refresh_interval":
+		return parseTUIRefreshInterval(value)
 	case "refresh_interval":
 		return parseRefreshInterval(value)
 	case "team_account_ids":
@@ -105,7 +107,7 @@ func parseSettingValue(key, value string) (any, error) {
 			return nil, err
 		}
 		return strings.TrimSpace(value), nil
-	case "keyring", "read_only", "tui_preview", "tui_status", "tui_assignee", "tui_labels", "tui_priority", "tui_issue_type", "tui_compact", "tui_updated", "tui_auto_page":
+	case "keyring", "read_only", "tui_preview", "tui_status", "tui_assignee", "tui_labels", "tui_priority", "tui_issue_type", "tui_compact", "tui_updated", "tui_auto_page", "tui_refresh_on_focus", "tui_change_markers":
 		parsed, err := strconv.ParseBool(value)
 		if err != nil {
 			return nil, fmt.Errorf("%s must be true or false", key)

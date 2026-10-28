@@ -14,6 +14,9 @@ var dashboardSettings = []setting{
 	{key: "tui_auto_page", name: "Load more as you scroll", group: "Issue list", description: "Load the next page near the end of the list. Failed requests wait for an explicit retry with m; loading stays within the result limit."},
 	{key: "theme", name: "Theme", group: "Appearance", description: "Choose built-in or custom themes with live previews. Enter keeps the selection in your settings draft; Esc restores the prior colors."},
 	{key: "tui_hierarchy_query", name: "Hierarchy roots", group: "Hierarchy", description: "JQL for the Hierarchy tab. Defaults to native Epic level. Press F2 while editing to choose a visible Jira issue type, including Initiatives; Enter keeps the draft."},
+	{key: "tui_refresh_interval", name: "Automatic refresh", group: "Refresh", description: "Seconds between active-view reads, from 1 to 86400. 0 disables timed refresh. Input and writes defer reads; R pauses or resumes automatic refresh."},
+	{key: "tui_refresh_on_focus", name: "Refresh when focused", group: "Refresh", description: "Refresh the active view when returning to the terminal. Independent of the timer; R pauses both automatic sources."},
+	{key: "tui_change_markers", name: "Highlight changed issues", group: "Refresh", description: "Mark newly observed and changed issue rows after refresh. Deliberate selection acknowledges a marker; initial pages and pagination are not changes."},
 }
 
 // These descriptions distinguish preferences from cached identity and startup

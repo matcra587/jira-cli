@@ -74,7 +74,8 @@ still run immediately.
     `y` sends its key and `Y` its URL to the terminal clipboard using OSC52;
     terminal support is required, and sending does not confirm clipboard storage.
 *   Enter focuses the issue description. Esc returns to the list.
-*   `r` refreshes the view; `m` loads another bounded batch of results.
+*   `r` refreshes the view; `R` pauses or resumes automatic refresh.
+    `m` loads another bounded batch of results.
     Forward list navigation loads more automatically near the end. Settings →
     Issue list → Load more as you scroll disables that behavior.
 *   Ctrl+O switches to recent issues, current results or an exact issue key.
@@ -309,8 +310,9 @@ Display preferences and named themes preview in this session. Ctrl+S saves and
 reloads the selected profile in the running TUI, including its client, transport
 read-only policy and timeout, project tab, query paths, glyphs and custom palette.
 Environment and invocation-flag overrides retain their precedence and stay locked
-in the menu. Reload does not move credentials, verify identity, or turn metadata
-preferences into automatic refresh or other unavailable features. API tokens remain
+in the menu. Reload does not move credentials or verify identity. The generic
+`refresh_interval` remains metadata; dashboard refresh uses its explicit settings
+below. API tokens remain
 managed by `jira auth login`; aliases use `jira alias set` or `jira alias import`
 for command-tree validation. Their settings entries explain these dedicated
 workflows without opening a scalar editor or exposing tokens.
@@ -381,7 +383,7 @@ Inspect the config before retrying after a publication error.
 
 The public boolean keys are `tui_preview`, `tui_status`, `tui_assignee`,
 `tui_labels`, `tui_priority`, `tui_issue_type`, `tui_compact`, `tui_updated`
-and `tui_auto_page`. They default to `true`, live at
+`tui_auto_page`, `tui_refresh_on_focus` and `tui_change_markers`. They default to `true`, live at
 the document root in named-profile files, and also work through `config set`.
 Ordinary `JIRA_` environment overrides take precedence. Settings saves preserve
 other declarations and profiles and refuse detected snapshot conflicts.
@@ -400,6 +402,25 @@ A failure retains the loaded results and waits for an explicit `m` retry.
 Local filters apply to loaded rows and do not drain unseen pages by themselves.
 Disable `tui_auto_page` in Settings for manual-only loading. Refresh keeps the
 selected issue by key when it remains in the results and reloads its preview.
+Automatic refresh reads the already loaded window, rather than reverting to the
+first page or draining the query. It preserves local filters, selections, marked
+issues and drafts. Background preview updates retain the current content while
+replacement details load. Reads and results wait while an editor, menu, Settings
+or a Jira action owns input. Repeated triggers coalesce into one pending refresh;
+stale results from a previous query, write or runtime cannot replace current rows.
+
+Settings → Refresh exposes `tui_refresh_interval` (integer seconds, default 60,
+0 disables the timer, maximum 86400), `tui_refresh_on_focus` (refresh on returning
+to a terminal that reports focus), and `tui_change_markers`. Focus refresh remains
+independent of the timer. `R` pauses both automatic triggers for this session;
+`r` remains available while paused. No automatic reads run while the terminal is
+unfocused, too small to display the workspace, or on an empty Search.
+
+After a successful refresh, a green dot marks newly observed issues and a yellow
+dot marks changed issues. Dots remain visible without color. Initial results and
+ordinary next-page loads do not count as new observations. Moving to an issue or
+opening it acknowledges its marker; query changes reset observations. These dots
+compare returned native fields and describe observed changes, not server history.
 Descriptions render native ADF through the shared display owner; unsupported
 nodes remain visible as disclosures. Reading a preview does not edit ADF.
 

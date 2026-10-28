@@ -22,7 +22,9 @@ func loadSettingsRuntime(reload func() (*Model, error)) settingsSaved {
 // WithRuntime isolates asynchronous messages across complete model replacements.
 // Primer tracks generations within one model; it cannot distinguish two models
 // whose counters both start at one. Terminal control messages pass unchanged.
-func WithRuntime(model *Model) tea.Model { return &runtimeModel{current: model} }
+func WithRuntime(model *Model) tea.Model {
+	return &runtimeModel{current: model}
+}
 
 type (
 	runtimeModel   struct{ current *Model }
@@ -32,7 +34,10 @@ type (
 	}
 )
 
-func (s *runtimeModel) Init() tea.Cmd  { return runtimeCommand(s.current, s.current.Init()) }
+func (s *runtimeModel) Init() tea.Cmd {
+	s.current.refresh.running = true
+	return runtimeCommand(s.current, tea.Batch(s.current.Init(), s.current.flushRefresh()))
+}
 func (s *runtimeModel) View() tea.View { return s.current.View() }
 func (s *runtimeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if result, ok := msg.(runtimeMessage); ok {
@@ -59,7 +64,7 @@ func runtimeCommand(origin *Model, cmd tea.Cmd) tea.Cmd {
 				commands[i] = runtimeCommand(origin, child)
 			}
 			return commands
-		case task.FinishedMsg, detailDue:
+		case task.FinishedMsg, detailDue, refreshTick:
 			return runtimeMessage{origin: origin, msg: msg}
 		default:
 			return msg
@@ -69,6 +74,8 @@ func runtimeCommand(origin *Model, cmd tea.Cmd) tea.Cmd {
 
 // Retain local work as data, without retaining old clients or request closures.
 type runtimeWorkspace struct {
+	observed        bool
+	markers         map[string]rowChange
 	hierarchy       hierarchyWorkspace
 	descriptions    map[descriptionIdentity]*descriptionDraft
 	drafts          map[string]string
@@ -97,6 +104,7 @@ type runtimeWorkspace struct {
 
 func (m *Model) localWorkspace() runtimeWorkspace {
 	return runtimeWorkspace{
+		observed: m.refresh.observed, markers: m.copyChangeMarkers(),
 		descriptions: m.descriptionDrafts,
 		hierarchy:    m.hierarchy,
 		drafts:       m.drafts, fieldDrafts: m.fieldDrafts, labelDrafts: m.labelDrafts, creation: m.creation,
@@ -116,6 +124,7 @@ func (m *Model) adoptRuntime(next *Model) (tea.Model, tea.Cmd) {
 	}
 	m.workspaces[m.options.RuntimeScope] = m.localWorkspace()
 	next.workspaces = m.workspaces
+	next.refresh.running, next.refresh.paused, next.refresh.blurred = m.refresh.running, m.refresh.paused, m.refresh.blurred
 	if saved, ok := m.workspaces[next.options.RuntimeScope]; ok {
 		next.descriptionDrafts = saved.descriptions
 		next.drafts, next.fieldDrafts, next.labelDrafts = saved.drafts, saved.fieldDrafts, saved.labelDrafts
@@ -141,10 +150,12 @@ func (m *Model) adoptRuntime(next *Model) (tea.Model, tea.Cmd) {
 		}
 		if next.query == saved.activeQuery {
 			next.issues, next.marks = saved.issues, saved.marks
+			next.refresh.observed, next.refresh.markers = saved.observed, saved.markers
 			next.localFilter, next.facet = saved.filter, saved.facet
 		}
 		next.detailFocused, next.previewFocused, next.detailSection = saved.detailFocused, saved.previewFocused, saved.detailSection
 	}
+	m.stopRefreshClock()
 	if m.options.StopRuntime != nil {
 		m.options.StopRuntime()
 	}

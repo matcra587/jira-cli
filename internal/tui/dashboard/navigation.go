@@ -52,6 +52,7 @@ func (m *Model) openIssue(key string) tea.Cmd {
 		if m.issues[source].Key == key {
 			m.standalone = false
 			m.rows.SetCursor(i)
+			m.acknowledgeRow()
 			m.detailFocused = true
 			m.resize()
 			return m.selectDetail()

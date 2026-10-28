@@ -111,10 +111,24 @@ func (m *Model) rowsView() string {
 	start, end := m.rows.VisibleRange()
 	lines := make([]string, 0, end-start)
 	for i := start; i < end; i++ {
-		marker := "  "
+		marker := " "
 		if i == m.rows.Cursor() {
-			marker = accent("› ")
+			marker = accent("›")
 		}
+		indicator := " "
+		if m.enabled("tui_change_markers") {
+			if changed := m.refresh.markers[m.issues[m.visible[i]].Key]; changed != 0 {
+				indicator = "●"
+				if cli.StyleEnabled() {
+					style := cli.ResolvedTheme().Green
+					if changed == rowUpdated {
+						style = cli.ResolvedTheme().Yellow
+					}
+					indicator = style.Render(indicator)
+				}
+			}
+		}
+		marker += indicator
 		mark := dim("[ ] ")
 		if m.marks[m.issues[m.visible[i]].Key] {
 			mark = accent("[x] ")
@@ -346,7 +360,7 @@ func (m *Model) helpView() string {
 		"Create    n new issue · Tab title/body · F2 labels · F3 assignee · Ctrl+S review\n" +
 		"History   L outcomes · b opens latest batch in history\n" +
 		"Settings  , customize display · Ctrl+S save · p preview · Esc cancel\n" +
-		"Refresh   r retry/refresh · m more issues or comments in focused details\n" +
+		"Refresh   r now · R pause/resume · m more issues or comments in focused details\n" +
 		"Menus     Ctrl+P / Ctrl+K find a command · / searches inside Settings\n" +
 		"Exit      q / Ctrl+C close dashboard\n\n" +
 		"Comment drafts and recent issues stay in this session.\n" +
@@ -464,11 +478,17 @@ func (m *Model) View() tea.View {
 		body = strings.Join(left, "\n")
 	}
 	status := dim("Ready")
+	if m.refresh.paused {
+		status = dim("Automatic refresh paused · R resumes")
+	}
 	if m.notice != "" {
 		status = dim(m.notice)
 	}
 	if m.loading {
 		status = dim("Loading issues…")
+		if m.refresh.inflight {
+			status = dim("Refreshing issues…")
+		}
 	}
 	if m.err != nil {
 		status = m.errorText(m.err)
@@ -510,6 +530,7 @@ func (m *Model) View() tea.View {
 		v.Cursor = creationCursor
 	}
 	v.AltScreen = true
+	v.ReportFocus = true
 	v.MouseMode = tea.MouseModeCellMotion
 	return v
 }

@@ -47,7 +47,7 @@ func TestHierarchyChildrenParentBackAndTabsPreserveContext(t *testing.T) {
 		return core.IssueHierarchyRead{Nodes: []core.IssueHierarchyNode{hierarchyNode("20", "EPIC-1", "Epic", "30"), hierarchyNode("30", "PLAN-1", "Initiative", "")}, Complete: true}, nil
 	}
 	queries := []string{}
-	m.hierarchySearch = func(q, _ string) (envelope.IssueListOutput, error) {
+	m.hierarchySearch = func(q, _ string, _ int) (envelope.IssueListOutput, error) {
 		queries = append(queries, q)
 		if strings.Contains(q, `"30"`) {
 			return hierarchyPage(t, "20", "EPIC-1", "30"), nil
@@ -109,7 +109,7 @@ func TestHierarchyRejectsStaleAndMalformedResultsButDisclosesPartialAncestors(t 
 
 func TestHierarchyBackSupersedesPendingPages(t *testing.T) {
 	m := model(t, issue("WORK-1", "Original"))
-	m.hierarchySearch = func(string, string) (envelope.IssueListOutput, error) {
+	m.hierarchySearch = func(string, string, int) (envelope.IssueListOutput, error) {
 		return hierarchyPage(t, "3", "DEMO-3", "1"), nil
 	}
 	pending := m.hierarchyHome()

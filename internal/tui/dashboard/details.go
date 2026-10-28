@@ -23,6 +23,7 @@ type commentsResult struct {
 }
 
 func (m *Model) changeDetailSection(delta int) tea.Cmd {
+	m.acknowledgeRow()
 	if !m.split() && m.detailKey != "" {
 		m.detailFocused = true
 		m.resize()

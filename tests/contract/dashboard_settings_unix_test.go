@@ -118,6 +118,7 @@ func TestDashboardNativeEverySettingSavesReloadsAndReopens(t *testing.T) {
 		"tui_labels": "false", "tui_priority": "false", "tui_issue_type": "false",
 		"tui_compact": "false", "tui_updated": "false", "tui_auto_page": "false",
 		"tui_preview_dock": "bottom", "tui_preview_size": "55",
+		"tui_refresh_interval": "45", "tui_refresh_on_focus": "false", "tui_change_markers": "false",
 		"tui_hierarchy_query": `issuetype = "10002" ORDER BY updated DESC`,
 	}
 	if err := os.MkdirAll(values["queries_path"], 0o700); err != nil {

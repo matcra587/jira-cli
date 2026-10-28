@@ -465,6 +465,9 @@ func load(opts Options, readCredentials func(string) (credentials.Record, error)
 	if _, err := parseTUIPreviewSize(strconv.Itoa(cfg.TUIPreviewSize)); err != nil {
 		return nil, err
 	}
+	if _, err := parseTUIRefreshInterval(strconv.Itoa(cfg.TUIRefreshInterval)); err != nil {
+		return nil, err
+	}
 	cfg.CloudID = strings.TrimSpace(cfg.CloudID)
 	if cfg.WorkdaySeconds <= 0 {
 		return nil, errors.New("workday_seconds must be positive")
@@ -616,6 +619,15 @@ func unmarshalFile(k *koanf.Koanf, cfg *Config) error {
 			return errors.New("tui_preview_size must be an integer")
 		}
 		if _, err := parseTUIPreviewSize(strconv.FormatInt(value, 10)); err != nil {
+			return err
+		}
+	}
+	if k.Exists("tui_refresh_interval") {
+		value, ok := k.Get("tui_refresh_interval").(int64)
+		if !ok {
+			return errors.New("tui_refresh_interval must be an integer")
+		}
+		if _, err := parseTUIRefreshInterval(strconv.FormatInt(value, 10)); err != nil {
 			return err
 		}
 	}

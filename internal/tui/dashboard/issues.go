@@ -17,17 +17,19 @@ func dashboardSearcher(
 	ctx context.Context,
 	client Client,
 	parent bool,
-) func(string, string) (envelope.IssueListOutput, error) {
+) func(string, string, int) (envelope.IssueListOutput, error) {
 	fields := []string{"summary", "status", "issuetype", "priority", "assignee", "updated", "labels"}
 	if parent {
 		fields = append(fields, "parent")
 	}
-	return func(query, cursor string) (envelope.IssueListOutput, error) {
-		return command.WalkIssues(ctx, client, query, fields, cursor, command.SearchWalk{Limit: pageSize})
+	return func(query, cursor string, limit int) (envelope.IssueListOutput, error) {
+		return command.WalkIssues(ctx, client, query, fields, cursor, command.SearchWalk{Limit: limit, MaxPages: command.MaxSearchPages})
 	}
 }
 
-func (m *Model) load(more bool) tea.Cmd {
+func (m *Model) load(more bool) tea.Cmd { return m.readList(more, pageSize) }
+
+func (m *Model) readList(more bool, limit int) tea.Cmd {
 	if m.query == "" {
 		m.isLast = true
 		return nil
@@ -39,6 +41,7 @@ func (m *Model) load(more bool) tea.Cmd {
 		return nil
 	}
 	if !more {
+		m.refresh.pending = refreshNone
 		m.autoPageCursor = ""
 	}
 	m.loading, m.loadingMore, m.err = true, more, nil
@@ -50,7 +53,7 @@ func (m *Model) load(more bool) tea.Cmd {
 	if m.hierarchyActive() {
 		search = m.hierarchySearch
 	}
-	return m.tasks.Start(task.Spec{Scope: listScope, Run: func() (any, error) { return search(query, cursor) }})
+	return m.tasks.Start(task.Spec{Scope: listScope, Run: func() (any, error) { return search(query, cursor, limit) }})
 }
 
 func (m *Model) selected() *envelope.IssueView {
@@ -98,6 +101,7 @@ func (m *Model) newQuery() tea.Cmd {
 }
 
 func (m *Model) resetQuery() {
+	m.resetRefreshObservation()
 	// Primer has no cancel-only API. Advancing these generations with no Run
 	// invalidates old reads without scheduling any replacement I/O.
 	m.tasks.Start(task.Spec{Scope: listScope})
@@ -129,6 +133,9 @@ func (m *Model) editQuery() tea.Cmd {
 }
 
 func (m *Model) acceptList(msg task.FinishedMsg) tea.Cmd {
+	background := m.refresh.inflight && m.refresh.background
+	m.refresh.inflight = false
+	m.refresh.held = nil
 	more := m.loadingMore
 	m.loading, m.loadingMore, m.err = false, false, msg.Err
 	if msg.Err != nil {
@@ -141,6 +148,10 @@ func (m *Model) acceptList(msg task.FinishedMsg) tea.Cmd {
 	}
 	if err := m.validateHierarchyPage(page); err != nil {
 		m.err, m.truncated = err, true
+		return nil
+	}
+	if background && page.Truncated {
+		m.err = fmt.Errorf("automatic refresh incomplete (%s); keeping the previous results", page.TruncatedReason)
 		return nil
 	}
 	keep := m.selectedKey()
@@ -162,6 +173,7 @@ func (m *Model) acceptList(msg task.FinishedMsg) tea.Cmd {
 		seen[issue.Key] = true
 	}
 	if !more {
+		m.observeChangedRows(page.Issues)
 		m.issues = nil
 		m.progress = command.NewSearchProgress("", false)
 	}
@@ -187,6 +199,10 @@ func (m *Model) acceptList(msg task.FinishedMsg) tea.Cmd {
 	m.restoreCursor(keep)
 	if m.standalone && m.detailFocused {
 		return nil
+	}
+	// Background reads retain the current preview while its replacement loads.
+	if background && keep == m.selectedKey() && m.detailIssue != nil {
+		return m.startDetailRead(m.detailKey)
 	}
 	// An explicit refresh fetches the selected detail again, even if its key stayed.
 	if !more {

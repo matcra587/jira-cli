@@ -111,6 +111,10 @@ documented raw-output exception and emit identical bytes in every output mode.
     explicit migration deferral retains those original declarations for later work.
     View switching never implicitly focuses JQL input. An unused Search stays
     idle until `/` or Enter; empty JQL is not submitted, including after reload.
+    Automatic and focus refresh use explicit `tui_refresh_*` preferences, one
+    cancellable runtime-bound clock and bounded loaded-window reads. Input owners
+    defer refresh publication; writes fence pre-write observations. Row-change
+    markers describe observed native fields, never inferred remote history.
 *   **Versioning** uses clive's injected version and Go's embedded VCS metadata,
     exposed by `internal/cli/version/`. Build flags belong to
     `.mise/tasks/lib/build-env.sh`.

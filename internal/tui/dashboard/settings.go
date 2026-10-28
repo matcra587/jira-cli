@@ -42,7 +42,7 @@ func (m *Model) openSettings() {
 	input := textinput.New()
 	input.Prompt, input.Placeholder, input.CharLimit = "⌕ ", "Search settings…", 128
 	m.settings = &settingsPage{
-		tabs: carousel.New("All", "Appearance", "Issue list", "Issue preview", "Hierarchy", "Defaults", "Tools", "Connection", "Authentication", "Identity"),
+		tabs: carousel.New("All", "Appearance", "Issue list", "Issue preview", "Hierarchy", "Refresh", "Defaults", "Tools", "Connection", "Authentication", "Identity"),
 		rows: list.New(), input: input, baseline: maps.Clone(m.preferences), baselineTheme: m.themeName, sources: maps.Clone(m.options.SettingSources),
 	}
 	m.settings.values = publicSettingValues(m.options.SettingValues)

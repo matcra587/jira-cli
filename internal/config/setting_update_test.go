@@ -22,6 +22,7 @@ func TestSettingUpdateValidatesAllWritableScalarsAndPreservesOtherDeclarations(t
 		"account_id": "cached-account", "account_id_site": "https://example.invalid", "account_id_email": "saved@example.invalid", "account_id_cloud_id": "fixture-cloud",
 		"tui_compact": "false", "tui_updated": "false", "tui_auto_page": "false",
 		"tui_preview_dock": "bottom", "tui_preview_size": "55",
+		"tui_refresh_interval": "45", "tui_refresh_on_focus": "false", "tui_change_markers": "false",
 		"tui_hierarchy_query": `issuetype = "10002" ORDER BY updated DESC`,
 		"tui_preview":         "false", "tui_status": "false", "tui_assignee": "false",
 		"tui_labels": "false", "tui_priority": "false", "tui_issue_type": "false",

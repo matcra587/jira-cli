@@ -94,7 +94,7 @@ func TestDashboardRefreshPreservesIssueIdentityAndRefetchesPreview(t *testing.T)
 	press(m, 'j')
 	_, detail := m.Update(detailDue{key: "DEMO-2"})
 	m.Update(detail())
-	m.search = func(string, string) (envelope.IssueListOutput, error) {
+	m.search = func(string, string, int) (envelope.IssueListOutput, error) {
 		return envelope.IssueListOutput{Issues: []envelope.IssueView{envelope.IssueViewFromBean(issue("DEMO-2", "Updated")), envelope.IssueViewFromBean(issue("DEMO-1", "One"))}, Pagination: envelope.CursorPagination{IsLast: true}}, nil
 	}
 	refresh := press(m, 'r')
@@ -166,7 +166,7 @@ func TestDashboardQueryInputOwnsPrintableKeysAndPaste(t *testing.T) {
 
 func TestDashboardErrorsRemainRetryableWithoutClaimingEmptyResults(t *testing.T) {
 	m := model(t)
-	m.search = func(string, string) (envelope.IssueListOutput, error) {
+	m.search = func(string, string, int) (envelope.IssueListOutput, error) {
 		return envelope.IssueListOutput{}, errors.New("service unavailable")
 	}
 	cmd := press(m, 'r')

@@ -28,7 +28,10 @@ type IssueSearcher interface {
 // SearchWalk requests a fixed issue count or a complete search. Unbounded is
 // meaningful only with All; commands validate that flag pairing before I/O.
 type SearchWalk struct {
-	Limit     int
+	Limit int
+	// MaxPages optionally caps fixed-count walks, such as unattended TUI reads.
+	// Zero retains the ordinary fixed-limit contract.
+	MaxPages  int
 	All       bool
 	Unbounded bool
 }
@@ -107,6 +110,11 @@ func WalkIssues(ctx context.Context, client IssueSearcher, jql string, fields []
 		if !walk.All && len(out.Issues) >= walk.Limit {
 			// limit's own request is satisfied — not a truncation: the
 			// caller asked for exactly this many, and got them.
+			return out, nil
+		}
+		if walk.MaxPages > 0 && pages >= walk.MaxPages {
+			out.Truncated = true
+			out.TruncatedReason = envelope.TruncatedReasonMaxPages
 			return out, nil
 		}
 		if walk.All && !walk.Unbounded {

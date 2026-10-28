@@ -46,13 +46,38 @@ func parseTUIPreviewSize(value string) (int64, error) {
 	return size, nil
 }
 
+// DefaultTUIRefreshInterval is the dashboard's timed read cadence in seconds.
+const DefaultTUIRefreshInterval = 60
+
+// MaxTUIRefreshInterval bounds both timer lifetime and duration conversion.
+const MaxTUIRefreshInterval = 86400
+
+func parseTUIRefreshInterval(value string) (int64, error) {
+	seconds, err := strconv.ParseInt(value, 10, 64)
+	if err != nil || seconds < 0 || seconds > MaxTUIRefreshInterval {
+		return 0, fmt.Errorf("tui_refresh_interval must be an integer from 0 to %d seconds; 0 disables timed refresh", MaxTUIRefreshInterval)
+	}
+	return seconds, nil
+}
+
 func prepareTUIPreferenceEnvironment(layer *koanf.Koanf) error {
-	if !layer.Exists("tui_preview_size") {
-		return nil
+	for _, preference := range []struct {
+		key   string
+		parse func(string) (int64, error)
+	}{
+		{key: "tui_preview_size", parse: parseTUIPreviewSize},
+		{key: "tui_refresh_interval", parse: parseTUIRefreshInterval},
+	} {
+		if !layer.Exists(preference.key) {
+			continue
+		}
+		value, err := preference.parse(layer.String(preference.key))
+		if err != nil {
+			return err
+		}
+		if err := layer.Set(preference.key, value); err != nil {
+			return err
+		}
 	}
-	size, err := parseTUIPreviewSize(layer.String("tui_preview_size"))
-	if err != nil {
-		return err
-	}
-	return layer.Set("tui_preview_size", size)
+	return nil
 }

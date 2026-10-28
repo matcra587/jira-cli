@@ -241,18 +241,21 @@ type Config struct {
 	// expansion validation is a separate command concern.
 	Aliases map[string]string `koanf:"aliases"`
 	// Dashboard preferences are global display and interaction settings, independent of Jira profiles.
-	TUIHierarchyQuery HierarchyQuery `koanf:"tui_hierarchy_query"`
-	TUIPreviewDock    PreviewDock    `koanf:"tui_preview_dock"`
-	TUIPreviewSize    int            `koanf:"tui_preview_size"`
-	TUIAutoPage       bool           `koanf:"tui_auto_page"`
-	TUICompact        bool           `koanf:"tui_compact"`
-	TUIUpdated        bool           `koanf:"tui_updated"`
-	TUIPreview        bool           `koanf:"tui_preview"`
-	TUIStatus         bool           `koanf:"tui_status"`
-	TUIAssignee       bool           `koanf:"tui_assignee"`
-	TUILabels         bool           `koanf:"tui_labels"`
-	TUIPriority       bool           `koanf:"tui_priority"`
-	TUIIssueType      bool           `koanf:"tui_issue_type"`
+	TUIRefreshInterval int            `koanf:"tui_refresh_interval"`
+	TUIRefreshOnFocus  bool           `koanf:"tui_refresh_on_focus"`
+	TUIChangeMarkers   bool           `koanf:"tui_change_markers"`
+	TUIHierarchyQuery  HierarchyQuery `koanf:"tui_hierarchy_query"`
+	TUIPreviewDock     PreviewDock    `koanf:"tui_preview_dock"`
+	TUIPreviewSize     int            `koanf:"tui_preview_size"`
+	TUIAutoPage        bool           `koanf:"tui_auto_page"`
+	TUICompact         bool           `koanf:"tui_compact"`
+	TUIUpdated         bool           `koanf:"tui_updated"`
+	TUIPreview         bool           `koanf:"tui_preview"`
+	TUIStatus          bool           `koanf:"tui_status"`
+	TUIAssignee        bool           `koanf:"tui_assignee"`
+	TUILabels          bool           `koanf:"tui_labels"`
+	TUIPriority        bool           `koanf:"tui_priority"`
+	TUIIssueType       bool           `koanf:"tui_issue_type"`
 }
 
 // secretKeys are the config keys whose values must never be rendered.
@@ -265,7 +268,7 @@ func IsSecret(key string) bool { return secretKeys[key] }
 
 // Keys lists every config key, in a stable order.
 func Keys() []string {
-	return []string{"base_url", "cloud_id", "email", "credential_id", "account_id", "account_id_site", "account_id_email", "account_id_cloud_id", "api_token", "api_token_env", "default_project", "default_issue_type", "default_board", "refresh_interval", "team_account_ids", "keyring", "secret_backend", "onepassword_account", "onepassword_vault", "onepassword_item", "read_only", "timeout", "theme", "theme_path", "glyphs", "workday_seconds", "queries_path", "editor", "aliases", "tui_preview", "tui_status", "tui_assignee", "tui_labels", "tui_priority", "tui_issue_type", "tui_compact", "tui_updated", "tui_auto_page", "tui_preview_dock", "tui_preview_size", "tui_hierarchy_query"}
+	return []string{"base_url", "cloud_id", "email", "credential_id", "account_id", "account_id_site", "account_id_email", "account_id_cloud_id", "api_token", "api_token_env", "default_project", "default_issue_type", "default_board", "refresh_interval", "team_account_ids", "keyring", "secret_backend", "onepassword_account", "onepassword_vault", "onepassword_item", "read_only", "timeout", "theme", "theme_path", "glyphs", "workday_seconds", "queries_path", "editor", "aliases", "tui_preview", "tui_status", "tui_assignee", "tui_labels", "tui_priority", "tui_issue_type", "tui_compact", "tui_updated", "tui_auto_page", "tui_preview_dock", "tui_preview_size", "tui_hierarchy_query", "tui_refresh_interval", "tui_refresh_on_focus", "tui_change_markers"}
 }
 
 // Defaults are the built-in values, the layer every load starts from.
@@ -318,8 +321,9 @@ func Defaults() map[string]any {
 		"tui_preview":     true, "tui_status": true, "tui_assignee": true,
 		"tui_labels": true, "tui_priority": true, "tui_issue_type": true,
 		"tui_compact": true, "tui_updated": true, "tui_auto_page": true,
-		"tui_hierarchy_query": DefaultTUIHierarchyQuery,
-		"tui_preview_dock":    string(PreviewDockAuto), "tui_preview_size": DefaultTUIPreviewSize,
+		"tui_hierarchy_query":  DefaultTUIHierarchyQuery,
+		"tui_refresh_interval": DefaultTUIRefreshInterval, "tui_refresh_on_focus": true, "tui_change_markers": true,
+		"tui_preview_dock": string(PreviewDockAuto), "tui_preview_size": DefaultTUIPreviewSize,
 	}
 }
 
@@ -516,47 +520,48 @@ func (c Config) Values() map[string]string {
 	}
 	teamJSON, _ := json.Marshal(teamIDs) //nolint:errcheck // string slices have no unsupported values or cycles
 	return map[string]string{
-		"base_url":            c.BaseURL,
-		"cloud_id":            c.CloudID,
-		"email":               c.Email,
-		"credential_id":       c.CredentialID,
-		"account_id":          c.AccountID,
-		"account_id_site":     c.AccountIDSite,
-		"account_id_email":    c.AccountIDEmail,
-		"account_id_cloud_id": c.AccountIDCloudID,
-		"api_token":           c.APIToken,
-		"api_token_env":       c.APITokenEnv,
-		"default_project":     c.DefaultProject,
-		"default_issue_type":  c.DefaultIssueType,
-		"default_board":       c.DefaultBoard,
-		"refresh_interval":    strconv.Itoa(c.RefreshInterval),
-		"team_account_ids":    string(teamJSON),
-		"keyring":             formatBool(c.Keyring),
-		"secret_backend":      string(c.SecretBackend),
-		"onepassword_account": c.OnePasswordAccount,
-		"onepassword_vault":   c.OnePasswordVault,
-		"onepassword_item":    c.OnePasswordItem,
-		"read_only":           formatBool(c.ReadOnly),
-		"timeout":             c.Timeout.String(),
-		"theme":               c.Theme,
-		"theme_path":          c.ThemePath,
-		"glyphs":              c.Glyphs.String(),
-		"workday_seconds":     strconv.Itoa(c.WorkdaySeconds),
-		"queries_path":        c.QueriesPath,
-		"editor":              c.Editor,
-		"aliases":             string(aliasJSON),
-		"tui_hierarchy_query": string(c.TUIHierarchyQuery),
-		"tui_preview_dock":    string(c.TUIPreviewDock),
-		"tui_preview_size":    strconv.Itoa(c.TUIPreviewSize),
-		"tui_auto_page":       strconv.FormatBool(c.TUIAutoPage),
-		"tui_compact":         strconv.FormatBool(c.TUICompact),
-		"tui_updated":         strconv.FormatBool(c.TUIUpdated),
-		"tui_preview":         strconv.FormatBool(c.TUIPreview),
-		"tui_status":          strconv.FormatBool(c.TUIStatus),
-		"tui_assignee":        strconv.FormatBool(c.TUIAssignee),
-		"tui_labels":          strconv.FormatBool(c.TUILabels),
-		"tui_priority":        strconv.FormatBool(c.TUIPriority),
-		"tui_issue_type":      strconv.FormatBool(c.TUIIssueType),
+		"base_url":             c.BaseURL,
+		"cloud_id":             c.CloudID,
+		"email":                c.Email,
+		"credential_id":        c.CredentialID,
+		"account_id":           c.AccountID,
+		"account_id_site":      c.AccountIDSite,
+		"account_id_email":     c.AccountIDEmail,
+		"account_id_cloud_id":  c.AccountIDCloudID,
+		"api_token":            c.APIToken,
+		"api_token_env":        c.APITokenEnv,
+		"default_project":      c.DefaultProject,
+		"default_issue_type":   c.DefaultIssueType,
+		"default_board":        c.DefaultBoard,
+		"refresh_interval":     strconv.Itoa(c.RefreshInterval),
+		"team_account_ids":     string(teamJSON),
+		"keyring":              formatBool(c.Keyring),
+		"secret_backend":       string(c.SecretBackend),
+		"onepassword_account":  c.OnePasswordAccount,
+		"onepassword_vault":    c.OnePasswordVault,
+		"onepassword_item":     c.OnePasswordItem,
+		"read_only":            formatBool(c.ReadOnly),
+		"timeout":              c.Timeout.String(),
+		"theme":                c.Theme,
+		"theme_path":           c.ThemePath,
+		"glyphs":               c.Glyphs.String(),
+		"workday_seconds":      strconv.Itoa(c.WorkdaySeconds),
+		"queries_path":         c.QueriesPath,
+		"editor":               c.Editor,
+		"aliases":              string(aliasJSON),
+		"tui_hierarchy_query":  string(c.TUIHierarchyQuery),
+		"tui_refresh_interval": strconv.Itoa(c.TUIRefreshInterval), "tui_refresh_on_focus": strconv.FormatBool(c.TUIRefreshOnFocus), "tui_change_markers": strconv.FormatBool(c.TUIChangeMarkers),
+		"tui_preview_dock": string(c.TUIPreviewDock),
+		"tui_preview_size": strconv.Itoa(c.TUIPreviewSize),
+		"tui_auto_page":    strconv.FormatBool(c.TUIAutoPage),
+		"tui_compact":      strconv.FormatBool(c.TUICompact),
+		"tui_updated":      strconv.FormatBool(c.TUIUpdated),
+		"tui_preview":      strconv.FormatBool(c.TUIPreview),
+		"tui_status":       strconv.FormatBool(c.TUIStatus),
+		"tui_assignee":     strconv.FormatBool(c.TUIAssignee),
+		"tui_labels":       strconv.FormatBool(c.TUILabels),
+		"tui_priority":     strconv.FormatBool(c.TUIPriority),
+		"tui_issue_type":   strconv.FormatBool(c.TUIIssueType),
 	}
 }
 

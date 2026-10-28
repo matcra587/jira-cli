@@ -29,6 +29,8 @@ type hierarchyLocation struct {
 }
 
 type hierarchyFrame struct {
+	observed                    bool
+	markers                     map[string]rowChange
 	autoPageCursor              string
 	tab, query, title, selected string
 	issues                      []envelope.IssueView
@@ -69,6 +71,7 @@ func (m *Model) hierarchyRootQuery() string {
 
 func (m *Model) hierarchySnapshot() hierarchyFrame {
 	return hierarchyFrame{
+		observed: m.refresh.observed, markers: m.copyChangeMarkers(),
 		autoPageCursor: m.autoPageCursor,
 		tab:            m.tabs.ActiveItem(), query: m.query, title: m.viewName, selected: m.selectedKey(),
 		issues: slices.Clone(m.issues), next: m.next, last: m.isLast, truncated: m.truncated,
@@ -98,6 +101,7 @@ func (m *Model) restoreHierarchyFrame(frame hierarchyFrame) tea.Cmd {
 	m.issues, m.next, m.isLast, m.truncated = frame.issues, frame.next, frame.last, frame.truncated
 	m.progress, m.localFilter, m.facet, m.marks, m.markAnchor = frame.progress, frame.filter, frame.facet, frame.marks, frame.anchor
 	m.err, m.autoPageCursor = frame.err, frame.autoPageCursor
+	m.refresh.observed, m.refresh.markers = frame.observed, maps.Clone(frame.markers)
 	m.rebuildRows()
 	m.restoreCursor(frame.selected)
 	return m.selectDetail()

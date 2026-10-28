@@ -28,7 +28,7 @@ func TestTabCyclesThroughEmptySearchWithoutStartingAnEditor(t *testing.T) {
 func TestEmptySearchWaitsForExplicitQueryAndNeverRequestsEmptyJQL(t *testing.T) {
 	m := model(t, issue("DEMO-1", "Assigned work"))
 	calls := 0
-	m.search = func(query, _ string) (envelope.IssueListOutput, error) {
+	m.search = func(query, _ string, _ int) (envelope.IssueListOutput, error) {
 		calls++
 		if query == "" {
 			t.Fatal("idle Search sent an empty Jira query")
@@ -78,7 +78,7 @@ func TestSearchStartsOnlyAfterAnExplicitQueryIsCommitted(t *testing.T) {
 	m := model(t, issue("DEMO-1", "Assigned work"))
 	m.Update(key.Replay("tab"))
 	calls := 0
-	m.search = func(query, _ string) (envelope.IssueListOutput, error) {
+	m.search = func(query, _ string, _ int) (envelope.IssueListOutput, error) {
 		calls++
 		if query != "project = DEMO" {
 			t.Fatal("committed Search used another tab's query", query)

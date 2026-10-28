@@ -63,6 +63,7 @@ func (m *Model) clickIssue(msg tea.MouseClickMsg) tea.Cmd {
 		return nil
 	}
 	if m.previewContains(msg.X, msg.Y) {
+		m.acknowledgeRow()
 		m.previewFocused = true
 		return nil
 	}
@@ -80,10 +81,12 @@ func (m *Model) clickIssue(msg tea.MouseClickMsg) tea.Cmd {
 	}
 	m.previewFocused = false
 	if row == m.rows.Cursor() {
+		m.acknowledgeRow()
 		m.detailFocused = true
 		m.resize()
 		return nil
 	}
 	m.rows.SetCursor(row)
+	m.acknowledgeRow()
 	return m.selectDetail()
 }
