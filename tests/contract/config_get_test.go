@@ -200,7 +200,7 @@ func TestConfigGetDiscoveryCompletionAndJQExposeStoredContract(t *testing.T) {
 	if exit != 0 {
 		t.Fatalf("setting completion failed: exit=%d stderr=%q", exit, stderr)
 	}
-	want := []string{"base_url", "cloud_id", "email", "credential_id", "account_id", "account_id_site", "account_id_email", "account_id_cloud_id", "api_token", "api_token_env", "default_project", "default_issue_type", "default_board", "refresh_interval", "team_account_ids", "keyring", "secret_backend", "onepassword_account", "onepassword_vault", "onepassword_item", "read_only", "timeout", "theme", "theme_path", "glyphs", "workday_seconds", "queries_path", "editor", "aliases", "tui_preview", "tui_status", "tui_assignee", "tui_labels", "tui_priority", "tui_issue_type", "tui_compact", "tui_updated", "tui_auto_page", "tui_preview_dock", "tui_preview_size"}
+	want := []string{"base_url", "cloud_id", "email", "credential_id", "account_id", "account_id_site", "account_id_email", "account_id_cloud_id", "api_token", "api_token_env", "default_project", "default_issue_type", "default_board", "refresh_interval", "team_account_ids", "keyring", "secret_backend", "onepassword_account", "onepassword_vault", "onepassword_item", "read_only", "timeout", "theme", "theme_path", "glyphs", "workday_seconds", "queries_path", "editor", "aliases", "tui_preview", "tui_status", "tui_assignee", "tui_labels", "tui_priority", "tui_issue_type", "tui_compact", "tui_updated", "tui_auto_page", "tui_preview_dock", "tui_preview_size", "tui_hierarchy_query"}
 	if got := strings.Fields(stdout); len(got) != len(want) {
 		t.Fatalf("setting completion changed its supported vocabulary: %q", stdout)
 	}

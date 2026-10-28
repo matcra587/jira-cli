@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"slices"
 	"strings"
 	"time"
 
@@ -72,6 +73,9 @@ type detailDue struct{ key string }
 // Model owns UI state on Tea's update loop. Fetch closures capture the shared
 // session context, so screen shutdown cancels admitted HTTP reads.
 type Model struct {
+	hierarchy                    hierarchyWorkspace
+	hierarchyRead                func(core.IssueHierarchyReference) (core.IssueHierarchyRead, error)
+	hierarchySearch              func(string, string) (envelope.IssueListOutput, error)
 	autoPageCursor               string
 	descriptionDrafts            map[descriptionIdentity]*descriptionDraft
 	descriptionReadRequest       uint64
@@ -149,15 +153,15 @@ func New(ctx context.Context, client Client, options Options) *Model {
 	if options.ProjectQuery != "" {
 		labels = append(labels, "Project")
 	}
-	labels = append(labels, "Search")
+	labels = append(labels, "Search", hierarchyTab)
 	m := &Model{
 		options: options, themeName: options.Theme, site: client.BaseURL(), tabs: carousel.New(labels...),
 		drafts: make(map[string]string), rows: list.New(), tasks: task.New(), preview: viewport.New(),
 		query: myWorkQuery, customQuery: options.Query,
-		search: func(query, cursor string) (envelope.IssueListOutput, error) {
-			return command.WalkIssues(ctx, client, query,
-				[]string{"summary", "status", "issuetype", "priority", "assignee", "updated", "labels"},
-				cursor, command.SearchWalk{Limit: pageSize})
+		search:          dashboardSearcher(ctx, client, false),
+		hierarchySearch: dashboardSearcher(ctx, client, true),
+		hierarchyRead: func(reference core.IssueHierarchyReference) (core.IssueHierarchyRead, error) {
+			return core.ReadIssueHierarchy(ctx, client, reference)
 		},
 		detail: func(key string) (detailResult, error) {
 			read, err := client.GetIssue(ctx, key, []string{"summary", "status", "issuetype", "priority", "assignee", "reporter", "updated", "labels", "description", "issuelinks"}, "changelog")
@@ -183,7 +187,7 @@ func New(ctx context.Context, client Client, options Options) *Model {
 	m.input.Placeholder = "Enter a Jira query"
 	m.input.CharLimit = 8192
 	if options.Query != "" {
-		m.tabs.SetActive(len(labels) - 1)
+		m.tabs.SetActive(slices.Index(labels, "Search"))
 		m.query = options.Query
 	}
 	m.applyStyles()
@@ -209,8 +213,11 @@ func (m *Model) load(more bool) tea.Cmd {
 	if more {
 		cursor = m.next
 	}
-	query := m.query
-	return m.tasks.Start(task.Spec{Scope: listScope, Run: func() (any, error) { return m.search(query, cursor) }})
+	query, search := m.query, m.search
+	if m.hierarchyActive() {
+		search = m.hierarchySearch
+	}
+	return m.tasks.Start(task.Spec{Scope: listScope, Run: func() (any, error) { return search(query, cursor) }})
 }
 
 func (m *Model) selected() *envelope.IssueView {
@@ -251,6 +258,12 @@ func (m *Model) selectDetail() tea.Cmd {
 
 func (m *Model) switchView() tea.Cmd {
 	switch m.tabs.ActiveItem() {
+	case hierarchyTab:
+		if m.hierarchy.parked != nil {
+			return m.restoreHierarchyFrame(*m.hierarchy.parked)
+		}
+		m.hierarchy.location = nil
+		m.query = m.hierarchyRootQuery()
 	case "My work":
 		m.query = myWorkQuery
 	case "Project":
@@ -265,8 +278,18 @@ func (m *Model) switchView() tea.Cmd {
 }
 
 func (m *Model) newQuery() tea.Cmd {
+	m.resetQuery()
+	return m.load(false)
+}
+
+func (m *Model) resetQuery() {
+	// Primer has no cancel-only API. Advancing these generations with no Run
+	// invalidates old reads without scheduling any replacement I/O.
+	m.tasks.Start(task.Spec{Scope: listScope})
+	m.tasks.Start(task.Spec{Scope: detailScope})
+	m.tasks.Start(task.Spec{Scope: hierarchyScope})
 	// A new generation supersedes the old query even while its HTTP read runs.
-	m.loading = false
+	m.loading, m.loadingMore = false, false
 	m.issues, m.next, m.err = nil, "", nil
 	m.marks = nil
 	m.localFilter = ""
@@ -275,15 +298,15 @@ func (m *Model) newQuery() tea.Cmd {
 	m.markAnchor = ""
 	m.detailKey, m.detailIssue, m.detailErr = "", nil, nil
 	m.standalone = false
-	m.detailLoading, m.detailFocused = false, false
+	m.detailLoading, m.detailFocused, m.previewFocused = false, false, false
 	m.isLast, m.truncated = false, false
 	m.progress = command.NewSearchProgress("", false)
 	m.rebuildRows()
 	m.syncPreview()
-	return m.load(false)
 }
 
 func (m *Model) editQuery() tea.Cmd {
+	m.parkHierarchy()
 	m.editing = true
 	m.input.SetValue(m.query)
 	m.input.CursorEnd()
@@ -339,6 +362,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.acceptThemeTask(msg)
 		case settingsScope:
 			return m.acceptSettings(msg)
+		case hierarchyTypesScope:
+			return m, m.acceptHierarchyTypes(msg)
+		case hierarchyScope:
+			return m, m.acceptHierarchy(msg)
 		case listScope:
 			return m, m.acceptList(msg)
 		case detailScope:
@@ -474,7 +501,14 @@ func (m *Model) acceptList(msg task.FinishedMsg) tea.Cmd {
 		m.err = fmt.Errorf("unexpected dashboard search result")
 		return nil
 	}
+	if err := m.validateHierarchyPage(page); err != nil {
+		m.err, m.truncated = err, true
+		return nil
+	}
 	keep := m.selectedKey()
+	if !more && m.hierarchy.selectAfterLoad != "" {
+		keep, m.hierarchy.selectAfterLoad = m.hierarchy.selectAfterLoad, ""
+	}
 	seen := make(map[string]bool, len(m.issues))
 	if more {
 		for _, issue := range m.issues {
@@ -507,6 +541,9 @@ func (m *Model) acceptList(msg task.FinishedMsg) tea.Cmd {
 	if more && m.err == nil {
 		m.notice = fmt.Sprintf("Loaded %d more issues.", len(page.Issues))
 	}
+	if m.hierarchyActive() && m.hierarchy.location != nil && m.hierarchy.location.warning != "" {
+		m.notice = m.hierarchy.location.warning
+	}
 	m.pruneMarks()
 	m.rebuildRows()
 	m.restoreCursor(keep)
@@ -534,7 +571,7 @@ func (m *Model) updateQuery(msg tea.KeyPressMsg) tea.Cmd {
 		m.query, m.customQuery, m.editing = query, query, false
 		m.viewName = ""
 		m.input.Blur()
-		m.tabs.SetActive(len(m.tabs.Items()) - 1)
+		m.tabs.SetActive(slices.Index(m.tabs.Items(), "Search"))
 		return m.newQuery()
 	}
 	var cmd tea.Cmd
@@ -630,10 +667,16 @@ func (m *Model) updateKey(msg tea.KeyPressMsg) tea.Cmd {
 	case "ctrl+p", "ctrl+k":
 		m.openCommands()
 		return nil
+	case "H":
+		return m.hierarchyHome()
+	case "ctrl+g":
+		return m.browseHierarchy(true)
 	case "1":
+		m.parkHierarchy()
 		m.tabs.SetActive(0)
 		return m.switchView()
 	case "2":
+		m.parkHierarchy()
 		if m.options.ProjectQuery != "" {
 			m.tabs.SetActive(1)
 			return m.switchView()
@@ -642,6 +685,7 @@ func (m *Model) updateKey(msg tea.KeyPressMsg) tea.Cmd {
 	case "/":
 		return m.editQuery()
 	case "tab", "shift+tab":
+		m.parkHierarchy()
 		if key == "tab" {
 			m.tabs.Next()
 		} else {
@@ -669,6 +713,9 @@ func (m *Model) updateKey(msg tea.KeyPressMsg) tea.Cmd {
 		}
 		return nil
 	case "esc", "h":
+		if !m.detailFocused && !m.previewFocused && m.hierarchyActive() {
+			return m.hierarchyBack()
+		}
 		m.detailFocused, m.previewFocused = false, false
 		m.resize()
 		if m.standalone {
@@ -684,6 +731,12 @@ func (m *Model) updateKey(msg tea.KeyPressMsg) tea.Cmd {
 	}
 	before := m.selectedKey()
 	switch key {
+	case "right":
+		return m.browseHierarchy(false)
+	case "left":
+		return m.hierarchyParent()
+	case "backspace":
+		return m.hierarchyBack()
 	case "j", "down":
 		m.rows.MoveDown(1)
 	case "k", "up":

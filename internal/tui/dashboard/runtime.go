@@ -69,6 +69,7 @@ func runtimeCommand(origin *Model, cmd tea.Cmd) tea.Cmd {
 
 // Retain local work as data, without retaining old clients or request closures.
 type runtimeWorkspace struct {
+	hierarchy       hierarchyWorkspace
 	descriptions    map[descriptionIdentity]*descriptionDraft
 	drafts          map[string]string
 	fieldDrafts     map[string]string
@@ -97,6 +98,7 @@ type runtimeWorkspace struct {
 func (m *Model) localWorkspace() runtimeWorkspace {
 	return runtimeWorkspace{
 		descriptions: m.descriptionDrafts,
+		hierarchy:    m.hierarchy,
 		drafts:       m.drafts, fieldDrafts: m.fieldDrafts, labelDrafts: m.labelDrafts, creation: m.creation,
 		marks: m.marks, recent: m.recent, operations: m.operations, nextOperation: m.nextOperation,
 		lastBatch: m.lastBatch, bulkDraft: m.bulkDraft, bulkTargets: m.bulkDraftTargets,
@@ -121,10 +123,17 @@ func (m *Model) adoptRuntime(next *Model) (tea.Model, tea.Cmd) {
 		next.operations, next.nextOperation, next.lastBatch = saved.operations, saved.nextOperation, saved.lastBatch
 		next.bulkDraft, next.bulkDraftTargets = saved.bulkDraft, saved.bulkTargets
 		next.customQuery, next.viewName = saved.query, saved.viewName
+		next.hierarchy = saved.hierarchy
+		next.hierarchy.selectAfterLoad = saved.selected
 		if i := slices.Index(next.tabs.Items(), saved.tab); i >= 0 {
 			next.tabs.SetActive(i)
 		}
 		switch next.tabs.ActiveItem() {
+		case hierarchyTab:
+			next.query = next.hierarchyRootQuery()
+			if next.hierarchy.location != nil {
+				next.query = saved.activeQuery
+			}
 		case "Project":
 			next.query = next.options.ProjectQuery
 		case "Search":

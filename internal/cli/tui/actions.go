@@ -25,6 +25,21 @@ func dashboardActions(ctx context.Context, client core.JiraClient, readOnly bool
 			return issuecmd.ScreenReplaceDescription(ctx, client, session, markdown, review)
 		},
 		ReadOnly: readOnly,
+		HierarchyTypes: func() ([]jira.IssueTypeDetails, error) {
+			value, err := cachecmd.FetchMetadata(ctx, client, nil, "issuetypes", false)
+			if err != nil {
+				return nil, err
+			}
+			types := make([]jira.IssueTypeDetails, 0, len(value.Items))
+			for _, raw := range value.Items {
+				var native jira.IssueTypeDetails
+				if err := json.Unmarshal(raw, &native); err != nil {
+					return nil, core.ErrIssueMetadataInvalid
+				}
+				types = append(types, native)
+			}
+			return types, nil
+		},
 		Projects: func() ([]core.IssueCreateProjectRead, bool, error) {
 			value, err := cachecmd.FetchMetadata(ctx, client, nil, "projects", false)
 			if err != nil {

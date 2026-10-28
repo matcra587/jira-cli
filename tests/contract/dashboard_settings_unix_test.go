@@ -118,6 +118,7 @@ func TestDashboardNativeEverySettingSavesReloadsAndReopens(t *testing.T) {
 		"tui_labels": "false", "tui_priority": "false", "tui_issue_type": "false",
 		"tui_compact": "false", "tui_updated": "false", "tui_auto_page": "false",
 		"tui_preview_dock": "bottom", "tui_preview_size": "55",
+		"tui_hierarchy_query": `issuetype = "10002" ORDER BY updated DESC`,
 	}
 	if err := os.MkdirAll(values["queries_path"], 0o700); err != nil {
 		t.Fatal(err)
@@ -166,7 +167,11 @@ func TestDashboardNativeEverySettingSavesReloadsAndReopens(t *testing.T) {
 				terminal.sendWait("\r", "keep in draft")
 				terminal.sendWait("\x1b[200~"+values[key]+"\x1b[201~\r", "unsaved")
 			} else {
-				terminal.sendWait("\r", "cancel edit")
+				hint := "cancel edit"
+				if key == "tui_hierarchy_query" {
+					hint = "f2 issue type"
+				}
+				terminal.sendWait("\r", hint)
 				terminal.sendWait("\x15\x1b[200~"+values[key]+"\x1b[201~\r", "unsaved")
 			}
 			if after := load().Config.Values(); !maps.Equal(before, after) {

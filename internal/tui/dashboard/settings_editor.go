@@ -88,6 +88,8 @@ func (m *Model) updateSettingEditor(msg tea.Msg) tea.Cmd {
 	p, editor := m.settings, m.settings.editor
 	if press, ok := msg.(tea.KeyPressMsg); ok {
 		switch press.String() {
+		case "f2":
+			return m.loadHierarchyTypes()
 		case "esc":
 			p.editor, p.notice = nil, "Edit canceled."
 			return nil

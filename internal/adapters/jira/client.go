@@ -227,6 +227,8 @@ func (c *Client) JiraScope() core.JiraScope {
 	return core.JiraScope{Site: c.site.String(), Account: c.email, APIBaseURL: c.base.String()}
 }
 
+var _ core.IssueHierarchyClient = (*Client)(nil)
+
 var _ core.IssueDescriptionClient = (*Client)(nil)
 
 // GetIssue implements core.JiraClient: one issue by key, fields narrowed

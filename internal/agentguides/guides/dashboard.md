@@ -323,6 +323,35 @@ connection remains active for reads, Jira actions are blocked, and a persistent
 banner reports the mismatch. Fix the settings or their dependencies, then use
 Ctrl+R to retry reload without saving again.
 
+### Hierarchy navigation
+
+The Hierarchy tab uses native parent relationships for Initiative → Epic → issue
+→ sub-task navigation. Press `H` to load roots, `Right` to browse the selected
+issue's visible children, `Left` for the current container's parent, and
+`Backspace` to restore the previous loaded list, filter, selection and marks.
+`Ctrl+G` opens the selected issue among its siblings when its parent is visible.
+`Enter` continues to open details. Arrow hierarchy controls belong to the list;
+text fields and preview scrolling keep their own input.
+
+The breadcrumb uses returned native type names and keys. Omitted parent data,
+denied ancestor reads and the 32-issue ancestor bound are disclosed as incomplete;
+explicit null is the only observation that asserts no parent. Cycles, changed
+immutable identities and contradictory child relations are refused. Child lists
+use the same bounded pagination, manual retry and automatic-loading preference
+as other views. An empty search reports no *visible* children, without claiming
+that permission-hidden issues do not exist. Back history retains at most 12 lists.
+
+In Settings → Hierarchy, **Hierarchy roots** configures `tui_hierarchy_query`.
+The default is `hierarchyLevel = 1 ORDER BY updated DESC` (the native Epic level).
+Jira's hierarchy-level JQL does not support custom plan levels above Epic. To
+start with Initiatives or a renamed type, edit this setting and press `F2` to
+choose from visible Jira issue types. The resulting query uses the native type
+ID. You can also author JQL directly. `Enter` keeps a draft, `Esc` cancels, and
+`Ctrl+S` on the Settings page saves and reloads. A changed root query takes effect
+when opening roots; reloading while browsing children retains that container.
+This setting is global, supports `JIRA_TUI_HIERARCHY_QUERY`, and respects the
+existing environment precedence and file provenance rules.
+
 ## Save
 
 Closed choices such as Credential provider and Glyph set open a selection menu

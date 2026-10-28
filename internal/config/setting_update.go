@@ -82,6 +82,12 @@ func parseSettingValue(key, value string) (any, error) {
 			return nil, err
 		}
 		return value, nil
+	case "tui_hierarchy_query":
+		var query HierarchyQuery
+		if err := query.UnmarshalText([]byte(value)); err != nil {
+			return nil, err
+		}
+		return string(query), nil
 	case "tui_preview_dock":
 		var dock PreviewDock
 		if err := dock.UnmarshalText([]byte(value)); err != nil {

@@ -147,6 +147,9 @@ const CodeBulkOutcomeUnconfirmed = "bulk_outcome_unconfirmed"
 // CodeAttachmentFileInvalid means local upload inputs failed preflight.
 const CodeAttachmentFileInvalid = "attachment_file_invalid"
 
+// CodeIssueHierarchyInvalid reports unusable native parent observations.
+const CodeIssueHierarchyInvalid = "issue_hierarchy_response_invalid"
+
 // CodeAttachmentDownloadLimit reports a streamed download exceeding its byte bound.
 const CodeAttachmentDownloadLimit = "attachment_download_limit_exceeded"
 
@@ -247,6 +250,7 @@ var registry = map[string]spec{
 	CodeTransitionResponseInvalid:       {exit: ExitServer, hint: "Inspect the issue's current status and comments before retrying; the transition may already have landed."},
 	CodeTransitionReadInvalid:           {exit: ExitServer, hint: "Retry transition discovery or inspect the native workflow with `jira api get`. Do not transition using incomplete or contradictory metadata."},
 	CodeAttachmentResponseInvalid:       {exit: ExitServer, hint: "Retry reads as needed. Inspect the issue's attachment list before retrying a write; Jira may already have applied it. Repeating an upload creates duplicates."},
+	CodeIssueHierarchyInvalid:           {exit: ExitServer, hint: "Retry the hierarchy read or inspect the issue in Jira. Missing or contradictory parent data cannot establish a hierarchy."},
 	CodeAttachmentDownloadLimit:         {exit: ExitValidation, hint: "Choose a larger positive --max-download-bytes value if you intend to save this attachment. Partial downloads are removed; existing overwrite targets are preserved."},
 	CodeAttachmentFileInvalid:           {exit: ExitValidation, hint: "Inspect the local attachment paths. Use readable regular files, with each file and their combined content no larger than 100 MiB."},
 	CodeJiraPreconditionFailed:          {exit: ExitValidation, hint: "Fetch the current resource, reconcile edits, and choose a new precondition before sending another write."},
@@ -381,6 +385,8 @@ func MapError(err error) Classification {
 		return newError(CodeIssueEditDraftInvalid, err)
 	case errors.Is(err, core.ErrIssueEditDraftIO):
 		return newError(CodeIssueEditDraftIO, err)
+	case errors.Is(err, core.ErrIssueHierarchyInvalid):
+		return newError(CodeIssueHierarchyInvalid, err)
 	case errors.Is(err, core.ErrIssueMetadataInvalid):
 		return newError(CodeIssueMetadataResponseInvalid, err)
 	case errors.Is(err, core.ErrIssueMetadataUnavailable):

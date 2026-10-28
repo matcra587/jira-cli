@@ -237,6 +237,18 @@ func frame(content string, width, height int) string {
 func (m *Model) listView() string {
 	width, height := m.listWidth(), m.listHeight()
 	viewName := m.tabs.ActiveItem()
+	breadcrumb := ""
+	if m.hierarchyActive() {
+		crumb := m.hierarchyBreadcrumb()
+		if excess := xansi.WcWidth.StringWidth(crumb) - width; excess > 0 {
+			crumb = xansi.TruncateLeftWc(crumb, excess+2, "… ")
+		}
+		breadcrumb = dim(crumb)
+		if m.hierarchy.location != nil {
+			root := m.hierarchy.location.read.Nodes[0]
+			viewName = cli.Text(strings.TrimSpace(root.Type+" "+root.Key)) + " · children"
+		}
+	}
 	if viewName == "Search" && m.viewName != "" {
 		viewName = m.viewName
 	}
@@ -273,11 +285,15 @@ func (m *Model) listView() string {
 			body = "\n  Loading your issues…"
 		case m.err != nil:
 			body = "\n  Could not load issues. Press r to retry."
+		case m.hierarchyActive() && m.hierarchy.location == nil:
+			body = "\n  No visible roots returned.\n  Change Hierarchy roots in Settings."
+		case m.hierarchyActive():
+			body = "\n  No visible children returned.\n  ← parent · backspace back · H roots"
 		default:
 			body = "\n  No issues match this view.\n\n  Press / to change the JQL query."
 		}
 	}
-	return frame(title+"\n\n"+m.rowHeader+"\n"+body, width, height)
+	return frame(title+"\n"+breadcrumb+"\n"+m.rowHeader+"\n"+body, width, height)
 }
 
 func (m *Model) detailView() string {
@@ -316,6 +332,7 @@ func (m *Model) helpView() string {
 	text := "DASHBOARD HELP\n\n" +
 		"z zooms the list and restores the configured preview. Preview position and size are in Appearance settings.\n\n" +
 		"Views     Tab / Shift+Tab switch views · v saved views and lenses\n" +
+		"Hierarchy H roots · → children · ← parent · Backspace history · Ctrl+G around issue\n" +
 		"Search    / edit JQL · Ctrl+S save · Ctrl+F local text · f facet\n" +
 		"Issues    Ctrl+O switch issue · ↑↓ or j/k select\n" +
 		"Focus     Enter full details · Ctrl+W list/preview · Esc back\n" +

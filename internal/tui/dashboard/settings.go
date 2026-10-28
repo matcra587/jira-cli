@@ -36,6 +36,7 @@ var dashboardSettings = []setting{
 	{key: "tui_updated", name: "Show updated", group: "Issue list", description: "Display the native update timestamp when the list has enough room."},
 	{key: "tui_auto_page", name: "Load more as you scroll", group: "Issue list", description: "Load the next page near the end of the list. Failed requests wait for an explicit retry with m; loading stays within the result limit."},
 	{key: "theme", name: "Theme", group: "Appearance", description: "Choose built-in or custom themes with live previews. Enter keeps the selection in your settings draft; Esc restores the prior colors."},
+	{key: "tui_hierarchy_query", name: "Hierarchy roots", group: "Hierarchy", description: "JQL for the Hierarchy tab. Defaults to native Epic level. Press F2 while editing to choose a visible Jira issue type, including Initiatives; Enter keeps the draft."},
 }
 
 type settingsPage struct {
@@ -62,7 +63,7 @@ func (m *Model) openSettings() {
 	input := textinput.New()
 	input.Prompt, input.Placeholder, input.CharLimit = "⌕ ", "Search settings…", 128
 	m.settings = &settingsPage{
-		tabs: carousel.New("All", "Appearance", "Issue list", "Issue preview", "Defaults", "Tools", "Connection", "Authentication", "Identity"),
+		tabs: carousel.New("All", "Appearance", "Issue list", "Issue preview", "Hierarchy", "Defaults", "Tools", "Connection", "Authentication", "Identity"),
 		rows: list.New(), input: input, baseline: maps.Clone(m.preferences), baselineTheme: m.themeName, sources: maps.Clone(m.options.SettingSources),
 	}
 	m.settings.values = publicSettingValues(m.options.SettingValues)
@@ -475,6 +476,9 @@ func (m *Model) settingsView() string {
 			rows = "  " + p.editor.setting.name + "\n\n" + rows
 		}
 		hints = []key.Hint{{Key: "enter", Desc: "keep in draft"}, {Key: "esc", Desc: "cancel edit"}}
+		if p.editor.setting.key == "tui_hierarchy_query" && m.options.Actions.HierarchyTypes != nil {
+			hints = []key.Hint{{Key: "enter", Desc: "keep"}, {Key: "esc", Desc: "cancel"}, {Key: "f2", Desc: "issue type"}}
+		}
 	}
 	prefix := ""
 	footer := (key.Renderer{Prefix: &prefix, Width: m.pageWidth(), Gap: " · "}).Render(hints)

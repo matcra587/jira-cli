@@ -44,6 +44,8 @@ func dialogFramePadding(width, height, padding int) dialog.Frame {
 
 func (m *Model) openCommands() {
 	entries := []palette.Entry{
+		{Name: "Hierarchy roots", Desc: "Browse configured Epics or Initiative roots", Key: "H"},
+		{Name: "Hierarchy around issue", Desc: "Read native ancestors and select this issue among siblings", Key: "ctrl+g"},
 		{Name: "Open issue in browser", Desc: "Hand off the selected issue URL", Key: "O"},
 		{Name: "Copy issue key", Desc: "Send to the terminal clipboard", Key: "y"},
 		{Name: "Copy issue URL", Desc: "Send to the terminal clipboard", Key: "Y"},
@@ -69,6 +71,12 @@ func (m *Model) openCommands() {
 	}
 	if m.options.ProjectQuery != "" {
 		entries = append(entries, palette.Entry{Name: "Project", Desc: "Unfinished project work", Key: "2"})
+	}
+	if !m.detailFocused && !m.previewFocused && m.selected() != nil {
+		entries = append(entries, palette.Entry{Name: "Issue children", Desc: "Browse visible native children", Key: "right"})
+	}
+	if m.hierarchyActive() && !m.detailFocused && !m.previewFocused {
+		entries = append(entries, palette.Entry{Name: "Parent level", Desc: "Move to the native parent", Key: "left"}, palette.Entry{Name: "Back in hierarchy", Desc: "Restore the previous list and selection", Key: "backspace"})
 	}
 	if m.activeIssueKey() != "" {
 		entries = append(entries, palette.Entry{Name: "Issue details", Desc: "Focus the selected issue", Key: "enter"})
@@ -244,6 +252,13 @@ func (m *Model) updateCommands(msg tea.Msg) tea.Cmd {
 		return cmd
 	case *labelsDialog:
 		m.acceptLabels(d)
+		return cmd
+	case *hierarchyTypeMenu:
+		if d.page == m.settings && m.settings.editor == d.editor {
+			if m.keepSetting("tui_hierarchy_query", d.value()) {
+				m.settings.editor = nil
+			}
+		}
 		return cmd
 	case *settingMenu:
 		if d.page == m.settings {

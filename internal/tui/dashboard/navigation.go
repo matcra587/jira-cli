@@ -130,11 +130,12 @@ func (m *Model) acceptPicker(d *pickerDialog) tea.Cmd {
 	case "issue":
 		return m.openIssue(value)
 	case "views":
+		m.parkHierarchy()
 		m.query, m.customQuery = value, value
 		if entry, ok := d.menu.Selected(); ok {
 			m.viewName = entry.Name
 		}
-		m.tabs.SetActive(len(m.tabs.Items()) - 1)
+		m.tabs.SetActive(slices.Index(m.tabs.Items(), "Search"))
 		return m.newQuery()
 	default:
 		return m.acceptActionPicker(d, value)

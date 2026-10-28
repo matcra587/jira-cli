@@ -295,6 +295,7 @@ var keyFailureSeverity = map[string]int{
 	cli.CodeIssueCreateResponseInvalid:   2,
 	cli.CodeIssueCreateFollowupFailed:    2,
 	cli.CodeIssueMetadataResponseInvalid: 2,
+	cli.CodeIssueHierarchyInvalid:        2,
 	cli.CodeIssueCloneSourceInvalid:      2,
 	cli.CodeIssueEditSourceInvalid:       2,
 	cli.CodeBulkOperationResponseInvalid: 2,

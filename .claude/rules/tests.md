@@ -1913,3 +1913,9 @@ layout, and temporary zoom retains selection and saved preferences. Native
 acceptance exercises the real binary at all three sizes, saves/reloads/reopens
 both layout settings and restores its borrowed terminal. Short stacked previews
 must show description content while full details retain separate native fields.
+
+Dashboard hierarchy acceptance exercises native parent IDs, custom type names,
+child queries, back/selection preservation, and root-type Settings save/reload/
+restart. Core guards distinguish omitted and null parents, bound ancestor reads,
+retain partial denied observations and refuse cycles or changed identities.
+Late hierarchy reads cannot replace another list or a closed Settings editor.

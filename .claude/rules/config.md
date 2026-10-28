@@ -784,3 +784,11 @@ Theme editor Save explicitly publishes its file; cancelling Settings does not
 remove an explicitly saved theme. Import retains source files and export refuses
 existing paths. Preserve literal path bytes in interactive file input. Retain accepted startup theme-environment ownership
 after library cleanup so the interactive row remains honestly locked.
+
+`tui_hierarchy_query` is a global nonempty single-line JQL string, defaulting to
+`hierarchyLevel = 1 ORDER BY updated DESC`. Settings exposes a Hierarchy roots
+editor and an F2 menu backed by the visible native issue-type metadata owner.
+Type choices produce ID-based JQL; custom plan hierarchy levels are not inferred
+from `hierarchyLevel`. Reload retains an observed child container but the next
+roots navigation uses the new preference. Tokens and Jira write paths remain
+outside this editor.

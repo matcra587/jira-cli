@@ -26,6 +26,7 @@ type Actions struct {
 	Description        func(string) (*core.IssueDescriptionSession, error)
 	ReviewDescription  func(*core.IssueDescriptionSession, string) (core.IssueDescriptionMerge, error)
 	ReplaceDescription func(*core.IssueDescriptionSession, string, core.IssueDescriptionMerge) (core.IssueActionReceipt, string, error)
+	HierarchyTypes     func() ([]jira.IssueTypeDetails, error)
 	Projects           func() ([]core.IssueCreateProjectRead, bool, error)
 	Project            func(string) (core.IssueCreateProjectRead, error)
 	CreateTypes        func(string) (map[string]json.RawMessage, error)
