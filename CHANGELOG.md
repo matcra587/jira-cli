@@ -1,6 +1,12 @@
 # Release Notes
 
 
+## [0.16.0-beta.4](https://github.com/matcra587/jira-cli/releases/tag/v0.16.0-beta.4) — 2026-10-28
+
+### Fixed
+
+- Keep larger TUI Settings redraws complete when terminal input and output share a descriptor.
+
 ## [0.16.0-beta.3](https://github.com/matcra587/jira-cli/releases/tag/v0.16.0-beta.3) — 2026-10-28
 
 ### Breaking Changes
