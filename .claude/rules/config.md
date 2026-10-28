@@ -708,11 +708,12 @@ client/cache factories. Keep `config.Load` local and use `config.Resolve` for
 credentials; do not store contexts in options or adapters. Follow `.claude/rules/go.md`
 for `command.OnceContextValues` and the synchronous OS-keyring limitation.
 
-## Dashboard display preferences
+## Dashboard preferences
 
 `tui_preview`, `tui_status`, `tui_assignee`, `tui_labels`, `tui_priority` and
 `tui_issue_type`, `tui_compact` and `tui_updated` are boolean display preferences, defaulting to true. They are
-global declarations at the document root, including named-profile files. Ordinary
+`tui_auto_page` also defaults to true and controls forward-navigation paging.
+These are global declarations at the document root, including named-profile files. Ordinary
 environment precedence applies. The dashboard projects these public values and
 sources from the invocation's resolved settings; it does not expose credentials.
 Its searchable settings page exposes every config key, edits all public writable

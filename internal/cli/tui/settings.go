@@ -56,7 +56,8 @@ func dashboardOptions(ctx context.Context, resolved *config.Resolved) (dashboard
 		options.SettingSources["theme"] = "env"
 	}
 	options.Settings = map[string]bool{
-		"tui_compact": c.TUICompact, "tui_updated": c.TUIUpdated,
+		"tui_auto_page": c.TUIAutoPage,
+		"tui_compact":   c.TUICompact, "tui_updated": c.TUIUpdated,
 		"tui_preview": c.TUIPreview, "tui_status": c.TUIStatus, "tui_assignee": c.TUIAssignee,
 		"tui_labels": c.TUILabels, "tui_priority": c.TUIPriority, "tui_issue_type": c.TUIIssueType,
 	}

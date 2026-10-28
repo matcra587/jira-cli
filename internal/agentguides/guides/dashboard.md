@@ -69,6 +69,8 @@ terminals. Closing it preserves the issue selection, preview and query.
     terminal support is required, and sending does not confirm clipboard storage.
 *   Enter focuses the issue description. Esc returns to the list.
 *   `r` refreshes the view; `m` loads another bounded batch of results.
+    Forward list navigation loads more automatically near the end. Settings →
+    Issue list → Load more as you scroll disables that behavior.
 *   Ctrl+O switches to recent issues, current results or an exact issue key.
 *   `v` opens saved views and the My work, Updated and Reported lenses.
 *   Ctrl+S saves the current JQL as a new `.jql` file under `queries_path`.
@@ -335,14 +337,19 @@ A separate reload failure does not erase a successful publication.
 Inspect the config before retrying after a publication error.
 
 The public boolean keys are `tui_preview`, `tui_status`, `tui_assignee`,
-`tui_labels`, `tui_priority`, `tui_issue_type`, `tui_compact` and `tui_updated`. They default to `true`, live at
+`tui_labels`, `tui_priority`, `tui_issue_type`, `tui_compact`, `tui_updated`
+and `tui_auto_page`. They default to `true`, live at
 the document root in named-profile files, and also work through `config set`.
 Ordinary `JIRA_` environment overrides take precedence. Settings saves preserve
 other declarations and profiles and refuse detected snapshot conflicts.
 
 Check the JQL line to see the query being run. The issue heading reports loaded
-rows, not an invented total. More results require an explicit `m`; the session
-retains at most 5,000 issues before asking for a narrower query. Refresh keeps the
+rows, not an invented total. Forward navigation near the end of the list loads
+another bounded batch; the session retains at most 5,000 issues before asking
+for a narrower query. Loading is single-flight and keeps the selected issue.
+A failure retains the loaded results and waits for an explicit `m` retry.
+Local filters apply to loaded rows and do not drain unseen pages by themselves.
+Disable `tui_auto_page` in Settings for manual-only loading. Refresh keeps the
 selected issue by key when it remains in the results and reloads its preview.
 Descriptions render native ADF through the shared display owner; unsupported
 nodes remain visible as disclosures. Reading a preview does not edit ADF.

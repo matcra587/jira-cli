@@ -268,7 +268,11 @@ func (m *Model) listView() string {
 		title += accent(fmt.Sprintf(" · %d selected", selected))
 	}
 	if !m.isLast && len(m.issues) > 0 {
-		title += " · more available"
+		if m.enabled("tui_auto_page") && m.err == nil {
+			title += " · scroll for more"
+		} else {
+			title += " · more available"
+		}
 	}
 	if m.loading {
 		title += " · loading…"

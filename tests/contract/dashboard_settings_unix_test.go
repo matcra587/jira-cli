@@ -116,7 +116,7 @@ func TestDashboardNativeEverySettingSavesReloadsAndReopens(t *testing.T) {
 		"editor":       shell.Quote(jiraBinary(t)) + " --version 'literal ; $(not-run)'",
 		"tui_preview":  "false", "tui_status": "false", "tui_assignee": "false",
 		"tui_labels": "false", "tui_priority": "false", "tui_issue_type": "false",
-		"tui_compact": "false", "tui_updated": "false",
+		"tui_compact": "false", "tui_updated": "false", "tui_auto_page": "false",
 	}
 	if err := os.MkdirAll(values["queries_path"], 0o700); err != nil {
 		t.Fatal(err)

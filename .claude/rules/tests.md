@@ -1896,3 +1896,10 @@ after uncertain attempts. Native synthetic acceptance verifies the actual create
 payload once. Full-page editor tests cover hardware caret and controls at every
 supported size. Review/inspection preserves blank lines while stripping terminal
 controls; it must expose every authored field from the submitted snapshot.
+
+Dashboard automatic paging acceptance must observe real next-cursor requests from
+forward list navigation, one in-flight read, exact selection retention, and manual
+retry after failure. Check stale-query rejection, disabled Settings behavior,
+mouse navigation, empty/filtered views and the retained result budget. Native
+acceptance proves automatic and manual-only loading through the real executable;
+settings acceptance covers save, hot reload, restart and environment ownership.

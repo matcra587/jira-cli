@@ -32,6 +32,7 @@ var dashboardSettings = []setting{
 	{key: "tui_issue_type", name: "Show issue type", group: "Issue preview", description: "Include the issue type above the description."},
 	{key: "tui_compact", name: "Compact issue rows", group: "Appearance", description: "Use one line per issue. Turn off for more breathing room between rows."},
 	{key: "tui_updated", name: "Show updated", group: "Issue list", description: "Display the native update timestamp when the list has enough room."},
+	{key: "tui_auto_page", name: "Load more as you scroll", group: "Issue list", description: "Load the next page near the end of the list. Failed requests wait for an explicit retry with m; loading stays within the result limit."},
 	{key: "theme", name: "Theme", group: "Appearance", description: "Choose built-in or custom themes with live previews. Enter keeps the selection in your settings draft; Esc restores the prior colors."},
 }
 

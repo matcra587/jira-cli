@@ -38,6 +38,7 @@ func New(deps Deps) *cobra.Command {
 			"Use e to edit a summary or labels and l for the literal label list. Replacement reviews default to Cancel and use immutable issue IDs. " +
 			"Choose Description in the e menu to edit native anchored Markdown while preserving protected regions and unknown ADF. Ctrl+S prepares review; F4 reloads after confirmation. Description replacement is unconditional and concurrent edits can still race the final read. " +
 			"Use n to create an issue with project/type choices, summary and Markdown description; F2 edits labels, F3 assignee and F4 context. Ctrl+S reviews before a single submission. " +
+			"Forward list navigation loads the next page near the result boundary; disable Load more as you scroll in Settings for manual-only loading with m. Failed page reads wait for an explicit retry. " +
 			"Use Tab to switch views, / to edit JQL, Enter to focus a preview, Ctrl+P for commands, comma for settings, and ? for help. " +
 			"Settings edits public config values with validation; Ctrl+S saves and hot-reloads the selected profile, and Ctrl+R reloads without saving. Display preferences preview immediately. A failed reload retains the old connection and blocks Jira actions until retry succeeds. Tokens and aliases retain their dedicated auth and alias workflows. " +
 			"Requires interactive input and output in human mode. For scripts and agents use jira issue list or jira issue view.",

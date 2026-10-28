@@ -240,7 +240,8 @@ type Config struct {
 	// Aliases are file-only command expansions. Names and text remain literal;
 	// expansion validation is a separate command concern.
 	Aliases map[string]string `koanf:"aliases"`
-	// Dashboard preferences are global display settings, independent of Jira profiles.
+	// Dashboard preferences are global display and interaction settings, independent of Jira profiles.
+	TUIAutoPage  bool `koanf:"tui_auto_page"`
 	TUICompact   bool `koanf:"tui_compact"`
 	TUIUpdated   bool `koanf:"tui_updated"`
 	TUIPreview   bool `koanf:"tui_preview"`
@@ -261,7 +262,7 @@ func IsSecret(key string) bool { return secretKeys[key] }
 
 // Keys lists every config key, in a stable order.
 func Keys() []string {
-	return []string{"base_url", "cloud_id", "email", "credential_id", "account_id", "account_id_site", "account_id_email", "account_id_cloud_id", "api_token", "api_token_env", "default_project", "default_issue_type", "default_board", "refresh_interval", "team_account_ids", "keyring", "secret_backend", "onepassword_account", "onepassword_vault", "onepassword_item", "read_only", "timeout", "theme", "theme_path", "glyphs", "workday_seconds", "queries_path", "editor", "aliases", "tui_preview", "tui_status", "tui_assignee", "tui_labels", "tui_priority", "tui_issue_type", "tui_compact", "tui_updated"}
+	return []string{"base_url", "cloud_id", "email", "credential_id", "account_id", "account_id_site", "account_id_email", "account_id_cloud_id", "api_token", "api_token_env", "default_project", "default_issue_type", "default_board", "refresh_interval", "team_account_ids", "keyring", "secret_backend", "onepassword_account", "onepassword_vault", "onepassword_item", "read_only", "timeout", "theme", "theme_path", "glyphs", "workday_seconds", "queries_path", "editor", "aliases", "tui_preview", "tui_status", "tui_assignee", "tui_labels", "tui_priority", "tui_issue_type", "tui_compact", "tui_updated", "tui_auto_page"}
 }
 
 // Defaults are the built-in values, the layer every load starts from.
@@ -313,7 +314,7 @@ func Defaults() map[string]any {
 		"aliases":         map[string]string{},
 		"tui_preview":     true, "tui_status": true, "tui_assignee": true,
 		"tui_labels": true, "tui_priority": true, "tui_issue_type": true,
-		"tui_compact": true, "tui_updated": true,
+		"tui_compact": true, "tui_updated": true, "tui_auto_page": true,
 	}
 }
 
@@ -539,6 +540,7 @@ func (c Config) Values() map[string]string {
 		"queries_path":        c.QueriesPath,
 		"editor":              c.Editor,
 		"aliases":             string(aliasJSON),
+		"tui_auto_page":       strconv.FormatBool(c.TUIAutoPage),
 		"tui_compact":         strconv.FormatBool(c.TUICompact),
 		"tui_updated":         strconv.FormatBool(c.TUIUpdated),
 		"tui_preview":         strconv.FormatBool(c.TUIPreview),

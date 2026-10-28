@@ -72,6 +72,7 @@ type detailDue struct{ key string }
 // Model owns UI state on Tea's update loop. Fetch closures capture the shared
 // session context, so screen shutdown cancels admitted HTTP reads.
 type Model struct {
+	autoPageCursor               string
 	descriptionDrafts            map[descriptionIdentity]*descriptionDraft
 	descriptionReadRequest       uint64
 	creation                     *creationDraft
@@ -197,6 +198,9 @@ func (m *Model) load(more bool) tea.Cmd {
 	}
 	if more && (m.isLast || m.truncated || m.next == "" || len(m.issues) >= command.MaxSearchIssues) {
 		return nil
+	}
+	if !more {
+		m.autoPageCursor = ""
 	}
 	m.loading, m.loadingMore, m.err = true, more, nil
 	cursor := ""
@@ -441,9 +445,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.MouseWheelDown:
 			m.rows.MoveDown(3)
 		}
+		var detail tea.Cmd
 		if before != m.selectedKey() {
-			return m, m.selectDetail()
+			detail = m.selectDetail()
 		}
+		if msg.Button == tea.MouseWheelDown {
+			return m, tea.Batch(detail, m.autoPage())
+		}
+		return m, detail
 	}
 	if m.creationEditor != nil && !m.dialogs.Active() {
 		return m, m.updateCreationEditor(msg)
@@ -491,6 +500,9 @@ func (m *Model) acceptList(msg task.FinishedMsg) tea.Cmd {
 			m.truncated = true
 			m.err = fmt.Errorf("search incomplete (%s); refresh to restart", reason)
 		}
+	}
+	if more && m.err == nil {
+		m.notice = fmt.Sprintf("Loaded %d more issues.", len(page.Issues))
 	}
 	m.pruneMarks()
 	m.rebuildRows()
@@ -680,10 +692,16 @@ func (m *Model) updateKey(msg tea.KeyPressMsg) tea.Cmd {
 	case "G", "end":
 		m.rows.Bottom()
 	}
+	var detail tea.Cmd
 	if before != m.selectedKey() {
-		return m.selectDetail()
+		detail = m.selectDetail()
 	}
-	return nil
+	switch key {
+	case "j", "down", "pgdown", "ctrl+d", "G", "end":
+		return tea.Batch(detail, m.autoPage())
+	default:
+		return detail
+	}
 }
 
 func (m *Model) errorText(err error) string {

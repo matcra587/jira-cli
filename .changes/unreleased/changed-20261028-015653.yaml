@@ -1,0 +1,3 @@
+kind: changed
+body: Load more dashboard results as you navigate near the end of the list, with a Settings toggle, preserved selection and explicit retry after a failed read.
+time: 2026-10-28T01:56:53.441968537-04:00
