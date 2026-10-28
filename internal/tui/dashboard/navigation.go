@@ -98,6 +98,16 @@ func (m *Model) showViews(views []SavedView) {
 func (m *Model) acceptPicker(d *pickerDialog) tea.Cmd {
 	value := d.value()
 	switch d.kind {
+	case "batch-history":
+		for _, entry := range m.operations {
+			if fmt.Sprint(entry.id) == value && entry.batch != nil {
+				m.openBatchResult(entry.batch)
+				break
+			}
+		}
+		return nil
+	case "bulk-mode", "bulk-assign-mode", "bulk-assign", "bulk-transition":
+		return m.acceptBulkPicker(d, value)
 	case "theme":
 		m.setPreviewTheme(value)
 		return nil

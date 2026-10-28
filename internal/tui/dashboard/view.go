@@ -102,10 +102,10 @@ func (m *Model) rebuildRows() {
 		rows = append(rows, cells)
 	}
 	grid := table.NewGrid(rows)
-	grid.MaxWidth, grid.FlexCols = max(1, m.listWidth()-3), []int{1}
+	grid.MaxWidth, grid.FlexCols = max(1, m.listWidth()-7), []int{1}
 	// The selected Primer table uses wcwidth, matching layout.NormalizeLine.
 	aligned, _ := grid.AlignColumns()
-	m.rowHeader = dim("  " + aligned[0])
+	m.rowHeader = dim("      " + aligned[0])
 	m.paintedRows = aligned[1:]
 	m.rows.SetRows(m.paintedRows)
 	m.rows.SetSize(m.listWidth(), max(1, (m.bodyHeight()-3)/m.rowStride()))
@@ -122,7 +122,11 @@ func (m *Model) rowsView() string {
 		if i == m.rows.Cursor() {
 			marker = accent("› ")
 		}
-		lines = append(lines, marker+m.paintedRows[i])
+		mark := dim("[ ] ")
+		if m.marks[m.issues[i].Key] {
+			mark = accent("[x] ")
+		}
+		lines = append(lines, marker+mark+m.paintedRows[i])
 		if m.rowStride() == 2 {
 			lines = append(lines, "")
 		}
@@ -251,6 +255,9 @@ func (m *Model) listView() string {
 		focus = accent("› ")
 	}
 	title := focus + cli.MarkupStrong(viewName) + dim(fmt.Sprintf("   %d loaded", len(m.issues)))
+	if selected := len(m.markedKeys()); selected > 0 {
+		title += accent(fmt.Sprintf(" · %d selected", selected))
+	}
 	if !m.isLast && len(m.issues) > 0 {
 		title += " · more available"
 	}
@@ -311,7 +318,9 @@ func (m *Model) helpView() string {
 		"Focus     Enter full details · Ctrl+W list/preview · Esc back\n" +
 		"Details   [ / ] switch Description, Comments, Activity and Links\n" +
 		"Links     o choose a linked issue\n" +
-		"Actions   t transition · a assign · c new comment (review before writing)\n" +
+		"Select    Space mark · Ctrl+A all/none · X invert · x range\n" +
+		"Actions   t transition · a assign · c comment · B marked actions\n" +
+		"History   L outcomes · b opens latest batch in history\n" +
 		"Settings  , customize display · Ctrl+S save · p preview · Esc cancel\n" +
 		"Refresh   r retry/refresh · m more issues or comments in focused details\n" +
 		"Menus     Ctrl+P / Ctrl+K find a command · / searches inside Settings\n" +

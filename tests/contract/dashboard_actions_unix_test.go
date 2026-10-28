@@ -28,6 +28,16 @@ func TestDashboardNativeViewsSwitcherDetailsAndReviewedActions(t *testing.T) {
 	const initialQuery = "project = DEMO ORDER BY updated DESC"
 	var mu sync.Mutex
 	writes := make(map[string]int)
+	writeTargets := make(map[string]map[string]int)
+	record := func(kind, target string) {
+		mu.Lock()
+		defer mu.Unlock()
+		writes[kind]++
+		if writeTargets[kind] == nil {
+			writeTargets[kind] = make(map[string]int)
+		}
+		writeTargets[kind][target]++
+	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch {
@@ -38,28 +48,35 @@ func TestDashboardNativeViewsSwitcherDetailsAndReviewedActions(t *testing.T) {
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.JQL != initialQuery {
 				t.Errorf("saved view changed authored JQL: %+v %v", body, err)
 			}
-			_, _ = fmt.Fprint(w, `{"isLast":true,"issues":[{"key":"DEMO-1","fields":{"summary":"Fixture issue"}}]}`)
+			_, _ = fmt.Fprint(w, `{"isLast":true,"issues":[{"key":"DEMO-1","fields":{"summary":"Fixture issue"}},{"key":"DEMO-2","fields":{"summary":"Second fixture issue"}}]}`)
 		case r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/transitions"):
-			_, _ = fmt.Fprint(w, `{"transitions":[{"id":"31","name":"Finish","hasScreen":false,"to":{"name":"Done"}}]}`)
-		case r.Method == http.MethodPost && r.URL.Path == "/rest/api/3/issue/DEMO-1/transitions":
+			id := "31"
+			if strings.Contains(r.URL.Path, "DEMO-2/") {
+				id = "41"
+			}
+			_, _ = fmt.Fprintf(w, `{"transitions":[{"id":%q,"name":"Finish","hasScreen":false,"to":{"name":"Done"}}]}`, id)
+		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/transitions"):
 			var body struct {
 				Transition struct {
 					ID string `json:"id"`
 				} `json:"transition"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Transition.ID != "31" {
+			target := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/rest/api/3/issue/"), "/transitions")
+			expected := "31"
+			if target == "DEMO-2" {
+				expected = "41"
+			}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Transition.ID != expected {
 				t.Errorf("wrong transition payload: %+v %v", body, err)
 			}
-			mu.Lock()
-			writes["transition"]++
-			mu.Unlock()
+			record("transition", target)
 			w.WriteHeader(http.StatusNoContent)
 		case r.Method == http.MethodGet && r.URL.Path == "/rest/api/3/user":
 			if r.URL.Query().Get("accountId") != "account-7" {
 				t.Error("assignment looked up a different account")
 			}
 			_, _ = fmt.Fprint(w, `{"accountId":"account-7","displayName":"Fixture Person","active":true}`)
-		case r.Method == http.MethodPut && r.URL.Path == "/rest/api/3/issue/DEMO-1":
+		case r.Method == http.MethodPut && strings.HasPrefix(r.URL.Path, "/rest/api/3/issue/DEMO-"):
 			var body struct {
 				Fields struct {
 					Assignee struct {
@@ -70,20 +87,22 @@ func TestDashboardNativeViewsSwitcherDetailsAndReviewedActions(t *testing.T) {
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Fields.Assignee.ID != "account-7" {
 				t.Errorf("wrong assignment payload: %+v %v", body, err)
 			}
-			mu.Lock()
-			writes["assign"]++
-			mu.Unlock()
+			target := strings.TrimPrefix(r.URL.Path, "/rest/api/3/issue/")
+			record("assign", target)
+			if target == "DEMO-2" {
+				w.WriteHeader(http.StatusBadRequest)
+				_, _ = fmt.Fprint(w, `{"errorMessages":["Fixture refuses assignment"]}`)
+				return
+			}
 			w.WriteHeader(http.StatusNoContent)
-		case r.Method == http.MethodPost && r.URL.Path == "/rest/api/3/issue/DEMO-1/comment":
+		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/comment"):
 			var body struct {
 				Body json.RawMessage `json:"body"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&body); err != nil || !bytes.Contains(body.Body, []byte("Native fixture comment")) {
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil || !bytes.Contains(body.Body, []byte("Native fixture comment")) && !bytes.Contains(body.Body, []byte("Shared bulk fixture")) {
 				t.Errorf("new comment did not reach native ADF: %s %v", body.Body, err)
 			}
-			mu.Lock()
-			writes["comment"]++
-			mu.Unlock()
+			record("comment", strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/rest/api/3/issue/"), "/comment"))
 			w.WriteHeader(http.StatusCreated)
 			_, _ = fmt.Fprint(w, `{"id":"comment-7"}`)
 		case r.Method == http.MethodGet && r.URL.Path == "/rest/api/3/issue/DEMO-1/comment":
@@ -152,8 +171,8 @@ func TestDashboardNativeViewsSwitcherDetailsAndReviewedActions(t *testing.T) {
 		{"Saved view Fixture view", "v"},
 		{"Saved views and lenses", "Fixture view\r"},
 		{"Description for DEMO-1", "\x0f"},
-		{"Switch issue", "DEMO-2\r"},
-		{"Description for DEMO-2", "\x1b"},
+		{"Switch issue", "DEMO-3\r"},
+		{"Description for DEMO-3", "\x1b"},
 		{"Description for DEMO-1", "]"},
 		{"Existing fixture comment", "]"},
 		{"returned history page", "]"},
@@ -168,7 +187,22 @@ func TestDashboardNativeViewsSwitcherDetailsAndReviewedActions(t *testing.T) {
 		{"Assignment fixture refreshed", "c"},
 		{"Write a new Markdown comment", "\x1b[200~Native fixture comment\x1b[201~\x13"},
 		{"Post this new comment to DEMO-1?", "\r"},
-		{"Comment fixture refreshed", "q"},
+		{"Comment fixture refreshed", "g j "},
+		{"2 selected", "B"},
+		{"Bulk actions", "Comment\r"},
+		{"Bulk comment", "\x1b[200~Shared bulk fixture\x1b[201~\x13"},
+		{"Apply comment to these 2 issues?", "y"},
+		{"comment: 2 acknowledged", "\x01t"},
+		{"Choose action", "\r"},
+		{"Apply transition to these 2 issues?", "y"},
+		{"transition: 2 acknowledged", "\x01a"},
+		{"Assign · 2 issues", "account ID\r"},
+		{"Enter an exact Jira account ID for all marked issues.", "account-7\r"},
+		{"Apply assign to these 2 issues?", "y"},
+		{"assign: 1 acknowledged", "L"},
+		{"Operation history", "b"},
+		{"DEMO-2 · unconfirmed", "\x1b"},
+		{"q quit", "q"},
 	}
 	var transcript bytes.Buffer
 	stage := 0
@@ -208,9 +242,13 @@ func TestDashboardNativeViewsSwitcherDetailsAndReviewedActions(t *testing.T) {
 			}
 			mu.Lock()
 			defer mu.Unlock()
-			for _, kind := range []string{"transition", "assign", "comment"} {
-				if writes[kind] != 1 {
-					t.Fatalf("%s wrote %d times; expected one reviewed write", kind, writes[kind])
+			for kind, expected := range map[string]int{"transition": 3, "assign": 3, "comment": 3} {
+				if writes[kind] != expected {
+					t.Fatalf("%s wrote %d times, want %d reviewed attempts", kind, writes[kind], expected)
+				}
+				wantFirst := 2
+				if writeTargets[kind]["DEMO-1"] != wantFirst || writeTargets[kind]["DEMO-2"] != 1 {
+					t.Fatalf("batch target binding changed: %s %v", kind, writeTargets[kind])
 				}
 			}
 			return

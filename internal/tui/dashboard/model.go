@@ -66,6 +66,7 @@ type Model struct {
 	preferences                  map[string]bool
 	themeName                    string
 	interaction                  uint64
+	bulkNoticeRequest            uint64
 	settings                     *settingsPage
 	site                         string
 	tabs                         *carousel.Model
@@ -103,6 +104,13 @@ type Model struct {
 	commentsLoading              bool
 	commentsErr                  error
 	standalone                   bool
+	marks                        map[string]bool
+	markAnchor                   string
+	operations                   []operation
+	nextOperation                uint64
+	lastBatch                    *bulkResult
+	bulkDraft                    string
+	bulkDraftTargets             map[string]bool
 }
 
 // New creates the main page without performing I/O. Init starts its first read.
@@ -226,6 +234,8 @@ func (m *Model) newQuery() tea.Cmd {
 	// A new generation supersedes the old query even while its HTTP read runs.
 	m.loading = false
 	m.issues, m.next, m.err = nil, "", nil
+	m.marks = nil
+	m.markAnchor = ""
 	m.detailKey, m.detailIssue, m.detailErr = "", nil, nil
 	m.standalone = false
 	m.detailLoading, m.detailFocused = false, false
@@ -261,6 +271,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		switch msg.Scope {
+		case "bulk-choices":
+			m.acceptBulkChoices(msg)
+		case "bulk-write":
+			return m, m.acceptBulkFinished(msg)
 		case "comments":
 			m.acceptComments(msg)
 		case "views", "save-view":
@@ -364,13 +378,11 @@ func (m *Model) acceptList(msg task.FinishedMsg) tea.Cmd {
 		return nil
 	}
 	keep := m.selectedKey()
-	if !more {
-		m.issues = nil
-		m.progress = command.NewSearchProgress("", false)
-	}
 	seen := make(map[string]bool, len(m.issues))
-	for _, issue := range m.issues {
-		seen[issue.Key] = true
+	if more {
+		for _, issue := range m.issues {
+			seen[issue.Key] = true
+		}
 	}
 	for _, issue := range page.Issues {
 		if seen[issue.Key] {
@@ -379,6 +391,10 @@ func (m *Model) acceptList(msg task.FinishedMsg) tea.Cmd {
 			return nil
 		}
 		seen[issue.Key] = true
+	}
+	if !more {
+		m.issues = nil
+		m.progress = command.NewSearchProgress("", false)
 	}
 	m.issues = append(m.issues, page.Issues...)
 	m.next, m.isLast, m.truncated = page.Pagination.NextPageToken, page.Pagination.IsLast, page.Truncated
@@ -391,6 +407,7 @@ func (m *Model) acceptList(msg task.FinishedMsg) tea.Cmd {
 			m.err = fmt.Errorf("search incomplete (%s); refresh to restart", reason)
 		}
 	}
+	m.pruneMarks()
 	m.rebuildRows()
 	for i, issue := range m.issues {
 		if issue.Key == keep {
@@ -433,6 +450,24 @@ func (m *Model) updateQuery(msg tea.KeyPressMsg) tea.Cmd {
 func (m *Model) updateKey(msg tea.KeyPressMsg) tea.Cmd {
 	key := msg.String()
 	switch key {
+	case "B":
+		m.openBulkActions()
+		return nil
+	case "L":
+		m.openOperations()
+		return nil
+	case "space":
+		m.toggleMark()
+		return nil
+	case "ctrl+a":
+		m.markAll()
+		return nil
+	case "X":
+		m.invertMarks()
+		return nil
+	case "x":
+		m.markRange()
+		return nil
 	case "[":
 		return m.changeDetailSection(-1)
 	case "]":

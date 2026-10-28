@@ -70,6 +70,7 @@ func (d *commandDialog) Update(msg tea.Msg) (dialog.Dialog, tea.Cmd, dialog.Resu
 
 func (m *Model) openCommands() {
 	entries := []palette.Entry{
+		{Name: "Operation history", Desc: "Acknowledgements and unconfirmed actions in this session", Key: "L"},
 		{Name: "Switch issue", Desc: "Recent issues, current results or an exact key", Key: "ctrl+o"},
 		{Name: "Focus list or preview", Desc: "Move keyboard focus between panes", Key: "ctrl+w"},
 		{Name: "Next detail section", Desc: "Description, comments, activity and links", Key: "]"},
@@ -94,7 +95,12 @@ func (m *Model) openCommands() {
 	if !m.loading && !m.isLast && !m.truncated && m.next != "" {
 		entries = append(entries, palette.Entry{Name: "Load more", Desc: "Fetch the next results", Key: "m"})
 	}
+	if len(m.markedKeys()) > 0 && !m.actionBusy && !m.options.Actions.ReadOnly && m.options.Actions.Write != nil {
+		entries = append(entries, palette.Entry{Name: "Bulk actions", Desc: "Review actions for the marked issue keys", Key: "B"})
+	}
 	entries = append(entries,
+		palette.Entry{Name: "Select all loaded issues", Desc: "Toggle selection for the loaded list", Key: "ctrl+a"},
+		palette.Entry{Name: "Invert selection", Desc: "Invert marks in the loaded list", Key: "X"},
 		palette.Entry{Name: "Settings", Desc: "Customize the issue dashboard", Key: ","},
 		palette.Entry{Name: "Keyboard help", Desc: "All navigation shortcuts", Key: "?"},
 		palette.Entry{Name: "Quit", Desc: "Return to the terminal", Key: "q"},
@@ -104,7 +110,12 @@ func (m *Model) openCommands() {
 }
 
 func (m *Model) updateCommands(msg tea.Msg) tea.Cmd {
-	if _, ok := m.dialogs.Top().(*writeReview); ok {
+	manualScroll := false
+	switch m.dialogs.Top().(type) {
+	case *writeReview, *operationDialog, *bulkReview:
+		manualScroll = true
+	}
+	if manualScroll {
 		if press, ok := msg.(tea.KeyPressMsg); ok {
 			switch press.String() {
 			case "pgdown":
@@ -118,8 +129,13 @@ func (m *Model) updateCommands(msg tea.Msg) tea.Cmd {
 	}
 	cmd, closed, result := m.dialogs.Update(msg)
 	if result != dialog.ResultNone {
-		if d, ok := closed.(*textDialog); ok && d.kind == "comment" {
-			m.drafts[d.target] = d.value()
+		switch d := closed.(type) {
+		case *bulkTextDialog:
+			m.keepBulkDraft(d)
+		case *textDialog:
+			if d.kind == "comment" {
+				m.drafts[d.target] = d.value()
+			}
 		}
 	}
 	if result != dialog.ResultSubmit {
@@ -132,6 +148,17 @@ func (m *Model) updateCommands(msg tea.Msg) tea.Cmd {
 		}
 	case *pickerDialog:
 		return tea.Batch(cmd, m.acceptPicker(d))
+	case *operationDialog:
+		if d.earlier {
+			m.openBatchHistory()
+		} else {
+			m.openBatchResult(m.lastBatch)
+		}
+		return cmd
+	case *bulkReview:
+		return tea.Batch(cmd, m.submitBulk(d))
+	case *bulkTextDialog:
+		return tea.Batch(cmd, m.acceptBulkText(d))
 	case *writeReview:
 		return tea.Batch(cmd, m.submitWrite(d))
 	case *textDialog:

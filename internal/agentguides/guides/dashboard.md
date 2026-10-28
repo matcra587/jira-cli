@@ -11,8 +11,8 @@ order: 36
 
 Use `tui` for an interactive issue home screen. Use `issue list` and `issue view`
 for scripts, agents, machine output or one-shot reads. Bare `jira` still opens
-help or discovery. The dashboard browses Jira and can transition, assign or comment on one explicit
-issue after review. `JIRA_READ_ONLY=true` disables these actions and retains the
+help or discovery. The dashboard browses Jira and can transition, assign or comment on explicit
+issues after review. `JIRA_READ_ONLY=true` disables these actions and retains the
 shared transport's write refusal. Local settings and saved searches remain available.
 
 ### Before starting
@@ -81,6 +81,29 @@ Select an issue and press `t` to discover its current workflow transitions,
 shows the exact target issue and chosen value before submission. Confirmation
 is separate from picking or editing. Actions also appear in the command picker
 when available.
+
+Space marks the selected issue; Ctrl+A marks all loaded issues or clears them,
+`X` inverts marks and `x` selects the range from the last Space anchor. Marks
+follow issue keys across reordering. A new query clears them, and a refreshed
+result drops marks for issues it no longer contains. Selection applies to loaded
+results only, not unseen Jira matches.
+
+From the list, `t`, `a` and `c` act on marked issues when any are marked. `B`
+opens the explicit bulk menu. Focused details retain their single-issue action.
+Bulk review lists the fixed target keys and defaults to Cancel. Only workflow
+choices with an unambiguous matching name and destination on every target are
+offered; each issue retains its own native transition ID. Writes run with at most
+four concurrent requests and never automatically retry. Acknowledged targets
+lose their marks; unconfirmed and unattempted targets remain marked in the same
+query. Bulk comments retain a session draft only for the same target set.
+
+`L` opens the last 100 session operation entries; `/` filters by action, target,
+state or error. Enter returns to results; Esc clears the filter. In history, `b` opens every
+per-issue outcome of the latest completed batch; `h` chooses an earlier retained
+batch. Each retained batch keeps its own outcomes. Page Up/Down scroll long reviews
+and results. Results distinguish acknowledged, unconfirmed and not attempted;
+an acknowledgement is not an independent readback. Inspect an unconfirmed
+attempt before repeating it. History and drafts are not durable across exit.
 
 Transitions recheck the workflow before writing. A transition requiring fields
 without returned defaults refuses before the write; use the native transition

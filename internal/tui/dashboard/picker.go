@@ -19,6 +19,8 @@ type pickerDialog struct {
 	menu                palette.Model
 	choices             []choice
 	padRows             int
+	keys                []string
+	transitionIDs       map[string]map[string]string
 }
 
 func (p *pickerDialog) Title() string     { return p.title }

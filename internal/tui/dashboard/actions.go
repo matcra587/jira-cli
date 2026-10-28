@@ -34,6 +34,7 @@ type (
 		choices      []choice
 	}
 	actionResult struct {
+		operation    uint64
 		kind, target string
 		receipt      core.IssueActionReceipt
 	}
@@ -81,6 +82,11 @@ func (m *Model) canWrite() bool {
 }
 
 func (m *Model) openTransitions() tea.Cmd {
+	if !m.detailFocused && !m.previewFocused {
+		if keys := m.markedKeys(); len(keys) > 0 {
+			return m.loadBulkTransitions(keys)
+		}
+	}
 	if !m.canWrite() || m.options.Actions.Transitions == nil {
 		return nil
 	}
@@ -101,6 +107,12 @@ func (m *Model) openTransitions() tea.Cmd {
 }
 
 func (m *Model) openAssign() {
+	if !m.detailFocused && !m.previewFocused {
+		if keys := m.markedKeys(); len(keys) > 0 {
+			m.openBulkAssign(keys)
+			return
+		}
+	}
 	if !m.canWrite() {
 		return
 	}
@@ -113,6 +125,12 @@ func (m *Model) openAssign() {
 }
 
 func (m *Model) openComment() {
+	if !m.detailFocused && !m.previewFocused {
+		if keys := m.markedKeys(); len(keys) > 0 {
+			m.openBulkText("comment", keys)
+			return
+		}
+	}
 	if !m.canWrite() {
 		return
 	}
@@ -188,10 +206,11 @@ func (m *Model) submitWrite(d *writeReview) tea.Cmd {
 		return nil
 	}
 	m.actionBusy = true
+	operation := m.startOperation(d.kind, d.target)
 	m.notice = "Submitting " + d.kind + " for " + cli.Text(d.target) + "…"
 	return m.tasks.Start(task.Spec{Scope: "write", Run: func() (any, error) {
 		receipt, err := m.options.Actions.Write(d.kind, d.target, d.value)
-		return actionResult{kind: d.kind, target: d.target, receipt: receipt}, err
+		return actionResult{operation: operation, kind: d.kind, target: d.target, receipt: receipt}, err
 	}})
 }
 
@@ -224,6 +243,7 @@ func (m *Model) actionFinished(msg task.FinishedMsg) tea.Cmd {
 		m.notice = "Action outcome unavailable; inspect Jira before repeating it."
 		return nil
 	}
+	m.finishOperation(result.operation, result.receipt, msg.Err)
 	if msg.Err != nil {
 		prefix := "Could not submit. "
 		if result.receipt.Applied {

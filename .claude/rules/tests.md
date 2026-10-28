@@ -1857,3 +1857,10 @@ duplicates, draft retention, explicit review, exact target binding and one write
 per accepted action. Native synthetic HTTP acceptance covers transition,
 assignment and comment payloads and terminal restoration; do not perform those
 writes against a user's Jira profile as a development test.
+
+Bulk TUI acceptance must bind the reviewed issue keys and each issue's native
+workflow ID, default to cancellation and verify one attempt per accepted target.
+Exercise mixed acknowledged/unconfirmed results, marked-selection retention,
+query changes during a batch, exact-target draft reuse and bounded searchable
+session history. Keep review and history controls visible at 40x12, 80x24 and
+159x45. Use synthetic HTTP fixtures for native write acceptance.
