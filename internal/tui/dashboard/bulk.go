@@ -160,7 +160,7 @@ func (m *Model) reviewBulk(kind string, keys []string, values map[string]string)
 	description := fmt.Sprintf("Apply %s to these %d issues?\n\n%s", kind, len(keys), cli.Text(strings.Join(keys, ", ")))
 	switch kind {
 	case "comment":
-		description += "\n\nNew Markdown comment:\n" + cli.Text(values[keys[0]])
+		description += "\n\nNew Markdown comment:\n" + cli.TextBlock(values[keys[0]])
 	case "assign":
 		value := values[keys[0]]
 		if value == "" {

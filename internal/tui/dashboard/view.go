@@ -331,6 +331,8 @@ func (m *Model) helpView() string {
 		"Links     o linked issue · O browser · y copy key · Y copy URL\n" +
 		"Select    Space mark · Ctrl+A all/none · X invert · x range\n" +
 		"Actions   t transition · a assign · c comment · B marked actions\n" +
+		"Edit      e summary/labels · l labels · replacement reviews default Cancel\n" +
+		"Create    n new issue · Tab title/body · F2 labels · F3 assignee · Ctrl+S review\n" +
 		"History   L outcomes · b opens latest batch in history\n" +
 		"Settings  , customize display · Ctrl+S save · p preview · Esc cancel\n" +
 		"Refresh   r retry/refresh · m more issues or comments in focused details\n" +
@@ -449,6 +451,12 @@ func (m *Model) View() tea.View {
 	}
 	content := strings.Join([]string{header, m.tabs.View(), query, "", body, status, "", m.hints()}, "\n")
 	content = frame(content, m.pageWidth(), m.height)
+	var creationCursor *tea.Cursor
+	if m.creationEditor != nil {
+		creation := m.creationPage()
+		content = creation.Content
+		creationCursor = creation.Cursor
+	}
 	if m.settings != nil && !m.settings.preview {
 		content = m.settingsView()
 	}
@@ -460,6 +468,10 @@ func (m *Model) View() tea.View {
 		lines[i] = "  " + lines[i] + "  "
 	}
 	v := tea.NewView(strings.Join(lines, "\n"))
+	if creationCursor != nil && !m.dialogs.Active() {
+		creationCursor.X += 2
+		v.Cursor = creationCursor
+	}
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeCellMotion
 	return v

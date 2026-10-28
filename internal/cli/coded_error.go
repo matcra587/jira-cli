@@ -41,6 +41,7 @@ var codedCodes = []string{
 	CodeBulkOperationFailed,
 	CodeBulkOutcomeUnconfirmed,
 	CodeIssueCloneSourceInvalid,
+	CodeIssueEditSourceInvalid,
 	CodeUpdateUnsupported,
 	CodeUpdateFailed,
 	CodeUpdateOwnership,

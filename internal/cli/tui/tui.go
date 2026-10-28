@@ -34,7 +34,10 @@ func New(deps Deps) *cobra.Command {
 		Op: "tui", Use: "tui", Short: "Open the interactive issue dashboard",
 		Long: "Browse your work, saved views and issue details in a persistent terminal dashboard. " +
 			"Use Ctrl+O to switch issues, v for saved views and lenses, Ctrl+W to change focus, and [ or ] for detail sections. " +
-			"Transition, assign and comment actions review one explicit issue before submission; read-only mode disables them. " +
+			"Transition, assign, comment, summary and label actions review explicit targets before submission; read-only mode disables them. " +
+			"Use e to edit a summary or labels and l for the literal label list. Replacement reviews default to Cancel and use immutable issue IDs. " +
+			"Choose Description in the e menu to edit native anchored Markdown while preserving protected regions and unknown ADF. Ctrl+S prepares review; F4 reloads after confirmation. Description replacement is unconditional and concurrent edits can still race the final read. " +
+			"Use n to create an issue with project/type choices, summary and Markdown description; F2 edits labels, F3 assignee and F4 context. Ctrl+S reviews before a single submission. " +
 			"Use Tab to switch views, / to edit JQL, Enter to focus a preview, Ctrl+P for commands, comma for settings, and ? for help. " +
 			"Requires interactive input and output in human mode. For scripts and agents use jira issue list or jira issue view.",
 		Example: "  jira tui\n  jira tui --jql='assignee = currentUser() ORDER BY updated DESC'\n  jira --profile=work tui",

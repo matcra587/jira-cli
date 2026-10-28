@@ -42,6 +42,59 @@ func TestDashboardNativeViewsSwitcherDetailsAndReviewedActions(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/rest/api/3/project/search":
+			_, _ = fmt.Fprint(w, `{"startAt":0,"maxResults":100,"total":1,"isLast":true,"values":[{"id":"10402","key":"DEMO","name":"Fixture project"}]}`)
+		case r.Method == http.MethodGet && r.URL.Path == "/rest/api/3/project/10402":
+			_, _ = fmt.Fprint(w, `{"id":"10402","key":"DEMO","name":"Fixture project"}`)
+		case r.Method == http.MethodGet && r.URL.Path == "/rest/api/3/issue/createmeta/10402/issuetypes":
+			_, _ = fmt.Fprint(w, `{"startAt":0,"maxResults":50,"total":1,"issueTypes":[{"id":"10002","name":"Task"}]}`)
+		case r.Method == http.MethodGet && r.URL.Path == "/rest/api/3/issue/createmeta/10402/issuetypes/10002":
+			fields := []string{}
+			for _, name := range []string{"summary", "description", "labels", "assignee"} {
+				fields = append(fields, fmt.Sprintf(`{"fieldId":%q,"key":%q,"name":%q,"required":false,"operations":["set"],"schema":{"type":"string"}}`, name, name, name))
+			}
+			_, _ = fmt.Fprintf(w, `{"startAt":0,"maxResults":50,"total":4,"fields":[%s]}`, strings.Join(fields, ","))
+		case r.Method == http.MethodPost && r.URL.Path == "/rest/api/3/issue":
+			var body struct {
+				Fields map[string]json.RawMessage `json:"fields"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Error(err)
+				http.Error(w, "bad creation", 400)
+				return
+			}
+			if len(body.Fields) != 6 || string(body.Fields["project"]) != `{"id":"10402"}` || string(body.Fields["issuetype"]) != `{"id":"10002"}` || string(body.Fields["summary"]) != `"Created native fixture"` || string(body.Fields["labels"]) != `["native,label"]` || string(body.Fields["assignee"]) != `{"accountId":"account-7"}` || !bytes.Contains(body.Fields["description"], []byte(`"type":"doc"`)) || !bytes.Contains(body.Fields["description"], []byte("native")) {
+				t.Errorf("creation lost native reviewed fields: %v", body.Fields)
+			}
+			record("create", "DEMO-4")
+			w.WriteHeader(http.StatusCreated)
+			_, _ = fmt.Fprint(w, `{"id":"404","key":"DEMO-4"}`)
+		case r.Method == http.MethodGet && r.URL.Path == "/rest/api/3/issue/102/editmeta":
+			_, _ = fmt.Fprint(w, `{"fields":{"summary":{"key":"summary","name":"Summary","required":true,"schema":{"type":"string"},"operations":["set"]},"labels":{"key":"labels","name":"Labels","required":false,"schema":{"type":"array","items":"string"},"operations":["set"]}}}`)
+		case r.Method == http.MethodPut && r.URL.Path == "/rest/api/3/issue/102":
+			var body struct {
+				Fields map[string]json.RawMessage `json:"fields"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Error(err)
+				http.Error(w, "bad body", 400)
+				return
+			}
+			if len(body.Fields) != 1 {
+				t.Error("field editor changed unrelated native fields")
+			}
+			if summary, exists := body.Fields["summary"]; exists {
+				if string(summary) != `"Edited native summary"` {
+					t.Error("summary changed before native submission")
+				}
+				record("summary", "DEMO-2")
+			} else {
+				if string(body.Fields["labels"]) != `["base,label","new,\"label"]` {
+					t.Errorf("label edit lost literal values: %s", body.Fields["labels"])
+				}
+				record("labels", "DEMO-2")
+			}
+			w.WriteHeader(http.StatusNoContent)
 		case r.Method == http.MethodPost && r.URL.Path == "/rest/api/3/search/jql":
 			var body struct {
 				JQL string `json:"jql"`
@@ -113,6 +166,10 @@ func TestDashboardNativeViewsSwitcherDetailsAndReviewedActions(t *testing.T) {
 			summary := "Detail " + key
 			mu.Lock()
 			switch {
+			case writes["labels"] > 0:
+				summary = "Labels fixture refreshed"
+			case writes["summary"] > 0:
+				summary = "Edited native summary"
 			case writes["comment"] > 0:
 				summary = "Comment fixture refreshed"
 			case writes["assign"] > 0:
@@ -121,7 +178,14 @@ func TestDashboardNativeViewsSwitcherDetailsAndReviewedActions(t *testing.T) {
 				summary = "Transition fixture refreshed"
 			}
 			mu.Unlock()
-			_, _ = fmt.Fprintf(w, `{"key":%q,"fields":{"summary":%q,"description":{"type":"doc","version":1,"content":[{"type":"paragraph","content":[{"type":"text","text":%q}]}]},"issuelinks":[{"type":{"name":"Blocks","outward":"blocks"},"outwardIssue":{"key":"DEMO-2"}}]},"changelog":{"total":1,"histories":[{"created":"2026-10-01T00:00:00Z","author":{"displayName":"Fixture Person"},"items":[{"field":"status","fromString":"To Do","toString":"In Progress"}]}]}}`, key, summary, "Description for "+key)
+			id := "101"
+			if key == "DEMO-2" {
+				id = "102"
+			}
+			if key == "DEMO-3" {
+				id = "103"
+			}
+			_, _ = fmt.Fprintf(w, `{"id":%q,"key":%q,"fields":{"summary":%q,"labels":["base,label"],"description":{"type":"doc","version":1,"content":[{"type":"paragraph","content":[{"type":"text","text":%q}]}]},"issuelinks":[{"type":{"name":"Blocks","outward":"blocks"},"outwardIssue":{"key":"DEMO-2"}}]},"changelog":{"total":1,"histories":[{"created":"2026-10-01T00:00:00Z","author":{"displayName":"Fixture Person"},"items":[{"field":"status","fromString":"To Do","toString":"In Progress"}]}]}}`, id, key, summary, "Description for "+key)
 		default:
 			t.Errorf("unexpected dashboard request %s %s", r.Method, r.URL.Path)
 			http.Error(w, "unexpected", 500)
@@ -205,8 +269,23 @@ func TestDashboardNativeViewsSwitcherDetailsAndReviewedActions(t *testing.T) {
 		{"assign: 1 acknowledged", "L"},
 		{"Operation history", "b"},
 		{"DEMO-2 · unconfirmed", "\x1b"},
-		{"q quit", "Y"},
-		{"\x1b]52;c;" + base64.StdEncoding.EncodeToString([]byte(server.URL+"/browse/DEMO-2")), "q"},
+		{"q quit", "e"},
+		{"Edit · DEMO-2", "\r"},
+		{"Edit this issue's summary", "\x15Edited native summary\r"},
+		{"Replace summary on DEMO-2?", "y"},
+		{"Edited native summary", "l"},
+		{"Labels · DEMO-2", "\x1b[200~new,\"label\x1b[201~\x13"},
+		{"Replace all labels on DEMO-2?", "y"},
+		{"abels fixture refreshed", "Y"},
+		{"\x1b]52;c;" + base64.StdEncoding.EncodeToString([]byte(server.URL+"/browse/DEMO-2")), "n"},
+		{"DEMO · 10402", "DEMO\r"},
+		{"Task · 10002", "\r"},
+		{"Title", "Created native fixture\t\x1b[200~Created **native** body\x1b[201~\x1bOQ"},
+		{"Labels · New issue", "\x1b[200~native,label\x1b[201~\x13\x1bOR"},
+		{"New issue · assignee", "account ID\r"},
+		{"Use an exact account ID. Jira decides assignability.", "account-7\r\x13"},
+		{"Review new issue", "y"},
+		{"Description for DEMO-4", "q"},
 	}
 	var transcript bytes.Buffer
 	stage := 0
@@ -246,6 +325,14 @@ func TestDashboardNativeViewsSwitcherDetailsAndReviewedActions(t *testing.T) {
 			}
 			mu.Lock()
 			defer mu.Unlock()
+			if writes["create"] != 1 || writeTargets["create"]["DEMO-4"] != 1 {
+				t.Fatal("native creation did not submit exactly once")
+			}
+			for _, field := range []string{"summary", "labels"} {
+				if writes[field] != 1 || writeTargets[field]["DEMO-2"] != 1 {
+					t.Fatalf("field %s was not submitted exactly once to the reviewed immutable target", field)
+				}
+			}
 			for kind, expected := range map[string]int{"transition": 3, "assign": 3, "comment": 3} {
 				if writes[kind] != expected {
 					t.Fatalf("%s wrote %d times, want %d reviewed attempts", kind, writes[kind], expected)

@@ -188,6 +188,9 @@ const (
 // CodeIssueDescriptionUnavailable reports a client without bound description reads.
 const CodeIssueDescriptionUnavailable = "issue_description_unavailable"
 
+// CodeIssueEditSourceInvalid refuses an incomplete native editing identity.
+const CodeIssueEditSourceInvalid = "issue_edit_source_invalid"
+
 // CodeIssueDescriptionResponseInvalid reports an unusable native description snapshot.
 const CodeIssueDescriptionResponseInvalid = "issue_description_response_invalid"
 
@@ -212,6 +215,7 @@ const (
 // stays resource-neutral on purpose: jira_not_found covers every Jira 404
 // (issue, board, user, …), so it says "identifier", never "issue key".
 var registry = map[string]spec{
+	CodeIssueEditSourceInvalid:          {exit: ExitServer, hint: "Refresh the issue or inspect its native identity and fields. No editor was opened from the incomplete response."},
 	CodeIssueFieldPreflightFailed:       {exit: ExitValidation, hint: "Inspect this context with issue create/edit --generate-json and choose an available field and operation. No write was sent for the refused context; metadata does not validate field values or guarantee permission."},
 	CodeIssueEditDraftInvalid:           {exit: ExitValidation, hint: "Keep source.json and description.md. Inspect the readiness manifest and native backup; repair authored Markdown with issue edit resume. No candidate or Jira write was accepted."},
 	CodeIssueEditDraftChanged:           {exit: ExitValidation, hint: "Retain the original native backup and saved work. Inspect the changed directory or source before reopening; do not replace an existing draft or retry creation over it."},

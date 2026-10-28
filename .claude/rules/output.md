@@ -102,6 +102,9 @@ cleanup race without closing the borrowed terminal or relying on its descriptor 
 Screen success is the human session; machine modes receive structured refusal.
 No command handler or dashboard model acquires a process writer. Jira content in
 screen rows and ADF previews uses the same pure sanitizing sinks as human output.
+`cli.Text` is a single-line sink and drops line controls. Use `cli.TextBlock`
+for unstyled multiline review text: it sanitizes individual lines through Text,
+retaining blank lines/indentation and normalizing CRLF through x/strings.
 The dashboard's command picker uses Primer's modal stack over the live page.
 Keep its footprint stable during filtering and its footer pinned during scrolling;
 only the top dialog owns input. Wide-character backdrop and dismissal tests must

@@ -97,7 +97,15 @@ func (m *Model) showViews(views []SavedView) {
 
 func (m *Model) acceptPicker(d *pickerDialog) tea.Cmd {
 	value := d.value()
+	if strings.HasPrefix(d.kind, "create-") {
+		return m.acceptCreationPicker(d, value)
+	}
 	switch d.kind {
+	case "edit-mode":
+		if value == "description" {
+			return m.loadDescription(d.target, "", nil)
+		}
+		return m.loadEdit(value, d.target)
 	case "facet":
 		if facet, ok := d.facets[value]; ok {
 			m.facet = facet

@@ -597,8 +597,13 @@ Native absent descriptions or incomplete identities refuse; explicit null remain
 null after a blank editor save. Preserve unknown ADF bytes and current root state.
 Updated is diagnostic only. Preparation/merge owns no Jira writer and is not CAS.
 `issue edit prepare` is a typed read through command.Spec and shared View; ordinary
-edit still needs authored changes. Recoverable editor drafts use the local owner described below; protected remote
-application remains an unfinished capability.
+edit still needs authored changes. Recoverable editor drafts use the local owner
+described below. The TUI can review a native-preserving description replacement:
+it validates anchors and scope, merges before review, rechecks metadata and the
+reviewed native content before writing once by immutable ID. This write is
+unconditional; a change after the final read can still be overwritten. Neither
+merge nor review supplies CAS or lost-update protection. Server-conditioned
+remote application remains an unfinished capability.
 
 Bound description reads admit only final responses inside the configured API
 scope with the exact request credential binding. Reuse the authenticated-reply
@@ -628,7 +633,8 @@ clobber existing members or delete the recovery directory automatically. Digests
 detect corruption; they do not authenticate a draft or authorize Jira writes.
 Editor operations require an interactive terminal before artifacts or credentials
 are opened. Previews launch no editor, publish nothing and construct no Jira client.
-These commands produce candidates only; protected remote application remains open.
+These commands produce candidates only. The TUI's separately reviewed
+unconditional replacement does not change their read/local-only contracts.
 
 CSV directory choices retain an unfinished current field so a second Tab can
 complete a leaf in the same argument. Theme choices preserve literal symlink/..

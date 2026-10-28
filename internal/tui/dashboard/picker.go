@@ -15,6 +15,7 @@ import (
 type choice struct{ label, description, value string }
 
 type pickerDialog struct {
+	creation            *creationDraft
 	title, kind, target string
 	menu                palette.Model
 	choices             []choice

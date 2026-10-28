@@ -1,6 +1,7 @@
 package dashboard
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -13,19 +14,29 @@ import (
 
 	"github.com/matcra587/jira-cli/internal/cli"
 	"github.com/matcra587/jira-cli/internal/core"
+	"github.com/matcra587/jira-cli/internal/envelope"
 	"github.com/matcra587/jira-cli/internal/jira"
 )
 
 // Actions are invocation-bound capabilities supplied by the CLI domain owners.
 // The view never constructs a client, resolves credentials, or owns a writer.
 type Actions struct {
-	Browse      func(string) (string, error)
-	ReadOnly    bool
-	Transitions func(string) ([]jira.IssueTransition, error)
-	Users       func(string) ([]*jira.User, error)
-	CurrentUser func() (string, error)
-	Write       func(kind, key, value string) (core.IssueActionReceipt, error)
-	Comments    func(string, int) (*jira.CommentPage, error)
+	Description        func(string) (*core.IssueDescriptionSession, error)
+	ReviewDescription  func(*core.IssueDescriptionSession, string) (core.IssueDescriptionMerge, error)
+	ReplaceDescription func(*core.IssueDescriptionSession, string, core.IssueDescriptionMerge) (core.IssueActionReceipt, string, error)
+	Projects           func() ([]core.IssueCreateProjectRead, bool, error)
+	Project            func(string) (core.IssueCreateProjectRead, error)
+	CreateTypes        func(string) (map[string]json.RawMessage, error)
+	PrepareCreate      func(core.IssueCreationInput) (jira.IssueWriteRequest, error)
+	Create             func(jira.IssueWriteRequest) (envelope.IssueCreateOutput, error)
+	Editable           func(string) (*jira.IssueBean, error)
+	Browse             func(string) (string, error)
+	ReadOnly           bool
+	Transitions        func(string) ([]jira.IssueTransition, error)
+	Users              func(string) ([]*jira.User, error)
+	CurrentUser        func() (string, error)
+	Write              func(kind, key, value string) (core.IssueActionReceipt, error)
+	Comments           func(string, int) (*jira.CommentPage, error)
 }
 
 type (
@@ -37,6 +48,7 @@ type (
 	actionResult struct {
 		operation    uint64
 		kind, target string
+		targetID     string
 		receipt      core.IssueActionReceipt
 	}
 )
@@ -44,11 +56,18 @@ type (
 type writeReview struct {
 	*dialog.Confirm
 	kind, target, value string
+	targetID            string
+	cancelDefault       bool
 }
 
 func (d *writeReview) Title() string     { return "Review " + d.kind + " · " + cli.Text(d.target) }
 func (d *writeReview) Hints() []key.Hint { return nil }
-func (d *writeReview) Footer() string    { return "y/enter submit · esc back" }
+func (d *writeReview) Footer() string {
+	if d.cancelDefault {
+		return "y apply · n/esc back"
+	}
+	return "y/enter submit · esc back"
+}
 
 func (d *writeReview) Content(width int) string {
 	return strings.Join(layout.WrapLines(d.Confirm.Content(width), width), "\n")
@@ -181,7 +200,7 @@ func (m *Model) acceptActionText(d *textDialog) tea.Cmd {
 	switch d.kind {
 	case "comment":
 		m.drafts[d.target] = d.value()
-		m.reviewWrite("comment", d.target, d.value(), "Post this new comment to "+cli.Text(d.target)+"?\n\n"+cli.Text(d.value()))
+		m.reviewWrite("comment", d.target, d.value(), "Post this new comment to "+cli.Text(d.target)+"?\n\n"+cli.TextBlock(d.value()))
 	case "assign-id":
 		m.reviewWrite("assign", d.target, strings.TrimSpace(d.value()), "Assign "+cli.Text(d.target)+" to account "+cli.Text(strings.TrimSpace(d.value()))+"?")
 	case "find-user":
@@ -207,11 +226,20 @@ func (m *Model) submitWrite(d *writeReview) tea.Cmd {
 		return nil
 	}
 	m.actionBusy = true
-	operation := m.startOperation(d.kind, d.target)
+	operationTarget := d.target
+	if d.targetID != "" {
+		operationTarget += " · issue ID " + d.targetID
+	}
+	operation := m.startOperation(d.kind, operationTarget)
 	m.notice = "Submitting " + d.kind + " for " + cli.Text(d.target) + "…"
+	write, kind, target, value, targetID := m.options.Actions.Write, d.kind, d.target, d.value, d.targetID
+	writeTarget := target
+	if d.targetID != "" {
+		writeTarget = d.targetID
+	}
 	return m.tasks.Start(task.Spec{Scope: "write", Run: func() (any, error) {
-		receipt, err := m.options.Actions.Write(d.kind, d.target, d.value)
-		return actionResult{operation: operation, kind: d.kind, target: d.target, receipt: receipt}, err
+		receipt, err := write(kind, writeTarget, value)
+		return actionResult{operation: operation, kind: kind, target: target, targetID: targetID, receipt: receipt}, err
 	}})
 }
 
@@ -245,6 +273,14 @@ func (m *Model) actionFinished(msg task.FinishedMsg) tea.Cmd {
 		return nil
 	}
 	m.finishOperation(result.operation, result.receipt, msg.Err)
+	if result.receipt.Applied {
+		if result.kind == "summary" {
+			delete(m.fieldDrafts, result.targetID+":summary")
+		}
+		if result.kind == "labels" {
+			delete(m.labelDrafts, result.targetID)
+		}
+	}
 	if msg.Err != nil {
 		prefix := "Could not submit. "
 		if result.receipt.Applied {

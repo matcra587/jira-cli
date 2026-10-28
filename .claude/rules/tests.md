@@ -1871,3 +1871,20 @@ absent/null assignees and account IDs, combine with text and count duplicate
 labels once per issue. Mouse hit tests include margins, headers, density and
 modal focus. Browser tests inject the shared opener; clipboard acceptance uses
 a synthetic terminal rather than changing the development host clipboard.
+
+Summary/label TUI edits must read current fields with complete native identity,
+bind the reviewed immutable issue ID and reuse shared metadata/edit writers.
+Exercise default Cancel, no-op visits followed by remote changes, pending-input
+draft retention, exact literal labels, empty-array clearing, unknown response
+identity, unavailable metadata operations and uncertain writes without replay.
+Native acceptance must verify one write per confirmed field and no unrelated
+fields; keep controls visible at every supported terminal size.
+
+TUI creation must use project/type metadata and the shared create submission and
+receipt owner. Prove empty-list admission, cancel-default review, frozen native
+payloads, omitted/default/null/empty distinctions, strict new Markdown conversion,
+stale metadata/review rejection, retained draft inspection and no automatic replay
+after uncertain attempts. Native synthetic acceptance verifies the actual create
+payload once. Full-page editor tests cover hardware caret and controls at every
+supported size. Review/inspection preserves blank lines while stripping terminal
+controls; it must expose every authored field from the submitted snapshot.

@@ -310,21 +310,10 @@ func runCreate(ctx context.Context, deps Deps, inv command.Invocation, in *issue
 		}
 	}
 	out.Attempted = true
-	write, err := command.Spin(ctx, "Creating the issue", func(ctx context.Context) (core.IssueCreateWrite, error) {
-		return client.CreateIssue(ctx, composed.req)
+	created, err := command.Spin(ctx, "Creating the issue", func(ctx context.Context) (envelope.IssueCreateOutput, error) {
+		return createIssueOnce(ctx, client, composed.req)
 	})
-	out.Applied = write.StatusCode == http.StatusCreated
-	if out.Applied {
-		out.Receipt = write.Receipt
-	}
-	if receiptErr := core.ValidateIssueCreation(write); receiptErr == nil {
-		out.Issue = &envelope.IssueRef{ID: write.Issue.ID, Key: write.Issue.Key, Self: write.Issue.Self}
-	} else if err == nil {
-		err = receiptErr
-	}
-	if err == nil {
-		err = core.ValidateIssueCreateFollowups(write.Receipt)
-	}
+	out.Applied, out.Receipt, out.Issue = created.Applied, created.Receipt, created.Issue
 	if err != nil {
 		return out, err
 	}
@@ -340,6 +329,26 @@ func runCreate(ctx context.Context, deps Deps, inv command.Invocation, in *issue
 		out.Verified, out.VerifyFailed = verified, err != nil
 	}
 	return out, nil
+}
+
+// createIssueOnce is the shared submission/receipt owner for command and screen.
+// A native 201 remains acknowledged even if identity or followups are unusable.
+func createIssueOnce(ctx context.Context, client core.JiraClient, request jira.IssueWriteRequest) (envelope.IssueCreateOutput, error) {
+	out := envelope.IssueCreateOutput{Attempted: true}
+	write, err := client.CreateIssue(ctx, request)
+	out.Applied = write.StatusCode == http.StatusCreated
+	if out.Applied {
+		out.Receipt = write.Receipt
+	}
+	if receiptErr := core.ValidateIssueCreation(write); receiptErr == nil {
+		out.Issue = &envelope.IssueRef{ID: write.Issue.ID, Key: write.Issue.Key, Self: write.Issue.Self}
+	} else if err == nil {
+		err = receiptErr
+	}
+	if err == nil {
+		err = core.ValidateIssueCreateFollowups(write.Receipt)
+	}
+	return out, err
 }
 
 // requireCreateFields refuses a create that Jira would reject anyway.

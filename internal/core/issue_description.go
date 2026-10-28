@@ -147,13 +147,22 @@ func (s *IssueDescriptionSession) Apply(markdown string) (json.RawMessage, error
 }
 
 // IssueDescriptionMerge retains the current observation and merged candidate.
-// A caller still needs a demonstrated server-enforced write condition; neither
-// this fresh read nor a successful three-way merge prevents a later writer.
+// Preventing lost updates requires a demonstrated server-enforced condition;
+// neither this fresh read nor a successful merge prevents a later writer.
 type IssueDescriptionMerge struct {
 	Current     IssueDescriptionSnapshot
 	Description json.RawMessage
 	Changed     bool
 	Retry       RetryInfo
+}
+
+// CheckScope validates this session against the constructed client without I/O.
+// Public snapshot identity is not authorization to use another account or site.
+func (s *IssueDescriptionSession) CheckScope(client IssueDescriptionClient) error {
+	if s == nil || s.edit == nil {
+		return ErrIssueDescriptionInvalid
+	}
+	return checkDescriptionScope(client, s.snapshot)
 }
 
 // Merge validates the local edit before rereading the same immutable issue ID.

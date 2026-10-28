@@ -1,6 +1,7 @@
 package dashboard
 
 import (
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -11,6 +12,7 @@ import (
 	"github.com/gechr/primer/palette"
 
 	"github.com/matcra587/jira-cli/internal/cli"
+	"github.com/matcra587/jira-cli/internal/core"
 )
 
 func newCommandStack() *dialog.Stack {
@@ -83,6 +85,9 @@ func (m *Model) openCommands() {
 		{Name: "Search issues", Desc: "Write a JQL query", Key: "/"},
 		{Name: "My work", Desc: "Your unfinished issues", Key: "1"},
 	}
+	if !m.options.Actions.ReadOnly && m.options.Actions.Create != nil && !m.actionBusy {
+		entries = append(entries, palette.Entry{Name: "Create issue", Desc: "Project/type, summary, description, labels and assignee", Key: "n"})
+	}
 	if m.options.ProjectQuery != "" {
 		entries = append(entries, palette.Entry{Name: "Project", Desc: "Unfinished project work", Key: "2"})
 	}
@@ -90,6 +95,9 @@ func (m *Model) openCommands() {
 		entries = append(entries, palette.Entry{Name: "Issue details", Desc: "Focus the selected issue", Key: "enter"})
 	}
 	if m.activeIssueKey() != "" && !m.options.Actions.ReadOnly && m.options.Actions.Write != nil && !m.actionBusy {
+		if m.options.Actions.Editable != nil {
+			entries = append(entries, palette.Entry{Name: "Edit issue fields", Desc: "Summary and literal labels on the focused issue", Key: "e"}, palette.Entry{Name: "Edit labels", Desc: "Add and remove labels on the focused issue", Key: "l"})
+		}
 		entries = append(entries, palette.Entry{Name: "Transition issue", Desc: "Choose a current workflow transition", Key: "t"}, palette.Entry{Name: "Assign issue", Desc: "Choose an exact Jira account", Key: "a"}, palette.Entry{Name: "Comment on issue", Desc: "Write and review a new comment", Key: "c"})
 	}
 	if !m.loading {
@@ -119,7 +127,7 @@ func (m *Model) openCommands() {
 func (m *Model) updateCommands(msg tea.Msg) tea.Cmd {
 	manualScroll := false
 	switch m.dialogs.Top().(type) {
-	case *writeReview, *operationDialog, *bulkReview:
+	case *writeReview, *operationDialog, *bulkReview, *creationReview, *creationOutcomeDialog, *descriptionReview, *descriptionReload:
 		manualScroll = true
 	}
 	if manualScroll {
@@ -137,6 +145,32 @@ func (m *Model) updateCommands(msg tea.Msg) tea.Cmd {
 	cmd, closed, result := m.dialogs.Update(msg)
 	if result != dialog.ResultNone {
 		switch d := closed.(type) {
+		case *descriptionDialog:
+			m.keepDescriptionDraft(d)
+		case *pickerDialog:
+			if result == dialog.ResultClose && d.kind == "create-type" && d.creation == m.creation {
+				m.creation.project = core.IssueCreateProjectRead{}
+				m.creation.typeID = ""
+			}
+		case *creationLabels:
+			if d.draft == m.creation {
+				m.creation.labels = slices.Clone(d.labels)
+				m.creation.labelsSet = result == dialog.ResultSubmit || !slices.Equal(d.labels, d.original) || m.creation.labelsSet
+				m.creation.pendingLabel = d.line.Value()
+			}
+		case *summaryDialog:
+			if d.value() == d.original {
+				delete(m.fieldDrafts, d.id+":summary")
+			} else {
+				m.fieldDrafts[d.id+":summary"] = d.value()
+			}
+		case *labelsDialog:
+			changed := !slices.Equal(d.labels, d.original)
+			if !changed && d.line.Value() == "" {
+				delete(m.labelDrafts, d.id)
+			} else {
+				m.labelDrafts[d.id] = labelDraft{labels: slices.Clone(d.labels), pending: d.line.Value(), changed: changed}
+			}
 		case *bulkTextDialog:
 			m.keepBulkDraft(d)
 		case *textDialog:
@@ -149,6 +183,35 @@ func (m *Model) updateCommands(msg tea.Msg) tea.Cmd {
 		return cmd
 	}
 	switch d := closed.(type) {
+	case *descriptionDialog:
+		return tea.Batch(cmd, m.acceptDescriptionEditor(d))
+	case *descriptionReview:
+		return tea.Batch(cmd, m.submitDescription(d))
+	case *descriptionReload:
+		if m.dialogs.Top() != d.editor {
+			return cmd
+		}
+		snapshot := d.editor.draft.session.Snapshot()
+		return tea.Batch(cmd, m.loadDescription(snapshot.IssueID, snapshot.IssueID, d.editor))
+	case *creationDiscard:
+		if d.draft == m.creation {
+			m.creation = &creationDraft{}
+			m.creationEditor = nil
+			return tea.Batch(cmd, m.creationProjects())
+		}
+		return cmd
+	case *creationReview:
+		return tea.Batch(cmd, m.submitCreation(d))
+	case *creationLabels:
+		return cmd
+	case *creationText:
+		return tea.Batch(cmd, m.acceptCreationText(d))
+	case *summaryDialog:
+		m.acceptSummary(d)
+		return cmd
+	case *labelsDialog:
+		m.acceptLabels(d)
+		return cmd
 	case *commandDialog:
 		if entry, ok := d.menu.Selected(); ok {
 			return tea.Batch(cmd, m.updateKey(key.Replay(entry.Key)))

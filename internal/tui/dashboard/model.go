@@ -63,11 +63,18 @@ type detailDue struct{ key string }
 // Model owns UI state on Tea's update loop. Fetch closures capture the shared
 // session context, so screen shutdown cancels admitted HTTP reads.
 type Model struct {
+	descriptionDrafts            map[descriptionIdentity]*descriptionDraft
+	descriptionReadRequest       uint64
+	creation                     *creationDraft
+	creationEditor               *creationEditor
 	options                      Options
 	preferences                  map[string]bool
 	themeName                    string
 	interaction                  uint64
 	bulkNoticeRequest            uint64
+	editReadRequest              uint64
+	fieldDrafts                  map[string]string
+	labelDrafts                  map[string]labelDraft
 	settings                     *settingsPage
 	site                         string
 	tabs                         *carousel.Model
@@ -147,6 +154,9 @@ func New(ctx context.Context, client Client, options Options) *Model {
 		},
 	}
 	m.preferences = make(map[string]bool)
+	m.fieldDrafts = make(map[string]string)
+	m.descriptionDrafts = make(map[descriptionIdentity]*descriptionDraft)
+	m.labelDrafts = make(map[string]labelDraft)
 	for _, s := range dashboardSettings {
 		if s.key != "theme" {
 			m.preferences[s.key] = true
@@ -269,6 +279,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width, m.height = max(0, msg.Width), max(0, msg.Height)
 		m.resize()
 		m.resizeSettings()
+		m.resizeCreationEditor()
 		return m, nil
 	case detailDue:
 		if msg.key != m.detailKey || msg.key == "" {
@@ -280,6 +291,20 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		switch msg.Scope {
+		case "description-source":
+			m.acceptDescriptionSource(msg)
+		case "description-review":
+			m.acceptDescriptionPrepared(msg)
+		case "description-write":
+			return m, m.acceptDescriptionFinished(msg)
+		case "create-choices":
+			return m, m.acceptCreationChoices(msg)
+		case "create-review":
+			m.acceptCreationPrepared(msg)
+		case "create-write":
+			return m, m.acceptCreationFinished(msg)
+		case "edit-fields":
+			m.acceptEditFields(msg)
 		case "browse":
 			m.acceptBrowse(msg)
 		case "bulk-choices":
@@ -321,6 +346,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.dialogs.Active() {
 			return m, m.updateCommands(msg)
 		}
+		if m.creationEditor != nil {
+			return m, m.updateCreationEditor(msg)
+		}
 		if m.settings != nil {
 			return m, m.updateSettings(msg)
 		}
@@ -339,6 +367,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.dialogs.Active() {
 			return m, m.updateCommands(msg)
 		}
+		if m.creationEditor != nil {
+			return m, m.updateCreationEditor(msg)
+		}
 		if m.settings != nil {
 			return m, m.updateSettings(msg)
 		}
@@ -354,6 +385,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.interaction++
 		if m.dialogs.Active() {
 			return m, m.updateCommands(msg)
+		}
+		if m.creationEditor != nil {
+			return m, m.updateCreationEditor(msg)
 		}
 		if m.settings != nil {
 			return m, m.updateSettings(msg)
@@ -374,6 +408,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmd, _, _ := m.dialogs.Update(msg)
 			return m, cmd
 		}
+		if m.creationEditor != nil {
+			return m, m.updateCreationEditor(msg)
+		}
 		if m.detailFocused || m.previewFocused || (m.split() && msg.X > m.listWidth()) {
 			var cmd tea.Cmd
 			m.preview, cmd = m.preview.Update(msg)
@@ -389,6 +426,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if before != m.selectedKey() {
 			return m, m.selectDetail()
 		}
+	}
+	if m.creationEditor != nil && !m.dialogs.Active() {
+		return m, m.updateCreationEditor(msg)
 	}
 	return m, nil
 }
@@ -472,6 +512,13 @@ func (m *Model) updateQuery(msg tea.KeyPressMsg) tea.Cmd {
 func (m *Model) updateKey(msg tea.KeyPressMsg) tea.Cmd {
 	key := msg.String()
 	switch key {
+	case "n":
+		return m.openCreation()
+	case "e":
+		m.openEditMenu()
+		return nil
+	case "l":
+		return m.loadEdit("labels", m.activeIssueKey())
 	case "O":
 		return m.openBrowser()
 	case "y":
@@ -580,7 +627,7 @@ func (m *Model) updateKey(msg tea.KeyPressMsg) tea.Cmd {
 			return m.loadComments(true)
 		}
 		return m.load(true)
-	case "enter", "l":
+	case "enter":
 		if m.selected() != nil {
 			m.detailFocused = true
 			m.resize()

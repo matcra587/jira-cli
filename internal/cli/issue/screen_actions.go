@@ -4,11 +4,69 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
+	"github.com/matcra587/jira-cli/internal/cli"
 	"github.com/matcra587/jira-cli/internal/cli/command"
 	"github.com/matcra587/jira-cli/internal/core"
 	"github.com/matcra587/jira-cli/internal/jira"
 )
+
+// ScreenEditable reads current summary and label values with immutable identity.
+func ScreenEditable(ctx context.Context, client core.JiraClient, key string) (*jira.IssueBean, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	read, err := client.GetIssue(ctx, key, []string{"summary", "labels"})
+	if err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	issue := read.Issue
+	if issue == nil || !issue.ID.Set || issue.ID.Null || issue.ID.Value == "" || !issue.Key.Set || issue.Key.Null || issue.Key.Value != key || !issue.Fields.Set || issue.Fields.Null {
+		return nil, cli.NewCodedError(cli.CodeIssueEditSourceInvalid, "issue response has no complete editing identity and native fields")
+	}
+	return issue, nil
+}
+
+// ScreenEditField keeps literal field values and uses the shared metadata and
+// edit owners. The immutable issue ID is the write target; metadata is no CAS.
+func ScreenEditField(ctx context.Context, client core.JiraClient, id, field, value string) (core.IssueActionReceipt, error) {
+	if err := ctx.Err(); err != nil {
+		return core.IssueActionReceipt{}, err
+	}
+	var native any
+	switch field {
+	case "summary":
+		if strings.TrimSpace(value) == "" {
+			return core.IssueActionReceipt{}, cli.NewInputError("validation_failed", "summary must not be blank")
+		}
+		native = value
+	case "labels":
+		var labels []string
+		if err := json.Unmarshal([]byte(value), &labels); err != nil || labels == nil {
+			return core.IssueActionReceipt{}, cli.NewInputError("validation_failed", "labels must be an explicit string array")
+		}
+		native = labels
+	default:
+		return core.IssueActionReceipt{}, cli.NewInputError("validation_failed", "unsupported screen edit field")
+	}
+	encoded, err := jira.MarshalNoEscape(native)
+	if err != nil {
+		return core.IssueActionReceipt{}, err
+	}
+	req := jira.IssueWriteRequest{Fields: map[string]json.RawMessage{field: encoded}}
+	if _, err := editFieldPreflight(ctx, client, id, req); err != nil {
+		return core.IssueActionReceipt{}, err
+	}
+	if err := ctx.Err(); err != nil {
+		return core.IssueActionReceipt{}, err
+	}
+	outcome := editOne(ctx, client, id, req, false, true)
+	return core.IssueActionReceipt{Attempted: true, Applied: outcome.result.OK}, outcome.err
+}
 
 // ScreenTransition shares workflow validation and acknowledgement handling with
 // the ordinary command. Native mode forces a fresh workflow read, even for IDs.

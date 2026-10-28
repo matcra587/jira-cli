@@ -19,6 +19,7 @@ import (
 	"github.com/gechr/x/human"
 	"github.com/gechr/x/palette"
 	xslices "github.com/gechr/x/slices"
+	xstrings "github.com/gechr/x/strings"
 	"github.com/gechr/x/terminal"
 
 	"github.com/matcra587/jira-cli/internal/config"
@@ -1145,6 +1146,12 @@ func Hint(s string) string {
 // embedded newline would break the row's layout, not just its safety.
 func Text(s string) string {
 	return sanitize(s)
+}
+
+// TextBlock sanitizes unstyled multiline text while retaining line boundaries,
+// blank lines and indentation. CRLF is normalized; other controls are removed.
+func TextBlock(s string) string {
+	return strings.Join(xslices.Map(xstrings.SplitLinesRaw(s), Text), "\n")
 }
 
 // hyperlinkWriter is the shared x/ansi writer IssueKey emits OSC 8

@@ -63,9 +63,7 @@ func discoverCreateIssueMetadata(ctx context.Context, client IssueMetadataClient
 	if xstrings.IsBlank(project) || xstrings.IsBlank(requestedType) {
 		return nil, fmt.Errorf("project and issue type must be explicit and nonblank")
 	}
-	types, typePages, err := collectIssueMetadata(ctx, func(ctx context.Context, startAt int) (IssueMetadataRead, error) {
-		return client.GetCreateIssueTypes(ctx, project, startAt, issueMetadataPageSize)
-	}, DecodeCreateIssueTypes, "id")
+	types, typePages, err := DiscoverCreateIssueTypes(ctx, client, project)
 	if err != nil {
 		return nil, err
 	}
@@ -93,6 +91,20 @@ func discoverCreateIssueMetadata(ctx context.Context, client IssueMetadataClient
 }
 
 const issueMetadataPageSize = 50 // pinned create-metadata endpoint default
+
+// DiscoverCreateIssueTypes completely reads project-specific native choices.
+// Pickers and field discovery use the same paging and identity admission owner.
+func DiscoverCreateIssueTypes(ctx context.Context, client IssueMetadataClient, project string) (map[string]json.RawMessage, []json.RawMessage, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
+	}
+	if strings.TrimSpace(project) == "" {
+		return nil, nil, fmt.Errorf("project must be explicit and nonblank")
+	}
+	return collectIssueMetadata(ctx, func(ctx context.Context, start int) (IssueMetadataRead, error) {
+		return client.GetCreateIssueTypes(ctx, project, start, issueMetadataPageSize)
+	}, DecodeCreateIssueTypes, "id")
+}
 
 func collectIssueMetadata(ctx context.Context, read func(context.Context, int) (IssueMetadataRead, error), decode func([]byte, int, int) (*IssueMetadataPage, error), identity string) (map[string]json.RawMessage, []json.RawMessage, error) {
 	entries := make(map[string]json.RawMessage)

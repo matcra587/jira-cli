@@ -29,7 +29,7 @@ func newEditPrepare(deps Deps) *cobra.Command {
 			"This is a read and works in read-only mode. It opens no editor, creates no editing artifacts, " +
 			"prompts for nothing and does not write Jira. The snapshot and native updated timestamp " +
 			"are observations, never a server-enforced write condition. A later merge still needs " +
-			"genuine remote lost-update protection before replacing the description.\n\n" +
+			"a server-enforced condition to prevent lost updates. The TUI can review an unconditional native-preserving replacement; a later concurrent writer can still race its final read.\n\n" +
 			"JSON returns the complete artifact under `data`; compact returns it directly. " +
 			"Use `--jq` to extract one member. `--web` is refused because a browser page cannot " +
 			"supply this native editing snapshot.",

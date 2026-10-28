@@ -121,6 +121,82 @@ and results. Results distinguish acknowledged, unconfirmed and not attempted;
 an acknowledgement is not an independent readback. Inspect an unconfirmed
 attempt before repeating it. History and drafts are not durable across exit.
 
+### Create an issue
+
+Press `n`, including from an empty result list, to start a new issue. Select a
+project from the bounded native list or enter an exact key or ID, then select an
+issue type from that project's current metadata. The form edits summary and a
+new Markdown description; Tab switches fields. F2 opens the literal label list,
+F3 chooses an assignee and F4 changes project/type while retaining authored text.
+F5 starts a clean draft after a discard confirmation that defaults to Cancel.
+If issue types cannot be read or type selection is canceled, `n` returns to
+project selection with authored text retained.
+Assignment offers Jira's default, explicit unassignment, the authenticated
+account, visible active-user search or an exact account ID. Jira decides final
+assignability. A missing optional field retains Jira defaults; explicit empty
+labels and explicit unassignment remain distinct. F2 followed by Ctrl+S explicitly
+applies its label list, including an empty list; Esc from an unchanged list keeps
+Jira's default.
+
+Ctrl+S prepares a review without creating anything. It includes pending label
+input, converts new Markdown to native ADF and refuses reported conversion loss.
+Review shows project/type IDs and authored values, retaining paragraph and label
+line boundaries. Cancel is the default; `y` submits once. Current metadata checks
+the authored field IDs and operations again before submission. Values,
+requiredness and permissions remain Jira's validation; the standard form does
+not author arbitrary custom fields. Use native `issue create` input for those.
+
+Esc retains an unsubmitted session draft; `n` resumes it. Acknowledged creation
+opens the returned issue when its identity is usable. History retains native
+acknowledgement even when a response identity or followup is unusable. An attempted
+create locks its draft against casual resubmission. Press `n` to inspect the
+outcome history or the previous draft, including its submitted optional-field
+choices. Inspect Jira before deliberately starting a different draft, which
+replaces the old session draft. No uncertain create is automatically repeated.
+Drafts are not durable across exit.
+
+### Edit summary and labels
+
+Press `e` to choose summary or labels on the focused issue; `l` opens labels
+directly. These are single-issue edits even when other issues are marked.
+The editor reads current values and binds its review to the returned immutable
+issue ID. Incomplete identity refuses with `issue_edit_source_invalid`; missing
+fields are not treated as empty editable values.
+
+Enter reviews a changed summary. In labels, type or paste one literal label,
+then Enter adds it. Commas and quotes remain part of that label. Tab switches
+between the add field and label list; arrows or `j`/`k` select a label, and `x`
+removes it. Ctrl+S adds any pending input and reviews the complete replacement.
+Removing every entry explicitly sends an empty label array. Reviews show current
+and proposed values and default to Cancel; `y` applies them. Unchanged values
+send no write.
+
+Esc keeps changed values and pending label input in an issue-ID-scoped session
+draft. Unchanged visits do not override later fresh reads. Acknowledged edits
+clear their drafts; uncertain attempts retain them for inspection. Drafts are
+not durable across exit, and retaining one never authorizes another write.
+Before a write, the shared edit metadata owner checks that the authored field
+and set operation are available. Jira still validates values and permissions.
+Field replacement has no server-enforced compare-and-swap; concurrent edits can
+race the request. Existing description bytes are not authored by these edits.
+
+### Edit existing descriptions
+
+Choose **Description** in the `e` menu to edit anchored Markdown from the native
+ADF owner. Keep protected markers and regions intact; unknown ADF survives the
+round trip. `Ctrl+S` prepares a review, and replacement defaults to Cancel.
+`Esc` retains changed text in an issue-, site- and account-bound session draft.
+Unchanged visits do not hide newer server content. `F4` reloads source after
+confirmation; a failed reload retains the local edit. Drafts do not survive exit.
+
+The shared edit owner checks description metadata and rechecks the reviewed
+native candidate before one explicit write. A changed candidate requires another
+review. The write is unconditional: a concurrent edit after the final read can
+still be overwritten. An uncertain attempt retains its draft and receipt for
+inspection; it is never replayed automatically.
+
+### Transitions, assignments and comments
+
 Transitions recheck the workflow before writing. A transition requiring fields
 without returned defaults refuses before the write; use the native transition
 command for those fields. Assignment offers the authenticated account, visible
