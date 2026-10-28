@@ -487,6 +487,42 @@ available tab with an explanation. `JIRA_TUI_WORKSPACE` replaces the complete
 object, preserving ordinary environment precedence. Use `{}` through config set
 or Reset workspace in Settings to restore built-ins.
 
+### Configurable shortcuts
+
+Settings → Workspace → Keybindings lists main-view actions and their effective
+shortcuts. Choose an action, then Replace shortcut or Add alternative and press
+the key to capture. Conflicts explain which action already owns that shortcut;
+the previous draft remains intact. Each action supports up to four alternatives.
+Reset default removes its override. Leave the workspace menu and Ctrl+S saves
+Settings and reloads the bindings; Esc from Settings discards the draft.
+
+Keyboard matching, command-palette shortcuts, the page footer and searchable
+keyboard help use the effective bindings. Old shortcuts stop triggering an action
+after replacement. Text fields, menus, review screens and Settings retain their
+local editing/confirmation keys. Escape and Ctrl+C remain reserved for cancel
+and terminal exit. A running Jira operation still blocks ordinary quit; Ctrl+C
+remains an explicit terminal exit.
+
+The native configuration stores stable action IDs under `tui_workspace.keys`:
+
+```toml
+[tui_workspace.keys]
+view-next = ["f6", "ctrl+n"]
+settings = ["f8"]
+commands = ["f10"]
+quit = ["f9"]
+```
+
+Other action IDs include `view-prev`, `view-picker`, `lenses`, `search`, `details`,
+`focus`, `zoom`, `refresh`, `pause-refresh`, `more`, `hierarchy`, `children`,
+`parent`, `hierarchy-back`, `down`, `up`, `page-down`, `page-up`, `top`, `bottom`,
+`create`, `edit`, `labels`, `transition`, `assign`, `comment`, `bulk`, `history`,
+`mark`, `mark-all`, `mark-range`, `invert`, `copy-key`, `copy-url` and `help`.
+Unknown action IDs and conflicting maps are refused before publication.
+Use printed characters such as `A` and `?` for shifted text, and canonical named
+keys such as `ctrl+n`, `alt+l`, `shift+tab` or `f6`. Some combinations depend on
+terminal reporting; capture records the event this terminal actually sends.
+
 ## Preconditions
 
 The dashboard requires a configured Jira account with permission to read the

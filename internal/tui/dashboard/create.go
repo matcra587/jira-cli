@@ -471,7 +471,7 @@ func (m *Model) updateCreationEditor(msg tea.Msg) tea.Cmd {
 		case "esc":
 			m.saveCreationEditor()
 			m.creationEditor = nil
-			m.notice = "New issue draft kept in this session; n resumes it."
+			m.notice = "New issue draft kept in this session; " + m.effectiveKey("n") + " resumes it."
 			return nil
 		case "ctrl+s":
 			m.saveCreationEditor()
@@ -651,7 +651,7 @@ func (m *Model) acceptCreationFinished(msg task.FinishedMsg) tea.Cmd {
 	case result.outcome.Attempted:
 		m.notice = "Creation attempted; inspect the project before creating again."
 	default:
-		m.notice = "No creation submitted; n resumes the draft."
+		m.notice = "No creation submitted; " + m.effectiveKey("n") + " resumes the draft."
 	}
 	if msg.Err != nil {
 		m.notice += " " + m.errorText(msg.Err)

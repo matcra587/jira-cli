@@ -7,6 +7,7 @@ import (
 
 	"charm.land/bubbles/v2/textarea"
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/gechr/primer/dialog"
 	"github.com/gechr/primer/input"
 	"github.com/gechr/primer/layout"
@@ -59,6 +60,24 @@ func (d *workspaceDialog) rebuild() {
 	switch d.mode {
 	case "root":
 		choices = []choice{{label: "Views", description: "Create and edit named Jira queries", value: "views"}, {label: "Tabs", description: "Choose visible views and their order", value: "tabs"}, {label: "Lenses", description: "Named conditions that narrow a view", value: "lenses"}, {label: "Startup view", description: "Choose the first view on the next launch", value: "start-view"}, {label: "Startup lens", description: "Choose the initial narrowing lens", value: "start-lens"}, {label: "Reset workspace", description: "Keep built-in defaults in the settings draft", value: "reset"}}
+		choices = append(choices, choice{label: "Keybindings", description: "Capture shortcuts, add alternatives and reset defaults", value: "keys"})
+	case "keys":
+		title = "Keybindings"
+		choices = bindingChoices(d.working)
+	case "key":
+		title = "Edit shortcut"
+		for _, action := range config.WorkspaceActions() {
+			if action.ID == d.selected {
+				title = action.Title
+			}
+		}
+		current := ""
+		for _, row := range bindingChoices(d.working) {
+			if row.value == d.selected {
+				current = row.description
+			}
+		}
+		choices = []choice{{label: "Replace shortcut", description: current + " · current", value: "replace"}, {label: "Add alternative", description: "Keep existing shortcuts and capture another", value: "append"}, {label: "Reset default", description: "Remove this action's override from the draft", value: "reset"}}
 	case "views", "lenses":
 		rows := d.working.Sections
 		title = "Views"
@@ -132,7 +151,7 @@ func (d *workspaceDialog) rebuild() {
 		d.selectValue(d.working.LandingView)
 	case "start-lens":
 		d.selectValue(d.working.LandingLens)
-	case "views", "lenses", "tabs":
+	case "views", "lenses", "tabs", "keys":
 		d.selectValue(d.selected)
 	}
 }
@@ -151,10 +170,16 @@ func (d *workspaceDialog) ScrollTo() (int, int, bool) {
 	line, margin, ok := d.pickerDialog.ScrollTo()
 	return line + d.noticeRows, margin, ok
 }
-func (*workspaceDialog) Footer() string { return "enter choose · esc back" }
+
+func (d *workspaceDialog) Footer() string {
+	return ansi.WcWidth.Truncate(d.Title(), 12, "…") + " · enter · esc"
+}
+
 func (d *workspaceDialog) Update(msg tea.Msg) (dialog.Dialog, tea.Cmd, dialog.Result) {
 	if key, ok := msg.(tea.KeyPressMsg); ok && key.String() == "esc" && d.mode != "root" {
 		switch d.mode {
+		case "key":
+			d.mode = "keys"
 		case "view":
 			d.mode = "views"
 		case "lens":
@@ -197,6 +222,16 @@ func (m *Model) acceptWorkspaceMenu(d *workspaceDialog) tea.Cmd {
 	mode := d.mode
 	m.dialogs.Push(d)
 	switch mode {
+	case "keys":
+		d.selected = value
+		d.mode = "key"
+	case "key":
+		if value == "reset" {
+			m.keepWorkspace(d, resetWorkspaceBinding(w, d.selected))
+		} else {
+			m.dialogs.Push(&bindingCapture{owner: d, action: d.selected, appendKey: value == "append"})
+			return nil
+		}
 	case "root":
 		if value == "reset" {
 			m.keepWorkspace(d, config.Workspace{})

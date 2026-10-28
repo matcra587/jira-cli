@@ -133,7 +133,7 @@ func (m *Model) hierarchyHome() tea.Cmd {
 	m.hierarchy.location, m.hierarchy.parked = nil, nil
 	m.hierarchy.selectAfterLoad = ""
 	m.query, m.viewName = m.hierarchyRootQuery(), ""
-	m.notice = "Hierarchy roots · → children · ← parent · backspace back"
+	m.notice = "Hierarchy roots · " + m.navigationKey("right") + " children · " + m.navigationKey("left") + " parent · " + m.effectiveKey("backspace") + " back"
 	return m.newQuery()
 }
 
@@ -145,7 +145,7 @@ func (m *Model) browseHierarchy(around bool) tea.Cmd {
 		}
 	}
 	if issue == nil {
-		m.notice = "Select an issue, or press H for hierarchy roots."
+		m.notice = "Select an issue, or press " + m.effectiveKey("H") + " for hierarchy roots."
 		return nil
 	}
 	return m.startHierarchy(core.IssueHierarchyReference{ID: issue.ID, Key: issue.Key}, around, "")
@@ -231,7 +231,7 @@ func (m *Model) hierarchyBack() tea.Cmd {
 		if m.hierarchy.location != nil {
 			return m.hierarchyHome()
 		}
-		m.notice = "At hierarchy roots. Use Tab to switch views."
+		m.notice = "At hierarchy roots. Use " + m.effectiveKey("tab") + " to switch views."
 		return nil
 	}
 	last := len(m.hierarchy.back) - 1
@@ -243,7 +243,7 @@ func (m *Model) hierarchyBack() tea.Cmd {
 
 func (m *Model) hierarchyBreadcrumb() string {
 	if m.hierarchy.location == nil {
-		return "Configured roots · → children · ← parent"
+		return "Configured roots · " + m.navigationKey("right") + " children · " + m.navigationKey("left") + " parent"
 	}
 	read := m.hierarchy.location.read
 	parts := []string{}

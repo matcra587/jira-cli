@@ -86,13 +86,13 @@ func (m *Model) toggleListZoom() tea.Cmd {
 		return nil
 	}
 	if !m.listZoom && !m.split() && !m.detailFocused {
-		m.notice = "The list already fills this terminal. Enter opens issue details."
+		m.notice = "The list already fills this terminal. " + m.effectiveKey("enter") + " opens issue details."
 		return nil
 	}
 	m.listZoom = !m.listZoom
 	m.detailFocused, m.previewFocused = false, false
 	m.resize()
-	m.notice = "List zoom · z restores the configured preview."
+	m.notice = "List zoom · " + m.effectiveKey("z") + " restores the configured preview."
 	if !m.listZoom {
 		m.notice = "Preview layout restored; both panes must fit."
 	}

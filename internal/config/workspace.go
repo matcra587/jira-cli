@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"slices"
 	"strings"
 	"unicode"
@@ -15,11 +16,12 @@ import (
 // Workspace stores related view references atomically, so removing a view cannot
 // publish dangling tabs or startup choices. Empty configuration uses built-ins.
 type Workspace struct {
-	Sections    []WorkspaceSection `koanf:"sections" json:"sections,omitempty"`
-	Lenses      []WorkspaceSection `koanf:"lenses" json:"lenses,omitempty"`
-	Tabs        []string           `koanf:"tabs" json:"tabs,omitempty"`
-	LandingView string             `koanf:"landing_view" json:"landing_view,omitempty"`
-	LandingLens string             `koanf:"landing_lens" json:"landing_lens,omitempty"`
+	Keys        map[string][]string `koanf:"keys" json:"keys,omitempty"`
+	Sections    []WorkspaceSection  `koanf:"sections" json:"sections,omitempty"`
+	Lenses      []WorkspaceSection  `koanf:"lenses" json:"lenses,omitempty"`
+	Tabs        []string            `koanf:"tabs" json:"tabs,omitempty"`
+	LandingView string              `koanf:"landing_view" json:"landing_view,omitempty"`
+	LandingLens string              `koanf:"landing_lens" json:"landing_lens,omitempty"`
 }
 
 // WorkspaceSection names an authored query or narrowing lens by a stable ID.
@@ -46,6 +48,10 @@ func (w Workspace) TabIDs() []string {
 
 // Clone isolates settings drafts and parked runtime preferences.
 func (w Workspace) Clone() Workspace {
+	w.Keys = maps.Clone(w.Keys)
+	for id, shortcuts := range w.Keys {
+		w.Keys[id] = slices.Clone(shortcuts)
+	}
 	w.Sections, w.Lenses, w.Tabs = slices.Clone(w.Sections), slices.Clone(w.Lenses), slices.Clone(w.Tabs)
 	return w
 }
@@ -77,6 +83,9 @@ func ParseWorkspace(value string) (Workspace, error) {
 
 // Validate checks references and local structure without credentials or Jira I/O.
 func (w Workspace) Validate() error {
+	if err := ValidateWorkspaceKeys(w.Keys); err != nil {
+		return err
+	}
 	if len(w.Sections) > 32 || len(w.Lenses) > 32 || len(w.Tabs) > 36 {
 		return fmt.Errorf("workspace supports up to 32 custom views, 32 lenses and 36 tabs")
 	}

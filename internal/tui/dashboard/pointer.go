@@ -24,7 +24,7 @@ func labelAtCell(labels []string, separator string, cell, width int) (int, bool)
 }
 
 func (m *Model) clickWorkspace(msg tea.MouseClickMsg) tea.Cmd {
-	if msg.Button != tea.MouseLeft || m.help || m.editing || m.filtering || m.width < 40 || m.height < 12 {
+	if msg.Button != tea.MouseLeft || m.editing || m.filtering || m.width < 40 || m.height < 12 {
 		return nil
 	}
 	if msg.Y == 1 {

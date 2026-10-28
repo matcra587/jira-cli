@@ -59,7 +59,7 @@ func (m *Model) copyIssue(link bool) tea.Cmd {
 // Row coordinates include the two-cell page margin and the four header rows.
 // The list title, blank line and column headings precede its first item.
 func (m *Model) clickIssue(msg tea.MouseClickMsg) tea.Cmd {
-	if msg.Button != tea.MouseLeft || m.detailFocused || m.help || m.editing || m.filtering {
+	if msg.Button != tea.MouseLeft || m.detailFocused || m.editing || m.filtering {
 		return nil
 	}
 	if m.previewContains(msg.X, msg.Y) {

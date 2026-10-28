@@ -82,6 +82,10 @@ func (*commandDialog) Footer() string {
 
 func (d *commandDialog) ScrollTo() (int, int, bool) { return d.menu.CursorLine() + 1, 3, true }
 func (d *commandDialog) Update(msg tea.Msg) (dialog.Dialog, tea.Cmd, dialog.Result) {
+	if paste, ok := msg.(tea.PasteMsg); ok {
+		updatePalettePaste(&d.menu, paste.Content)
+		return d, nil, dialog.ResultNone
+	}
 	if press, ok := msg.(tea.KeyPressMsg); ok {
 		switch press.String() {
 		case "esc", "ctrl+p", "ctrl+k":
@@ -163,6 +167,9 @@ func (m *Model) openCommands() {
 		palette.Entry{Name: "Keyboard help", Desc: "All navigation shortcuts", Key: "?"},
 		palette.Entry{Name: "Quit", Desc: "Return to the terminal", Key: "q"},
 	)
+	for i := range entries {
+		entries[i].Key = m.effectiveKey(entries[i].Key)
+	}
 	m.dialogs.SetFrame(commandFrameHeight(28))
 	m.dialogs.Push(newCommandDialog(entries))
 }

@@ -79,7 +79,7 @@ func (m *Model) settingVisibility(name string) string {
 			return "List zoom temporarily hides the preview. Press p to preview the configured layout."
 		}
 		if !m.split() {
-			return "Both panes do not fit here. Enter still opens full issue details."
+			return "Both panes do not fit here. " + m.effectiveKey("enter") + " still opens full issue details."
 		}
 		return "The configured layout is previewed on the issue page."
 	}
@@ -108,13 +108,13 @@ func (m *Model) settingVisibility(name string) string {
 	case "tui_preview":
 		if !m.split() {
 			if dock := m.previewPreference("tui_preview_dock"); dock == "right" || dock == "left" {
-				return "Hidden: side preview needs 84 × 24.\nEnter opens full details."
+				return "Hidden: side preview needs 84 × 24.\n" + m.effectiveKey("enter") + " opens full details."
 			}
-			return "Hidden: auto preview needs 64 × 24.\nEnter opens full details."
+			return "Hidden: auto preview needs 64 × 24.\n" + m.effectiveKey("enter") + " opens full details."
 		}
 	case "tui_labels", "tui_priority", "tui_issue_type":
 		if !m.split() && !m.detailFocused {
-			return "Shown in details; Enter opens them."
+			return "Shown in details; " + m.effectiveKey("enter") + " opens them."
 		}
 	}
 	return ""

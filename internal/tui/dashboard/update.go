@@ -49,14 +49,6 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
 		}
-		if msg.String() == "q" && m.localSaveBusy && !m.dialogs.Active() && m.settings == nil && !m.editing && !m.filtering {
-			m.notice = "A saved-view publication is running; wait for its outcome before quitting."
-			return m, nil
-		}
-		if msg.String() == "q" && m.actionBusy && !m.dialogs.Active() && !m.filtering && !m.editing && m.settings == nil && !m.help {
-			m.notice = "A Jira action is running; wait for its outcome before quitting."
-			return m, nil
-		}
 		if m.dialogs.Active() {
 			return m, m.updateCommands(msg)
 		}
@@ -71,10 +63,6 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if m.editing {
 			return m, m.updateQuery(msg)
-		}
-		if m.help {
-			m.help = false
-			return m, nil
 		}
 		return m, m.updateKey(msg)
 	case tea.PasteMsg:
@@ -154,7 +142,7 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *Model) updateKey(msg tea.KeyPressMsg) tea.Cmd {
+func (m *Model) runKey(msg tea.KeyPressMsg) tea.Cmd {
 	key := msg.String()
 	switch key {
 	case "n":
@@ -239,12 +227,16 @@ func (m *Model) updateKey(msg tea.KeyPressMsg) tea.Cmd {
 		}
 		return nil
 	case "q":
+		if m.actionBusy || m.localSaveBusy {
+			m.notice = "An operation is running; wait for its outcome before quitting."
+			return nil
+		}
 		return tea.Quit
 	case ",":
 		m.openSettings()
 		return nil
 	case "?":
-		m.help = true
+		m.openKeyHelp()
 		return nil
 	case "ctrl+p", "ctrl+k":
 		m.openCommands()
@@ -312,6 +304,14 @@ func (m *Model) updateKey(msg tea.KeyPressMsg) tea.Cmd {
 		return nil
 	}
 	if m.detailFocused || m.previewFocused {
+		switch key {
+		case "g", "home":
+			m.preview.GotoTop()
+			return nil
+		case "G", "end":
+			m.preview.GotoBottom()
+			return nil
+		}
 		var cmd tea.Cmd
 		m.preview, cmd = m.preview.Update(msg)
 		return cmd

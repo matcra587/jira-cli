@@ -109,6 +109,8 @@ linters:
             # Dashboard JQL input uses the selected Bubble Tea v2 text field.
             - charm.land/bubbles/v2/textarea # Primer-owned multiline comment editor
             - charm.land/bubbles/v2/textinput
+            # Primer Registry points at these bindings; share matching/help with configured actions.
+            - charm.land/bubbles/v2/key
             # The selected width engine supplies grapheme iteration. x/ansi's
             # hard wrapper drops spaces and cannot measure terminal tab stops.
             - github.com/charmbracelet/x/ansi

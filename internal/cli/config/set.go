@@ -42,7 +42,7 @@ func newSet() *cobra.Command {
 			"tui_preview, tui_status, tui_assignee, tui_labels, tui_priority, tui_issue_type, tui_compact, tui_updated and tui_auto_page are global dashboard booleans, defaulting to true. Change them from the dashboard settings menu or here.\n\n" +
 			"tui_preview_dock accepts auto, left, right or bottom; tui_preview_size is an integer percentage from 25 to 75 (default 40). Both are global and editable under Appearance in dashboard Settings. Minimum readable pane dimensions may reduce the effective preview share.\n\n" +
 			"tui_refresh_interval is 0–86400 seconds (default 60; 0 disables timed reads). tui_refresh_on_focus and tui_change_markers default to true. The dashboard exposes these under Refresh.\n\n" +
-			"tui_workspace is one global JSON object containing sections, lenses, tabs, landing_view and landing_lens. The file stores native TOML tables and arrays. Settings → Workspace provides structured editors; use {} to restore defaults. References are validated and published together.\n\n" +
+			"tui_workspace is one global JSON object containing sections, lenses, tabs, landing_view, landing_lens and keys. The file stores native TOML tables and arrays. Settings → Workspace provides structured editors and key capture; use {} to restore defaults. References and key conflicts are validated and published together. Escape and Ctrl+C remain reserved.\n\n" +
 			"Credentials cannot be stored here; use `jira auth login`. Manage aliases " +
 			"through `jira alias set` or `jira alias import` so their command chains are validated.",
 		Example: "$ jira config set read_only true --no-input\n\n" +

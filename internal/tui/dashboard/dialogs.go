@@ -71,7 +71,7 @@ func (m *Model) updateCommands(msg tea.Msg) tea.Cmd {
 				m.refreshThemeStyles()
 				d.parent.restyle()
 			}
-		case *commandDialog:
+		case *commandDialog, *keyHelpDialog:
 			m.dialogs.SetFrame(commandFrame())
 		case *writeReview:
 			if d.kind == "labels" {
@@ -121,6 +121,11 @@ func (m *Model) updateCommands(msg tea.Msg) tea.Cmd {
 		return cmd
 	}
 	switch d := closed.(type) {
+	case *bindingCapture:
+		return tea.Batch(cmd, m.acceptBindingCapture(d))
+	case *keyHelpDialog:
+		m.dialogs.SetFrame(commandFrame())
+		return cmd
 	case *workspaceDialog:
 		return tea.Batch(cmd, m.acceptWorkspaceMenu(d))
 	case *workspaceFieldDialog:

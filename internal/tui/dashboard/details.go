@@ -102,7 +102,7 @@ func (m *Model) sectionContent(width int) string {
 		}
 		lines := []string{cli.MarkupStrong("Comments"), ""}
 		if m.commentsErr != nil {
-			lines = append(lines, m.errorText(m.commentsErr), "Press r to retry this comment page.")
+			lines = append(lines, m.errorText(m.commentsErr), "Press "+m.effectiveKey("r")+" to retry this comment page.")
 		}
 		if m.commentsLoading {
 			lines = append(lines, "Loading comments…")
@@ -124,7 +124,7 @@ func (m *Model) sectionContent(width int) string {
 		lines = append(lines, fmt.Sprintf("%d of %d comments loaded · newest first", len(m.comments), m.commentsTotal))
 		if len(m.comments) < m.commentsTotal {
 			if len(m.comments) < 200 {
-				lines = append(lines, "Press m to load the next page.")
+				lines = append(lines, "Press "+m.effectiveKey("m")+" to load the next page.")
 			} else {
 				lines = append(lines, "Showing 200 comments. Open Jira to read the remaining thread.")
 			}
@@ -152,7 +152,7 @@ func (m *Model) sectionContent(width int) string {
 		if len(f.Issuelinks.Value) == 0 {
 			lines = append(lines, "No linked issues.")
 		} else {
-			lines = append(lines, "", "Press o to choose a linked issue.")
+			lines = append(lines, "", "Press "+m.effectiveKey("o")+" to choose a linked issue.")
 		}
 		return strings.Join(lines, "\n")
 	}

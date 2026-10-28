@@ -11,6 +11,7 @@ import (
 	"github.com/gechr/primer/carousel"
 	"github.com/gechr/primer/dialog"
 	"github.com/gechr/primer/input"
+	"github.com/gechr/primer/key"
 	"github.com/gechr/primer/list"
 	"github.com/gechr/primer/task"
 
@@ -64,80 +65,83 @@ type Options struct {
 // Model owns UI state on Tea's update loop. Fetch closures capture the shared
 // session context, so screen shutdown cancels admitted HTTP reads.
 type Model struct {
-	workspace                    config.Workspace
-	tabIDs                       []string
-	activeLens                   string
-	viewContexts                 map[string]viewContext
-	refresh                      refreshState
-	clock                        refreshClock
-	hierarchy                    hierarchyWorkspace
-	hierarchyRead                func(core.IssueHierarchyReference) (core.IssueHierarchyRead, error)
-	hierarchySearch              func(string, string, int) (envelope.IssueListOutput, error)
-	autoPageCursor               string
-	descriptionDrafts            map[descriptionIdentity]*descriptionDraft
-	descriptionReadRequest       uint64
-	creation                     *creationDraft
-	creationEditor               *creationEditor
-	options                      Options
-	preferences                  map[string]bool
-	themeName                    string
-	reloadFailure                string
-	localSaveBusy                bool
-	workspaces                   map[core.JiraScope]runtimeWorkspace
-	interaction                  uint64
-	bulkNoticeRequest            uint64
-	editReadRequest              uint64
-	fieldDrafts                  map[string]string
-	labelDrafts                  map[string]labelDraft
-	settings                     *settingsPage
-	site                         string
-	tabs                         *carousel.Model
-	rows                         *list.Model
-	rowHeader                    string
-	paintedRows                  []string
-	dialogs                      *dialog.Stack
-	tasks                        *task.Manager
-	input                        textinput.Model
-	preview                      viewport.Model
-	search                       func(string, string, int) (envelope.IssueListOutput, error)
-	detail                       func(string) (detailResult, error)
-	issues                       []envelope.IssueView
-	progress                     *command.SearchProgress
-	next                         string
-	isLast, truncated            bool
-	query                        string
-	loading, loadingMore         bool
-	detailLoading                bool
-	detailIssue                  *jira.IssueBean
-	detailKey                    string
-	err, detailErr               error
-	width, height                int
-	editing, detailFocused, help bool
-	customQuery                  string
-	recent                       []recentIssue
-	viewName, notice             string
-	drafts                       map[string]string
-	previewFocused, actionBusy   bool
-	listZoom                     bool
-	detailSection                int
-	commentsKey                  string
-	comments                     []jira.Comment
-	commentsTotal, commentsNext  int
-	commentsLoading              bool
-	commentsErr                  error
-	standalone                   bool
-	visible                      []int
-	localFilter                  string
-	facet                        issueFacet
-	filtering                    bool
-	filterInput                  input.Line
-	marks                        map[string]bool
-	markAnchor                   string
-	operations                   []operation
-	nextOperation                uint64
-	lastBatch                    *bulkResult
-	bulkDraft                    string
-	bulkDraftTargets             map[string]bool
+	actions                     []config.WorkspaceAction
+	bindings                    key.Registry
+	bindingErr                  error
+	workspace                   config.Workspace
+	tabIDs                      []string
+	activeLens                  string
+	viewContexts                map[string]viewContext
+	refresh                     refreshState
+	clock                       refreshClock
+	hierarchy                   hierarchyWorkspace
+	hierarchyRead               func(core.IssueHierarchyReference) (core.IssueHierarchyRead, error)
+	hierarchySearch             func(string, string, int) (envelope.IssueListOutput, error)
+	autoPageCursor              string
+	descriptionDrafts           map[descriptionIdentity]*descriptionDraft
+	descriptionReadRequest      uint64
+	creation                    *creationDraft
+	creationEditor              *creationEditor
+	options                     Options
+	preferences                 map[string]bool
+	themeName                   string
+	reloadFailure               string
+	localSaveBusy               bool
+	workspaces                  map[core.JiraScope]runtimeWorkspace
+	interaction                 uint64
+	bulkNoticeRequest           uint64
+	editReadRequest             uint64
+	fieldDrafts                 map[string]string
+	labelDrafts                 map[string]labelDraft
+	settings                    *settingsPage
+	site                        string
+	tabs                        *carousel.Model
+	rows                        *list.Model
+	rowHeader                   string
+	paintedRows                 []string
+	dialogs                     *dialog.Stack
+	tasks                       *task.Manager
+	input                       textinput.Model
+	preview                     viewport.Model
+	search                      func(string, string, int) (envelope.IssueListOutput, error)
+	detail                      func(string) (detailResult, error)
+	issues                      []envelope.IssueView
+	progress                    *command.SearchProgress
+	next                        string
+	isLast, truncated           bool
+	query                       string
+	loading, loadingMore        bool
+	detailLoading               bool
+	detailIssue                 *jira.IssueBean
+	detailKey                   string
+	err, detailErr              error
+	width, height               int
+	editing, detailFocused      bool
+	customQuery                 string
+	recent                      []recentIssue
+	viewName, notice            string
+	drafts                      map[string]string
+	previewFocused, actionBusy  bool
+	listZoom                    bool
+	detailSection               int
+	commentsKey                 string
+	comments                    []jira.Comment
+	commentsTotal, commentsNext int
+	commentsLoading             bool
+	commentsErr                 error
+	standalone                  bool
+	visible                     []int
+	localFilter                 string
+	facet                       issueFacet
+	filtering                   bool
+	filterInput                 input.Line
+	marks                       map[string]bool
+	markAnchor                  string
+	operations                  []operation
+	nextOperation               uint64
+	lastBatch                   *bulkResult
+	bulkDraft                   string
+	bulkDraftTargets            map[string]bool
 }
 
 // New creates the main page without performing I/O. Init starts its first read.
@@ -179,13 +183,21 @@ func New(ctx context.Context, client Client, options Options) *Model {
 	m.input.Placeholder = "Enter a Jira query"
 	m.input.CharLimit = 8192
 	m.initializeWorkspace()
+	m.actions = config.WorkspaceActions()
+	m.bindings, m.bindingErr = workspaceBindings(m.workspace.Keys)
 	m.applyStyles()
 	m.dialogs = newCommandStack()
 	return m
 }
 
 // Init starts the bounded first page. Loading is set before the command runs.
-func (m *Model) Init() tea.Cmd { return m.load(false) }
+func (m *Model) Init() tea.Cmd {
+	if m.bindingErr != nil {
+		m.err = m.bindingErr
+		return nil
+	}
+	return m.load(false)
+}
 
 func (m *Model) errorText(err error) string {
 	if err == nil {

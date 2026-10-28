@@ -734,6 +734,14 @@ renames; removal clears references. The shared file owner publishes the complete
 candidate once. Startup choices affect fresh launch; collections hot reload
 without navigating away from a still-available active view. Legacy TUI migration
 remains explicitly deferred; this object does not silently activate old blocks.
+
+Workspace `keys` maps known stable actions to one through four canonical key
+names. The shared action catalog, Primer Registry and Bubbles matching drive
+dispatch/help; reject conflicts before applying overrides. Input/dialog owners
+retain local controls. Escape/Ctrl+C stay reserved. Shifted text uses its printed
+character, not ambiguous `shift+a` spellings. Settings capture keeps conflicts in
+the editor and publishes the complete workspace only through the existing save
+owner. Reset removes an override; it never silently unbinds an action.
 Closed scalar choices use a menu with the current value selected; text editors
 remain for free-form values. Keep choice admission bound to its Settings page.
 The heading counts distinct draft changes. Selected public values and their

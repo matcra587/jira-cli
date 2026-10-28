@@ -73,7 +73,7 @@ func (m *Model) canBulk(keys []string) bool {
 		return false
 	}
 	if len(keys) == 0 {
-		m.notice = "Mark issues with Space before opening bulk actions."
+		m.notice = "Mark issues with " + m.effectiveKey("space") + " before opening bulk actions."
 		return false
 	}
 	return true
@@ -406,7 +406,7 @@ func (m *Model) acceptBulkFinished(msg task.FinishedMsg) tea.Cmd {
 			notAttempted++
 		}
 	}
-	summary := fmt.Sprintf("Bulk %s: %d acknowledged · %d unconfirmed · %d not attempted. L opens history and batch outcomes.", result.kind, acknowledged, unconfirmed, notAttempted)
+	summary := fmt.Sprintf("Bulk %s: %d acknowledged · %d unconfirmed · %d not attempted. %s opens history and batch outcomes.", result.kind, acknowledged, unconfirmed, notAttempted, m.effectiveKey("L"))
 	m.notice = summary
 	if result.kind == "comment" && acknowledged == len(result.outcomes) {
 		m.bulkDraft = ""

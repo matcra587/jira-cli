@@ -197,7 +197,7 @@ func (m *Model) syncPreview() {
 	case m.detailKey == "":
 		content = "Select an issue to see its details."
 	case m.detailErr != nil:
-		content = "Could not load this issue.\n\n" + m.errorText(m.detailErr) + "\n\nPress r to retry."
+		content = "Could not load this issue.\n\n" + m.errorText(m.detailErr) + "\n\nPress " + m.effectiveKey("r") + " to retry."
 	case m.detailLoading:
 		content = "Loading issue…"
 	case m.detailIssue != nil:
@@ -294,19 +294,19 @@ func (m *Model) listView() string {
 	if len(m.visible) == 0 {
 		switch {
 		case m.emptySearch():
-			body = "\n  Press / or Enter to write JQL.\n  Tab switches views."
+			body = "\n  Press " + m.searchShortcutHint() + " to write JQL.\n  " + m.effectiveKey("tab") + " switches views."
 		case len(m.issues) > 0:
-			body = "\n  No loaded issues match the local filter.\n  Ctrl+F changes text; f changes the facet."
+			body = "\n  No loaded issues match the local filter.\n  " + m.effectiveKey("ctrl+f") + " changes text; " + m.effectiveKey("f") + " changes the facet."
 		case m.loading:
 			body = "\n  Loading your issues…"
 		case m.err != nil:
-			body = "\n  Could not load issues. Press r to retry."
+			body = "\n  Could not load issues. Press " + m.effectiveKey("r") + " to retry."
 		case m.hierarchyActive() && m.hierarchy.location == nil:
 			body = "\n  No visible roots returned.\n  Change Hierarchy roots in Settings."
 		case m.hierarchyActive():
-			body = "\n  No visible children returned.\n  ← parent · backspace back · H roots"
+			body = "\n  No visible children returned.\n  " + m.navigationKey("left") + " parent · " + m.effectiveKey("backspace") + " back · " + m.effectiveKey("H") + " roots"
 		default:
-			body = "\n  No issues match this view.\n\n  Press / to change the JQL query."
+			body = "\n  No issues match this view.\n\n  Press " + m.effectiveKey("/") + " to change the JQL query."
 		}
 	}
 	return frame(title+"\n"+breadcrumb+"\n"+m.rowHeader+"\n"+body, width, height)
@@ -327,7 +327,7 @@ func (m *Model) detailView() string {
 	if m.detailFocused {
 		title += dim("   esc back")
 	} else {
-		title += dim("   enter to focus")
+		title += dim("   " + m.effectiveKey("enter") + " to focus")
 	}
 	sections := make([]string, len(detailSections))
 	for i, name := range detailSections {
@@ -339,33 +339,9 @@ func (m *Model) detailView() string {
 	}
 	sectionBar := strings.Join(sections, " · ")
 	if width < 65 {
-		sectionBar = accent(detailSections[m.detailSection]) + dim(" · [ ] sections")
+		sectionBar = accent(detailSections[m.detailSection]) + dim(" · "+m.effectiveKey("[")+" "+m.effectiveKey("]")+" sections")
 	}
 	return frame(title+"\n"+sectionBar+"\n"+m.preview.View(), width, height)
-}
-
-func (m *Model) helpView() string {
-	text := "DASHBOARD HELP\n\n" +
-		"z zooms the list and restores the configured preview. Preview position and size are in Appearance settings.\n\n" +
-		"Views     Tab / Shift+Tab switch views · v saved views and lenses\n" +
-		"Hierarchy H roots · → children · ← parent · Backspace history · Ctrl+G around issue\n" +
-		"Search    / edit JQL · Ctrl+S save · Ctrl+F local text · f facet\n" +
-		"Issues    Ctrl+O switch issue · ↑↓ or j/k select\n" +
-		"Focus     Enter full details · Ctrl+W list/preview · Esc back\n" +
-		"Details   [ / ] switch Description, Comments, Activity and Links\n" +
-		"Links     o linked issue · O browser · y copy key · Y copy URL\n" +
-		"Select    Space mark · Ctrl+A all/none · X invert · x range\n" +
-		"Actions   t transition · a assign · c comment · B marked actions\n" +
-		"Edit      e summary/labels · l labels · replacement reviews default Cancel\n" +
-		"Create    n new issue · Tab title/body · F2 labels · F3 assignee · Ctrl+S review\n" +
-		"History   L outcomes · b opens latest batch in history\n" +
-		"Settings  , customize display · Ctrl+S save · p preview · Esc cancel\n" +
-		"Refresh   r now · R pause/resume · m more issues or comments in focused details\n" +
-		"Menus     Ctrl+P / Ctrl+K find a command · / searches inside Settings\n" +
-		"Exit      q / Ctrl+C close dashboard\n\n" +
-		"Comment drafts and recent issues stay in this session.\n" +
-		"Press any key to return."
-	return frame(strings.Join(layout.WrapLines(text, m.pageWidth()), "\n"), m.pageWidth(), m.bodyHeight())
 }
 
 func (m *Model) hints() string {
@@ -417,10 +393,36 @@ func (m *Model) hints() string {
 	if m.settings != nil && m.settings.preview {
 		hints = []key.Hint{{Key: "esc", Desc: "back to settings"}}
 	}
+	main := !m.filtering && !m.editing && !m.dialogs.Active() && m.settings == nil
+	if main {
+		for i := range hints {
+			switch hints[i].Key {
+			case "↑↓":
+				hints[i].Key = m.effectiveKey("k") + "/" + m.effectiveKey("j")
+			case "[ ]":
+				hints[i].Key = m.effectiveKey("[") + "/" + m.effectiveKey("]")
+			default:
+				hints[i].Key = m.effectiveKey(hints[i].Key)
+			}
+		}
+	}
 	prefix := ""
 	renderer := key.Renderer{Prefix: &prefix, Gap: dim(" · ")}
 	if cli.StyleEnabled() {
 		renderer.Styles = key.Styles{Key: *cli.ResolvedTheme().Blue, Text: *cli.ResolvedTheme().Dim}
+	}
+	for xansi.WcWidth.StringWidth(renderer.Render(hints)) > m.pageWidth() && len(hints) > 1 {
+		i := 0
+		for i < len(hints) && hints[i].Desc == "quit" {
+			i++
+		}
+		if i == len(hints) {
+			break
+		}
+		hints = append(hints[:i], hints[i+1:]...)
+	}
+	if len(hints) == 1 && hints[0].Desc == "quit" && xansi.WcWidth.StringWidth(renderer.Render(hints)) > m.pageWidth() {
+		hints[0].Key = "ctrl+c"
 	}
 	return renderer.Render(hints)
 }
@@ -432,7 +434,7 @@ func (m *Model) View() tea.View {
 		return tea.NewView("")
 	}
 	if m.width < 40 || m.height < 12 {
-		v := tea.NewView(frame("Terminal too small. Resize to at least 40 × 12.\nPress q to quit.", m.width, m.height))
+		v := tea.NewView(frame("Terminal too small. Resize to at least 40 × 12.\nPress Ctrl+C to quit.", m.width, m.height))
 		v.AltScreen = true
 		return v
 	}
@@ -445,7 +447,7 @@ func (m *Model) View() tea.View {
 	header := brand + strings.Repeat(" ", gap) + dim(identity)
 	query := dim("JQL  " + cli.Text(m.query))
 	if m.emptySearch() {
-		query = accent("Search") + dim(" · / or Enter to write JQL")
+		query = accent("Search") + dim(" · "+m.searchShortcutHint()+" to write JQL")
 	}
 	if m.filtering {
 		query = m.filterInput.View()
@@ -457,15 +459,13 @@ func (m *Model) View() tea.View {
 		if m.facet.field != "" {
 			parts = append(parts, cli.Text(m.facet.field+": "+m.facet.label))
 		}
-		query = dim("Local: " + strings.Join(parts, " · ") + " · Ctrl+F text · f facets")
+		query = dim("Local: " + strings.Join(parts, " · ") + " · " + m.effectiveKey("ctrl+f") + " text · " + m.effectiveKey("f") + " facets")
 	}
 	if m.editing {
 		query = m.input.View()
 	}
 	body := m.listView()
 	switch {
-	case m.help:
-		body = m.helpView()
 	case m.detailFocused:
 		body = m.detailView()
 	case m.dashboardLayout().dock == config.PreviewDockBottom:
@@ -482,7 +482,7 @@ func (m *Model) View() tea.View {
 	}
 	status := dim("Ready")
 	if m.refresh.paused {
-		status = dim("Automatic refresh paused · R resumes")
+		status = dim("Automatic refresh paused · " + m.effectiveKey("R") + " resumes")
 	}
 	if m.notice != "" {
 		status = dim(m.notice)

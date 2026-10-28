@@ -2,6 +2,7 @@ package dashboard
 
 import (
 	"context"
+	"fmt"
 	"maps"
 	"reflect"
 	"strconv"
@@ -78,7 +79,7 @@ func (m *Model) refreshInterval() time.Duration {
 
 func (m *Model) refreshBusy() bool {
 	return m.editing || m.filtering || m.settings != nil || m.dialogs.Active() ||
-		m.creationEditor != nil || m.actionBusy || m.localSaveBusy || m.help
+		m.creationEditor != nil || m.actionBusy || m.localSaveBusy
 }
 
 func (m *Model) automaticRefreshAllowed() bool {
@@ -157,7 +158,7 @@ func (m *Model) toggleRefreshPause() {
 		if m.refresh.pending == refreshAutomatic {
 			m.refresh.pending = refreshNone
 		}
-		m.notice = "Automatic refresh paused · R resumes; r refreshes now."
+		m.notice = fmt.Sprintf("Automatic refresh paused · %s resumes; %s refreshes now.", m.effectiveKey("R"), m.effectiveKey("r"))
 		return
 	}
 	m.notice = "Automatic refresh resumed."
