@@ -1,6 +1,38 @@
 # Release Notes
 
 
+## [0.16.0-beta.3](https://github.com/matcra587/jira-cli/releases/tag/v0.16.0-beta.3) — 2026-10-28
+
+### Breaking Changes
+
+- Preserve unavailable watcher facts, issue-link lists, attachment sizes and create/edit verification metadata: machine output omits absent keys and retains explicit null instead of inventing false, zero, empty strings or arrays; human output distinguishes unavailable data from observed empty values.
+
+### Added
+
+- Refresh the dashboard automatically or on terminal focus, pause background reads, and highlight newly observed or changed issues. Configure refresh behavior in Settings while preserving drafts and the loaded issue window.
+- Dock issue previews on the left and click dashboard view tabs or detail sections to navigate. Use compact section menus in smaller terminals.
+- Configure named views, narrowing lenses, visible tab order and startup choices through dashboard Settings. Retain each view’s selection, filters and preview position as you switch, and keep tab references when renaming views.
+- Configure dashboard shortcuts through Settings with key capture, alternatives, conflict checks and reset. Keep command labels, footer hints and searchable keyboard help aligned with the active bindings while preserving editor controls.
+
+### Changed
+
+- Restore jira tui with assigned and project views, explicit JQL search, responsive issue previews, saved searches, recent issues and native detail sections. Filter by text or field, mark issues and review individual or bulk triage with per-issue outcomes. Create issues and edit summaries or labels with fresh reads, frozen review targets and retained session drafts. Configure public settings in searchable choice menus, hot-reload saved configuration, and preview built-in or custom themes through the color editor. Legacy TUI preference migration remains deferred.
+- Honor the configured default issue type in the dashboard creation picker while keeping every project type available for an explicit choice.
+- Clarify dashboard settings with explicit choice menus, unsaved-change counts, full selected values and explanations for display options hidden by the current view or terminal size.
+- Load more dashboard results as you navigate near the end of the list, with a Settings toggle, preserved selection and explicit retry after a failed read.
+- Configure automatic, right or bottom dashboard previews and their size, with temporary list zoom and consistent focus across terminal sizes.
+- Browse native Initiative, Epic and child hierarchies with breadcrumbs, preserved back navigation and configurable roots through Settings.
+- Edit existing issue descriptions through anchored Markdown, preserving protected native content and unknown ADF with explicit review and session drafts.
+- Cycle dashboard views without getting trapped in an empty Search editor; start JQL explicitly with / or Enter.
+
+### Fixed
+
+- Distinguish unfetched human fields from empty values in issue headers, list columns and current-account output; report unavailable comment previews without claiming there are no comments.
+
+### Security
+
+- Bound attachment downloads to 100 MiB by default, with a positive --max-download-bytes override and safe cleanup when the limit is exceeded.
+
 ## [0.16.0-beta.1](https://github.com/matcra587/jira-cli/releases/tag/v0.16.0-beta.1) — 2026-10-26
 
 > [!NOTE]

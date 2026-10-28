@@ -1,3 +1,0 @@
-kind: changed
-body: Cycle dashboard views without getting trapped in an empty Search editor; start JQL explicitly with / or Enter.
-time: 2026-10-28T09:39:07.291234057-04:00

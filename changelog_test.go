@@ -44,14 +44,14 @@ func TestEmbeddedReleaseCatalog(t *testing.T) {
 			t.Fatalf("embedded artifact %s missing from catalog", path)
 		}
 	}
-	if got[0].Tag != "v0.16.0-beta.1" || got[len(got)-1].Tag != "v0.1.0" {
+	if got[0].Tag != "v0.16.0-beta.3" || got[len(got)-1].Tag != "v0.1.0" {
 		t.Fatal("catalog endpoints do not match released history")
 	}
 	positions := make(map[string]int, len(got))
 	for i, release := range got {
 		positions[release.Tag] = i
 	}
-	for _, pair := range [][2]string{{"v0.10.15", "v0.10.9"}, {"v0.10.0", "v0.9.2"}, {"v0.15.2", "v0.15.1"}, {"v0.16.0-beta.0", "v0.15.2"}, {"v0.16.0-beta.1", "v0.16.0-beta.0"}} {
+	for _, pair := range [][2]string{{"v0.10.15", "v0.10.9"}, {"v0.10.0", "v0.9.2"}, {"v0.15.2", "v0.15.1"}, {"v0.16.0-beta.0", "v0.15.2"}, {"v0.16.0-beta.1", "v0.16.0-beta.0"}, {"v0.16.0-beta.3", "v0.16.0-beta.1"}} {
 		if positions[pair[0]] >= positions[pair[1]] {
 			t.Fatalf("%s must precede %s", pair[0], pair[1])
 		}
