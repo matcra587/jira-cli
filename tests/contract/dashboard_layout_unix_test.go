@@ -94,3 +94,41 @@ func TestDashboardNativePreviewLayoutChoiceSizeAndZoom(t *testing.T) {
 		})
 	}
 }
+
+func TestDashboardNativeLeftDockAndMouseTabs(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method == http.MethodPost && r.URL.Path == "/rest/api/3/search/jql" {
+			_, _ = fmt.Fprint(w, `{"isLast":true,"issues":[{"key":"DEMO-1","fields":{"summary":"Pointer fixture"}}]}`)
+			return
+		}
+		if r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/rest/api/3/issue/") {
+			_, _ = fmt.Fprint(w, `{"key":"DEMO-1","fields":{"summary":"Pointer fixture","description":null}}`)
+			return
+		}
+		t.Errorf("unexpected pointer request: %s %s", r.Method, r.URL.Path)
+		http.Error(w, "unexpected request", http.StatusBadRequest)
+	}))
+	t.Cleanup(server.Close)
+	for _, window := range []unix.Winsize{{Col: 40, Row: 12}, {Col: 80, Row: 24}, {Col: 159, Row: 45}} {
+		t.Run(fmt.Sprintf("%dx%d", window.Col, window.Row), func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "settings.toml")
+			if err := os.WriteFile(path, fmt.Appendf(nil, "base_url=%q\nemail='person@example.invalid'\nsecret_backend='env'\nread_only=true\ntui_preview_dock='left'\ntui_refresh_interval=0\n", server.URL), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			terminal := startSettingsAuditTerminalSize(t, dir, path, "", window)
+			terminal.wait("DEMO-1")
+			terminal.sendWait("\x1b[<0;13;2M\x1b[<0;13;2m", "/ or Enter to write JQL")
+			terminal.sendWait("\x1b[<0;4;2M\x1b[<0;4;2m", "DEMO-1")
+			terminal.sendWait("\r", "esc back")
+			if window.Col == 40 {
+				terminal.sendWait("\x1b[<0;4;6M\x1b[<0;4;6m", "Issue sections")
+				terminal.sendWait("\x1b[200~Activity\x1b[201~\r", "Activity")
+			} else {
+				terminal.sendWait("\x1b[<0;30;6M\x1b[<0;30;6m", "Activity not returned.")
+			}
+			terminal.stop()
+		})
+	}
+}

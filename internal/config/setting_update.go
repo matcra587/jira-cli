@@ -31,7 +31,7 @@ func SettingValueChoices(key string) []string {
 	case "keyring", "read_only", "tui_preview", "tui_status", "tui_assignee", "tui_labels", "tui_priority", "tui_issue_type", "tui_compact", "tui_updated", "tui_auto_page", "tui_refresh_on_focus", "tui_change_markers":
 		return []string{"true", "false"}
 	case "tui_preview_dock":
-		return []string{string(PreviewDockAuto), string(PreviewDockRight), string(PreviewDockBottom)}
+		return []string{string(PreviewDockAuto), string(PreviewDockLeft), string(PreviewDockRight), string(PreviewDockBottom)}
 	case "glyphs":
 		return []string{GlyphSetDefault.String(), GlyphSetNerd.String()}
 	case "theme":

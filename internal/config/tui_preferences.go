@@ -16,6 +16,8 @@ const (
 	PreviewDockAuto PreviewDock = "auto"
 	// PreviewDockRight requests side-by-side panes when both fit.
 	PreviewDockRight PreviewDock = "right"
+	// PreviewDockLeft places the preview before the issue list when both fit.
+	PreviewDockLeft PreviewDock = "left"
 	// PreviewDockBottom requests vertically stacked panes when both fit.
 	PreviewDockBottom PreviewDock = "bottom"
 	// DefaultTUIPreviewSize is the preview's preferred share of the split.
@@ -30,11 +32,11 @@ const (
 func (d *PreviewDock) UnmarshalText(text []byte) error {
 	value := PreviewDock(strings.ToLower(strings.TrimSpace(string(text))))
 	switch value {
-	case PreviewDockAuto, PreviewDockRight, PreviewDockBottom:
+	case PreviewDockAuto, PreviewDockRight, PreviewDockLeft, PreviewDockBottom:
 		*d = value
 		return nil
 	default:
-		return fmt.Errorf("preview dock must be auto, right or bottom")
+		return fmt.Errorf("preview dock must be auto, left, right or bottom")
 	}
 }
 

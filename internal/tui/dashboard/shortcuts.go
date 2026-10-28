@@ -67,10 +67,12 @@ func (m *Model) clickIssue(msg tea.MouseClickMsg) tea.Cmd {
 		m.previewFocused = true
 		return nil
 	}
-	if msg.X < 2 || msg.X >= 2+m.listWidth() || msg.Y < 7 || msg.Y >= 4+m.listHeight() {
+	geometry := m.dashboardLayout().list
+	x, y := msg.X-2-geometry.Min.X, msg.Y-4-geometry.Min.Y
+	if x < 0 || x >= geometry.Dx() || y < 3 || y >= geometry.Dy() {
 		return nil
 	}
-	offset := msg.Y - 7
+	offset := y - 3
 	if offset%m.rowStride() != 0 {
 		return nil
 	}

@@ -100,8 +100,8 @@ func (m *Model) settingVisibility(name string) string {
 		}
 	case "tui_preview":
 		if !m.split() {
-			if m.previewPreference("tui_preview_dock") == "right" {
-				return "Hidden: right preview needs 84 × 24.\nEnter opens full details."
+			if dock := m.previewPreference("tui_preview_dock"); dock == "right" || dock == "left" {
+				return "Hidden: side preview needs 84 × 24.\nEnter opens full details."
 			}
 			return "Hidden: auto preview needs 64 × 24.\nEnter opens full details."
 		}

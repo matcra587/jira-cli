@@ -47,6 +47,8 @@ func settingChoice(name, value string) (string, string) {
 		return "Automatic", "Right on wide screens; bottom on narrower ones"
 	case "tui_preview_dock/right":
 		return "Right", "Place the preview beside the list when both panes fit"
+	case "tui_preview_dock/left":
+		return "Left", "Place the preview before the issue list when both panes fit"
 	case "tui_preview_dock/bottom":
 		return "Bottom", "Place the preview below the list when both panes fit"
 	case "glyphs/default":

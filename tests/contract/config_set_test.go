@@ -232,7 +232,7 @@ func TestConfigSetSchemaJQAndCompletionExposeValidatedScalarContract(t *testing.
 	for _, tc := range []struct{ key, values string }{
 		{"read_only", "true\nfalse\n"},
 		{"tui_preview", "true\nfalse\n"},
-		{"tui_preview_dock", "auto\nright\nbottom\n"},
+		{"tui_preview_dock", "auto\nleft\nright\nbottom\n"},
 		{"glyphs", "default\nnerd\n"},
 		{"timeout", ""},
 		{"api_token", ""},

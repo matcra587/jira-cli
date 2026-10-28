@@ -96,6 +96,13 @@ func (m *Model) showViews(views []SavedView) {
 }
 
 func (m *Model) acceptPicker(d *pickerDialog) tea.Cmd {
+	if d.kind == "detail-section" {
+		if index := slices.Index(detailSections, d.value()); index >= 0 {
+			m.previewFocused = m.split() && !m.detailFocused
+			return m.changeDetailSection(index - m.detailSection)
+		}
+		return nil
+	}
 	value := d.value()
 	if strings.HasPrefix(d.kind, "create-") {
 		return m.acceptCreationPicker(d, value)

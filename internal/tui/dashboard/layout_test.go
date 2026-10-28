@@ -18,7 +18,7 @@ import (
 
 func TestDashboardLayoutBoundsAndReadablePanes(t *testing.T) {
 	for _, size := range []tea.WindowSizeMsg{{Width: 40, Height: 12}, {Width: 80, Height: 24}, {Width: 159, Height: 45}} {
-		for _, dock := range []string{"auto", "right", "bottom"} {
+		for _, dock := range []string{"auto", "left", "right", "bottom"} {
 			for _, share := range []int{25, 40, 75} {
 				for _, compact := range []bool{true, false} {
 					t.Run(fmt.Sprintf("%dx%d/%s/%d/compact=%v", size.Width, size.Height, dock, share, compact), func(t *testing.T) {
@@ -30,6 +30,9 @@ func TestDashboardLayoutBoundsAndReadablePanes(t *testing.T) {
 						want := config.PreviewDock("")
 						if size.Width == 159 {
 							want = config.PreviewDockRight
+							if dock == "left" {
+								want = config.PreviewDockLeft
+							}
 						}
 						if size.Height >= 24 && (dock == "bottom" || dock == "auto" && size.Width == 80) {
 							want = config.PreviewDockBottom
@@ -37,7 +40,7 @@ func TestDashboardLayoutBoundsAndReadablePanes(t *testing.T) {
 						if g.dock != want {
 							t.Fatalf("dock=%q want=%q", g.dock, want)
 						}
-						if g.dock == config.PreviewDockRight {
+						if g.dock == config.PreviewDockRight || g.dock == config.PreviewDockLeft {
 							if g.list.Dx() < 44 || g.preview.Dx() < 32 || g.list.Dx()+3+g.preview.Dx() != m.pageWidth() {
 								t.Fatal("horizontal layout violated readable pane widths")
 							}
@@ -70,7 +73,7 @@ func TestDashboardLayoutBoundsAndReadablePanes(t *testing.T) {
 }
 
 func TestPreviewMouseUsesRenderedPaneGeometry(t *testing.T) {
-	for _, dock := range []string{"right", "bottom"} {
+	for _, dock := range []string{"left", "right", "bottom"} {
 		t.Run(dock, func(t *testing.T) {
 			m := model(t, pagingIssues(1, 30)...)
 			m.options.SettingValues = map[string]string{"tui_preview_dock": dock}
@@ -87,7 +90,7 @@ func TestPreviewMouseUsesRenderedPaneGeometry(t *testing.T) {
 			if m.preview.YOffset() == 0 || m.selectedKey() != selected {
 				t.Fatal("preview wheel changed list selection")
 			}
-			m.Update(tea.MouseWheelMsg{X: 3, Y: 8, Button: tea.MouseWheelDown})
+			m.Update(tea.MouseWheelMsg{X: 2 + g.list.Min.X + 1, Y: 8, Button: tea.MouseWheelDown})
 			if m.previewFocused || m.selectedKey() == selected {
 				t.Fatal("list wheel was captured by the preview focus")
 			}
@@ -97,6 +100,33 @@ func TestPreviewMouseUsesRenderedPaneGeometry(t *testing.T) {
 				t.Fatal("resize retained an invisible preview focus")
 			}
 		})
+	}
+}
+
+func TestLeftPreviewUsesOneGeometryForPaintAndPointer(t *testing.T) {
+	m := model(t, pagingIssues(1, 30)...)
+	m.options.SettingValues = map[string]string{"tui_preview_dock": "left", "tui_preview_size": "40"}
+	m.Update(tea.WindowSizeMsg{Width: 159, Height: 45})
+	g := m.dashboardLayout()
+	if g.dock != config.PreviewDock("left") || g.preview.Min.X != 0 || g.list.Min.X != g.preview.Max.X+3 {
+		t.Fatal("left preview did not allocate adjacent nonoverlapping panes")
+	}
+	lines := strings.Split(xansi.Strip(m.View().Content), "\n")
+	if !strings.Contains(lines[4][:g.preview.Dx()], "Issue") && !strings.Contains(lines[4][:g.preview.Dx()], "DEMO-1") {
+		t.Fatal("left preview was allocated but painted on the right")
+	}
+	before := m.selectedKey()
+	m.Update(tea.MouseClickMsg{X: 2 + g.preview.Min.X + 2, Y: 8, Button: tea.MouseLeft})
+	if !m.previewFocused || m.selectedKey() != before {
+		t.Fatal("left preview click changed list selection")
+	}
+	m.Update(tea.MouseClickMsg{X: 2 + g.list.Min.X + 2, Y: 8, Button: tea.MouseLeft})
+	if m.previewFocused || m.selectedKey() == before {
+		t.Fatal("right-hand issue row did not use the list's rendered origin")
+	}
+	m.Update(tea.WindowSizeMsg{Width: 40, Height: 12})
+	if m.split() || m.previewFocused {
+		t.Fatal("small terminal retained an invisible left preview")
 	}
 }
 

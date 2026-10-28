@@ -113,7 +113,7 @@ func TestPreviewPreferencesRoundTripGlobalAndEnvironment(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	update, err := file.PrepareSettings(map[string]string{"tui_preview_dock": "bottom", "tui_preview_size": "55"})
+	update, err := file.PrepareSettings(map[string]string{"tui_preview_dock": "left", "tui_preview_size": "55"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,7 +121,7 @@ func TestPreviewPreferencesRoundTripGlobalAndEnvironment(t *testing.T) {
 		t.Fatal(err)
 	}
 	other, err := Load(Options{Path: path, Profile: "other", Environ: func() []string { return nil }})
-	if err != nil || other.Config.TUIPreviewDock != PreviewDockBottom || other.Config.TUIPreviewSize != 55 || other.Source("tui_preview_size") != LayerFile {
+	if err != nil || other.Config.TUIPreviewDock != PreviewDockLeft || other.Config.TUIPreviewSize != 55 || other.Source("tui_preview_size") != LayerFile {
 		t.Fatal("layout was not global or lost its native type", err)
 	}
 	overridden, err := Load(Options{Path: path, Environ: func() []string { return []string{"JIRA_TUI_PREVIEW_DOCK=RIGHT", "JIRA_TUI_PREVIEW_SIZE=75"} }})
@@ -133,7 +133,7 @@ func TestPreviewPreferencesRoundTripGlobalAndEnvironment(t *testing.T) {
 func TestPreviewPreferenceAdmissionRejectsInvalidFileBeforeEnvironment(t *testing.T) {
 	for _, declaration := range []string{
 		"tui_preview_size=24", "tui_preview_size=76", "tui_preview_size=40.5", "tui_preview_size='40'", "tui_preview_size=true",
-		"tui_preview_dock='left'", "tui_preview_dock=''", "tui_preview_dock=1", "tui_preview_dock=true",
+		"tui_preview_dock='sideways'", "tui_preview_dock=''", "tui_preview_dock=1", "tui_preview_dock=true",
 	} {
 		t.Run(declaration, func(t *testing.T) {
 			path := aliasFixture(t, declaration+"\n")

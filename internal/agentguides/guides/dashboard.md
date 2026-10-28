@@ -388,11 +388,16 @@ the document root in named-profile files, and also work through `config set`.
 Ordinary `JIRA_` environment overrides take precedence. Settings saves preserve
 other declarations and profiles and refuse detected snapshot conflicts.
 
-`tui_preview_dock` accepts `auto`, `right` or `bottom`; `tui_preview_size` is an
+`tui_preview_dock` accepts `auto`, `left`, `right` or `bottom`; `tui_preview_size` is an
 integer percentage from 25 to 75, default 40. Both are global, public settings under
 Appearance. Position uses a choice menu and size uses a validated numeric editor.
 They preview in the Settings draft; Esc discards them and Ctrl+S saves and applies
 them. `p` previews the configured layout even while temporary list zoom is active.
+Left and right docks share the same minimum pane widths and fall back to the
+full list when both panes cannot fit. Pointer selection and scrolling follow
+the rendered pane positions. Click a view tab to switch without starting a query
+editor. Click a detail section heading to select it; compact previews open a
+section menu. Active dialogs retain pointer ownership over the underlying page.
 
 Check the JQL line to see the query being run. The issue heading reports loaded
 rows, not an invented total. Forward navigation near the end of the list loads

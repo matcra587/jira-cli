@@ -472,6 +472,9 @@ func (m *Model) View() tea.View {
 		body += "\n" + dim(layout.Separator(m.pageWidth(), -1)) + "\n" + m.detailView()
 	case m.split():
 		left, right := strings.Split(body, "\n"), strings.Split(m.detailView(), "\n")
+		if m.dashboardLayout().dock == config.PreviewDockLeft {
+			left, right = right, left
+		}
 		for i := range left {
 			left[i] += dim(" │ ") + right[i]
 		}

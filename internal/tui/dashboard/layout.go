@@ -43,13 +43,17 @@ func (m *Model) dashboardLayout() dashboardLayout {
 		share = config.DefaultTUIPreviewSize
 	}
 	switch {
-	case dock == config.PreviewDockRight && width >= 80 && m.height >= 24:
+	case (dock == config.PreviewDockRight || dock == config.PreviewDockLeft) && width >= 80 && m.height >= 24:
 		available := width - 3
 		previewWidth := max(32, min(available-44, available*share/100))
 		listWidth := available - previewWidth
 		result.dock = dock
 		result.list = image.Rect(0, 0, listWidth, height)
 		result.preview = image.Rect(listWidth+3, 0, width, height)
+		if dock == config.PreviewDockLeft {
+			result.preview = image.Rect(0, 0, previewWidth, height)
+			result.list = image.Rect(previewWidth+3, 0, width, height)
+		}
 	case dock == config.PreviewDockBottom && width >= 60 && m.height >= 24:
 		available := height - 1
 		previewHeight := max(8, min(available-7, available*share/100))

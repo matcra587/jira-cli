@@ -106,7 +106,7 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.settings != nil {
 			return m, m.updateSettings(msg)
 		}
-		return m, m.clickIssue(msg)
+		return m, m.clickWorkspace(msg)
 	case tea.MouseWheelMsg:
 		m.interaction++
 		if m.settings != nil {
