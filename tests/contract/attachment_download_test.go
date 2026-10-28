@@ -2,6 +2,7 @@ package contract
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -231,5 +232,75 @@ func TestAttachmentDownloadPreviewChecksDestinationWithoutWriting(t *testing.T) 
 				})
 			}
 		}
+	}
+}
+
+func TestAttachmentDownloadByteLimitBinary(t *testing.T) {
+	for _, mode := range []string{"human", "json", "compact"} {
+		for _, transfer := range []string{"known", "chunked", "gzip"} {
+			for _, limit := range []string{"8", "9"} {
+				t.Run(mode+"/"+transfer+"/"+limit, func(t *testing.T) {
+					dir := t.TempDir()
+					path := filepath.Join(dir, "bounded.bin")
+					if err := os.WriteFile(path, []byte("original"), 0o640); err != nil {
+						t.Fatal(err)
+					}
+					var calls atomic.Int32
+					server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+						calls.Add(1)
+						if req.Method != http.MethodGet || req.URL.Path != "/rest/api/3/attachment/content/10042" {
+							t.Error("unexpected download request")
+						}
+						switch transfer {
+						case "known":
+							w.Header().Set("Content-Length", "9")
+						case "chunked":
+							w.(http.Flusher).Flush()
+						case "gzip":
+							w.Header().Set("Content-Encoding", "gzip")
+							gz := gzip.NewWriter(w)
+							_, _ = gz.Write([]byte("123456789"))
+							_ = gz.Close()
+							return
+						}
+						_, _ = w.Write([]byte("123456789"))
+					}))
+					t.Cleanup(server.Close)
+					stdout, stderr, exit := runBinaryEnv(t, editReceiptEnv(server.URL), "issue", "attachment", "download", "10042", "--to", dir, "--as=bounded.bin", "--overwrite", "--max-download-bytes="+limit, "--output="+mode, "--no-input")
+					if calls.Load() != 1 {
+						t.Fatalf("unexpected request count: %d", calls.Load())
+					}
+					contents, err := os.ReadFile(path)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if limit == "8" {
+						if exit != 3 || string(contents) != "original" {
+							t.Fatalf("overflow published bytes: exit=%d out=%s err=%s", exit, stdout, stderr)
+						}
+						if mode == "json" && !bytes.Contains([]byte(stdout), []byte("attachment_download_limit_exceeded")) {
+							t.Fatal("limit error lost its stable code")
+						}
+					} else if exit != 0 || string(contents) != "123456789" {
+						t.Fatalf("larger explicit limit failed: exit=%d out=%s err=%s", exit, stdout, stderr)
+					}
+					entries, err := os.ReadDir(dir)
+					if err != nil || len(entries) != 1 {
+						t.Fatal("download retained staging files", err)
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestAttachmentDownloadInvalidLimitIsOffline(t *testing.T) {
+	for _, limit := range []string{"0", "-1", "9223372036854775808"} {
+		t.Run(limit, func(t *testing.T) {
+			stdout, stderr, exit := runBinary(t, "issue", "attachment", "download", "10042", "--as=bounded.bin", "--dry-run", "--max-download-bytes="+limit, "--output=json")
+			if exit != 3 || !bytes.Contains([]byte(stdout), []byte("flag_value_invalid")) {
+				t.Fatalf("invalid bound did not fail local validation: exit=%d out=%s err=%s", exit, stdout, stderr)
+			}
+		})
 	}
 }

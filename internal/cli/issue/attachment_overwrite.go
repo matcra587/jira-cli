@@ -18,7 +18,7 @@ import (
 // download can replace it. The pinned x/os.AtomicWrite accepts buffered bytes
 // and path strings; this writer requires streaming and one retained os.Root
 // so download size and directory/symlink changes cannot escape that boundary.
-func writeAttachmentOverwrite(ctx context.Context, client core.JiraClient, id, dir, name string) (int64, bool, error) {
+func writeAttachmentOverwrite(ctx context.Context, client core.JiraClient, id, dir, name string, maxBytes int64) (int64, bool, error) {
 	root, err := os.OpenRoot(dir)
 	if err != nil {
 		return 0, false, createInDirError(dir, name, true, err)
@@ -40,7 +40,7 @@ func writeAttachmentOverwrite(ctx context.Context, client core.JiraClient, id, d
 	defer root.Remove(stage) //nolint:errcheck // removes only staging; after rename this name is absent
 	defer file.Close()       //nolint:errcheck // successful close is checked before publication
 	path := nativepath.FilePath(dir, name)
-	written, err := copyAttachment(ctx, client, id, file, path)
+	written, err := copyAttachment(ctx, client, id, file, path, maxBytes)
 	if err != nil {
 		return 0, false, err
 	}

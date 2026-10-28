@@ -610,7 +610,7 @@ func TestDownloadCancellationBeforePublicationPreservesOriginal(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	client := downloadContentHookClient{body: io.NopCloser(downloadEOFHookReader{Reader: strings.NewReader("complete download"), hook: cancel})}
-	_, _, err := writeAttachment(ctx, client, "10042", dir, "report.bin", true)
+	_, _, err := writeAttachment(ctx, client, "10042", dir, "report.bin", downloadOptions{overwrite: true, maxBytes: defaultMaxDownloadBytes})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("canceled complete stream was published: %v", err)
 	}
@@ -645,7 +645,7 @@ func TestDownloadOverwriteSymlinkStaysInsideDestination(t *testing.T) {
 				t.Skipf("symlink unavailable: %v", err)
 			}
 			fake := &fakeAttachmentClient{content: "download contents"}
-			_, replaced, err := writeAttachment(t.Context(), fake, "10042", dir, "report.bin", true)
+			_, replaced, err := writeAttachment(t.Context(), fake, "10042", dir, "report.bin", downloadOptions{overwrite: true, maxBytes: defaultMaxDownloadBytes})
 			if outside {
 				if err == nil || fake.contentGets != 0 {
 					t.Fatal("overwrite followed an outside link or requested content before refusal")
@@ -713,7 +713,7 @@ func TestDownloadFailureCleanupRetainsOriginalDirectory(t *testing.T) {
 	}
 	refused := errors.New("stream refused")
 	client := downloadContentHookClient{body: io.NopCloser(downloadEOFHookReader{Reader: strings.NewReader("partial bytes"), hook: hook, err: refused})}
-	written, overwrote, err := writeAttachment(t.Context(), client, "10042", dir, "report.bin", false)
+	written, overwrote, err := writeAttachment(t.Context(), client, "10042", dir, "report.bin", downloadOptions{maxBytes: defaultMaxDownloadBytes})
 	if !errors.Is(err, refused) || written != 0 || overwrote || hookCalls != 1 {
 		t.Fatalf("failed stream lost its cause or fixture entry: bytes=%d overwritten=%t hooks=%d error=%v", written, overwrote, hookCalls, err)
 	}

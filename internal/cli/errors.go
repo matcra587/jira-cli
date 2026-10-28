@@ -147,6 +147,9 @@ const CodeBulkOutcomeUnconfirmed = "bulk_outcome_unconfirmed"
 // CodeAttachmentFileInvalid means local upload inputs failed preflight.
 const CodeAttachmentFileInvalid = "attachment_file_invalid"
 
+// CodeAttachmentDownloadLimit reports a streamed download exceeding its byte bound.
+const CodeAttachmentDownloadLimit = "attachment_download_limit_exceeded"
+
 // CodeAttachmentResponseInvalid reports an unusable attachment response.
 const CodeAttachmentResponseInvalid = "attachment_response_invalid"
 
@@ -244,6 +247,7 @@ var registry = map[string]spec{
 	CodeTransitionResponseInvalid:       {exit: ExitServer, hint: "Inspect the issue's current status and comments before retrying; the transition may already have landed."},
 	CodeTransitionReadInvalid:           {exit: ExitServer, hint: "Retry transition discovery or inspect the native workflow with `jira api get`. Do not transition using incomplete or contradictory metadata."},
 	CodeAttachmentResponseInvalid:       {exit: ExitServer, hint: "Retry reads as needed. Inspect the issue's attachment list before retrying a write; Jira may already have applied it. Repeating an upload creates duplicates."},
+	CodeAttachmentDownloadLimit:         {exit: ExitValidation, hint: "Choose a larger positive --max-download-bytes value if you intend to save this attachment. Partial downloads are removed; existing overwrite targets are preserved."},
 	CodeAttachmentFileInvalid:           {exit: ExitValidation, hint: "Inspect the local attachment paths. Use readable regular files, with each file and their combined content no larger than 100 MiB."},
 	CodeJiraPreconditionFailed:          {exit: ExitValidation, hint: "Fetch the current resource, reconcile edits, and choose a new precondition before sending another write."},
 	CodeBoardCacheUnavailable:           {exit: ExitNotFound, hint: "Run `jira issue list` with an explicit matching --board or --board-id selector and --refresh --as-jql to cache its saved filter, then retry your original command. For default_board, pass its name explicitly as --board NAME. The site and account must match; local composition never refreshes the cache."},

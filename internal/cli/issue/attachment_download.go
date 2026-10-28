@@ -2,6 +2,7 @@ package issue
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -20,8 +21,10 @@ import (
 // refusal name the same strings. flagTo is shared with `issue link
 // create`, which spells its own target the same way.
 const (
-	flagAs        = "as"
-	flagOverwrite = "overwrite"
+	flagMaxDownloadBytes          = "max-download-bytes"
+	defaultMaxDownloadBytes int64 = 100 << 20
+	flagAs                        = "as"
+	flagOverwrite                 = "overwrite"
 )
 
 // newAttachmentDownload returns `jira issue attachment download`.
@@ -52,6 +55,7 @@ func newAttachmentDownload(deps Deps) *cobra.Command {
 	var mut command.MutationFlags
 	var to, as string
 	var overwrite bool
+	var maxBytes int64
 	var cmd *cobra.Command
 
 	return command.MustNew(command.Spec[envelope.IssueAttachmentDownloadOutput]{
@@ -81,6 +85,9 @@ func newAttachmentDownload(deps Deps) *cobra.Command {
 			"Windows filename suffixes are also literal. Results include extended " +
 			"path syntax when needed to reopen them. Links at those literal " +
 			"filenames are refused during overwrite checks.\n\n" +
+			"Downloads are limited to 100 MiB by default. Use a positive " +
+			"`--max-download-bytes` value to allow a larger attachment. An exceeded " +
+			"limit removes the partial download and preserves an overwrite target.\n\n" +
 			"An existing file is never replaced silently: the command stops and " +
 			"names the file, and `--overwrite` is the explicit opt-in. That is a " +
 			"separate flag from `--force`, which everywhere else in this CLI " +
@@ -119,11 +126,17 @@ func newAttachmentDownload(deps Deps) *cobra.Command {
 			command.AddStringVar(c, &as, flagAs, "",
 				"Write under this name instead of the attachment's own",
 				command.FlagOpts{Terse: "Output name", Placeholder: "name"})
+			command.AddInt64Var(c, &maxBytes, flagMaxDownloadBytes, defaultMaxDownloadBytes,
+				"Maximum attachment bytes to save; must be positive",
+				command.FlagOpts{Terse: "Download byte limit", Placeholder: "bytes"})
 			command.AddBoolVar(c, &overwrite, flagOverwrite, false,
 				"Replace the file if it already exists",
 				command.FlagOpts{Terse: "Replace existing"})
 		},
 		Validate: func() error {
+			if err := validateDownloadLimit(maxBytes); err != nil {
+				return err
+			}
 			if err := validateDownloadName(as); err != nil {
 				return err
 			}
@@ -133,6 +146,7 @@ func newAttachmentDownload(deps Deps) *cobra.Command {
 		Run: func(ctx context.Context, inv command.Invocation) (envelope.IssueAttachmentDownloadOutput, error) {
 			return runAttachmentDownload(ctx, deps, inv, downloadOptions{
 				to:             to,
+				maxBytes:       maxBytes,
 				as:             as,
 				overwrite:      overwrite,
 				validateRemote: mut.ValidateRemote,
@@ -145,10 +159,20 @@ func newAttachmentDownload(deps Deps) *cobra.Command {
 // gathered into one struct so the handler's signature does not grow a
 // parameter per flag — commentAddOptions' own reasoning.
 type downloadOptions struct {
+	maxBytes       int64
 	to             string
 	as             string
 	overwrite      bool
 	validateRemote bool
+}
+
+func validateDownloadLimit(limit int64) error {
+	if limit > 0 {
+		return nil
+	}
+	err := cli.NewInputError(cli.CodeFlagValueInvalid, "--"+flagMaxDownloadBytes+" must be positive")
+	err.Field = flagMaxDownloadBytes
+	return err
 }
 
 // validateDownloadName refuses an `--as` that is not a plain file name.
@@ -196,6 +220,13 @@ func validateDownloadName(as string) error {
 // asks for it.
 func runAttachmentDownload(ctx context.Context, deps Deps, inv command.Invocation, opts downloadOptions) (envelope.IssueAttachmentDownloadOutput, error) {
 	var zero envelope.IssueAttachmentDownloadOutput
+
+	if opts.maxBytes == 0 {
+		opts.maxBytes = defaultMaxDownloadBytes
+	}
+	if err := validateDownloadLimit(opts.maxBytes); err != nil {
+		return zero, err
+	}
 
 	id := inv.Args[0]
 	dir, err := resolveDir(opts.to)
@@ -258,7 +289,7 @@ func runAttachmentDownload(ctx context.Context, deps Deps, inv command.Invocatio
 		return out, previewDownloadDestination(dir, out.Filename, opts.overwrite)
 	}
 
-	written, overwrote, err := writeAttachment(ctx, client, id, dir, out.Filename, opts.overwrite)
+	written, overwrote, err := writeAttachment(ctx, client, id, dir, out.Filename, opts)
 	if err != nil {
 		return zero, err
 	}
@@ -316,9 +347,9 @@ func resolveAttachmentName(ctx context.Context, client core.JiraClient, id strin
 // on disk under the right name is worse than no file: the next reader
 // has no way to tell it apart from a complete one. The removal goes
 // through the same sandbox handle that created it.
-func writeAttachment(ctx context.Context, client core.JiraClient, id, dir, name string, overwrite bool) (written int64, overwrote bool, err error) {
-	if overwrite {
-		return writeAttachmentOverwrite(ctx, client, id, dir, name)
+func writeAttachment(ctx context.Context, client core.JiraClient, id, dir, name string, opts downloadOptions) (written int64, overwrote bool, err error) {
+	if opts.overwrite {
+		return writeAttachmentOverwrite(ctx, client, id, dir, name, opts.maxBytes)
 	}
 	file, path, root, err := createInDir(dir, name, false)
 	if err != nil {
@@ -327,7 +358,7 @@ func writeAttachment(ctx context.Context, client core.JiraClient, id, dir, name 
 	defer root.Close() //nolint:errcheck // root owns path resolution, not buffered contents
 	defer file.Close() //nolint:errcheck // successful close is checked below
 
-	written, err = copyAttachment(ctx, client, id, file, path)
+	written, err = copyAttachment(ctx, client, id, file, path, opts.maxBytes)
 	if err != nil {
 		file.Close()                  //nolint:errcheck // preserve the stream failure; release before removal
 		nativepath.Remove(root, name) //nolint:errcheck // best-effort removal of this download's partial entry
@@ -341,7 +372,7 @@ func writeAttachment(ctx context.Context, client core.JiraClient, id, dir, name 
 }
 
 // copyAttachment streams and syncs bytes without publishing an overwrite.
-func copyAttachment(ctx context.Context, client core.JiraClient, id string, file *os.File, path string) (int64, error) {
+func copyAttachment(ctx context.Context, client core.JiraClient, id string, file *os.File, path string, maxBytes int64) (int64, error) {
 	content, err := command.Spin(ctx, "Downloading attachment "+id, func(ctx context.Context) (core.AttachmentContent, error) {
 		return client.GetAttachmentContent(ctx, id)
 	})
@@ -350,9 +381,26 @@ func copyAttachment(ctx context.Context, client core.JiraClient, id string, file
 	}
 	defer content.Body.Close() //nolint:errcheck // read-only stream; a close failure loses nothing
 
-	written, err := io.Copy(file, content.Body)
+	written, err := io.Copy(file, io.LimitReader(content.Body, maxBytes))
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return 0, ctxErr
+	}
 	if err != nil {
 		return 0, fmt.Errorf("%w: %w", cli.NewCodedError(cli.CodeLocalIO, "writing "+path), err)
+	}
+	if written == maxBytes {
+		// Probe beyond the bound without ever writing an excess byte.
+		var extra [1]byte
+		n, readErr := io.ReadFull(content.Body, extra[:])
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return 0, ctxErr
+		}
+		if n != 0 {
+			return 0, cli.NewCodedError(cli.CodeAttachmentDownloadLimit, fmt.Sprintf("attachment exceeds the %d-byte download limit", maxBytes))
+		}
+		if !errors.Is(readErr, io.EOF) {
+			return 0, fmt.Errorf("%w: %w", cli.NewCodedError(cli.CodeLocalIO, "reading "+path), readErr)
+		}
 	}
 	// Sync before the deferred Close, so a write that failed only at
 	// flush time is reported rather than swallowed by a deferred close

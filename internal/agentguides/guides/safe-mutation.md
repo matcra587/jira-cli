@@ -436,6 +436,12 @@ unresolved bare preview reads no metadata. Creation refuses existing names, and
 `--overwrite` replaces an entry only after the complete stream is saved. Inspect
 the reported destination and retained error before retrying a failed download.
 
+Downloads default to a 100 MiB cap on actual streamed bytes, including unknown
+lengths. Use a positive `--max-download-bytes` value to download a larger file.
+Exceeding the limit reports `attachment_download_limit_exceeded`, removes the
+partial file and preserves an existing overwrite target. The byte limit does
+not impose a transfer deadline.
+
 Windows attachment filenames ending in a dot or space keep that literal name.
 Download results include extended path syntax when needed to reopen the file.
 Preview and overwrite checks select the same entry. An ordinary sibling stays

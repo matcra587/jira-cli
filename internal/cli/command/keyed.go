@@ -335,9 +335,10 @@ var keyFailureSeverity = map[string]int{
 	// message and exit, and the earliest-key tiebreak settles it. Ranking
 	// it higher would change nothing here and would wrongly let a
 	// read-only refusal outrank a real auth failure in a mixed run.
-	cli.CodeOutputWriteFailed:     0,
-	cli.CodeAPIResponseIncomplete: 0,
-	cli.CodeSelectorIncomplete:    0,
+	cli.CodeOutputWriteFailed:       0,
+	cli.CodeAPIResponseIncomplete:   0,
+	cli.CodeAttachmentDownloadLimit: 0,
+	cli.CodeSelectorIncomplete:      0,
 	// Executable updates are local, single-result operations outside fan-out.
 	cli.CodeUpdateUnsupported: 0,
 	cli.CodeUpdateFailed:      0,

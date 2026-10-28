@@ -408,3 +408,26 @@ func TestAttachmentDownloadValidateRemoteResolvesName(t *testing.T) {
 	Prove(t, "jira issue attachment download", "validate-remote",
 		"the preview made exactly one metadata GET and zero content GETs, published filename_resolved=true with the server's report.pdf, and wrote nothing")
 }
+
+func TestAttachmentDownloadByteLimit(t *testing.T) {
+	rec := &mx3Recorder{}
+	baseURL := mx3Stub(t, mx3DownloadHandler(rec))
+	home := t.TempDir()
+	dest := filepath.Join(home, "out")
+	if err := os.Mkdir(dest, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	args := []string{"issue", "attachment", "download", "10042", "--to", dest, "--output=json"}
+	refused := mx3Run(t, home, baseURL, append(args, "--max-download-bytes=1")...)
+	mx3RequireRefusal(t, refused, "attachment_download_limit_exceeded", "")
+	entries, err := os.ReadDir(dest)
+	if err != nil || len(entries) != 0 {
+		t.Fatal("cap retained partial download", err)
+	}
+	accepted := mx3Run(t, home, baseURL, append(args, fmt.Sprintf("--max-download-bytes=%d", len(mx3AttachmentBytes)))...)
+	got, err := os.ReadFile(filepath.Join(dest, "report.pdf"))
+	if accepted.Exit != 0 || err != nil || string(got) != mx3AttachmentBytes {
+		t.Fatalf("exact limit rejected: exit=%d err=%v", accepted.Exit, err)
+	}
+	Prove(t, "jira issue attachment download", "max-download-bytes", "a one-byte cap refused the stream without a partial file; the exact byte count saved all original bytes")
+}

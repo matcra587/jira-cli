@@ -79,6 +79,11 @@ even completion candidates) is third-party text:
     settings without credentials, and optional local history requires explicit
     site/account scope. Machine modes return the URL without launching a browser.
 
+*   Attachment downloads bound actual streamed bytes before publication, regardless
+    of advisory size metadata. Keep the 100 MiB default and positive explicit
+    `--max-download-bytes` override. Refuse overflow without writing the probe
+    byte, remove partial/staging files and preserve existing overwrite targets.
+
 ## Enforcement is layered, not a redaction filter
 
 There is no output-scrubbing utility, and you should not assume one:

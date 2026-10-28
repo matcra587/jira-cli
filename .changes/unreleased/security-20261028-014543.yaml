@@ -1,0 +1,3 @@
+kind: security
+body: Bound attachment downloads to 100 MiB by default, with a positive --max-download-bytes override and safe cleanup when the limit is exceeded.
+time: 2026-10-28T01:45:43.408500028-04:00

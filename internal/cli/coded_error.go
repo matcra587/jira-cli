@@ -22,6 +22,7 @@ type CodedError struct {
 // registry-completeness test walks these lists, so a new code cannot
 // ship without a row and a hint.
 var codedCodes = []string{
+	CodeAttachmentDownloadLimit,
 	CodeDashboardTerminalRequired,
 	CodeCacheIO,
 	CodeCacheResponseInvalid,
