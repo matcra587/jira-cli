@@ -144,7 +144,7 @@ func TestDashboardNativeMainPageSearchSelectionAndSettings(t *testing.T) {
 				stage++
 			}
 		case 4:
-			if bytes.Contains(transcript.Bytes(), []byte("Side-by-side preview")) {
+			if bytes.Contains(transcript.Bytes(), []byte("Show issue preview")) {
 				input = "\r"
 				stage++
 			}

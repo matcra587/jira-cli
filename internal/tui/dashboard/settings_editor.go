@@ -54,7 +54,11 @@ func (m *Model) editSetting(s setting, reset bool) {
 		m.openSettingMenu(s)
 		return
 	}
-	line := input.NewLine("› ", "Empty clears the value")
+	placeholder := "Empty clears the value"
+	if s.key == "tui_preview_size" {
+		placeholder = "25–75 percent"
+	}
+	line := input.NewLine("› ", placeholder)
 	line.SetValue(value)
 	if line.Value() != value {
 		p.notice = "This value contains characters the single-line editor cannot preserve. Use jira config set."
@@ -69,6 +73,9 @@ func (m *Model) keepSetting(key, value string) bool {
 		return false
 	}
 	m.settings.values[key] = value
+	if key == "tui_preview_dock" || key == "tui_preview_size" {
+		m.resize()
+	}
 	m.settings.notice = "Kept in draft. Ctrl+S saves; applies on next launch."
 	if m.options.ReloadSettings != nil {
 		m.settings.notice = "Kept in draft. Ctrl+S saves and applies."

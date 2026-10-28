@@ -154,7 +154,7 @@ func TestSettingsSaveSuccessFailureAndEnvironmentOverride(t *testing.T) {
 	if !m.enabled("tui_preview") || m.settingsChanged() || !strings.Contains(m.settings.notice, "environment") {
 		t.Fatal("environment override was editable")
 	}
-	m.Update(key.Replay("down"))
+	selectAuditSetting(t, m, "tui_status")
 	m.Update(key.Replay("enter"))
 	_, cmd := m.Update(key.Replay("ctrl+s"))
 	if cmd == nil || calls != 0 {
@@ -187,7 +187,7 @@ func TestSettingsFramesKeepSaveAndBackHintsVisible(t *testing.T) {
 		m.openSettings()
 		view := m.View().Content
 		plain := xansi.Strip(view)
-		if !strings.Contains(plain, "ctrl+s") || !strings.Contains(plain, "esc") || !strings.Contains(plain, "Settings") || !strings.Contains(plain, "› Side-by-side") {
+		if !strings.Contains(plain, "ctrl+s") || !strings.Contains(plain, "esc") || !strings.Contains(plain, "Settings") || !strings.Contains(plain, "› Show issue") {
 			t.Fatalf("settings lost primary controls at %dx%d:\n%s", size.Width, size.Height, plain)
 		}
 		lines := strings.Split(view, "\n")

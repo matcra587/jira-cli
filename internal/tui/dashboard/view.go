@@ -14,15 +14,12 @@ import (
 
 	"github.com/matcra587/jira-cli/internal/cli"
 	"github.com/matcra587/jira-cli/internal/cli/command"
+	"github.com/matcra587/jira-cli/internal/config"
 	"github.com/matcra587/jira-cli/internal/jira"
 )
 
 // A split needs enough space for useful issue summaries and readable prose.
 func (m *Model) pageWidth() int { return max(1, m.width-4) }
-
-func (m *Model) split() bool {
-	return m.enabled("tui_preview") && m.pageWidth() >= 110 && m.height >= 24 && !m.detailFocused
-}
 
 func (m *Model) rowStride() int {
 	if m.enabled("tui_compact") {
@@ -31,19 +28,6 @@ func (m *Model) rowStride() int {
 	return 2
 }
 
-func (m *Model) listWidth() int {
-	if m.split() {
-		return (m.pageWidth() - 3) * 3 / 5
-	}
-	return m.pageWidth()
-}
-
-func (m *Model) previewWidth() int {
-	if m.split() {
-		return m.pageWidth() - m.listWidth() - 3
-	}
-	return m.pageWidth()
-}
 func (m *Model) bodyHeight() int { return max(1, m.height-7) }
 
 func (m *Model) applyStyles() {
@@ -60,13 +44,16 @@ func (m *Model) applyStyles() {
 }
 
 func (m *Model) resize() {
+	if !m.split() {
+		m.previewFocused = false
+	}
 	m.input.SetWidth(max(1, m.width-9))
 	if m.filtering {
 		m.filterInput.SetWidth(max(1, m.pageWidth()-9))
 	}
-	m.rows.SetSize(m.listWidth(), max(1, (m.bodyHeight()-3)/m.rowStride()))
+	m.rows.SetSize(m.listWidth(), max(1, (m.listHeight()-3)/m.rowStride()))
 	m.preview.SetWidth(max(1, m.previewWidth()-2))
-	m.preview.SetHeight(max(1, m.bodyHeight()-2))
+	m.preview.SetHeight(max(1, m.previewHeight()-2))
 	m.rebuildRows()
 	m.syncPreview()
 }
@@ -114,7 +101,7 @@ func (m *Model) rebuildRows() {
 	m.rowHeader = dim("      " + aligned[0])
 	m.paintedRows = aligned[1:]
 	m.rows.SetRows(m.paintedRows)
-	m.rows.SetSize(m.listWidth(), max(1, (m.bodyHeight()-3)/m.rowStride()))
+	m.rows.SetSize(m.listWidth(), max(1, (m.listHeight()-3)/m.rowStride()))
 }
 
 // list.View strips SGR from the selected row, which removes status-pill colors.
@@ -205,23 +192,20 @@ func (m *Model) syncPreview() {
 			break
 		}
 		f := m.detailIssue.Fields.Value
-		lines := []string{cli.MarkupStrong(textValue(f.Summary)), ""}
-		if f.Status.Set {
-			lines = append(lines, "Status     "+statusValue(f.Status))
+		compact := m.dashboardLayout().dock == config.PreviewDockBottom && m.previewHeight() < 14
+		summary := cli.MarkupStrong(textValue(f.Summary))
+		if compact {
+			summary = layout.NormalizeLine(summary, w)
 		}
-		if f.Assignee.Set {
-			lines = append(lines, "Assignee   "+personValue(f.Assignee))
+		lines := []string{summary}
+		if !compact {
+			lines = append(lines, "")
 		}
-		if m.enabled("tui_priority") && f.Priority.Set {
-			lines = append(lines, "Priority   "+textValue(f.Priority.Value.Name))
+		lines = append(lines, m.previewMetadata(f, compact, w)...)
+		lines = append(lines, "")
+		if !compact {
+			lines = append(lines, cli.MarkupStrong("Description"), "")
 		}
-		if m.enabled("tui_issue_type") && f.Issuetype.Set {
-			lines = append(lines, "Type       "+textValue(f.Issuetype.Value.Name))
-		}
-		if m.enabled("tui_labels") && f.Labels.Set && !f.Labels.Null && len(f.Labels.Value) > 0 {
-			lines = append(lines, "Labels     "+cli.Text(strings.Join(f.Labels.Value, ", ")))
-		}
-		lines = append(lines, "", cli.MarkupStrong("Description"), "")
 		switch {
 		case !f.Description.Set:
 			lines = append(lines, "Description not returned.")
@@ -251,7 +235,7 @@ func frame(content string, width, height int) string {
 }
 
 func (m *Model) listView() string {
-	width, height := m.listWidth(), m.bodyHeight()
+	width, height := m.listWidth(), m.listHeight()
 	viewName := m.tabs.ActiveItem()
 	if viewName == "Search" && m.viewName != "" {
 		viewName = m.viewName
@@ -259,6 +243,9 @@ func (m *Model) listView() string {
 	focus := ""
 	if !m.detailFocused && !m.previewFocused {
 		focus = accent("› ")
+	}
+	if m.listZoom && m.settings == nil {
+		viewName += " · zoomed"
 	}
 	title := focus + cli.MarkupStrong(viewName) + dim(fmt.Sprintf("   %d loaded", len(m.issues)))
 	if m.localFilter != "" || m.facet.field != "" {
@@ -294,7 +281,7 @@ func (m *Model) listView() string {
 }
 
 func (m *Model) detailView() string {
-	width, height := m.previewWidth(), m.bodyHeight()
+	width, height := m.previewWidth(), m.previewHeight()
 	title := dim("Issue preview")
 	if m.detailFocused || m.previewFocused {
 		title = accent("› Issue preview")
@@ -327,6 +314,7 @@ func (m *Model) detailView() string {
 
 func (m *Model) helpView() string {
 	text := "DASHBOARD HELP\n\n" +
+		"z zooms the list and restores the configured preview. Preview position and size are in Appearance settings.\n\n" +
 		"Views     Tab / Shift+Tab switch views · v saved views and lenses\n" +
 		"Search    / edit JQL · Ctrl+S save · Ctrl+F local text · f facet\n" +
 		"Issues    Ctrl+O switch issue · ↑↓ or j/k select\n" +
@@ -358,14 +346,31 @@ func (m *Model) hints() string {
 		{Key: ",", Desc: "settings"},
 		{Key: "q", Desc: "quit"},
 	}
-	if m.pageWidth() < 100 {
-		hints = hints[2:]
+	zoom := key.Hint{Key: "z", Desc: "zoom"}
+	if m.listZoom {
+		zoom.Desc = "restore"
+	}
+	if m.split() || m.listZoom {
+		hints = append(hints, zoom)
+	}
+	if m.pageWidth() < 140 {
+		hints = []key.Hint{{Key: "↑↓", Desc: "select"}}
+		if m.split() || m.listZoom {
+			hints = append(hints, zoom)
+		}
+		hints = append(hints, key.Hint{Key: "ctrl+p", Desc: "menu"}, key.Hint{Key: ",", Desc: "settings"}, key.Hint{Key: "q", Desc: "quit"})
 	}
 	if m.pageWidth() < 65 {
 		hints = []key.Hint{{Key: "/", Desc: "search"}, {Key: "ctrl+p", Desc: "menu"}, {Key: "q", Desc: "quit"}}
 	}
 	if m.detailFocused || m.previewFocused {
-		hints = []key.Hint{{Key: "↑↓", Desc: "scroll"}, {Key: "[ ]", Desc: "sections"}, {Key: "esc", Desc: "back"}, {Key: "ctrl+p", Desc: "commands"}, {Key: "q", Desc: "quit"}}
+		hints = []key.Hint{{Key: "↑↓", Desc: "scroll"}, {Key: "[ ]", Desc: "sections"}, {Key: "esc", Desc: "back"}, {Key: "ctrl+p", Desc: "menu"}, {Key: "q", Desc: "quit"}}
+		if m.enabled("tui_preview") {
+			hints = append(hints, zoom)
+		}
+		if m.pageWidth() < 65 {
+			hints = []key.Hint{{Key: "esc", Desc: "back"}, {Key: "ctrl+p", Desc: "menu"}, {Key: "q", Desc: "quit"}}
+		}
 	}
 	if m.filtering {
 		hints = []key.Hint{{Key: "enter", Desc: "keep filter"}, {Key: "esc", Desc: "clear text"}}
@@ -427,6 +432,8 @@ func (m *Model) View() tea.View {
 		body = m.helpView()
 	case m.detailFocused:
 		body = m.detailView()
+	case m.dashboardLayout().dock == config.PreviewDockBottom:
+		body += "\n" + dim(layout.Separator(m.pageWidth(), -1)) + "\n" + m.detailView()
 	case m.split():
 		left, right := strings.Split(body, "\n"), strings.Split(m.detailView(), "\n")
 		for i := range left {

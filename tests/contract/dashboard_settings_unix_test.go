@@ -117,6 +117,7 @@ func TestDashboardNativeEverySettingSavesReloadsAndReopens(t *testing.T) {
 		"tui_preview":  "false", "tui_status": "false", "tui_assignee": "false",
 		"tui_labels": "false", "tui_priority": "false", "tui_issue_type": "false",
 		"tui_compact": "false", "tui_updated": "false", "tui_auto_page": "false",
+		"tui_preview_dock": "bottom", "tui_preview_size": "55",
 	}
 	if err := os.MkdirAll(values["queries_path"], 0o700); err != nil {
 		t.Fatal(err)
@@ -152,7 +153,7 @@ func TestDashboardNativeEverySettingSavesReloadsAndReopens(t *testing.T) {
 			before := load().Config.Values()
 			terminal := startSettingsAuditTerminal(t, fixture, path, proxy.URL)
 			terminal.wait("Settings audit issue")
-			terminal.sendWait(",", "Side-by-side preview")
+			terminal.sendWait(",", "Show issue preview")
 			terminal.selectSetting(key)
 			if key == "theme" {
 				terminal.sendWait("\r", "Built-in")
@@ -269,7 +270,7 @@ func TestDashboardNativeEverySettingSavesReloadsAndReopens(t *testing.T) {
 			}
 			reopened := startSettingsAuditTerminal(t, fixture, path, proxy.URL)
 			reopened.wait("JIRA")
-			reopened.sendWait(",", "Side-by-side preview")
+			reopened.sendWait(",", "Show issue preview")
 			reopened.selectSetting(key)
 			reopened.sendWait("d", "unsaved")
 			reopened.sendWait("\x1b", "JQL")
@@ -278,7 +279,7 @@ func TestDashboardNativeEverySettingSavesReloadsAndReopens(t *testing.T) {
 				t.Fatal("reopening or canceling a default reset changed published bytes", err)
 			}
 			if slices.Equal(config.SettingValueChoices(key), []string{"true", "false"}) {
-				reopened.sendWait(",", "Side-by-side preview")
+				reopened.sendWait(",", "Show issue preview")
 				reopened.selectSetting(key)
 				reopened.sendWait("d", "unsaved")
 				reopened.sendWait("\x13", "Runtime reloaded.")
@@ -303,7 +304,7 @@ func TestDashboardNativeEverySettingSavesReloadsAndReopens(t *testing.T) {
 			}
 			terminal := startSettingsAuditTerminal(t, fixture, path, proxy.URL)
 			terminal.wait("Settings audit issue")
-			terminal.sendWait(",", "Side-by-side preview")
+			terminal.sendWait(",", "Show issue preview")
 			terminal.selectSetting(owner.key)
 			terminal.sendWait("\r", owner.guidance)
 			terminal.sendWait("\x13", "No unsaved changes.")
@@ -335,12 +336,27 @@ type settingsAuditTerminal struct {
 
 func startSettingsAuditTerminal(t *testing.T, dir, path, proxy string) *settingsAuditTerminal {
 	t.Helper()
+	return startSettingsAuditTerminalSize(
+		t,
+		dir,
+		path,
+		proxy,
+		unix.Winsize{Row: 30, Col: 120},
+	)
+}
+
+func startSettingsAuditTerminalSize(
+	t *testing.T,
+	dir, path, proxy string,
+	window unix.Winsize,
+) *settingsAuditTerminal {
+	t.Helper()
 	master, slave, err := nativepty.Open()
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = master.Close(); _ = slave.Close() })
-	if err := unix.IoctlSetWinsize(int(slave.Fd()), unix.TIOCSWINSZ, &unix.Winsize{Row: 30, Col: 120}); err != nil {
+	if err := unix.IoctlSetWinsize(int(slave.Fd()), unix.TIOCSWINSZ, &window); err != nil {
 		t.Fatal(err)
 	}
 	before, err := term.GetState(int(slave.Fd()))
@@ -386,7 +402,7 @@ func (p *settingsAuditTerminal) selectSetting(key string) {
 	p.t.Helper()
 	// Prefix the complete key and its following space, avoiding description and
 	// substring matches (account_id versus team_account_ids, for example).
-	p.sendWait("/^"+key+" \r", "^"+key)
+	p.sendWait("/\x15^"+key+" \r", "^"+key)
 }
 
 func (p *settingsAuditTerminal) wait(expected string) {

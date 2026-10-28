@@ -24,7 +24,9 @@ const settingsScope task.Scope = "settings"
 type setting struct{ key, name, group, description string }
 
 var dashboardSettings = []setting{
-	{key: "tui_preview", name: "Side-by-side preview", group: "Appearance", description: "Show issue details beside the list when the terminal has room. Enter always opens details."},
+	{key: "tui_preview", name: "Show issue preview", group: "Appearance", description: "Show issue details beside or below the list when both panes fit. Enter always opens full details."},
+	{key: "tui_preview_dock", name: "Preview position", group: "Appearance", description: "Automatic places the preview right on wide screens or below the list on narrower ones. A fixed position stays hidden when both panes cannot fit."},
+	{key: "tui_preview_size", name: "Preview size", group: "Appearance", description: "Preferred preview percentage from 25 to 75. Minimum pane dimensions remain readable in smaller terminals. List zoom is temporary and leaves this value unchanged."},
 	{key: "tui_status", name: "Show status", group: "Issue list", description: "Display the status column when the issue list has enough space."},
 	{key: "tui_assignee", name: "Show assignee", group: "Issue list", description: "Display assignees in wide lists. My work omits this column because every issue is yours."},
 	{key: "tui_labels", name: "Show labels", group: "Issue preview", description: "Include issue labels above the description."},
@@ -111,9 +113,9 @@ func (m *Model) rebuildSettings() {
 			continue
 		}
 		p.visible = append(p.visible, s)
-		value := strconv.FormatBool(m.enabled(s.key))
-		if !strings.HasPrefix(s.key, "tui_") {
-			value = p.values[s.key]
+		value := p.values[s.key]
+		if enabled, ok := m.preferences[s.key]; ok {
+			value = strconv.FormatBool(enabled)
 		}
 		value = config.Redacted(s.key, value)
 		if s.key == "api_token" || s.key == "aliases" {
@@ -150,6 +152,8 @@ func (m *Model) rebuildSettings() {
 			} else {
 				value = dim("[ ] Off")
 			}
+		} else if s.key == "tui_preview_size" {
+			value = accent(value + "%")
 		} else {
 			value = cli.Text(value)
 			if value == "" {
@@ -292,7 +296,7 @@ func (m *Model) activateSelectedSetting(reset bool) tea.Cmd {
 		return nil
 	}
 	p.notice = ""
-	if !strings.HasPrefix(key, "tui_") && key != "theme" {
+	if _, boolean := m.preferences[key]; !boolean && key != "theme" {
 		m.editSetting(p.visible[i], reset)
 		return nil
 	}
@@ -305,7 +309,7 @@ func (m *Model) activateSelectedSetting(reset bool) tea.Cmd {
 		return nil
 	}
 	if reset {
-		m.preferences[key] = true
+		m.preferences[key] = config.Defaults()[key] == true
 	} else {
 		m.preferences[key] = !m.preferences[key]
 	}

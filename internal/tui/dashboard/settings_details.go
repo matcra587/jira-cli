@@ -2,7 +2,6 @@ package dashboard
 
 import (
 	"strconv"
-	"strings"
 
 	"github.com/gechr/primer/layout"
 	"github.com/gechr/x/human"
@@ -42,8 +41,8 @@ func (m *Model) settingValue(name string) string {
 	if name == "api_token" || name == "aliases" {
 		return "Managed separately"
 	}
-	if strings.HasPrefix(name, "tui_") {
-		return strconv.FormatBool(m.enabled(name))
+	if value, boolean := m.preferences[name]; boolean {
+		return strconv.FormatBool(value)
 	}
 	if name == "theme" {
 		if p.values["theme_path"] != "" {
@@ -65,6 +64,18 @@ func (m *Model) settingValue(name string) string {
 }
 
 func (m *Model) settingVisibility(name string) string {
+	if name == "tui_preview_dock" || name == "tui_preview_size" {
+		if !m.enabled("tui_preview") {
+			return "Turn on Show issue preview to use this layout."
+		}
+		if m.listZoom {
+			return "List zoom temporarily hides the preview. Press p to preview the configured layout."
+		}
+		if !m.split() {
+			return "Both panes do not fit here. Enter still opens full issue details."
+		}
+		return "The configured layout is previewed on the issue page."
+	}
 	if !m.enabled(name) {
 		return ""
 	}
@@ -77,19 +88,22 @@ func (m *Model) settingVisibility(name string) string {
 			return "Hidden in My work (all yours)."
 		}
 		if m.listWidth() < 92 {
-			return "Hidden: list needs 92 columns.\nWiden the terminal or turn off the side-by-side preview."
+			return "Hidden: list needs 92 columns.\nWiden the terminal or change the preview position or zoom the list."
 		}
 	case "tui_updated":
 		if m.listWidth() < 110 {
-			return "Hidden: list needs 110 columns.\nWiden the terminal or turn off the side-by-side preview."
+			return "Hidden: list needs 110 columns.\nWiden the terminal or change the preview position or zoom the list."
 		}
 	case "tui_status":
 		if m.listWidth() < 64 {
-			return "Hidden: list needs 64 columns.\nWiden the terminal or turn off the side-by-side preview."
+			return "Hidden: list needs 64 columns.\nWiden the terminal or change the preview position or zoom the list."
 		}
 	case "tui_preview":
-		if m.pageWidth() < 110 || m.height < 24 {
-			return "Hidden: preview needs 114 × 24.\nEnter still opens issue details."
+		if !m.split() {
+			if m.previewPreference("tui_preview_dock") == "right" {
+				return "Hidden: right preview needs 84 × 24.\nEnter opens full details."
+			}
+			return "Hidden: auto preview needs 64 × 24.\nEnter opens full details."
 		}
 	case "tui_labels", "tui_priority", "tui_issue_type":
 		if !m.split() && !m.detailFocused {

@@ -118,6 +118,7 @@ type Model struct {
 	viewName, notice             string
 	drafts                       map[string]string
 	previewFocused, actionBusy   bool
+	listZoom                     bool
 	detailSection                int
 	commentsKey                  string
 	comments                     []jira.Comment
@@ -170,9 +171,10 @@ func New(ctx context.Context, client Client, options Options) *Model {
 	m.fieldDrafts = make(map[string]string)
 	m.descriptionDrafts = make(map[descriptionIdentity]*descriptionDraft)
 	m.labelDrafts = make(map[string]labelDraft)
+	defaults := config.Defaults()
 	for _, s := range dashboardSettings {
-		if s.key != "theme" {
-			m.preferences[s.key] = true
+		if value, ok := defaults[s.key].(bool); ok {
+			m.preferences[s.key] = value
 		}
 	}
 	maps.Copy(m.preferences, options.Settings)
@@ -433,11 +435,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.creationEditor != nil {
 			return m, m.updateCreationEditor(msg)
 		}
-		if m.detailFocused || m.previewFocused || (m.split() && msg.X > m.listWidth()) {
+		if m.detailFocused || m.previewContains(msg.X, msg.Y) || m.previewFocused && !m.listContains(msg.X, msg.Y) {
 			var cmd tea.Cmd
 			m.preview, cmd = m.preview.Update(msg)
 			return m, cmd
 		}
+		m.previewFocused = false
 		before := m.selectedKey()
 		switch msg.Button {
 		case tea.MouseWheelUp:
@@ -602,6 +605,8 @@ func (m *Model) updateKey(msg tea.KeyPressMsg) tea.Cmd {
 	case "c":
 		m.openComment()
 		return nil
+	case "z":
+		return m.toggleListZoom()
 	case "ctrl+w":
 		if m.split() {
 			m.previewFocused = !m.previewFocused

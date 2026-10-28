@@ -711,9 +711,12 @@ for `command.OnceContextValues` and the synchronous OS-keyring limitation.
 ## Dashboard preferences
 
 `tui_preview`, `tui_status`, `tui_assignee`, `tui_labels`, `tui_priority` and
-`tui_issue_type`, `tui_compact` and `tui_updated` are boolean display preferences, defaulting to true. They are
-`tui_auto_page` also defaults to true and controls forward-navigation paging.
-These are global declarations at the document root, including named-profile files. Ordinary
+`tui_issue_type`, `tui_compact` and `tui_updated` are boolean display preferences,
+defaulting to true. `tui_auto_page` also defaults to true and controls
+forward-navigation paging. `tui_preview_dock` is the validated closed set auto,
+right or bottom; `tui_preview_size` is an integer percentage 25–75, default 40.
+Validate native file integer types and environment values before overlays can
+hide an invalid declaration. These are global declarations at the document root, including named-profile files. Ordinary
 environment precedence applies. The dashboard projects these public values and
 sources from the invocation's resolved settings; it does not expose credentials.
 Its searchable settings page exposes every config key, edits all public writable
@@ -725,6 +728,14 @@ remain for free-form values. Keep choice admission bound to its Settings page.
 The heading counts distinct draft changes. Selected public values and their
 source appear beneath the list, using shared redaction and bounded wrapping.
 Explain display options hidden by the current view or available list width.
+Keep typed layout scalars out of the boolean preference map; route them through
+choice/numeric editors and the same draft, cancel, publication and runtime owners.
+Painting, row/preview viewports and mouse hits share one effective pane geometry.
+Automatic docking uses right or bottom when readable; undersized panes fall back
+to the list. Temporary list zoom never writes a preference and survives reload
+while preview remains enabled. Settings preview shows the configured layout even
+while list zoom is active. Short bottom previews condense metadata without losing
+native fields in full details.
 Display preferences and named themes preview immediately. The creation type
 picker uses `default_issue_type` to preselect an exact native ID or a unique
 case-insensitive name without filtering or accepting the choices.

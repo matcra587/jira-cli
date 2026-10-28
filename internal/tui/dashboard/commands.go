@@ -57,6 +57,13 @@ func (m *Model) openCommands() {
 		{Name: "Search issues", Desc: "Write a JQL query", Key: "/"},
 		{Name: "My work", Desc: "Your unfinished issues", Key: "1"},
 	}
+	if m.split() || m.listZoom || m.detailFocused && m.enabled("tui_preview") {
+		name := "Zoom issue list"
+		if m.listZoom {
+			name = "Restore preview layout"
+		}
+		entries = append(entries, palette.Entry{Name: name, Desc: "Temporary list focus; keep the saved preview layout", Key: "z"})
+	}
 	if !m.options.Actions.ReadOnly && m.options.Actions.Create != nil && !m.actionBusy {
 		entries = append(entries, palette.Entry{Name: "Create issue", Desc: "Project/type, summary, description, labels and assignee", Key: "n"})
 	}

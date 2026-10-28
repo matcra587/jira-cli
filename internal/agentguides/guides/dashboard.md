@@ -76,6 +76,8 @@ terminals. Closing it preserves the issue selection, preview and query.
 *   Ctrl+S saves the current JQL as a new `.jql` file under `queries_path`.
     Existing names are refused. The menu also loads existing YAML/TOML-frontmatter
     queries through the shared loader; selecting them keeps their authored JQL.
+*   `z` temporarily zooms the issue list; press it again to restore the configured
+    preview position and size. Zoom never changes saved settings.
 *   Ctrl+W changes keyboard focus between the list and preview. Enter opens full
     details; Esc returns to the list, including after opening an issue directly.
 *   `[` and `]` switch Description, Comments, Activity and Links. Comments load
@@ -85,8 +87,14 @@ terminals. Closing it preserves the issue selection, preview and query.
     activity. Links preserve direction; `o` opens a picker for returned linked issues.
 *   `?` opens keyboard help; `q` or Ctrl+C closes the dashboard.
 
-Wide terminals show a list and preview side by side. Smaller terminals open
-details separately. A terminal below 40 columns or 12 rows shows a resize notice.
+Automatic preview places details to the right on wide terminals or below the
+list on narrower terminals when both panes fit. Appearance settings can pin Right
+or Bottom and set the preview's preferred share to 25–75% (default 40%). Minimum
+pane dimensions take priority over that share. Right needs at least 84×24;
+Bottom needs 64×24. Automatic prefers Right from 114×24 onward. When neither fits,
+the list fills the screen and Enter opens full details. A short bottom preview
+condenses metadata so description text remains visible; full details keep the
+separate fields. Mouse clicks and wheel scrolling use the rendered pane areas. A terminal below 40 columns or 12 rows shows a resize notice.
 Column headings identify issue keys, summaries and status. My work omits the
 redundant assignee column. Status pills share a width and retain their category
 color when selected. The dashboard uses the CLI's resolved theme and color policy.
@@ -242,7 +250,7 @@ Tools, Connection, Authentication and Identity. Search matches config keys,
 setting names, groups and descriptions. Enter returns from search to
 its results; Esc finishes search before a second Esc closes settings.
 
-Display preferences control the side-by-side preview, compact or comfortable
+Display preferences control the issue preview, compact or comfortable
 row density, status, assignee and updated columns, and labels, priority and issue
 type in previews. The theme picker groups **Built-in themes** and **Your themes**,
 with one row per theme. Colors preview immediately as you move or filter; Enter
@@ -342,6 +350,12 @@ and `tui_auto_page`. They default to `true`, live at
 the document root in named-profile files, and also work through `config set`.
 Ordinary `JIRA_` environment overrides take precedence. Settings saves preserve
 other declarations and profiles and refuse detected snapshot conflicts.
+
+`tui_preview_dock` accepts `auto`, `right` or `bottom`; `tui_preview_size` is an
+integer percentage from 25 to 75, default 40. Both are global, public settings under
+Appearance. Position uses a choice menu and size uses a validated numeric editor.
+They preview in the Settings draft; Esc discards them and Ctrl+S saves and applies
+them. `p` previews the configured layout even while temporary list zoom is active.
 
 Check the JQL line to see the query being run. The issue heading reports loaded
 rows, not an invented total. Forward navigation near the end of the list loads

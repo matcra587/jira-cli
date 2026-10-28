@@ -327,6 +327,9 @@ func load(opts Options, readCredentials func(string) (credentials.Record, error)
 	if err := prepareClientPreferenceEnvironment(envLayer); err != nil {
 		return nil, err
 	}
+	if err := prepareTUIPreferenceEnvironment(envLayer); err != nil {
+		return nil, err
+	}
 	if err := prepareAccountIdentityEnvironment(envLayer); err != nil {
 		return nil, err
 	}
@@ -457,6 +460,9 @@ func load(opts Options, readCredentials func(string) (credentials.Record, error)
 
 	var cfg Config
 	if err := unmarshalMerged(merged, &cfg); err != nil {
+		return nil, err
+	}
+	if _, err := parseTUIPreviewSize(strconv.Itoa(cfg.TUIPreviewSize)); err != nil {
 		return nil, err
 	}
 	cfg.CloudID = strings.TrimSpace(cfg.CloudID)
@@ -602,6 +608,15 @@ func unmarshalFile(k *koanf.Koanf, cfg *Config) error {
 		}
 		if cfg.WorkdaySeconds <= 0 {
 			return errors.New("workday_seconds must be positive")
+		}
+	}
+	if k.Exists("tui_preview_size") {
+		value, ok := k.Get("tui_preview_size").(int64)
+		if !ok {
+			return errors.New("tui_preview_size must be an integer")
+		}
+		if _, err := parseTUIPreviewSize(strconv.FormatInt(value, 10)); err != nil {
+			return err
 		}
 	}
 	if k.Exists("refresh_interval") {

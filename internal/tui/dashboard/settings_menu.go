@@ -43,6 +43,12 @@ func settingChoice(name, value string) (string, string) {
 		return "Environment variable", "Read a token from the environment"
 	case "secret_backend/1password":
 		return "1Password", "Use a 1Password vault and item"
+	case "tui_preview_dock/auto":
+		return "Automatic", "Right on wide screens; bottom on narrower ones"
+	case "tui_preview_dock/right":
+		return "Right", "Place the preview beside the list when both panes fit"
+	case "tui_preview_dock/bottom":
+		return "Bottom", "Place the preview below the list when both panes fit"
 	case "glyphs/default":
 		return "Standard symbols", "Works with ordinary terminal fonts"
 	case "glyphs/nerd":

@@ -144,6 +144,7 @@ func (m *Model) adoptRuntime(next *Model) (tea.Model, tea.Cmd) {
 	if next.options.ApplyRuntime != nil {
 		next.options.ApplyRuntime()
 	}
+	next.listZoom = m.listZoom && next.enabled("tui_preview")
 	next.width, next.height = m.width, m.height
 	next.applyStyles()
 	next.dialogs = newCommandStack()

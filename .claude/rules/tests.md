@@ -1903,3 +1903,13 @@ retry after failure. Check stale-query rejection, disabled Settings behavior,
 mouse navigation, empty/filtered views and the retained result budget. Native
 acceptance proves automatic and manual-only loading through the real executable;
 settings acceptance covers save, hot reload, restart and environment ownership.
+
+Dashboard layout acceptance covers automatic/right/bottom docking, percentage
+bounds and minimum readable panes at 40×12, 80×24 and 159×45 in both row densities.
+Assert exact rendered dimensions, visible back/quit/menu controls, pane-specific
+mouse selection/scrolling and focus after resizing. Prove scalar choices stay out
+of boolean toggles, invalid percentages retain their editor, cancel restores the
+layout, and temporary zoom retains selection and saved preferences. Native
+acceptance exercises the real binary at all three sizes, saves/reloads/reopens
+both layout settings and restores its borrowed terminal. Short stacked previews
+must show description content while full details retain separate native fields.

@@ -241,15 +241,17 @@ type Config struct {
 	// expansion validation is a separate command concern.
 	Aliases map[string]string `koanf:"aliases"`
 	// Dashboard preferences are global display and interaction settings, independent of Jira profiles.
-	TUIAutoPage  bool `koanf:"tui_auto_page"`
-	TUICompact   bool `koanf:"tui_compact"`
-	TUIUpdated   bool `koanf:"tui_updated"`
-	TUIPreview   bool `koanf:"tui_preview"`
-	TUIStatus    bool `koanf:"tui_status"`
-	TUIAssignee  bool `koanf:"tui_assignee"`
-	TUILabels    bool `koanf:"tui_labels"`
-	TUIPriority  bool `koanf:"tui_priority"`
-	TUIIssueType bool `koanf:"tui_issue_type"`
+	TUIPreviewDock PreviewDock `koanf:"tui_preview_dock"`
+	TUIPreviewSize int         `koanf:"tui_preview_size"`
+	TUIAutoPage    bool        `koanf:"tui_auto_page"`
+	TUICompact     bool        `koanf:"tui_compact"`
+	TUIUpdated     bool        `koanf:"tui_updated"`
+	TUIPreview     bool        `koanf:"tui_preview"`
+	TUIStatus      bool        `koanf:"tui_status"`
+	TUIAssignee    bool        `koanf:"tui_assignee"`
+	TUILabels      bool        `koanf:"tui_labels"`
+	TUIPriority    bool        `koanf:"tui_priority"`
+	TUIIssueType   bool        `koanf:"tui_issue_type"`
 }
 
 // secretKeys are the config keys whose values must never be rendered.
@@ -262,7 +264,7 @@ func IsSecret(key string) bool { return secretKeys[key] }
 
 // Keys lists every config key, in a stable order.
 func Keys() []string {
-	return []string{"base_url", "cloud_id", "email", "credential_id", "account_id", "account_id_site", "account_id_email", "account_id_cloud_id", "api_token", "api_token_env", "default_project", "default_issue_type", "default_board", "refresh_interval", "team_account_ids", "keyring", "secret_backend", "onepassword_account", "onepassword_vault", "onepassword_item", "read_only", "timeout", "theme", "theme_path", "glyphs", "workday_seconds", "queries_path", "editor", "aliases", "tui_preview", "tui_status", "tui_assignee", "tui_labels", "tui_priority", "tui_issue_type", "tui_compact", "tui_updated", "tui_auto_page"}
+	return []string{"base_url", "cloud_id", "email", "credential_id", "account_id", "account_id_site", "account_id_email", "account_id_cloud_id", "api_token", "api_token_env", "default_project", "default_issue_type", "default_board", "refresh_interval", "team_account_ids", "keyring", "secret_backend", "onepassword_account", "onepassword_vault", "onepassword_item", "read_only", "timeout", "theme", "theme_path", "glyphs", "workday_seconds", "queries_path", "editor", "aliases", "tui_preview", "tui_status", "tui_assignee", "tui_labels", "tui_priority", "tui_issue_type", "tui_compact", "tui_updated", "tui_auto_page", "tui_preview_dock", "tui_preview_size"}
 }
 
 // Defaults are the built-in values, the layer every load starts from.
@@ -315,6 +317,7 @@ func Defaults() map[string]any {
 		"tui_preview":     true, "tui_status": true, "tui_assignee": true,
 		"tui_labels": true, "tui_priority": true, "tui_issue_type": true,
 		"tui_compact": true, "tui_updated": true, "tui_auto_page": true,
+		"tui_preview_dock": string(PreviewDockAuto), "tui_preview_size": DefaultTUIPreviewSize,
 	}
 }
 
@@ -540,6 +543,8 @@ func (c Config) Values() map[string]string {
 		"queries_path":        c.QueriesPath,
 		"editor":              c.Editor,
 		"aliases":             string(aliasJSON),
+		"tui_preview_dock":    string(c.TUIPreviewDock),
+		"tui_preview_size":    strconv.Itoa(c.TUIPreviewSize),
 		"tui_auto_page":       strconv.FormatBool(c.TUIAutoPage),
 		"tui_compact":         strconv.FormatBool(c.TUICompact),
 		"tui_updated":         strconv.FormatBool(c.TUIUpdated),

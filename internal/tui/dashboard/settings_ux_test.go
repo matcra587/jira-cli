@@ -92,7 +92,7 @@ func TestSettingsExplainDisplayConstraintsOfCurrentView(t *testing.T) {
 	m.preferences["tui_preview"] = true
 	selectAuditSetting(t, m, "tui_preview")
 	plain := xansi.Strip(m.View().Content)
-	if !strings.Contains(plain, "114 × 24") || !strings.Contains(plain, "ctrl+s") || !strings.Contains(plain, "esc") {
+	if !strings.Contains(plain, "64 × 24") || !strings.Contains(plain, "ctrl+s") || !strings.Contains(plain, "esc") {
 		t.Fatal("small terminal did not preserve visibility guidance and controls")
 	}
 }

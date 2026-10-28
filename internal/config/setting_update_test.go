@@ -21,6 +21,7 @@ func TestSettingUpdateValidatesAllWritableScalarsAndPreservesOtherDeclarations(t
 		"base_url": "https://example.invalid", "email": "saved@example.invalid",
 		"account_id": "cached-account", "account_id_site": "https://example.invalid", "account_id_email": "saved@example.invalid", "account_id_cloud_id": "fixture-cloud",
 		"tui_compact": "false", "tui_updated": "false", "tui_auto_page": "false",
+		"tui_preview_dock": "bottom", "tui_preview_size": "55",
 		"tui_preview": "false", "tui_status": "false", "tui_assignee": "false",
 		"tui_labels": "false", "tui_priority": "false", "tui_issue_type": "false",
 		"keyring": "false", "read_only": "false", "timeout": "2m", "theme": "dark",
@@ -60,12 +61,20 @@ func TestSettingUpdateValidatesAllWritableScalarsAndPreservesOtherDeclarations(t
 			if key == "timeout" && fields[key] != "2m0s" {
 				t.Fatal("duration was not stored canonically as TOML text")
 			}
+			if key == "tui_preview_size" {
+				if value, ok := fields[key].(int64); !ok || value != 55 {
+					t.Fatal("preview percentage lost its integer type")
+				}
+			}
+			if key == "tui_preview_dock" && fields[key] != "bottom" {
+				t.Fatal("preview dock lost its canonical string")
+			}
 			if key == "workday_seconds" {
 				if value, ok := fields[key].(int64); !ok || value != 36000 {
 					t.Fatal("workday scalar lost its integer type")
 				}
 			}
-			if key == "keyring" || key == "read_only" || strings.HasPrefix(key, "tui_") {
+			if values[key] == "false" {
 				if value, ok := fields[key].(bool); !ok || value {
 					t.Fatal("boolean scalar was stored as a string or true")
 				}

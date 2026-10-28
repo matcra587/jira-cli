@@ -30,6 +30,8 @@ func SettingValueChoices(key string) []string {
 		return []string{string(core.CredentialBackendKeyring), string(core.CredentialBackendEnvironment), string(core.CredentialBackendOnePassword)}
 	case "keyring", "read_only", "tui_preview", "tui_status", "tui_assignee", "tui_labels", "tui_priority", "tui_issue_type", "tui_compact", "tui_updated", "tui_auto_page":
 		return []string{"true", "false"}
+	case "tui_preview_dock":
+		return []string{string(PreviewDockAuto), string(PreviewDockRight), string(PreviewDockBottom)}
 	case "glyphs":
 		return []string{GlyphSetDefault.String(), GlyphSetNerd.String()}
 	case "theme":
@@ -80,6 +82,14 @@ func parseSettingValue(key, value string) (any, error) {
 			return nil, err
 		}
 		return value, nil
+	case "tui_preview_dock":
+		var dock PreviewDock
+		if err := dock.UnmarshalText([]byte(value)); err != nil {
+			return nil, err
+		}
+		return string(dock), nil
+	case "tui_preview_size":
+		return parseTUIPreviewSize(value)
 	case "refresh_interval":
 		return parseRefreshInterval(value)
 	case "team_account_ids":

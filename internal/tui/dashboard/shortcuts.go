@@ -62,7 +62,11 @@ func (m *Model) clickIssue(msg tea.MouseClickMsg) tea.Cmd {
 	if msg.Button != tea.MouseLeft || m.detailFocused || m.help || m.editing || m.filtering {
 		return nil
 	}
-	if msg.X < 2 || msg.X >= 2+m.listWidth() || msg.Y < 7 || msg.Y >= 4+m.bodyHeight() {
+	if m.previewContains(msg.X, msg.Y) {
+		m.previewFocused = true
+		return nil
+	}
+	if msg.X < 2 || msg.X >= 2+m.listWidth() || msg.Y < 7 || msg.Y >= 4+m.listHeight() {
 		return nil
 	}
 	offset := msg.Y - 7

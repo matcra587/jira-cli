@@ -40,6 +40,7 @@ func newSet() *cobra.Command {
 			"Use [] to clear that array. These retained client preferences are metadata; they do not start polling or add issue filters.\n\n" +
 			"account_id is cached public identity for local previews only. Its independent account_id_site, account_id_email and account_id_cloud_id must match effective scope; changing scope never rebinds an existing ID. Live runs verify Jira identity instead.\n\n" +
 			"tui_preview, tui_status, tui_assignee, tui_labels, tui_priority, tui_issue_type, tui_compact, tui_updated and tui_auto_page are global dashboard booleans, defaulting to true. Change them from the dashboard settings menu or here.\n\n" +
+			"tui_preview_dock accepts auto, right or bottom; tui_preview_size is an integer percentage from 25 to 75 (default 40). Both are global and editable under Appearance in dashboard Settings. Minimum readable pane dimensions may reduce the effective preview share.\n\n" +
 			"Credentials cannot be stored here; use `jira auth login`. Manage aliases " +
 			"through `jira alias set` or `jira alias import` so their command chains are validated.",
 		Example: "$ jira config set read_only true --no-input\n\n" +
