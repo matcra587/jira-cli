@@ -10,21 +10,13 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// PrepareScreen keeps terminal identity while giving a full-screen renderer an
-// owned duplicate with joined read cleanup. Bubble Tea 2.1's Ultraviolet
-// scanner can return before its byte-reader goroutine, racing cancelreader's
-// epoll pipe closure. Hiding Name selects cancelreader's fallback reader;
-// this owner polls in bounded steps and joins reads before closing the duplicate.
-// It cannot rely on Go's pollable-file Close: another borrowed Fd call may switch
-// the shared open description back to blocking mode. With one input owner,
-// readiness followed by a raw-mode read remains valid in either descriptor mode.
-// gechr/x/terminal provides detection, not read lifetime management.
+// PrepareScreen: owned duplicate, bounded polling, joined reads before close.
+// Hide Name: avoid cancelreader scanner/pipe-close race.
+// Preserve flags: stdin/stdout can share open description; O_NONBLOCK breaks redraws.
+// Raw-mode read after readiness; no pollable Go wrapper needed.
+// gechr/x/terminal: detection only, no read lifetime owner.
 func PrepareScreen(reader io.Reader) (io.Reader, func() error, error) {
-	file, ok := reader.(*os.File)
-	if !ok {
-		return reader, nil, nil
-	}
-	prepared, cleanup, err := PrepareStream(file, os.ModeCharDevice|os.ModeNamedPipe|os.ModeSocket)
+	prepared, cleanup, err := prepareStream(reader, os.ModeCharDevice|os.ModeNamedPipe|os.ModeSocket, false)
 	if err != nil || cleanup == nil {
 		return prepared, cleanup, err
 	}

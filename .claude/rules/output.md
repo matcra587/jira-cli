@@ -99,6 +99,10 @@ The shared owner retains destination failures and leaves process signals to root
 Unix screens use the shared input owner's duplicated, bounded-poll reader and
 join active reads before closing it; this avoids the selected scanner's epoll
 cleanup race without closing the borrowed terminal or relying on its descriptor mode.
+Screen preparation preserves descriptor flags throughout the session. Standard
+input and output can share an open description; enabling nonblocking input can
+truncate larger redraws with EAGAIN. Exercise complete Settings All redraws and
+successful terminal restoration on native PTYs.
 Screen success is the human session; machine modes receive structured refusal.
 No command handler or dashboard model acquires a process writer. Jira content in
 screen rows and ADF previews uses the same pure sanitizing sinks as human output.

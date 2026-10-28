@@ -17,6 +17,10 @@ import (
 // and exclusively owns input throughout preparation, reading and restoration.
 // Cleanup restores borrowed flags and never closes the borrowed descriptor.
 func PrepareStream(reader io.Reader, kinds os.FileMode) (io.Reader, func() error, error) {
+	return prepareStream(reader, kinds, true)
+}
+
+func prepareStream(reader io.Reader, kinds os.FileMode, pollable bool) (io.Reader, func() error, error) {
 	file, ok := reader.(*os.File)
 	if !ok {
 		return reader, nil, nil
@@ -40,7 +44,7 @@ func PrepareStream(reader io.Reader, kinds os.FileMode) (io.Reader, func() error
 			return
 		}
 		duplicate, operationErr = unix.FcntlInt(descriptor, unix.F_DUPFD_CLOEXEC, 0)
-		if operationErr == nil {
+		if operationErr == nil && pollable {
 			operationErr = unix.SetNonblock(duplicate, true)
 		}
 	})
@@ -50,23 +54,25 @@ func PrepareStream(reader io.Reader, kinds os.FileMode) (io.Reader, func() error
 		}
 		return nil, nil, err
 	}
-	pollable := os.NewFile(uintptr(duplicate), file.Name())
+	owned := os.NewFile(uintptr(duplicate), file.Name())
 	cleanup := func() error {
 		var restoreErr error
-		if originalFlags&unix.O_NONBLOCK == 0 {
+		if pollable && originalFlags&unix.O_NONBLOCK == 0 {
 			controlErr := connection.Control(func(descriptor uintptr) {
 				restoreErr = unix.SetNonblock(int(descriptor), false)
 			})
 			restoreErr = errors.Join(controlErr, restoreErr)
 		}
-		closeErr := pollable.Close()
+		closeErr := owned.Close()
 		if errors.Is(closeErr, os.ErrClosed) {
 			closeErr = nil // cancellation may have closed the owned duplicate
 		}
 		return errors.Join(restoreErr, closeErr)
 	}
-	if err := pollable.SetReadDeadline(time.Time{}); err != nil {
-		return nil, nil, errors.Join(err, cleanup())
+	if pollable {
+		if err := owned.SetReadDeadline(time.Time{}); err != nil {
+			return nil, nil, errors.Join(err, cleanup())
+		}
 	}
-	return pollable, cleanup, nil
+	return owned, cleanup, nil
 }
