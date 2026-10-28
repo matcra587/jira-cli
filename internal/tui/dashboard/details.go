@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/gechr/primer/task"
@@ -216,4 +217,52 @@ func activityContent(issue *jira.IssueBean) string {
 	}
 	lines = append(lines, "Open Jira for history outside this returned page.")
 	return strings.Join(lines, "\n")
+}
+
+type detailResult struct {
+	key   string
+	issue *jira.IssueBean
+}
+
+type detailDue struct{ key string }
+
+func (m *Model) selectDetail() tea.Cmd {
+	key := m.selectedKey()
+	if key == m.detailKey {
+		return nil
+	}
+	m.detailKey, m.detailIssue, m.detailErr = key, nil, nil
+	m.resetComments()
+	m.detailLoading = key != ""
+	m.preview.GotoTop()
+	m.syncPreview()
+	if key == "" {
+		return nil
+	}
+	// Avoid a request for every key-repeat while moving through a long list.
+	due := tea.Tick(120*time.Millisecond, func(time.Time) tea.Msg { return detailDue{key: key} })
+	if m.detailSection == 1 {
+		return tea.Batch(due, m.loadComments(false))
+	}
+	return due
+}
+
+func (m *Model) startDetailRead(key string) tea.Cmd {
+	if key != m.detailKey || key == "" {
+		return nil
+	}
+	return m.tasks.Start(task.Spec{Scope: detailScope, Run: func() (any, error) { return m.detail(key) }})
+}
+
+func (m *Model) acceptDetail(msg task.FinishedMsg) {
+	result, ok := msg.Result.(detailResult)
+	if !ok || result.key != m.detailKey {
+		return
+	}
+	m.detailLoading, m.detailErr = false, msg.Err
+	if msg.Err == nil {
+		m.detailIssue = result.issue
+		m.rememberIssue(result.key, result.issue.Fields.Value.Summary.Value)
+	}
+	m.syncPreview()
 }

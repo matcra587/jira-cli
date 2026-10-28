@@ -409,8 +409,8 @@ func (m *Model) hints() string {
 	return renderer.Render(hints)
 }
 
-// View is pure: data loading, row rebuilding and ADF rendering happen on
-// accepted updates, never during repeated terminal repaints.
+// View reuses data, rows and ADF projected during accepted updates. Repaints
+// prepare widget geometry without starting reads or rebuilding issue content.
 func (m *Model) View() tea.View {
 	if m.width == 0 || m.height == 0 {
 		return tea.NewView("")

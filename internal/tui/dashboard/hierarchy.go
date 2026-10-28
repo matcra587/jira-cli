@@ -1,7 +1,6 @@
 package dashboard
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"maps"
@@ -57,20 +56,6 @@ type hierarchyResult struct {
 	around      bool
 	selectChild string
 	read        core.IssueHierarchyRead
-}
-
-func dashboardSearcher(
-	ctx context.Context,
-	client Client,
-	parent bool,
-) func(string, string) (envelope.IssueListOutput, error) {
-	fields := []string{"summary", "status", "issuetype", "priority", "assignee", "updated", "labels"}
-	if parent {
-		fields = append(fields, "parent")
-	}
-	return func(query, cursor string) (envelope.IssueListOutput, error) {
-		return command.WalkIssues(ctx, client, query, fields, cursor, command.SearchWalk{Limit: pageSize})
-	}
 }
 
 func (m *Model) hierarchyActive() bool { return m.tabs.ActiveItem() == hierarchyTab }

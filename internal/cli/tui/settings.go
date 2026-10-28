@@ -21,7 +21,7 @@ func dashboardOptions(ctx context.Context, resolved *config.Resolved) (dashboard
 	if err != nil {
 		return dashboard.Options{}, err
 	}
-	options := dashboard.Options{Settings: make(map[string]bool), SettingSources: make(map[string]string)}
+	options := dashboard.Options{SettingSources: make(map[string]string)}
 	// Binding occurs once before Tea starts any commands. The original snapshot
 	// stays fixed while publication and query I/O inherit the screen lifetime.
 	options.BindContext = func(session context.Context) { ctx = session }
@@ -60,9 +60,6 @@ func dashboardOptions(ctx context.Context, resolved *config.Resolved) (dashboard
 		"tui_compact":   c.TUICompact, "tui_updated": c.TUIUpdated,
 		"tui_preview": c.TUIPreview, "tui_status": c.TUIStatus, "tui_assignee": c.TUIAssignee,
 		"tui_labels": c.TUILabels, "tui_priority": c.TUIPriority, "tui_issue_type": c.TUIIssueType,
-	}
-	for key := range options.Settings {
-		options.SettingSources[key] = string(resolved.Source(key))
 	}
 	var snapshotErr error
 	options.SaveSettings = func(values map[string]string) error {

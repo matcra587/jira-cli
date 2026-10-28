@@ -80,7 +80,6 @@ func (m *Model) openViews() tea.Cmd {
 }
 
 func (m *Model) showViews(views []SavedView) {
-	m.views = views
 	choices := []choice{
 		{label: "My work", description: "Your unfinished issues", value: myWorkQuery},
 		{label: "Updated", description: "Your issues updated in the last seven days", value: "assignee = currentUser() AND updated >= -7d ORDER BY updated DESC"},

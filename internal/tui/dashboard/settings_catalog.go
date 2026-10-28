@@ -1,5 +1,21 @@
 package dashboard
 
+var dashboardSettings = []setting{
+	{key: "tui_preview", name: "Show issue preview", group: "Appearance", description: "Show issue details beside or below the list when both panes fit. Enter always opens full details."},
+	{key: "tui_preview_dock", name: "Preview position", group: "Appearance", description: "Automatic places the preview right on wide screens or below the list on narrower ones. A fixed position stays hidden when both panes cannot fit."},
+	{key: "tui_preview_size", name: "Preview size", group: "Appearance", description: "Preferred preview percentage from 25 to 75. Minimum pane dimensions remain readable in smaller terminals. List zoom is temporary and leaves this value unchanged."},
+	{key: "tui_status", name: "Show status", group: "Issue list", description: "Display the status column when the issue list has enough space."},
+	{key: "tui_assignee", name: "Show assignee", group: "Issue list", description: "Display assignees in wide lists. My work omits this column because every issue is yours."},
+	{key: "tui_labels", name: "Show labels", group: "Issue preview", description: "Include issue labels above the description."},
+	{key: "tui_priority", name: "Show priority", group: "Issue preview", description: "Include priority above the description."},
+	{key: "tui_issue_type", name: "Show issue type", group: "Issue preview", description: "Include the issue type above the description."},
+	{key: "tui_compact", name: "Compact issue rows", group: "Appearance", description: "Use one line per issue. Turn off for more breathing room between rows."},
+	{key: "tui_updated", name: "Show updated", group: "Issue list", description: "Display the native update timestamp when the list has enough room."},
+	{key: "tui_auto_page", name: "Load more as you scroll", group: "Issue list", description: "Load the next page near the end of the list. Failed requests wait for an explicit retry with m; loading stays within the result limit."},
+	{key: "theme", name: "Theme", group: "Appearance", description: "Choose built-in or custom themes with live previews. Enter keeps the selection in your settings draft; Esc restores the prior colors."},
+	{key: "tui_hierarchy_query", name: "Hierarchy roots", group: "Hierarchy", description: "JQL for the Hierarchy tab. Defaults to native Epic level. Press F2 while editing to choose a visible Jira issue type, including Initiatives; Enter keeps the draft."},
+}
+
 // These descriptions distinguish preferences from cached identity and startup
 // configuration. A successful save/reload adopts a newly bound runtime.
 var otherSettings = []setting{
