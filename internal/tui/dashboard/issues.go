@@ -28,6 +28,10 @@ func dashboardSearcher(
 }
 
 func (m *Model) load(more bool) tea.Cmd {
+	if m.query == "" {
+		m.isLast = true
+		return nil
+	}
 	if m.loading {
 		return nil
 	}
@@ -77,10 +81,13 @@ func (m *Model) switchView() tea.Cmd {
 	case "Project":
 		m.query = m.options.ProjectQuery
 	case "Search":
-		if m.customQuery == "" {
-			return m.editQuery()
-		}
 		m.query = m.customQuery
+		if m.query == "" {
+			m.viewName, m.notice = "", ""
+			m.resetQuery()
+			m.isLast = true
+			return nil
+		}
 	}
 	return m.newQuery()
 }
@@ -209,3 +216,5 @@ func (m *Model) updateQuery(msg tea.KeyPressMsg) tea.Cmd {
 	m.input, cmd = m.input.Update(msg)
 	return cmd
 }
+
+func (m *Model) emptySearch() bool { return m.tabs.ActiveItem() == "Search" && m.query == "" }

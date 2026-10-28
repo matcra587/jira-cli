@@ -137,9 +137,7 @@ func (m *Model) adoptRuntime(next *Model) (tea.Model, tea.Cmd) {
 		case "Project":
 			next.query = next.options.ProjectQuery
 		case "Search":
-			if saved.query != "" {
-				next.query = saved.query
-			}
+			next.query = saved.query
 		}
 		if next.query == saved.activeQuery {
 			next.issues, next.marks = saved.issues, saved.marks

@@ -255,6 +255,9 @@ func (m *Model) updateKey(msg tea.KeyPressMsg) tea.Cmd {
 		}
 		return m.load(true)
 	case "enter":
+		if m.emptySearch() {
+			return m.editQuery()
+		}
 		if m.selected() != nil {
 			m.detailFocused = true
 			m.resize()

@@ -41,7 +41,7 @@ func New(deps Deps) *cobra.Command {
 			"Forward list navigation loads the next page near the result boundary; disable Load more as you scroll in Settings for manual-only loading with m. Failed page reads wait for an explicit retry. " +
 			"Use z to zoom the list and restore its preview. Appearance settings choose Automatic, Right or Bottom docking and a 25–75 percent preview size. Small terminals keep full details on Enter. " +
 			"Use H for hierarchy roots, Right for native children, Left for their parent level, Backspace for prior lists, and Ctrl+G for hierarchy around the selected issue. Hierarchy settings choose roots by JQL or a visible Jira issue type with F2. " +
-			"Use Tab to switch views, / to edit JQL, Enter to focus a preview, Ctrl+P for commands, comma for settings, and ? for help. " +
+			"Tab and Shift+Tab switch views without starting an editor. Empty Search waits for / or Enter to write JQL; Esc exits editing. Use / to edit JQL, Enter to focus a preview, Ctrl+P for commands, comma for settings, and ? for help. " +
 			"Settings edits public config values with validation; Ctrl+S saves and hot-reloads the selected profile, and Ctrl+R reloads without saving. Display preferences preview immediately. A failed reload retains the old connection and blocks Jira actions until retry succeeds. Tokens and aliases retain their dedicated auth and alias workflows. " +
 			"Requires interactive input and output in human mode. For scripts and agents use jira issue list or jira issue view.",
 		Example: "  jira tui\n  jira tui --jql='assignee = currentUser() ORDER BY updated DESC'\n  jira --profile=work tui",

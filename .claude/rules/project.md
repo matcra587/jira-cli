@@ -109,6 +109,8 @@ documented raw-output exception and emit identical bytes in every output mode.
     actions. Its runtime schema declares interactive write capabilities. It does
     not consume legacy TUI preferences;
     explicit migration deferral retains those original declarations for later work.
+    View switching never implicitly focuses JQL input. An unused Search stays
+    idle until `/` or Enter; empty JQL is not submitted, including after reload.
 *   **Versioning** uses clive's injected version and Go's embedded VCS metadata,
     exposed by `internal/cli/version/`. Build flags belong to
     `.mise/tasks/lib/build-env.sh`.

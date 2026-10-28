@@ -279,6 +279,8 @@ func (m *Model) listView() string {
 	body := m.rowsView()
 	if len(m.visible) == 0 {
 		switch {
+		case m.emptySearch():
+			body = "\n  Press / or Enter to write JQL.\n  Tab switches views."
 		case len(m.issues) > 0:
 			body = "\n  No loaded issues match the local filter.\n  Ctrl+F changes text; f changes the facet."
 		case m.loading:
@@ -428,6 +430,9 @@ func (m *Model) View() tea.View {
 	gap := max(2, m.pageWidth()-xansi.WcWidth.StringWidth(brand)-xansi.WcWidth.StringWidth(identity))
 	header := brand + strings.Repeat(" ", gap) + dim(identity)
 	query := dim("JQL  " + cli.Text(m.query))
+	if m.emptySearch() {
+		query = accent("Search") + dim(" · / or Enter to write JQL")
+	}
 	if m.filtering {
 		query = m.filterInput.View()
 	} else if m.localFilter != "" || m.facet.field != "" {

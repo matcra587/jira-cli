@@ -51,6 +51,12 @@ terminals. Closing it preserves the issue selection, preview and query.
 
 ### Navigate the issue page
 
+Tab and Shift+Tab cycle views without entering a text field. An unused Search
+view stays idle until you press `/` or `Enter` to write JQL; `Esc` leaves that
+editor, and tab navigation then resumes. Idle Search sends no Jira query,
+including after a Settings reload. Explicit `--jql` startup and committed queries
+still run immediately.
+
 *   Arrow keys or `j`/`k` select an issue. Page Up/Down move a page.
     Click a row to select it; click the selected row again to open its details.
     Mouse wheel scrolling follows the list or preview under the pointer.
