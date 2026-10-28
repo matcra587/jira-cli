@@ -288,7 +288,33 @@ func (m *Model) acceptCreationChoices(msg task.FinishedMsg) tea.Cmd {
 		m.dialogs.Pop()
 	}
 	m.pickCreation("New issue · "+strings.TrimPrefix(result.kind, "create-"), result.kind, result.choices)
+	if result.kind == "create-type" {
+		m.selectConfiguredCreationType(m.dialogs.Top().(*pickerDialog))
+	}
 	return nil
+}
+
+func (m *Model) selectConfiguredCreationType(picker *pickerDialog) {
+	requested := strings.TrimSpace(m.options.SettingValues["default_issue_type"])
+	if requested == "" {
+		return
+	}
+	selected, matches := -1, 0
+	for i, c := range picker.choices {
+		if c.value == requested {
+			selected, matches = i, 1
+			break
+		}
+		if strings.EqualFold(c.description, requested) {
+			selected, matches = i, matches+1
+		}
+	}
+	if matches != 1 {
+		return
+	}
+	for range selected {
+		picker.menu.Update(key.Replay("down"))
+	}
 }
 
 func (m *Model) creationLine(title, kind, description string) {

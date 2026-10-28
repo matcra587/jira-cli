@@ -114,6 +114,7 @@ func (m *Model) rebuildSettings() {
 		if !strings.HasPrefix(s.key, "tui_") {
 			value = p.values[s.key]
 		}
+		value = config.Redacted(s.key, value)
 		if s.key == "api_token" || s.key == "aliases" {
 			value = "managed separately"
 		}
@@ -390,7 +391,11 @@ func (m *Model) acceptSettings(msg task.FinishedMsg) (tea.Model, tea.Cmd) {
 	}
 	result, hasResult := msg.Result.(settingsSaved)
 	if hasResult && result.next != nil && result.reloadErr == nil {
-		return m.adoptRuntime(result.next)
+		next, cmd := m.adoptRuntime(result.next)
+		if result.published {
+			result.next.settings.notice = "Saved and active. Runtime reloaded."
+		}
+		return next, cmd
 	}
 	for key, value := range m.preferences {
 		if value != p.baseline[key] {
@@ -434,31 +439,20 @@ func (m *Model) settingsView() string {
 	p := m.settings
 	title := accent("JIRA") + "  " + "Settings"
 	if m.settingsChanged() {
-		title += dim("  · unsaved changes")
+		title += dim("  · " + m.settingsStatus())
 	}
+	details := m.settingsDetails()
+	if m.reloadFailure != "" {
+		active := "Config not active; Jira writes blocked. Active connection: " + cli.Text(m.site) + " · " + cli.Text(m.options.RuntimeScope.Account)
+		details = append(layout.WrapLines(active, m.pageWidth()), details...)
+	}
+	detailHeight := max(2, min(len(details), max(2, m.height/3), max(2, m.height-10)))
+	bodyHeight := max(1, m.height-9-detailHeight)
+	p.rows.SetSize(m.pageWidth(), bodyHeight)
 	rows := p.rows.View()
 	if len(p.visible) == 0 {
 		rows = dim("  No settings match your search.")
 	}
-	description := ""
-	if i, ok := p.rows.Selected(); ok {
-		s := p.visible[i]
-		description = s.group + " · " + s.description
-		if p.sources[s.key] == "env" {
-			description += " Controlled by environment."
-		}
-		if !strings.HasPrefix(s.key, "tui_") && s.key != "theme" && s.key != "api_token" && s.key != "aliases" {
-			if m.options.ReloadSettings != nil {
-				description += " Applies when saved."
-			} else {
-				description += " Applies on next launch."
-			}
-		}
-	}
-	if m.reloadFailure != "" {
-		description = "Active connection: " + cli.Text(m.site) + " · " + cli.Text(m.options.RuntimeScope.Account) + ". " + description
-	}
-	explanation := strings.Join(layout.WrapLines(description, m.pageWidth()), "\n")
 	hints := []key.Hint{{Key: "ctrl+s", Desc: "save"}, {Key: "esc", Desc: "back"}, {Key: "enter", Desc: "change"}, {Key: "p", Desc: "preview"}, {Key: "/", Desc: "search"}}
 	if m.options.ReloadSettings != nil {
 		hints = append(hints, key.Hint{Key: "ctrl+r", Desc: "reload"})
@@ -475,25 +469,25 @@ func (m *Model) settingsView() string {
 		if m.height >= 15 {
 			rows = "  " + p.editor.setting.name + "\n\n" + rows
 		}
-		choices := config.SettingValueChoices(p.editor.setting.key)
-		if len(choices) > 0 {
-			rows += "\n\n" + dim("Choices: "+strings.Join(choices, ", ")+" · ↑↓ choose")
-		}
 		hints = []key.Hint{{Key: "enter", Desc: "keep in draft"}, {Key: "esc", Desc: "cancel edit"}}
 	}
 	prefix := ""
 	footer := (key.Renderer{Prefix: &prefix, Width: m.pageWidth(), Gap: " · "}).Render(hints)
 	if p.saving {
-		footer = "Saving settings…"
+		footer = p.notice
 	}
-	body := frame(rows, m.pageWidth(), max(1, m.height-11))
+	body := frame(rows, m.pageWidth(), bodyHeight)
+	notice := p.notice
+	if notice == "" {
+		notice = m.settingsStatus()
+	}
 	tabs := p.tabs.View()
 	if xansi.WcWidth.StringWidth(tabs) > m.pageWidth() {
 		tabs = "‹ " + p.tabs.ActiveStyle.Render(p.tabs.ActiveItem()) + " ›"
 	}
 	return frame(strings.Join([]string{
 		title, tabs, "", p.input.View(), "", body, "",
-		frame(explanation, m.pageWidth(), 2), frame(p.notice, m.pageWidth(), 1), frame(dim(footer), m.pageWidth(), 2),
+		frame(strings.Join(details, "\n"), m.pageWidth(), detailHeight), frame(notice, m.pageWidth(), 1), frame(dim(footer), m.pageWidth(), 2),
 	}, "\n"), m.pageWidth(), m.height)
 }
 

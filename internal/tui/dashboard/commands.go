@@ -238,6 +238,11 @@ func (m *Model) updateCommands(msg tea.Msg) tea.Cmd {
 	case *labelsDialog:
 		m.acceptLabels(d)
 		return cmd
+	case *settingMenu:
+		if d.page == m.settings {
+			m.keepSetting(d.target, d.value())
+		}
+		return cmd
 	case *commandDialog:
 		if entry, ok := d.menu.Selected(); ok {
 			return tea.Batch(cmd, m.updateKey(key.Replay(entry.Key)))

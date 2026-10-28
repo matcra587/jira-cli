@@ -1850,6 +1850,14 @@ Dashboard settings acceptance covers filtered selection, input ownership,
 environment overrides, preview cancellation, save failure retention, repeated
 saves and external-edit refusal through the actual config owner. Check fixed
 frame geometry and visible save/back controls at the smallest supported size.
+Exercise every writable key through the real executable, file publication,
+runtime reload and restart. Verify default-reset cancellation, unchanged unrelated
+values and profiles, and the token/alias rows' dedicated-owner guidance. Check
+saved connection identity, gateway admission, timeout cancellation, project JQL,
+creation type selection, query-directory rebinding and local consumer payloads.
+Use synthetic endpoints and providers; never contact a public gateway or mutate
+the user's account as evidence. Display tests must observe each rendered feature,
+and ownership tests must refuse Enter, Space and default reset for every key.
 
 Exercise TUI issue switching and saved-view selection without changing authored
 JQL. Check stale metadata/menu results after navigation, comment-page bounds and

@@ -127,8 +127,11 @@ attempt before repeating it. History and drafts are not durable across exit.
 
 Press `n`, including from an empty result list, to start a new issue. Select a
 project from the bounded native list or enter an exact key or ID, then select an
-issue type from that project's current metadata. The form edits summary and a
-new Markdown description; Tab switches fields. F2 opens the literal label list,
+issue type from that project's current metadata. `default_issue_type` preselects
+an exact ID or a unique name, ignoring name case, while keeping every type
+available. An unavailable or ambiguous default leaves explicit selection to you.
+The form edits summary and a new Markdown description; Tab switches fields.
+F2 opens the literal label list,
 F3 chooses an assignee and F4 changes project/type while retaining authored text.
 F5 starts a clean draft after a discard confirmation that defaults to Cancel.
 If issue types cannot be read or type selection is canceled, `n` returns to
@@ -311,6 +314,14 @@ banner reports the mismatch. Fix the settings or their dependencies, then use
 Ctrl+R to retry reload without saving again.
 
 ## Save
+
+Closed choices such as Credential provider and Glyph set open a selection menu
+with the current value selected. Enter keeps a choice in the draft; Esc cancels.
+The Settings heading counts unsaved changes. The area below the list shows the
+selected value and its source, including full paths and URLs when space permits.
+Display options explain when the current view or terminal width hides their
+effect. Successful save and reload reports "Saved and active"; a reload failure
+retains the separate saved-but-inactive warning.
 
 Press `p` to inspect the issue page with the draft display settings applied.
 Esc returns from that preview to Settings with the draft intact.

@@ -719,8 +719,16 @@ Its searchable settings page exposes every config key, edits all public writable
 scalars through `ValidateSettingValue`, and explains the dedicated auth and alias
 owners for tokens and aliases. It projects only writable public values into
 screen state; never pass token values or alias definitions to the scalar editor.
-Display preferences and named themes preview immediately. After publication,
-reopen the pinned selected profile through a fresh composition-root resolver and
+Closed scalar choices use a menu with the current value selected; text editors
+remain for free-form values. Keep choice admission bound to its Settings page.
+The heading counts distinct draft changes. Selected public values and their
+source appear beneath the list, using shared redaction and bounded wrapping.
+Explain display options hidden by the current view or available list width.
+Display preferences and named themes preview immediately. The creation type
+picker uses `default_issue_type` to preselect an exact native ID or a unique
+case-insensitive name without filtering or accepting the choices.
+Missing or ambiguous defaults leave the explicit picker available.
+After publication, reopen the pinned selected profile through a fresh composition-root resolver and
 ordinary client factory. Adopt its client, read-only policy, timeout, project
 scope, query paths, glyphs and prepared palette inside the running Tea session.
 Do not imply credential migration/verification or invent consumers for retained

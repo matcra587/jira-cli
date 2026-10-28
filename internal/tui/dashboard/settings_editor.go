@@ -50,9 +50,12 @@ func (m *Model) editSetting(s setting, reset bool) {
 		m.keepSetting(s.key, strconv.FormatBool(value != "true"))
 		return
 	}
+	if len(choices) > 0 {
+		m.openSettingMenu(s)
+		return
+	}
 	line := input.NewLine("› ", "Empty clears the value")
 	line.SetValue(value)
-	line.SetSuggestions(choices)
 	if line.Value() != value {
 		p.notice = "This value contains characters the single-line editor cannot preserve. Use jira config set."
 		return
@@ -84,18 +87,6 @@ func (m *Model) updateSettingEditor(msg tea.Msg) tea.Cmd {
 		case "enter", "ctrl+s":
 			if m.keepSetting(editor.setting.key, editor.line.Value()) {
 				p.editor = nil
-			}
-			return nil
-		case "up", "down":
-			choices := config.SettingValueChoices(editor.setting.key)
-			if len(choices) > 0 {
-				index := slices.Index(choices, editor.line.Value())
-				if press.String() == "up" {
-					index--
-				} else {
-					index++
-				}
-				editor.line.SetValue(choices[max(0, min(len(choices)-1, index))])
 			}
 			return nil
 		}
