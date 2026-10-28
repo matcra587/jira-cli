@@ -444,9 +444,11 @@ func (m *Model) updateCreationEditor(msg tea.Msg) tea.Cmd {
 			return m.prepareCreation()
 		case "f2":
 			d := &creationLabels{draft: m.creation, labelsDialog: labelsDialog{target: "New issue", labels: slices.Clone(m.creation.labels), original: slices.Clone(m.creation.labels), rows: m.newLabelRows(), line: input.NewLine("+ ", "Literal label"), adding: true}}
-			d.hint = "Ctrl+S uses this list; Esc keeps the draft."
+			d.hint = "Part of your new-issue draft."
+			d.acceptLabel = "keep"
 			d.line.SetValue(m.creation.pendingLabel)
 			d.rebuild()
+			m.dialogs.SetFrame(dialogFrameSize(64, 24))
 			m.dialogs.Push(d)
 			return nil
 		case "f3":

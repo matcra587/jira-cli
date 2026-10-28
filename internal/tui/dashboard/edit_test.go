@@ -89,7 +89,8 @@ func TestLabelsKeepLiteralValuesClearExplicitlyAndRetainUncertainty(t *testing.T
 	}
 	applyCommand(m, press(m, 'l'))
 	m.Update(tea.PasteMsg{Content: `quote"and,comma`})
-	m.Update(key.Replay("ctrl+s"))
+	m.Update(key.Replay("tab"))
+	m.Update(key.Replay("enter"))
 	_, cmd := m.Update(key.Replay("y"))
 	applyCommand(m, cmd)
 	if target != "101" || len(labels) != 2 || labels[0] != "literal,comma" || labels[1] != `quote"and,comma` {
@@ -102,7 +103,8 @@ func TestLabelsKeepLiteralValuesClearExplicitlyAndRetainUncertainty(t *testing.T
 	m.Update(key.Replay("tab"))
 	press(m, 'x')
 	press(m, 'x')
-	m.Update(key.Replay("ctrl+s"))
+	m.Update(key.Replay("tab"))
+	m.Update(key.Replay("enter"))
 	if !strings.Contains(m.View().Content, "All labels will be removed") {
 		t.Fatal("empty-label review hid its replacement effect")
 	}
@@ -130,7 +132,8 @@ func TestUnmodifiedEditorsDoNotOverrideFreshReadsAndPendingLabelsSurvive(t *test
 	applyCommand(m, cmd)
 	m.Update(key.Replay("enter"))
 	applyCommand(m, press(m, 'l'))
-	m.Update(key.Replay("ctrl+s"))
+	m.Update(key.Replay("tab"))
+	m.Update(key.Replay("enter"))
 	if len(m.fieldDrafts) != 0 || len(m.labelDrafts) != 0 {
 		t.Fatal("unchanged editor created a stale replacement draft")
 	}
@@ -151,7 +154,7 @@ func TestUnmodifiedEditorsDoNotOverrideFreshReadsAndPendingLabelsSurvive(t *test
 		t.Fatal("pending label was lost or silently froze the unmodified old label set")
 	}
 	m.Update(key.Replay("tab"))
-	m.Update(key.Replay("ctrl+s"))
+	m.Update(key.Replay("enter"))
 	var labels []string
 	if err := json.Unmarshal([]byte(m.dialogs.Top().(*writeReview).value), &labels); err != nil || len(labels) != 2 || labels[1] != `pending,"literal` {
 		t.Fatal("review dropped pending input when list focus was active")
@@ -182,12 +185,13 @@ func TestEditFormsFitSupportedTerminalSizes(t *testing.T) {
 		m := editModel(t)
 		m.Update(size)
 		applyCommand(m, press(m, 'l'))
-		if view := m.View().Content; strings.Contains(view, "terminal too narrow") || !strings.Contains(view, "enter add") {
+		if view := m.View().Content; strings.Contains(view, "terminal too narrow") || !strings.Contains(view, "enter next") {
 			t.Fatalf("label controls missing at %dx%d", size.Width, size.Height)
 		}
 		m.Update(tea.PasteMsg{Content: "new"})
-		m.Update(key.Replay("ctrl+s"))
-		if view := m.View().Content; strings.Contains(view, "terminal too narrow") || !strings.Contains(view, "y apply") {
+		m.Update(key.Replay("tab"))
+		m.Update(key.Replay("enter"))
+		if view := m.View().Content; strings.Contains(view, "terminal too narrow") || !strings.Contains(view, "enter confirm") {
 			t.Fatalf("review controls missing at %dx%d", size.Width, size.Height)
 		}
 	}

@@ -2,13 +2,11 @@ package dashboard
 
 import (
 	"slices"
-	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/gechr/primer/dialog"
 	"github.com/gechr/primer/key"
-	"github.com/gechr/primer/layout"
 	"github.com/gechr/primer/palette"
 
 	"github.com/matcra587/jira-cli/internal/cli"
@@ -20,58 +18,28 @@ func newCommandStack() *dialog.Stack {
 }
 
 func commandFrame() dialog.Frame {
-	styles := dialog.Styles{Box: lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(1, 2)}
+	return commandFrameHeight(24)
+}
+
+func commandFrameHeight(height int) dialog.Frame {
+	return dialogFrameSize(76, height)
+}
+
+func dialogFrameSize(width, height int) dialog.Frame {
+	return dialogFramePadding(width, height, 2)
+}
+
+func dialogFramePadding(width, height, padding int) dialog.Frame {
+	styles := dialog.Styles{Box: lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(1, padding)}
 	if cli.StyleEnabled() {
 		theme := cli.ResolvedTheme()
 		styles.Box = styles.Box.BorderForeground(theme.Blue.GetForeground())
 		styles.Title, styles.HintKey, styles.HintText = *theme.Bold, *theme.Blue, *theme.Dim
 	}
 	return dialog.NewFrame(dialog.FrameConfig{
-		Styles: styles, MaxWidth: 76, MaxHeight: 24,
+		Styles: styles, MaxWidth: width, MaxHeight: height,
 		WidthFraction: .95, HeightFraction: .95, Margin: 1,
 	})
-}
-
-type commandDialog struct {
-	menu    palette.Model
-	padRows int
-}
-
-func (d *commandDialog) Title() string { return "Commands" }
-
-func (d *commandDialog) Content(width int) string {
-	// Stable width and height keep the popup anchored while filtering.
-	// Primer's frame owns shrinking, scrolling and keeping selection visible.
-	rows := strings.Split(d.menu.View(), "\n")
-	for len(rows) < max(12, d.padRows) {
-		rows = append(rows, "")
-	}
-	return strings.Join(layout.NormalizeLines(rows, width), "\n")
-}
-
-func (*commandDialog) Hints() []key.Hint { return nil }
-
-func (*commandDialog) Footer() string {
-	prefix := ""
-	renderer := key.Renderer{Prefix: &prefix, Gap: "  "}
-	if cli.StyleEnabled() {
-		renderer.Styles = key.Styles{Key: *cli.ResolvedTheme().Blue, Text: *cli.ResolvedTheme().Dim}
-	}
-	return renderer.Render([]key.Hint{{Key: "enter", Desc: "run"}, {Key: "esc", Desc: "back"}})
-}
-func (d *commandDialog) ScrollTo() (int, int, bool) { return d.menu.CursorLine(), 1, true }
-func (d *commandDialog) Update(msg tea.Msg) (dialog.Dialog, tea.Cmd, dialog.Result) {
-	if press, ok := msg.(tea.KeyPressMsg); ok {
-		switch press.String() {
-		case "esc", "ctrl+p", "ctrl+k":
-			return d, nil, dialog.ResultClose
-		case "enter":
-			if _, ok := d.menu.Selected(); ok {
-				return d, nil, dialog.ResultSubmit
-			}
-		}
-	}
-	return d, d.menu.Update(msg), dialog.ResultNone
 }
 
 func (m *Model) openCommands() {
@@ -124,8 +92,8 @@ func (m *Model) openCommands() {
 		palette.Entry{Name: "Keyboard help", Desc: "All navigation shortcuts", Key: "?"},
 		palette.Entry{Name: "Quit", Desc: "Return to the terminal", Key: "q"},
 	)
-	menu := palette.New("Type to filter", entries, commandStyles())
-	m.dialogs.Push(&commandDialog{menu: menu, padRows: len(strings.Split(menu.View(), "\n"))})
+	m.dialogs.SetFrame(commandFrameHeight(28))
+	m.dialogs.Push(newCommandDialog(entries))
 }
 
 func (m *Model) updateCommands(msg tea.Msg) tea.Cmd {
@@ -152,6 +120,12 @@ func (m *Model) updateCommands(msg tea.Msg) tea.Cmd {
 	}
 	if result != dialog.ResultNone {
 		switch d := closed.(type) {
+		case *commandDialog:
+			m.dialogs.SetFrame(commandFrame())
+		case *writeReview:
+			if d.kind == "labels" {
+				m.dialogs.SetFrame(commandFrame())
+			}
 		case *descriptionDialog:
 			m.keepDescriptionDraft(d)
 		case *pickerDialog:
@@ -164,6 +138,7 @@ func (m *Model) updateCommands(msg tea.Msg) tea.Cmd {
 				m.creation.typeID = ""
 			}
 		case *creationLabels:
+			m.dialogs.SetFrame(commandFrame())
 			if d.draft == m.creation {
 				m.creation.labels = slices.Clone(d.labels)
 				m.creation.labelsSet = result == dialog.ResultSubmit || !slices.Equal(d.labels, d.original) || m.creation.labelsSet
@@ -176,6 +151,7 @@ func (m *Model) updateCommands(msg tea.Msg) tea.Cmd {
 				m.fieldDrafts[d.id+":summary"] = d.value()
 			}
 		case *labelsDialog:
+			m.dialogs.SetFrame(commandFrame())
 			changed := !slices.Equal(d.labels, d.original)
 			if !changed && d.line.Value() == "" {
 				delete(m.labelDrafts, d.id)

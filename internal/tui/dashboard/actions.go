@@ -6,10 +6,12 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/gechr/primer/dialog"
 	"github.com/gechr/primer/input"
 	"github.com/gechr/primer/key"
 	"github.com/gechr/primer/layout"
+	"github.com/gechr/primer/prompt"
 	"github.com/gechr/primer/task"
 
 	"github.com/matcra587/jira-cli/internal/cli"
@@ -58,11 +60,21 @@ type writeReview struct {
 	kind, target, value string
 	targetID            string
 	cancelDefault       bool
+	framePadding        int
+	hintWidth           int
 }
 
-func (d *writeReview) Title() string     { return "Review " + d.kind + " · " + cli.Text(d.target) }
+func (d *writeReview) Title() string {
+	if d.kind == "labels" {
+		return prompt.CenterRow("Confirm labels · "+cli.Text(d.target), d.hintWidth)
+	}
+	return "Review " + d.kind + " · " + cli.Text(d.target)
+}
 func (d *writeReview) Hints() []key.Hint { return nil }
 func (d *writeReview) Footer() string {
+	if d.kind == "labels" {
+		return "\n" + lipgloss.PlaceHorizontal(d.hintWidth, lipgloss.Center, renderDialogHints(d.hintWidth, []key.Hint{{Key: "tab", Desc: "select"}, {Key: "enter", Desc: "confirm"}, {Key: "esc", Desc: "back"}}))
+	}
 	if d.cancelDefault {
 		return "y apply · n/esc back"
 	}

@@ -43,7 +43,9 @@ them. Search retains the custom JQL entered during the session.
 *   Ctrl+P or Ctrl+K opens a searchable command picker. Enter runs the selected
     action through its ordinary keyboard path; Esc returns to the page.
 
-The command picker floats over the current issue page. Its frame stays anchored
+The command picker floats over the current issue page. Command names and
+right-aligned shortcuts have separate columns; the selected command's explanation
+appears below its row. Its frame stays anchored
 while filtering, and its action hints remain visible while scrolling on smaller
 terminals. Closing it preserves the issue selection, preview and query.
 
@@ -134,7 +136,7 @@ project selection with authored text retained.
 Assignment offers Jira's default, explicit unassignment, the authenticated
 account, visible active-user search or an exact account ID. Jira decides final
 assignability. A missing optional field retains Jira defaults; explicit empty
-labels and explicit unassignment remain distinct. F2 followed by Ctrl+S explicitly
+labels and explicit unassignment remain distinct. F2 followed by Enter on the empty input explicitly
 applies its label list, including an empty list; Esc from an unchanged list keeps
 Jira's default.
 
@@ -163,10 +165,23 @@ The editor reads current values and binds its review to the returned immutable
 issue ID. Incomplete identity refuses with `issue_edit_source_invalid`; missing
 fields are not treated as empty editable values.
 
-Enter reviews a changed summary. In labels, type or paste one literal label,
+Enter reviews a changed summary. The label editor separates **Add a label** from
+**Labels to keep**, and marks the focused area. While typing, the list has no
+selection highlight; Tab focuses it for selection and removal. The compact label
+overlay centers its title, fields and footer as one left-aligned group. Small
+terminals reclaim the extra spacing. The footer styles
+keys separately from their actions and keeps them on one row when space permits;
+narrow dialogs wrap complete key/action groups. In labels, type or paste one literal label,
 then Enter adds it. Commas and quotes remain part of that label. Tab switches
 between the add field and label list; arrows or `j`/`k` select a label, and `x`
-removes it. Ctrl+S adds any pending input and reviews the complete replacement.
+removes it. Enter on the empty input or from the list (**Next**) opens
+**Confirm labels**, including pending input when focus is in the list.
+The confirmation shows counts, current labels (or **None**) and the complete
+replacement in a centered block, with bold headings, accented counts and indented
+label values. Its title, buttons and key hints are centered
+separately, while the lists share a left edge;
+Tab or the left/right arrows select Cancel or Apply; Enter confirms the selected
+button. Cancel is selected by default. Ctrl+S does not advance the label editor.
 Removing every entry explicitly sends an empty label array. Reviews show current
 and proposed values and default to Cancel; `y` applies them. Unchanged values
 send no write.

@@ -87,7 +87,8 @@ func TestCreationReviewsBeforeWritingAndFreezesAuthoredFields(t *testing.T) {
 	m.Update(tea.PasteMsg{Content: body})
 	m.Update(key.Replay("f2"))
 	m.Update(tea.PasteMsg{Content: `literal,"label`})
-	m.Update(key.Replay("ctrl+s"))
+	m.Update(key.Replay("enter"))
+	m.Update(key.Replay("enter"))
 	m.Update(key.Replay("f3"))
 	chooseCreation(m, "account ID")
 	m.Update(tea.PasteMsg{Content: "account-7"})
@@ -192,7 +193,7 @@ func TestCreationLabelDefaultsRemainDistinctFromAnExplicitEmptyList(t *testing.T
 		t.Fatal("canceled unchanged labels suppressed Jira defaults")
 	}
 	m.Update(key.Replay("f2"))
-	m.Update(key.Replay("ctrl+s"))
+	m.Update(key.Replay("enter"))
 	if !m.creation.labelsSet || len(m.creation.labels) != 0 {
 		t.Fatal("explicitly applying an empty list lost its authored meaning")
 	}
@@ -266,7 +267,7 @@ func TestCreationEditorGeometryAndCursorAtSupportedSizes(t *testing.T) {
 		m.Update(key.Replay("tab"))
 		m.Update(tea.PasteMsg{Content: "Body"})
 		m.Update(key.Replay("f2"))
-		if !strings.Contains(m.View().Content, "enter add") {
+		if !strings.Contains(m.View().Content, "enter keep") {
 			t.Fatal("creation labels lost controls")
 		}
 	}

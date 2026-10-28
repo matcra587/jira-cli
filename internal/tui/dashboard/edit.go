@@ -43,6 +43,9 @@ func (d *summaryDialog) Update(msg tea.Msg) (dialog.Dialog, tea.Cmd, dialog.Resu
 
 type labelsDialog struct {
 	hint              string
+	acceptLabel       string
+	hintWidth         int
+	framePadding      int
 	id, target        string
 	labels, original  []string
 	rows              *list.Model
@@ -54,16 +57,34 @@ type labelsDialog struct {
 func (d *labelsDialog) Title() string   { return "Labels · " + cli.Text(d.target) }
 func (*labelsDialog) Hints() []key.Hint { return nil }
 func (d *labelsDialog) Footer() string {
-	if d.adding {
-		return "enter add · tab · ^S"
+	action := d.acceptLabel
+	if action == "" {
+		action = "next"
 	}
-	return "x remove · tab · ^S"
+	hints := []key.Hint{}
+	if d.adding {
+		enterAction := action
+		if d.line.Value() != "" {
+			enterAction = "add"
+		}
+		hints = append(hints, key.Hint{Key: "enter", Desc: enterAction}, key.Hint{Key: "tab", Desc: "list"})
+	} else {
+		hints = append(hints, key.Hint{Key: "enter", Desc: action}, key.Hint{Key: "x", Desc: "remove"}, key.Hint{Key: "tab", Desc: "add"})
+	}
+	hints = append(hints, key.Hint{Key: "esc", Desc: "back"})
+	width := d.hintWidth
+	if width == 0 {
+		width = 24
+	}
+	return "\n" + renderDialogHints(width, hints)
 }
+
+func (d *labelsDialog) SetHintWidth(width int) { d.hintWidth = max(1, width) }
 
 func (d *labelsDialog) rebuild() {
 	rows := make([]string, len(d.labels))
 	for i, label := range d.labels {
-		rows[i] = cli.Text(label)
+		rows[i] = "  " + cli.Text(label)
 	}
 	d.rows.SetRows(rows)
 }
@@ -82,14 +103,35 @@ func (d *labelsDialog) addPending() {
 func (d *labelsDialog) Content(width int) string {
 	hint := d.hint
 	if hint == "" {
-		hint = "Ctrl+S reviews; Esc keeps this session draft."
+		hint = "Enter adds a label. Empty Enter continues."
+		if len(d.labels) == 0 && len(d.original) > 0 {
+			hint = "Enter opens confirmation to remove all labels."
+		}
 	}
-	intro := layout.WrapLines(fmt.Sprintf("%d labels. Empty removes all. %s", len(d.labels), hint), width)
+	intro := layout.WrapLines(hint, width)
 	d.line.SetWidth(max(1, width-2))
 	d.rows.SetSize(max(1, width-2), 4)
-	d.inputRow = len(intro) + 1
-	d.listRow = d.inputRow + 2
-	return strings.Join(intro, "\n") + "\n\n" + d.line.View() + "\n\n" + d.rows.View()
+	addHeading, listHeading := dim("Add a label"), dim(fmt.Sprintf("Labels to keep (%d)", len(d.labels)))
+	d.rows.Styles.Cursor = lipgloss.NewStyle()
+	if d.adding {
+		addHeading = accent("Add a label")
+	} else {
+		listHeading = accent(fmt.Sprintf("Labels to keep (%d)", len(d.labels)))
+		d.rows.Styles.Cursor = lipgloss.NewStyle().Transform(func(text string) string { return "› " + strings.TrimPrefix(text, "  ") })
+		if cli.StyleEnabled() {
+			d.rows.Styles.Cursor = d.rows.Styles.Cursor.Reverse(true).Foreground(cli.ResolvedTheme().Blue.GetForeground())
+		}
+	}
+	rows := append(intro, "", addHeading)
+	d.inputRow = len(rows)
+	rows = append(rows, d.line.View(), "", listHeading)
+	d.listRow = len(rows)
+	if len(d.labels) == 0 {
+		rows = append(rows, dim("  This list is empty."))
+	} else {
+		rows = append(rows, d.rows.View())
+	}
+	return strings.Join(rows, "\n")
 }
 
 func (d *labelsDialog) ScrollTo() (int, int, bool) {
@@ -106,8 +148,7 @@ func (d *labelsDialog) Update(msg tea.Msg) (dialog.Dialog, tea.Cmd, dialog.Resul
 		case "esc":
 			return d, nil, dialog.ResultClose
 		case "ctrl+s":
-			d.addPending()
-			return d, nil, dialog.ResultSubmit
+			return d, nil, dialog.ResultNone
 		case "tab", "shift+tab":
 			d.adding = !d.adding
 			if d.adding {
@@ -117,10 +158,12 @@ func (d *labelsDialog) Update(msg tea.Msg) (dialog.Dialog, tea.Cmd, dialog.Resul
 			}
 			return d, nil, dialog.ResultNone
 		case "enter":
-			if d.adding {
+			if d.adding && d.line.Value() != "" {
 				d.addPending()
+				return d, nil, dialog.ResultNone
 			}
-			return d, nil, dialog.ResultNone
+			d.addPending()
+			return d, nil, dialog.ResultSubmit
 		case "x", "delete", "backspace":
 			if !d.adding {
 				if i, ok := d.rows.Selected(); ok {
@@ -230,7 +273,7 @@ func (m *Model) acceptEditFields(msg task.FinishedMsg) {
 			return
 		}
 		labels := slices.Clone(value.Value)
-		d := &labelsDialog{id: issue.ID.Value, target: result.target, labels: labels, original: slices.Clone(labels), rows: list.New(), line: input.NewLine("+ ", "Enter a literal label"), adding: true}
+		d := &labelsDialog{id: issue.ID.Value, target: result.target, labels: labels, original: slices.Clone(labels), rows: list.New(), line: input.NewLine("+ ", "Type one label, then Enter"), adding: true}
 		d.rows.Styles.Cursor = lipgloss.NewStyle().Transform(func(text string) string { return "› " + text })
 		if draft, exists := m.labelDrafts[d.id]; exists {
 			if draft.changed {
@@ -239,12 +282,23 @@ func (m *Model) acceptEditFields(msg task.FinishedMsg) {
 			d.line.SetValue(draft.pending)
 		}
 		d.rebuild()
+		m.dialogs.SetFrame(dialogFrameSize(64, 24))
 		m.dialogs.Push(d)
 	}
 }
 
 func (m *Model) reviewField(kind, key, id, value, description string) {
-	confirm := cancelDefaultConfirm(description+"\n\nThis replaces the field on issue ID "+cli.Text(id)+". Metadata is checked again; concurrent edits can still race this write.", "Apply")
+	if kind == "labels" {
+		width := max(1, min(48, m.pageWidth()-12))
+		description = labelConfirmationText(description, width)
+	} else {
+		description += "\n\nThis replaces the field on issue ID " + cli.Text(id) + ". Metadata is checked again; concurrent edits can still race this write."
+	}
+	acceptLabel := "Apply"
+	if kind == "labels" {
+		acceptLabel = "Apply labels"
+	}
+	confirm := cancelDefaultConfirm(description, acceptLabel)
 	m.dialogs.Push(&writeReview{Confirm: confirm, kind: kind, target: key, value: value, targetID: id, cancelDefault: true})
 }
 
@@ -289,7 +343,7 @@ func (m *Model) acceptLabels(d *labelsDialog) {
 		m.notice = m.errorText(err)
 		return
 	}
-	description := "Replace all labels on " + cli.Text(d.target) + "?\n\nCurrent:\n" + cli.TextBlock(strings.Join(d.original, "\n")) + "\n\nNew:\n" + cli.TextBlock(strings.Join(labels, "\n"))
+	description := labelConfirmationSection("Current labels", d.original) + "\n\n" + labelConfirmationSection("Labels to apply", labels)
 	if len(labels) == 0 {
 		description += "\nAll labels will be removed."
 	}

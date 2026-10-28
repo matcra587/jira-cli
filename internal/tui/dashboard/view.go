@@ -461,6 +461,7 @@ func (m *Model) View() tea.View {
 		content = m.settingsView()
 	}
 	if m.dialogs.Active() {
+		m.prepareDialogLayout()
 		content = m.dialogs.View(content, m.pageWidth(), m.height)
 	}
 	lines := strings.Split(content, "\n")
