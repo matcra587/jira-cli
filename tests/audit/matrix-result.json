@@ -17778,6 +17778,20 @@
       "status": "pass"
     },
     {
+      "op": "tui",
+      "category": "failure",
+      "mode": "compact",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
+      "op": "tui",
+      "category": "failure",
+      "mode": "json",
+      "axis": "M11",
+      "status": "pass"
+    },
+    {
       "op": "update",
       "category": "dry_run",
       "mode": "compact",

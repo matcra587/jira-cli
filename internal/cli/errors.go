@@ -75,6 +75,9 @@ type spec struct {
 // hint asks the reader to check values they never passed.
 const CodeOutputWriteFailed = "output_write_failed"
 
+// CodeDashboardTerminalRequired refuses a screen before credentials or input.
+const CodeDashboardTerminalRequired = "dashboard_terminal_required"
+
 // CodeAuthStoreUnavailable means a credential lookup failed, so absence and
 // validity of a stored credential remain unknown.
 const CodeAuthStoreUnavailable = "auth_store_unavailable"
@@ -291,23 +294,24 @@ var registry = map[string]spec{
 	CodeFlagConflict:             {exit: ExitValidation, hint: "Those two flags set the same thing — keep the one you meant and drop the other."},
 	// jq rows: a syntax fault, a shape fault, and a mode conflict each
 	// want a different fix, so each gets its own code and hint.
-	CodeJQExpressionInvalid:   {exit: ExitValidation, hint: "Check the jq expression — the message names what the engine rejected."},
-	CodeJQEvalFailed:          {exit: ExitValidation, hint: "The expression is valid but does not fit this document — inspect the real shape with `--output=json` and no filter."},
-	CodeJQOutputTooLarge:      {exit: ExitValidation, hint: "Narrow the expression — it produced more output than the CLI will buffer."},
-	CodeReadOnlyBlocked:       {exit: ExitValidation, hint: "Read-only mode is on, so writes are refused before they reach Jira — clear it to allow this command to mutate."},
-	CodeCacheIO:               {exit: ExitValidation, hint: "Inspect base_url and email with `jira config list`, then check available space and permissions in the metadata cache. Inspect retained observations before retrying the cache operation."},
-	CodeLocalIO:               {exit: ExitValidation, hint: "A local file operation failed — check free space and the permissions on the config directory."},
-	CodeConfigChanged:         {exit: ExitValidation, hint: "Inspect the current configuration, then reapply your change on top of it."},
-	CodeAliasInvalid:          {exit: ExitValidation, hint: "Inspect `jira alias list`; fix the named alias or delete it with `jira alias delete NAME --force`."},
-	CodeSavedQueryUnknown:     {exit: ExitValidation, hint: "Use a listed filename stem from queries_path, or create NAME.jql there; inspect `jira config current`."},
-	CodeSavedQueryInvalid:     {exit: ExitValidation, hint: "Inspect queries_path with `jira config current`; repair the named .jql file or its YAML/TOML frontmatter."},
-	CodeEditorMissing:         {exit: ExitValidation, hint: "Set EDITOR (or JIRA_EDITOR) to the editor you want — `export EDITOR=nano`."},
-	CodeEditorFailed:          {exit: ExitValidation, hint: "Inspect any saved edit and check the configured editor before retrying."},
-	CodeTerminalRestoreFailed: {exit: ExitValidation, hint: "Restore the terminal before continuing, then inspect any saved edit."},
-	CodeTerminalRequired:      {exit: ExitValidation, hint: "Run it from a terminal, or use `--dry-run` to see the file and editor without opening anything."},
-	CodeConfigInvalid:         {exit: ExitValidation, hint: "Fix the setting where it is defined — `jira config list` shows each value and the layer it came from."},
-	CodePathInvalid:           {exit: ExitValidation, hint: "That value cannot be part of a request path — check the identifier for separators, dots, or characters that are not part of a key."},
-	CodeJQOutputConflict:      {exit: ExitValidation, hint: "`--jq` filters machine output — drop it, or ask for `--output=json` or `--output=compact`."},
+	CodeJQExpressionInvalid:       {exit: ExitValidation, hint: "Check the jq expression — the message names what the engine rejected."},
+	CodeJQEvalFailed:              {exit: ExitValidation, hint: "The expression is valid but does not fit this document — inspect the real shape with `--output=json` and no filter."},
+	CodeJQOutputTooLarge:          {exit: ExitValidation, hint: "Narrow the expression — it produced more output than the CLI will buffer."},
+	CodeReadOnlyBlocked:           {exit: ExitValidation, hint: "Read-only mode is on, so writes are refused before they reach Jira — clear it to allow this command to mutate."},
+	CodeCacheIO:                   {exit: ExitValidation, hint: "Inspect base_url and email with `jira config list`, then check available space and permissions in the metadata cache. Inspect retained observations before retrying the cache operation."},
+	CodeLocalIO:                   {exit: ExitValidation, hint: "A local file operation failed — check free space and the permissions on the config directory."},
+	CodeConfigChanged:             {exit: ExitValidation, hint: "Inspect the current configuration, then reapply your change on top of it."},
+	CodeAliasInvalid:              {exit: ExitValidation, hint: "Inspect `jira alias list`; fix the named alias or delete it with `jira alias delete NAME --force`."},
+	CodeSavedQueryUnknown:         {exit: ExitValidation, hint: "Use a listed filename stem from queries_path, or create NAME.jql there; inspect `jira config current`."},
+	CodeSavedQueryInvalid:         {exit: ExitValidation, hint: "Inspect queries_path with `jira config current`; repair the named .jql file or its YAML/TOML frontmatter."},
+	CodeEditorMissing:             {exit: ExitValidation, hint: "Set EDITOR (or JIRA_EDITOR) to the editor you want — `export EDITOR=nano`."},
+	CodeEditorFailed:              {exit: ExitValidation, hint: "Inspect any saved edit and check the configured editor before retrying."},
+	CodeTerminalRestoreFailed:     {exit: ExitValidation, hint: "Restore the terminal before continuing, then inspect any saved edit."},
+	CodeTerminalRequired:          {exit: ExitValidation, hint: "Run it from a terminal, or use `--dry-run` to see the file and editor without opening anything."},
+	CodeDashboardTerminalRequired: {exit: ExitValidation, hint: "Run `jira tui --output=human` in a terminal, or use `jira issue list` for scripts and agents."},
+	CodeConfigInvalid:             {exit: ExitValidation, hint: "Fix the setting where it is defined — `jira config list` shows each value and the layer it came from."},
+	CodePathInvalid:               {exit: ExitValidation, hint: "That value cannot be part of a request path — check the identifier for separators, dots, or characters that are not part of a key."},
+	CodeJQOutputConflict:          {exit: ExitValidation, hint: "`--jq` filters machine output — drop it, or ask for `--output=json` or `--output=compact`."},
 }
 
 // HasJiraResponse reports a retained native HTTP failure independently of its

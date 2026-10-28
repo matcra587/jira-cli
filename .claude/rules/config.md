@@ -562,7 +562,8 @@ names in `deferred`. Retain their exact values only in original source/recovery
 bytes; never publish inert TUI settings or claim they became active. Ordinary
 conversion remains strict policy 8. Policies 1–8 preserve their exact derivation
 and TUI refusal; rederivation uses the recorded policy. Unknown declarations and
-malformed shapes still refuse. TUI runtime remains a separate milestone.
+malformed shapes still refuse. The restored dashboard does not yet consume these
+legacy TUI settings; their runtime mapping remains a separate milestone.
 
 Windows configuration paths resolve existing objects through owned native
 metadata handles before appending missing descendants. Directory junctions are
@@ -706,3 +707,27 @@ Credential resolution carries command context through the store and lazy
 client/cache factories. Keep `config.Load` local and use `config.Resolve` for
 credentials; do not store contexts in options or adapters. Follow `.claude/rules/go.md`
 for `command.OnceContextValues` and the synchronous OS-keyring limitation.
+
+## Dashboard display preferences
+
+`tui_preview`, `tui_status`, `tui_assignee`, `tui_labels`, `tui_priority` and
+`tui_issue_type`, `tui_compact` and `tui_updated` are boolean display preferences, defaulting to true. They are
+global declarations at the document root, including named-profile files. Ordinary
+environment precedence applies. The dashboard projects these public values and
+sources from the invocation's resolved settings; it does not expose credentials.
+Its searchable settings page previews changes, discards unsaved changes on exit,
+and publishes only changed keys together on Ctrl+S using `File.PrepareSettings`.
+Keep the captured snapshot until successful publication, then advance it. Failed
+publication retains the draft and directs inspection before retrying. Environment
+values remain visible but locked. These new keys do not silently migrate deferred
+v0.15 preferences or enable polling.
+
+TUI saved searches use `queries_path`, `LoadQueries` and `SaveQuery`. New saves
+reuse the shared validated no-clobber publication owner with query admission,
+not configuration TOML admission. Never overwrite an existing name or symlink.
+Missing query directories yield an empty menu alongside built-in lenses; other
+read failures remain visible. Recent issues and comment drafts stay in session
+memory. Theme selection uses the existing palette owner, restores the exact
+previous palette on cancel, and publishes theme name plus an empty custom path
+in one settings transaction. Retain accepted startup theme-environment ownership
+after library cleanup so the interactive row remains honestly locked.

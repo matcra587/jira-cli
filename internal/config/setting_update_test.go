@@ -20,6 +20,9 @@ func TestSettingUpdateValidatesAllWritableScalarsAndPreservesOtherDeclarations(t
 		"refresh_interval": "45", "team_account_ids": `["team-1","team,2"]`,
 		"base_url": "https://example.invalid", "email": "saved@example.invalid",
 		"account_id": "cached-account", "account_id_site": "https://example.invalid", "account_id_email": "saved@example.invalid", "account_id_cloud_id": "fixture-cloud",
+		"tui_compact": "false", "tui_updated": "false",
+		"tui_preview": "false", "tui_status": "false", "tui_assignee": "false",
+		"tui_labels": "false", "tui_priority": "false", "tui_issue_type": "false",
 		"keyring": "false", "read_only": "false", "timeout": "2m", "theme": "dark",
 		"secret_backend": "1password", "onepassword_account": "Fixture Account", "onepassword_vault": "Fixture Vault", "onepassword_item": "Fixture Item",
 		"glyphs": "nerd", "workday_seconds": "36000", "queries_path": "local queries", "theme_path": "custom palette.toml", "editor": "future-editor --wait",
@@ -62,7 +65,7 @@ func TestSettingUpdateValidatesAllWritableScalarsAndPreservesOtherDeclarations(t
 					t.Fatal("workday scalar lost its integer type")
 				}
 			}
-			if key == "keyring" || key == "read_only" {
+			if key == "keyring" || key == "read_only" || strings.HasPrefix(key, "tui_") {
 				if value, ok := fields[key].(bool); !ok || value {
 					t.Fatal("boolean scalar was stored as a string or true")
 				}

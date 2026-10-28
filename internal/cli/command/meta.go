@@ -16,6 +16,9 @@ type Class string
 const (
 	// ClassRead reaches Jira without writing anything anywhere.
 	ClassRead Class = "read"
+	// ClassInteractive admits a terminal session whose explicit UI actions
+	// may perform the declared Jira or local writes after review.
+	ClassInteractive Class = "interactive"
 	// ClassMutation writes to Jira.
 	ClassMutation Class = "mutation"
 	// ClassLocalState mutates local state only (config, cache, aliases).
@@ -30,6 +33,8 @@ const (
 // a tree walk). A command missing its declaration fails the inventory
 // by name, so registration cannot be forgotten silently.
 type Meta struct {
+	// Screen marks a human-only terminal session with structured refusals.
+	Screen bool
 	// Op is the dotted operation name the envelope carries as
 	// meta.command ("root", "issue.view").
 	Op string
@@ -73,6 +78,8 @@ type Meta struct {
 // Jira write dominates for the safety axes (dry-run, preview).
 func (m Meta) Class() Class {
 	switch {
+	case m.Screen:
+		return ClassInteractive
 	case m.WritesJira:
 		return ClassMutation
 	case m.MutatesLocalState:

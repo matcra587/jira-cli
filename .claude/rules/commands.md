@@ -218,6 +218,21 @@ that changes is a bug in the path.
 
 ## Flags: metadata is mandatory
 
+Full-screen commands declare `Spec.Screen`, which returns a Bubble Tea model from
+the typed handler result without exposing streams. The shared path refuses machine
+modes, jq filters, agents, `--no-input` and nonterminal streams before invoking
+the handler. Screens have no alternate renderer or variant and classify as
+`interactive`, with their Jira/local action capabilities declared in runtime
+schema. They use in-session review instead of a command-wide `--dry-run`; this
+exception applies only to admitted terminal screens. Domain actions reuse the
+ordinary issue owners, bind one explicit issue before review, recheck workflow
+metadata before transitions and retain acknowledged/uncertain outcomes. No
+repaint or read retry may replay a write. Settings preview, save explicitly on
+Ctrl+S through the shared config owner and retain failed drafts.
+Metadata and runtime discovery declare `screen_only`; native terminal acceptance
+owns successful sessions, while the output audit checks structured refusals and help.
+Bare `jira` retains local discovery/help; only explicit `jira tui` opens a screen.
+
 Raw `pflag` declarations are banned outside `command` (ruleguard
 `rawPflagDeclaration`). Declare flags with the `command.Add*` helpers
 (`AddStringVar`, `AddBoolVar`, …), which take the owning command and

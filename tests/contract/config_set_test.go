@@ -221,16 +221,17 @@ func TestConfigSetSchemaJQAndCompletionExposeValidatedScalarContract(t *testing.
 		}
 	}
 	stdout, stderr, exit = runBinary(t, "--@complete=configsetkey", "--")
-	if exit != 0 || stderr != "" || len(strings.Fields(stdout)) != 27 || slices.Contains(strings.Fields(stdout), "api_token") || strings.Contains(stdout, "aliases") || !strings.Contains(stdout, "queries_path\n") || !strings.Contains(stdout, "onepassword_item\n") {
+	if exit != 0 || stderr != "" || len(strings.Fields(stdout)) != 35 || slices.Contains(strings.Fields(stdout), "api_token") || strings.Contains(stdout, "aliases") || !strings.Contains(stdout, "queries_path\n") || !strings.Contains(stdout, "onepassword_item\n") {
 		t.Fatalf("write completion offered credentials, aliases or an incomplete inventory: exit=%d out=%q stderr=%q", exit, stdout, stderr)
 	}
-	for _, key := range []string{"credential_id", "account_id", "account_id_site", "account_id_email", "account_id_cloud_id"} {
+	for _, key := range []string{"credential_id", "account_id", "account_id_site", "account_id_email", "account_id_cloud_id", "tui_preview", "tui_status", "tui_assignee", "tui_labels", "tui_priority", "tui_issue_type", "tui_compact", "tui_updated"} {
 		if !slices.Contains(strings.Fields(stdout), key) {
 			t.Fatal("write completion omitted cached identity metadata", key)
 		}
 	}
 	for _, tc := range []struct{ key, values string }{
 		{"read_only", "true\nfalse\n"},
+		{"tui_preview", "true\nfalse\n"},
 		{"glyphs", "default\nnerd\n"},
 		{"timeout", ""},
 		{"api_token", ""},

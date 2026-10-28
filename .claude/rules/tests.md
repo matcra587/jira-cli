@@ -792,8 +792,15 @@ Converter tests bind literal-colon text-node boundaries as well as text values.
     `internal/cli/root/agent_schema_test.go` and its `testdata/` directory.
     Update fixtures deliberately and review the diff; changed expectations
     must follow a verified behavior change.
-*   TUI runtime remains a separate milestone; this tree has no
-    `internal/tui/goldens` suite to execute.
+*   Dashboard tests under `internal/tui/dashboard` cover stale queries/details,
+    pagination refusal, selection identity, input ownership, field presence and
+    exact frame geometry. Command-picker tests cover modal key ownership, replay
+    and bounded rendering. Selected status rows must retain padded category colors;
+    Primer's generic `list.View` deliberately strips selected-row SGR, so the
+    dashboard paints its public visible range while retaining its scroll owner.
+    Shared screen tests exercise actual Linux terminals,
+    drawing and mode restoration after quit/cancellation. Other native hosts
+    require their own execution evidence. There is no `internal/tui/goldens` suite.
 
 ## Guardrail tests
 
@@ -1838,3 +1845,15 @@ Paired comment acceptance binds authored bodies and returned resources to owned
 parents, preserves legacy bare-add intent and independently verifies visibility
 and native deletion. Follow `.claude/rules/tests.md` for per-lane ordering,
 pagination and no-request acceptance; passing cases do not establish full parity.
+
+Dashboard settings acceptance covers filtered selection, input ownership,
+environment overrides, preview cancellation, save failure retention, repeated
+saves and external-edit refusal through the actual config owner. Check fixed
+frame geometry and visible save/back controls at the smallest supported size.
+
+Exercise TUI issue switching and saved-view selection without changing authored
+JQL. Check stale metadata/menu results after navigation, comment-page bounds and
+duplicates, draft retention, explicit review, exact target binding and one write
+per accepted action. Native synthetic HTTP acceptance covers transition,
+assignment and comment payloads and terminal restoration; do not perform those
+writes against a user's Jira profile as a development test.

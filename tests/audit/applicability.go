@@ -93,6 +93,15 @@ type Applicability struct {
 // surface keeps just the mode contract and failure surface: there is no data
 // to hold to data axes.
 func applicabilityFor(m command.Meta) Applicability {
+	if m.Screen {
+		// Screen success is exercised on native terminals, not by pretending
+		// a headless machine capture can enter the dashboard. This matrix
+		// covers its structured refusals, local help and schema registration.
+		return Applicability{
+			Applies:       []Axis{AxisM6, AxisM9, AxisM11},
+			NotApplicable: []Axis{AxisM1, AxisM2, AxisM3, AxisM4, AxisM5, AxisM7, AxisM8, AxisM10, AxisM12, AxisH1, AxisH2, AxisH3, AxisH4, AxisH5},
+		}
+	}
 	if m.NoSuccessEnvelope != "" {
 		// H5 joins H1–H4 here: envelope-free operations such as auth.token
 		// and completion print raw bytes rather than a View render —
@@ -148,6 +157,9 @@ func applicabilityFor(m command.Meta) Applicability {
 // demands for one operation. Derived from metadata, never from which
 // recipes exist — that direction is the R10 rule.
 func categoriesFor(m command.Meta) []Category {
+	if m.Screen {
+		return []Category{CategoryFailure, CategoryHelp}
+	}
 	if m.NoSuccessEnvelope != "" || m.Class() == command.ClassRead {
 		return []Category{CategorySuccess, CategoryFailure, CategoryHelp}
 	}

@@ -39,6 +39,7 @@ func newSet() *cobra.Command {
 			"refresh_interval is positive seconds (default 30); team_account_ids is a JSON array of literal strings, such as [\"team-1\",\"team-2\"]. " +
 			"Use [] to clear that array. These retained client preferences are metadata; they do not start polling or add issue filters.\n\n" +
 			"account_id is cached public identity for local previews only. Its independent account_id_site, account_id_email and account_id_cloud_id must match effective scope; changing scope never rebinds an existing ID. Live runs verify Jira identity instead.\n\n" +
+			"tui_preview, tui_status, tui_assignee, tui_labels, tui_priority, tui_issue_type, tui_compact and tui_updated are global dashboard display booleans, defaulting to true. Change them from the dashboard settings menu or here.\n\n" +
 			"Credentials cannot be stored here; use `jira auth login`. Manage aliases " +
 			"through `jira alias set` or `jira alias import` so their command chains are validated.",
 		Example: "$ jira config set read_only true --no-input\n\n" +

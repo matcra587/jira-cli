@@ -25,7 +25,7 @@ type profileDocument struct {
 
 func globalSetting(key string) bool {
 	switch key {
-	case "theme", "theme_path", "glyphs", "queries_path", "editor", "aliases":
+	case "theme", "theme_path", "glyphs", "queries_path", "editor", "aliases", "tui_preview", "tui_status", "tui_assignee", "tui_labels", "tui_priority", "tui_issue_type", "tui_compact", "tui_updated":
 		return true
 	default:
 		return false

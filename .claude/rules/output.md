@@ -93,6 +93,23 @@ owns detailed freshness diagnostics.
 
 ## Write ownership
 
+`command.Spec.Screen` hands full-screen rendering to `output.RunScreen`, using
+the selected input/output streams and an invocation-derived cancellation scope.
+The shared owner retains destination failures and leaves process signals to root.
+Unix screens use the shared input owner's duplicated, bounded-poll reader and
+join active reads before closing it; this avoids the selected scanner's epoll
+cleanup race without closing the borrowed terminal or relying on its descriptor mode.
+Screen success is the human session; machine modes receive structured refusal.
+No command handler or dashboard model acquires a process writer. Jira content in
+screen rows and ADF previews uses the same pure sanitizing sinks as human output.
+The dashboard's command picker uses Primer's modal stack over the live page.
+Keep its footprint stable during filtering and its footer pinned during scrolling;
+only the top dialog owns input. Wide-character backdrop and dismissal tests must
+preserve frame dimensions and the underlying page state. Interactive sessions
+publish their Jira/local write capabilities in discovery; they are not advertised
+as read-only command operations. UI receipts distinguish attempts, acknowledgements
+and read failures. Acknowledged writes must not become invitations to repeat them.
+
 The output path is command → `command` → `cli` → Cobra's `io.Writer`.
 A command built through the construction path returns DATA; the path owns the envelope write. A hand-written command uses `RunE` and must return every `command.Write*Envelope` result — a destination failure is the command's failure.
 `command` chooses the machine or human renderer and passes

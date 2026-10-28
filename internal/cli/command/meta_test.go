@@ -16,6 +16,7 @@ func TestMetaClassDerivation(t *testing.T) {
 		meta command.Meta
 		want command.Class
 	}{
+		{name: "interactive actions", meta: command.Meta{Screen: true, WritesJira: true, MutatesLocalState: true}, want: command.ClassInteractive},
 		{name: "plain read", meta: command.Meta{Op: "x"}, want: command.ClassRead},
 		{name: "jira write", meta: command.Meta{Op: "x", WritesJira: true}, want: command.ClassMutation},
 		{name: "local write", meta: command.Meta{Op: "x", MutatesLocalState: true}, want: command.ClassLocalState},

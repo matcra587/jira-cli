@@ -9,6 +9,7 @@ import (
 	"slices"
 	"sync"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/gechr/x/terminal"
 	"github.com/spf13/cobra"
 
@@ -111,11 +112,15 @@ type Invocation struct {
 // from this declaration, so it cannot be forgotten by a command that
 // forgets to call something.
 type Spec[T any] struct {
+	// Screen constructs a full-screen human session from Run's typed result.
+	// The shared path admits terminals before Run and owns all session streams.
+	// Machine output, filters and headless invocations refuse before dependencies.
+	Screen func(context.Context, T) tea.Model
 	// Op is the dotted operation name the envelope carries as
 	// meta.command ("version", "issue.view"). Mandatory.
 	Op string
 	// WritesJira and MutatesLocalState classify the operation. A command
-	// declaring either is a mutation: it must register --dry-run, and
+	// declaring either is a mutation outside a terminal screen: it must register --dry-run, and
 	// New refuses it otherwise. Neither set is a read.
 	WritesJira        bool
 	MutatesLocalState bool
@@ -215,6 +220,7 @@ type Spec[T any] struct {
 // declares its operation, and nothing else reconstructs it.
 func (s Spec[T]) meta() Meta {
 	return Meta{
+		Screen:            s.Screen != nil,
 		Op:                s.Op,
 		Args:              &s.Args,
 		WritesJira:        s.WritesJira,
@@ -266,6 +272,11 @@ func New[T any](spec Spec[T]) (*cobra.Command, error) {
 					return err
 				}
 			}
+			if spec.Screen != nil {
+				if err := requireScreen(cmd); err != nil {
+					return err
+				}
+			}
 			data, err := spec.Run(cmd.Context(), invocation(cmd, args))
 			recordIssueKeys(cmd.Context(), data, dryRunFlag(cmd), spec.Args, args, err)
 			var warnings []envelope.Warning
@@ -277,6 +288,13 @@ func New[T any](spec Spec[T]) (*cobra.Command, error) {
 					return &cli.ResultError{Err: err, Op: spec.Op, Data: data, Human: spec.Human, Warnings: warnings, Mutation: spec.meta().Class() != ClassRead}
 				}
 				return err
+			}
+			if spec.Screen != nil {
+				emitWarnings(append(cli.TakeWarnings(), cli.TakeRequestWarnings(cmd.Context())...))
+				emitWarnings(warnings)
+				return output.RunScreen(cmd.Context(), cmd.InOrStdin(), cmd.OutOrStdout(), func(ctx context.Context) tea.Model {
+					return spec.Screen(ctx, data)
+				})
 			}
 			return writeEnvelope(cmd, spec.Op, data, warnings, spec.Human, spec.PageHuman && !noPager && interactive(cmd))
 		},
@@ -327,7 +345,7 @@ func New[T any](spec Spec[T]) (*cobra.Command, error) {
 	// A read is untouched: it has nothing to preview, and assuming
 	// dry-run for one would be nonsense rather than safety.
 	meta := spec.meta()
-	if meta.Class() != ClassRead || read != nil && read.meta.Class() != ClassRead {
+	if !meta.Screen && meta.Class() != ClassRead || read != nil && read.meta.Class() != ClassRead {
 		flag := cmd.Flags().Lookup(cli.FlagDryRun)
 		if flag == nil {
 			return nil, fmt.Errorf("command: %q mutates but registers no --dry-run flag; a mutation with no preview cannot be checked before it runs", meta.Op)
@@ -358,7 +376,7 @@ func New[T any](spec Spec[T]) (*cobra.Command, error) {
 		setBoolVariant(cmd, read)
 	}
 	SetMeta(cmd, meta, variants...)
-	if spec.Human != nil || spec.HumanHelp != nil || read != nil && read.human {
+	if spec.Screen != nil || spec.Human != nil || spec.HumanHelp != nil || read != nil && read.human {
 		recordHuman(cmd)
 	}
 	return cmd, nil
@@ -404,6 +422,8 @@ func MustNew[T any](spec Spec[T]) *cobra.Command {
 // could.
 func (s Spec[T]) validate() error {
 	switch {
+	case s.Screen != nil && (s.Human != nil || s.HumanHelp != nil || s.PageHuman || s.Read != nil || s.LocalWrite != nil):
+		return fmt.Errorf("command: %q screen requires a terminal session without another human renderer or variant", s.Op)
 	case s.HumanHelp != nil && (s.Human != nil || s.meta().Class() != ClassRead):
 		return fmt.Errorf("command: %q native help requires a read operation without a bespoke human renderer", s.Op)
 	case s.Op == "":

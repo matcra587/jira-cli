@@ -52,8 +52,9 @@ var (
 	// resolves LAZILY — the first dialog to ask can be on any goroutine,
 	// while others are already reading. The race detector found exactly
 	// that once parallel tests started drawing prompts.
-	chosenMu    sync.RWMutex
-	chosenTheme *theme.Theme
+	chosenMu             sync.RWMutex
+	chosenTheme          *theme.Theme
+	themeEnvironmentName string
 	// Library prefix setup reads the process environment. Concurrent program
 	// constructors must finish restoration before the next setup can read it.
 	libraryThemeMu sync.Mutex
@@ -88,6 +89,9 @@ func currentTheme() *theme.Theme {
 // Runs before conductor.New, which is what sets the prefix and triggers
 // the libraries' own env pass.
 func applyTheme() {
+	chosenMu.Lock()
+	themeEnvironmentName = ""
+	chosenMu.Unlock()
 	// Every candidate is taken away, the winner included, save for the
 	// one exception keep names — decided in the loop below.
 	//
@@ -121,6 +125,11 @@ func applyTheme() {
 		}
 
 		used, knownToBoth := applyThemeName(name)
+		if used {
+			chosenMu.Lock()
+			themeEnvironmentName = name
+			chosenMu.Unlock()
+		}
 		switch {
 		case !used:
 			// Neither knows it. The names offered are clib's, because
@@ -452,4 +461,30 @@ func themeFromColorFGBG() *theme.Theme {
 		return lightFallback()
 	}
 	return darkFallback()
+}
+
+// PreviewTheme changes the process's already-resolved UI palette without
+// probing the terminal, changing environment variables or writing settings.
+// A single screen owns previews and restores its prior palette on cancellation.
+func PreviewTheme(name string) (func(), error) {
+	previous := currentTheme()
+	var next *theme.Theme
+	if name == "" || config.IsAutomaticTheme(name) {
+		next = automaticTheme()
+	} else {
+		next = &theme.Theme{}
+		if err := next.UnmarshalText([]byte(name)); err != nil {
+			return nil, err
+		}
+	}
+	setChosenTheme(next)
+	return func() { setChosenTheme(previous) }, nil
+}
+
+// ThemeEnvironmentName retains an accepted startup override after library
+// environment cleanup, so interactive settings can show its real ownership.
+func ThemeEnvironmentName() string {
+	chosenMu.RLock()
+	defer chosenMu.RUnlock()
+	return themeEnvironmentName
 }

@@ -65,6 +65,7 @@ func TestInventoryReconcilesCleanAndExact(t *testing.T) {
 		"jira me|",
 		"jira open|",
 		"jira release-notes|",
+		"jira tui|",
 		"jira update|",
 		"jira user search|", "jira version|", "jira worklog add|", "jira worklog list|", "jira|",
 	}

@@ -36,6 +36,7 @@ deep rules live in [commands.md](commands.md), [output.md](output.md),
 | `internal/nativepath/` | literal absolute paths and existing-object identity; callers own existence and publication policy |
 | `internal/envelope/` | registered operation data shapes and derived schemas |
 | `internal/output/` | envelope assembly, machine rendering, human View/table primitives and output failure tracking |
+| `internal/tui/dashboard/` | issue home screen, Primer widgets and generation-tracked Jira reads; terminal streams stay in shared output |
 | `internal/cli/completion/native/` | licensed generator backports registered at clib's model boundary |
 | `internal/agentguides/`, `internal/cli/discovery/` | embedded docent guides and discovery from the assembled command tree |
 | `internal/cli/agent/` | illustrative native field examples and ADF capability discovery |
@@ -101,8 +102,13 @@ documented raw-output exception and emit identical bytes in every output mode.
     Behavior changes update help, embedded guides, schemas, applicable rules
     and changie fragments together. Discovery is built at runtime; no
     `cmd/gen-docs` owner exists in this layout.
-*   **TUI runtime** remains a separate milestone. Explicit migration deferral
-    retains original declarations without claiming active dashboard behavior.
+*   **TUI runtime** uses `command.Spec.Screen` through the shared output owner.
+    The issue home screen saves explicit display preferences through the shared
+    configuration file owner, reads/saves named queries through the query owner,
+    and reuses issue-domain transition/edit/comment receipts for explicit reviewed
+    actions. Its runtime schema declares interactive write capabilities. It does
+    not consume legacy TUI preferences;
+    explicit migration deferral retains those original declarations for later work.
 *   **Versioning** uses clive's injected version and Go's embedded VCS metadata,
     exposed by `internal/cli/version/`. Build flags belong to
     `.mise/tasks/lib/build-env.sh`.

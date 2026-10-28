@@ -1117,6 +1117,8 @@ func serveSearchApproximateCount(w http.ResponseWriter, r *http.Request) {
 // build facts. Pre-parse failures retain full machine frames; unknown command
 // recipes are exercised separately because they cannot resolve in inventory.
 var scenarios = []Scenario{
+	{ID: "tui-headless", Op: "tui", Category: CategoryFailure, Args: []string{"tui"}, ExpectExit: 3, ExpectCode: "dashboard_terminal_required"},
+	{ID: "tui-help", Op: "tui", Category: CategoryHelp, Args: []string{"tui", "--help"}},
 	{ID: "release-notes-latest", Op: "release.notes", Category: CategorySuccess, Args: []string{"release-notes", "--latest"}},
 	{ID: "release-notes-unknown-version", Op: "release.notes", Category: CategoryFailure, Args: []string{"release-notes", "missing"}, ExpectExit: 3, ExpectCode: "arg_value_invalid"},
 	{ID: "release-notes-help", Op: "release.notes", Category: CategoryHelp, Args: []string{"release-notes", "--help"}},

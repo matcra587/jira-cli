@@ -28,7 +28,7 @@ func SettingValueChoices(key string) []string {
 	switch key {
 	case "secret_backend":
 		return []string{string(core.CredentialBackendKeyring), string(core.CredentialBackendEnvironment), string(core.CredentialBackendOnePassword)}
-	case "keyring", "read_only":
+	case "keyring", "read_only", "tui_preview", "tui_status", "tui_assignee", "tui_labels", "tui_priority", "tui_issue_type", "tui_compact", "tui_updated":
 		return []string{"true", "false"}
 	case "glyphs":
 		return []string{GlyphSetDefault.String(), GlyphSetNerd.String()}
@@ -89,7 +89,7 @@ func parseSettingValue(key, value string) (any, error) {
 			return nil, err
 		}
 		return strings.TrimSpace(value), nil
-	case "keyring", "read_only":
+	case "keyring", "read_only", "tui_preview", "tui_status", "tui_assignee", "tui_labels", "tui_priority", "tui_issue_type", "tui_compact", "tui_updated":
 		parsed, err := strconv.ParseBool(value)
 		if err != nil {
 			return nil, fmt.Errorf("%s must be true or false", key)

@@ -43,6 +43,7 @@ import (
 	jqlcmd "github.com/matcra587/jira-cli/internal/cli/jql"
 	"github.com/matcra587/jira-cli/internal/cli/prompt"
 	"github.com/matcra587/jira-cli/internal/cli/releasenotes"
+	tuicmd "github.com/matcra587/jira-cli/internal/cli/tui"
 	updatecmd "github.com/matcra587/jira-cli/internal/cli/update"
 	usercmd "github.com/matcra587/jira-cli/internal/cli/user"
 	"github.com/matcra587/jira-cli/internal/cli/version"
@@ -166,7 +167,7 @@ func newProgramWithTheme(deps *Deps, stdout, stderr io.Writer, resolveTheme func
 			Updater:     notifier,
 			// Keep local discovery and configuration free of release I/O. The
 			// framework already skips update, version, help and completion.
-			NotifySkip:    []string{"", "up", "agent", "guide", "config", "alias", "auth", "me", "adf", "jql", "open", "release-notes", "rn"},
+			NotifySkip:    []string{"", "up", "agent", "guide", "config", "alias", "auth", "me", "adf", "jql", "open", "release-notes", "rn", "tui"},
 			NotifyOptions: notificationOptions(deps, sink),
 			// Supplying a theme is what avoids conductor calling
 			// theme.Auto(), which asks the terminal for its background color
@@ -296,6 +297,7 @@ func newProgramWithTheme(deps *Deps, stdout, stderr io.Writer, resolveTheme func
 		}
 	}
 	program.Root.AddCommand(issuecmd.New(issueDeps), issuecmd.NewOpen(issueDeps))
+	program.Root.AddCommand(tuicmd.New(tuicmd.Deps{JiraClient: deps.JiraClient, Preferences: deps.BuildPreferences, ResolveConfig: deps.ResolveConfig}))
 
 	// Credentials. Constructors, not instances: nothing opens the
 	// keyring or a network client until a RunE that needs one runs.

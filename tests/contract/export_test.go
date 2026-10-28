@@ -29,7 +29,7 @@ func readExportOutput(t *testing.T, stdout, mode string, success bool) envelope.
 		payload = f.Data
 	}
 	var out envelope.GuideExportOutput
-	if json.Unmarshal(payload, &out) != nil || out.ContractVersion != "1" || out.Directory == "" || len(out.Artifacts) != 12 || out.WrittenPaths == nil {
+	if json.Unmarshal(payload, &out) != nil || out.ContractVersion != "1" || out.Directory == "" || len(out.Artifacts) != 13 || out.WrittenPaths == nil {
 		t.Fatalf("export receipt lost its prepared corpus: %q", payload)
 	}
 	var raw any
@@ -69,7 +69,7 @@ func TestGuideExportFilesModesAndDryRun(t *testing.T) {
 				}
 				out := readExportOutput(t, stdout, mode, true)
 				plan, err := agentguides.PlanExport(guides, format)
-				if err != nil || out.DryRun || !out.Attempted || len(out.WrittenPaths) != 12 || out.Format != format {
+				if err != nil || out.DryRun || !out.Attempted || len(out.WrittenPaths) != 13 || out.Format != format {
 					t.Fatal("live local export lost publication facts")
 				}
 				for i, artifact := range out.Artifacts {

@@ -104,7 +104,10 @@ func enrich(cmd *cobra.Command, tree *docent.Command) error {
 			if meta.Class() != command.ClassRead {
 				tree.ReadOnly = false
 			}
-			operation := Operation{Op: meta.Op, Variant: meta.Variant, Class: string(meta.Class()), NoSuccessEnvelope: meta.NoSuccessEnvelope}
+			operation := Operation{Op: meta.Op, Variant: meta.Variant, Class: string(meta.Class()), NoSuccessEnvelope: meta.NoSuccessEnvelope, ScreenOnly: meta.Screen}
+			if meta.Screen {
+				operation.ScreenWritesJira, operation.ScreenMutatesLocalState = meta.WritesJira, meta.MutatesLocalState
+			}
 			if i > 0 {
 				if meta.NoSuccessEnvelope == "" {
 					reg, exists := envelope.Registered(meta.Op)
@@ -163,9 +166,12 @@ func enrich(cmd *cobra.Command, tree *docent.Command) error {
 
 // Operation is host metadata that Cobra's command/flag tree cannot describe.
 type Operation struct {
-	Op                string `json:"op"`
-	Variant           string `json:"variant,omitempty"`
-	Class             string `json:"class"`
-	NoSuccessEnvelope string `json:"no_success_envelope,omitempty"`
-	HasOutputSchema   bool   `json:"has_output_schema,omitempty"`
+	ScreenWritesJira        bool   `json:"screen_writes_jira,omitempty"`
+	ScreenMutatesLocalState bool   `json:"screen_mutates_local_state,omitempty"`
+	ScreenOnly              bool   `json:"screen_only,omitempty"`
+	Op                      string `json:"op"`
+	Variant                 string `json:"variant,omitempty"`
+	Class                   string `json:"class"`
+	NoSuccessEnvelope       string `json:"no_success_envelope,omitempty"`
+	HasOutputSchema         bool   `json:"has_output_schema,omitempty"`
 }

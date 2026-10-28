@@ -395,12 +395,15 @@ var keyFailureSeverity = map[string]int{
 	cli.CodeEditorFailed:             0,
 	cli.CodeTerminalRestoreFailed:    0,
 	cli.CodeTerminalRequired:         0,
-	cli.CodeConfigInvalid:            0,
-	cli.CodeConfigMigrationUnmapped:  0,
-	cli.CodeConfigMigrationChanged:   0,
-	cli.CodeConfigRecoveryInvalid:    0,
-	cli.CodeConfigMigrationFailed:    0,
-	cli.CodePathInvalid:              0,
+
+	cli.CodeDashboardTerminalRequired: 0,
+
+	cli.CodeConfigInvalid:           0,
+	cli.CodeConfigMigrationUnmapped: 0,
+	cli.CodeConfigMigrationChanged:  0,
+	cli.CodeConfigRecoveryInvalid:   0,
+	cli.CodeConfigMigrationFailed:   0,
+	cli.CodePathInvalid:             0,
 }
 
 // keyedCommands records which commands called AddKeyedFlags, keyed by

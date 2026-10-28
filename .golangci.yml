@@ -106,6 +106,9 @@ linters:
             # viewport. Primer 0.2.7 renders Markdown but has no pager.
             - charm.land/bubbletea/v2
             - charm.land/bubbles/v2/viewport
+            # Dashboard JQL input uses the selected Bubble Tea v2 text field.
+            - charm.land/bubbles/v2/textarea # Primer-owned multiline comment editor
+            - charm.land/bubbles/v2/textinput
             # The selected width engine supplies grapheme iteration. x/ansi's
             # hard wrapper drops spaces and cannot measure terminal tab stops.
             - github.com/charmbracelet/x/ansi
