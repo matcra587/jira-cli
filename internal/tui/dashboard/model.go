@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"maps"
-	"slices"
 
 	"charm.land/bubbles/v2/textinput"
 	"charm.land/bubbles/v2/viewport"
@@ -40,6 +39,7 @@ type Client interface {
 
 // Options carries resolved public settings; it never selects a profile itself.
 type Options struct {
+	Workspace                    config.Workspace
 	Project, ProjectQuery, Query string
 	Theme                        string
 	ThemeLabel, ThemeNotice      string
@@ -64,6 +64,10 @@ type Options struct {
 // Model owns UI state on Tea's update loop. Fetch closures capture the shared
 // session context, so screen shutdown cancels admitted HTTP reads.
 type Model struct {
+	workspace                    config.Workspace
+	tabIDs                       []string
+	activeLens                   string
+	viewContexts                 map[string]viewContext
 	refresh                      refreshState
 	clock                        refreshClock
 	hierarchy                    hierarchyWorkspace
@@ -141,14 +145,9 @@ func New(ctx context.Context, client Client, options Options) *Model {
 	if options.BindContext != nil {
 		options.BindContext(ctx)
 	}
-	labels := []string{"My work"}
-	if options.ProjectQuery != "" {
-		labels = append(labels, "Project")
-	}
-	labels = append(labels, "Search", hierarchyTab)
 	m := &Model{
 		refresh: refreshState{markers: make(map[string]rowChange)}, clock: newRefreshClock(ctx),
-		options: options, themeName: options.Theme, site: client.BaseURL(), tabs: carousel.New(labels...),
+		options: options, themeName: options.Theme, site: client.BaseURL(), tabs: carousel.New(),
 		drafts: make(map[string]string), rows: list.New(), tasks: task.New(), preview: viewport.New(),
 		query: myWorkQuery, customQuery: options.Query,
 		search:          dashboardSearcher(ctx, client, false),
@@ -179,10 +178,7 @@ func New(ctx context.Context, client Client, options Options) *Model {
 	m.input.Prompt = "JQL > "
 	m.input.Placeholder = "Enter a Jira query"
 	m.input.CharLimit = 8192
-	if options.Query != "" {
-		m.tabs.SetActive(slices.Index(labels, "Search"))
-		m.query = options.Query
-	}
+	m.initializeWorkspace()
 	m.applyStyles()
 	m.dialogs = newCommandStack()
 	return m

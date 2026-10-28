@@ -26,6 +26,9 @@ func publicSettingValues(values map[string]string) map[string]string {
 	defaults := config.Defaults()
 	for _, key := range config.WritableSettingKeys() {
 		result[key] = fmt.Sprint(defaults[key])
+		if key == "tui_workspace" {
+			result[key] = "{}"
+		}
 		if value, ok := values[key]; ok {
 			result[key] = value
 		}
@@ -35,6 +38,14 @@ func publicSettingValues(values map[string]string) map[string]string {
 
 func (m *Model) editSetting(s setting, reset bool) {
 	p := m.settings
+	if s.key == "tui_workspace" {
+		if reset {
+			m.keepSetting(s.key, "{}")
+		} else {
+			m.openWorkspaceSettings()
+		}
+		return
+	}
 	if s.key == "api_token" || s.key == "aliases" {
 		p.notice = s.description
 		return

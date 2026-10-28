@@ -56,6 +56,8 @@ func parseSettingValue(key, value string) (any, error) {
 		return nil, fmt.Errorf("%s must be valid UTF-8", key)
 	}
 	switch key {
+	case "tui_workspace":
+		return workspaceSettingValue(value)
 	case "account_id", "account_id_site", "account_id_email", "account_id_cloud_id":
 		candidate, err := unmarshalFields(map[string]any{key: value})
 		if err != nil {

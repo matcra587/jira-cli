@@ -429,6 +429,64 @@ compare returned native fields and describe observed changes, not server history
 Descriptions render native ADF through the shared display owner; unsupported
 nodes remain visible as disclosures. Reading a preview does not edit ADF.
 
+### Custom workspace
+
+Open comma Settings → Workspace to manage custom views, lenses, visible tab
+order, and startup choices. A view has a title and authored JQL. A lens has a
+title and conditions that narrow ordinary views; it cannot contain `ORDER BY`.
+The view's ordering is retained, and the JQL line shows the combined conditions.
+Native hierarchy navigation keeps its own parent queries; lenses apply when you
+return to an ordinary view.
+
+Choose Views or Lenses to add, rename, edit JQL or remove a definition. Enter
+advances from a new title to JQL; Ctrl+S keeps multiline JQL in the Settings
+draft. Esc cancels the current field. Tabs chooses visible views, moves them
+earlier or later, and hides them. Removing a view also removes its tab and startup
+reference; removing a lens clears its startup reference. At least one tab remains.
+Renaming preserves these references. Invalid changes retain the editor and an
+explanation.
+
+Leave the Workspace menu with Esc, then Ctrl+S saves Settings and reloads the
+collections. Esc from Settings discards the draft. Startup view/lens choices
+apply to a fresh launch, so saving them does not interrupt the current view.
+Alt+V opens the visible-tab picker; Alt+L chooses a lens or No lens. When tabs do
+not fit, the strip keeps the active view and position visible; click it to choose
+another tab. Explicit Search and Hierarchy shortcuts may expose a temporary tab
+without changing the saved layout.
+
+Switching tabs retains view-local filters, selection, marks, loaded results and
+preview position. Parked and active issue windows share a 5,000-issue budget;
+evicted windows reread their prior size through the bounded search owner while
+retaining navigation state. Query/lens changes invalidate observations for that
+context. Runtime reload keeps work scoped to its existing site/account identity.
+
+These related preferences use the global `tui_workspace` object. The CLI accepts
+one JSON object through `config set`; TOML stores native tables and arrays:
+
+```toml
+[tui_workspace]
+tabs = ["my-work", "triage", "search", "hierarchy"]
+landing_view = "triage"
+landing_lens = "mine"
+
+[[tui_workspace.sections]]
+id = "triage"
+title = "Triage"
+jql = "project = DEMO ORDER BY updated DESC"
+
+[[tui_workspace.lenses]]
+id = "mine"
+title = "Assigned to me"
+jql = "assignee = currentUser()"
+```
+
+IDs are distinct lowercase ASCII names; titles can be renamed. The built-in view
+IDs are `my-work`, `project`, `search` and `hierarchy`. Project is omitted when the
+profile has no project query. An unavailable startup view falls back to the first
+available tab with an explanation. `JIRA_TUI_WORKSPACE` replaces the complete
+object, preserving ordinary environment precedence. Use `{}` through config set
+or Reset workspace in Settings to restore built-ins.
+
 ## Preconditions
 
 The dashboard requires a configured Jira account with permission to read the

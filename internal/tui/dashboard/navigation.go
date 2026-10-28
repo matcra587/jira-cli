@@ -96,6 +96,17 @@ func (m *Model) showViews(views []SavedView) {
 }
 
 func (m *Model) acceptPicker(d *pickerDialog) tea.Cmd {
+	if d.kind == "workspace-tab" {
+		if m.workspaceTabExists(d.value()) {
+			m.parkView()
+			m.activateView(d.value())
+			return m.switchView()
+		}
+		return nil
+	}
+	if d.kind == "workspace-lens" {
+		return m.selectLens(d.value())
+	}
 	if d.kind == "detail-section" {
 		if index := slices.Index(detailSections, d.value()); index >= 0 {
 			m.previewFocused = m.split() && !m.detailFocused
@@ -137,12 +148,16 @@ func (m *Model) acceptPicker(d *pickerDialog) tea.Cmd {
 	case "issue":
 		return m.openIssue(value)
 	case "views":
-		m.parkHierarchy()
+		m.parkView()
 		m.query, m.customQuery = value, value
 		if entry, ok := d.menu.Selected(); ok {
 			m.viewName = entry.Name
 		}
-		m.tabs.SetActive(slices.Index(m.tabs.Items(), "Search"))
+		m.activateView("search")
+		m.query, m.err = m.workspaceQuery("search")
+		if m.err != nil {
+			return nil
+		}
 		return m.newQuery()
 	default:
 		return m.acceptActionPicker(d, value)

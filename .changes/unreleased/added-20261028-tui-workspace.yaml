@@ -1,0 +1,3 @@
+kind: added
+body: Configure named views, narrowing lenses, visible tab order and startup choices through dashboard Settings. Preserve per-view navigation with bounded cached windows and stable references across renames.
+time: 2026-10-28T17:00:00-04:00

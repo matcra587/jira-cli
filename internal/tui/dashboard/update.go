@@ -206,6 +206,12 @@ func (m *Model) updateKey(msg tea.KeyPressMsg) tea.Cmd {
 		return nil
 	case "v":
 		return m.openViews()
+	case "alt+l":
+		m.openLenses()
+		return nil
+	case "alt+v":
+		m.openWorkspaceTabs()
+		return nil
 	case "ctrl+s":
 		m.text("Save current view", "save-view", m.query, "Choose a new saved-search name. Existing files will not be replaced.")
 		return nil
@@ -248,20 +254,20 @@ func (m *Model) updateKey(msg tea.KeyPressMsg) tea.Cmd {
 	case "ctrl+g":
 		return m.browseHierarchy(true)
 	case "1":
-		m.parkHierarchy()
-		m.tabs.SetActive(0)
+		m.parkView()
+		m.activateView("my-work")
 		return m.switchView()
 	case "2":
-		m.parkHierarchy()
+		m.parkView()
 		if m.options.ProjectQuery != "" {
-			m.tabs.SetActive(1)
+			m.activateView("project")
 			return m.switchView()
 		}
 		return m.editQuery()
 	case "/":
 		return m.editQuery()
 	case "tab", "shift+tab":
-		m.parkHierarchy()
+		m.parkView()
 		if key == "tab" {
 			m.tabs.Next()
 		} else {

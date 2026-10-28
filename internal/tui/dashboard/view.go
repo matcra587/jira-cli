@@ -64,7 +64,7 @@ func (m *Model) rebuildRows() {
 	if m.enabled("tui_status") && m.listWidth() >= 64 {
 		headers = append(headers, "STATUS")
 	}
-	showAssignee := m.enabled("tui_assignee") && m.listWidth() >= 92 && m.tabs.ActiveItem() != "My work"
+	showAssignee := m.enabled("tui_assignee") && m.listWidth() >= 92 && m.activeViewID() != "my-work"
 	if showAssignee {
 		headers = append(headers, "ASSIGNEE")
 	}
@@ -505,7 +505,7 @@ func (m *Model) View() tea.View {
 	if m.settings != nil && m.settings.preview {
 		status = dim("Previewing display settings · changes are saved only with Ctrl+S in Settings")
 	}
-	content := strings.Join([]string{header, m.tabs.View(), query, "", body, status, "", m.hints()}, "\n")
+	content := strings.Join([]string{header, m.viewTabStrip(), query, "", body, status, "", m.hints()}, "\n")
 	content = frame(content, m.pageWidth(), m.height)
 	var creationCursor *tea.Cursor
 	if m.creationEditor != nil {

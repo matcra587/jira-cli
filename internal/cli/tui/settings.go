@@ -21,7 +21,7 @@ func dashboardOptions(ctx context.Context, resolved *config.Resolved) (dashboard
 	if err != nil {
 		return dashboard.Options{}, err
 	}
-	options := dashboard.Options{SettingSources: make(map[string]string)}
+	options := dashboard.Options{SettingSources: make(map[string]string), Workspace: resolved.Config.TUIWorkspace.Clone()}
 	// Binding occurs once before Tea starts any commands. The original snapshot
 	// stays fixed while publication and query I/O inherit the screen lifetime.
 	options.BindContext = func(session context.Context) { ctx = session }

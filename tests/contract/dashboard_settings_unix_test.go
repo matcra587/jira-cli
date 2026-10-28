@@ -119,6 +119,7 @@ func TestDashboardNativeEverySettingSavesReloadsAndReopens(t *testing.T) {
 		"tui_compact": "false", "tui_updated": "false", "tui_auto_page": "false",
 		"tui_preview_dock": "bottom", "tui_preview_size": "55",
 		"tui_refresh_interval": "45", "tui_refresh_on_focus": "false", "tui_change_markers": "false",
+		"tui_workspace":       `{"landing_view":"search"}`,
 		"tui_hierarchy_query": `issuetype = "10002" ORDER BY updated DESC`,
 	}
 	if err := os.MkdirAll(values["queries_path"], 0o700); err != nil {
@@ -157,7 +158,13 @@ func TestDashboardNativeEverySettingSavesReloadsAndReopens(t *testing.T) {
 			terminal.wait("Settings audit issue")
 			terminal.sendWait(",", "Show issue preview")
 			terminal.selectSetting(key)
-			if key == "theme" {
+			if key == "tui_workspace" {
+				terminal.sendWait("\r", "Create and edit named Jira queries")
+				terminal.sendWait("\x1b[200~Startup view\x1b[201~\r", "First visible tab")
+				terminal.sendWait("\x1b[200~Search\x1b[201~\r", "Kept in the settings draft")
+				terminal.sendWait("\x1b", "Create and edit named Jira queries")
+				terminal.sendWait("\x1b", "unsaved")
+			} else if key == "theme" {
 				terminal.sendWait("\r", "Built-in")
 				// Primer's stable fuzzy order also matches monochrome-dark.
 				terminal.sendWait("\x1b[200~nord\x1b[201~", "/ nord")

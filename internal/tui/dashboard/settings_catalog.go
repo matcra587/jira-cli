@@ -17,6 +17,7 @@ var dashboardSettings = []setting{
 	{key: "tui_refresh_interval", name: "Automatic refresh", group: "Refresh", description: "Seconds between active-view reads, from 1 to 86400. 0 disables timed refresh. Input and writes defer reads; R pauses or resumes automatic refresh."},
 	{key: "tui_refresh_on_focus", name: "Refresh when focused", group: "Refresh", description: "Refresh the active view when returning to the terminal. Independent of the timer; R pauses both automatic sources."},
 	{key: "tui_change_markers", name: "Highlight changed issues", group: "Refresh", description: "Mark newly observed and changed issue rows after refresh. Deliberate selection acknowledges a marker; initial pages and pagination are not changes."},
+	{key: "tui_workspace", name: "Workspace", group: "Workspace", description: "Manage named views and lenses, visible tab order, and startup choices. Changes stay in the settings draft until saved."},
 }
 
 // These descriptions distinguish preferences from cached identity and startup
@@ -25,7 +26,7 @@ var otherSettings = []setting{
 	{key: "default_project", name: "Default project", group: "Defaults", description: "Project key used for structured lists and new issues."},
 	{key: "default_issue_type", name: "Default issue type", group: "Defaults", description: "Issue type used when creating an issue without an explicit type."},
 	{key: "default_board", name: "Default board", group: "Defaults", description: "Cached board scope for structured issue lists."},
-	{key: "refresh_interval", name: "Refresh interval", group: "Defaults", description: "Polling preference in seconds; retained as metadata. This screen does not poll automatically."},
+	{key: "refresh_interval", name: "Refresh interval", group: "Defaults", description: "Polling preference retained as metadata. Configure this dashboard's automatic reads under Refresh."},
 	{key: "team_account_ids", name: "Team account IDs", group: "Defaults", description: "JSON array of literal Jira account IDs. Does not change issue queries implicitly."},
 	{key: "workday_seconds", name: "Workday duration", group: "Defaults", description: "Positive number of seconds represented by 1d in worklog input."},
 	{key: "queries_path", name: "Saved queries directory", group: "Tools", description: "Directory containing named .jql searches."},

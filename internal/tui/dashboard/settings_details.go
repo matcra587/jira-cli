@@ -38,6 +38,13 @@ func (m *Model) settingsStatus() string {
 
 func (m *Model) settingValue(name string) string {
 	p := m.settings
+	if name == "tui_workspace" {
+		workspace, err := config.ParseWorkspace(p.values[name])
+		if err != nil {
+			return "Invalid workspace"
+		}
+		return strconv.Itoa(len(workspace.Sections)) + " custom views · " + strconv.Itoa(len(workspace.Lenses)) + " lenses · " + strconv.Itoa(len(workspace.TabIDs())) + " tabs"
+	}
 	if name == "api_token" || name == "aliases" {
 		return "Managed separately"
 	}
@@ -84,7 +91,7 @@ func (m *Model) settingVisibility(name string) string {
 	}
 	switch name {
 	case "tui_assignee":
-		if m.tabs.ActiveItem() == "My work" {
+		if m.activeViewID() == "my-work" {
 			return "Hidden in My work (all yours)."
 		}
 		if m.listWidth() < 92 {

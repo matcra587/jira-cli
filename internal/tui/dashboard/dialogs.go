@@ -121,6 +121,10 @@ func (m *Model) updateCommands(msg tea.Msg) tea.Cmd {
 		return cmd
 	}
 	switch d := closed.(type) {
+	case *workspaceDialog:
+		return tea.Batch(cmd, m.acceptWorkspaceMenu(d))
+	case *workspaceFieldDialog:
+		return tea.Batch(cmd, m.acceptWorkspaceField(d))
 	case *themeInputDialog:
 		return tea.Batch(cmd, m.acceptThemeInput(d))
 	case *descriptionDialog:

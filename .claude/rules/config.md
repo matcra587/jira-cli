@@ -714,7 +714,7 @@ for `command.OnceContextValues` and the synchronous OS-keyring limitation.
 `tui_issue_type`, `tui_compact` and `tui_updated` are boolean display preferences,
 defaulting to true. `tui_auto_page` also defaults to true and controls
 forward-navigation paging. `tui_preview_dock` is the validated closed set auto,
-right or bottom; `tui_preview_size` is an integer percentage 25–75, default 40.
+left, right or bottom; `tui_preview_size` is an integer percentage 25–75, default 40.
 Validate native file integer types and environment values before overlays can
 hide an invalid declaration. These are global declarations at the document root, including named-profile files. Ordinary
 environment precedence applies. The dashboard projects these public values and
@@ -723,6 +723,17 @@ Its searchable settings page exposes every config key, edits all public writable
 scalars through `ValidateSettingValue`, and explains the dedicated auth and alias
 owners for tokens and aliases. It projects only writable public values into
 screen state; never pass token values or alias definitions to the scalar editor.
+
+`tui_workspace` is one global native object containing named sections, narrowing
+lenses, ordered tab IDs and startup view/lens references. Settings uses structured
+menus and editors; config set and `JIRA_TUI_WORKSPACE` admit one JSON object.
+Environment replacement is atomic for this object rather than a partial table
+merge. Validate every authored object before overlays, reject unknown members,
+duplicate IDs/titles, invalid references and ordering in lenses. IDs survive
+renames; removal clears references. The shared file owner publishes the complete
+candidate once. Startup choices affect fresh launch; collections hot reload
+without navigating away from a still-available active view. Legacy TUI migration
+remains explicitly deferred; this object does not silently activate old blocks.
 Closed scalar choices use a menu with the current value selected; text editors
 remain for free-form values. Keep choice admission bound to its Settings page.
 The heading counts distinct draft changes. Selected public values and their

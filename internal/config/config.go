@@ -244,6 +244,7 @@ type Config struct {
 	TUIRefreshInterval int            `koanf:"tui_refresh_interval"`
 	TUIRefreshOnFocus  bool           `koanf:"tui_refresh_on_focus"`
 	TUIChangeMarkers   bool           `koanf:"tui_change_markers"`
+	TUIWorkspace       Workspace      `koanf:"tui_workspace"`
 	TUIHierarchyQuery  HierarchyQuery `koanf:"tui_hierarchy_query"`
 	TUIPreviewDock     PreviewDock    `koanf:"tui_preview_dock"`
 	TUIPreviewSize     int            `koanf:"tui_preview_size"`
@@ -268,7 +269,7 @@ func IsSecret(key string) bool { return secretKeys[key] }
 
 // Keys lists every config key, in a stable order.
 func Keys() []string {
-	return []string{"base_url", "cloud_id", "email", "credential_id", "account_id", "account_id_site", "account_id_email", "account_id_cloud_id", "api_token", "api_token_env", "default_project", "default_issue_type", "default_board", "refresh_interval", "team_account_ids", "keyring", "secret_backend", "onepassword_account", "onepassword_vault", "onepassword_item", "read_only", "timeout", "theme", "theme_path", "glyphs", "workday_seconds", "queries_path", "editor", "aliases", "tui_preview", "tui_status", "tui_assignee", "tui_labels", "tui_priority", "tui_issue_type", "tui_compact", "tui_updated", "tui_auto_page", "tui_preview_dock", "tui_preview_size", "tui_hierarchy_query", "tui_refresh_interval", "tui_refresh_on_focus", "tui_change_markers"}
+	return []string{"base_url", "cloud_id", "email", "credential_id", "account_id", "account_id_site", "account_id_email", "account_id_cloud_id", "api_token", "api_token_env", "default_project", "default_issue_type", "default_board", "refresh_interval", "team_account_ids", "keyring", "secret_backend", "onepassword_account", "onepassword_vault", "onepassword_item", "read_only", "timeout", "theme", "theme_path", "glyphs", "workday_seconds", "queries_path", "editor", "aliases", "tui_preview", "tui_status", "tui_assignee", "tui_labels", "tui_priority", "tui_issue_type", "tui_compact", "tui_updated", "tui_auto_page", "tui_preview_dock", "tui_preview_size", "tui_hierarchy_query", "tui_refresh_interval", "tui_refresh_on_focus", "tui_change_markers", "tui_workspace"}
 }
 
 // Defaults are the built-in values, the layer every load starts from.
@@ -318,6 +319,7 @@ func Defaults() map[string]any {
 		"queries_path":    DefaultQueriesPath(),
 		"editor":          "",
 		"aliases":         map[string]string{},
+		"tui_workspace":   map[string]any{},
 		"tui_preview":     true, "tui_status": true, "tui_assignee": true,
 		"tui_labels": true, "tui_priority": true, "tui_issue_type": true,
 		"tui_compact": true, "tui_updated": true, "tui_auto_page": true,
@@ -365,6 +367,9 @@ func (c Config) Validate() error {
 // written, and saying so then beats surfacing it as an opaque request
 // failure on the next command that needs the site.
 func (c Config) ValidateValues() error {
+	if err := c.TUIWorkspace.Validate(); err != nil {
+		return err
+	}
 	if err := validateCredentialID(c.CredentialID); err != nil {
 		return err
 	}
@@ -549,6 +554,7 @@ func (c Config) Values() map[string]string {
 		"queries_path":         c.QueriesPath,
 		"editor":               c.Editor,
 		"aliases":              string(aliasJSON),
+		"tui_workspace":        c.TUIWorkspace.JSON(),
 		"tui_hierarchy_query":  string(c.TUIHierarchyQuery),
 		"tui_refresh_interval": strconv.Itoa(c.TUIRefreshInterval), "tui_refresh_on_focus": strconv.FormatBool(c.TUIRefreshOnFocus), "tui_change_markers": strconv.FormatBool(c.TUIChangeMarkers),
 		"tui_preview_dock": string(c.TUIPreviewDock),

@@ -3,7 +3,6 @@ package dashboard
 import (
 	"context"
 	"fmt"
-	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -72,19 +71,25 @@ func (m *Model) selectedKey() string {
 }
 
 func (m *Model) switchView() tea.Cmd {
-	switch m.tabs.ActiveItem() {
-	case hierarchyTab:
+	id := m.activeViewID()
+	query, err := m.workspaceQuery(id)
+	if err != nil {
+		m.err = err
+		return nil
+	}
+	if saved, ok := m.viewContexts[id]; ok && saved.frame.query == query && saved.lens == m.activeLens {
+		delete(m.viewContexts, id)
+		return m.restoreViewContext(saved)
+	}
+	switch id {
+	case "hierarchy":
 		if m.hierarchy.parked != nil {
 			return m.restoreHierarchyFrame(*m.hierarchy.parked)
 		}
 		m.hierarchy.location = nil
 		m.query = m.hierarchyRootQuery()
-	case "My work":
-		m.query = myWorkQuery
-	case "Project":
-		m.query = m.options.ProjectQuery
-	case "Search":
-		m.query = m.customQuery
+	case "search":
+		m.query = query
 		if m.query == "" {
 			m.viewName, m.notice = "", ""
 			m.resetQuery()
@@ -92,6 +97,7 @@ func (m *Model) switchView() tea.Cmd {
 			return nil
 		}
 	}
+	m.query = query
 	return m.newQuery()
 }
 
@@ -125,9 +131,13 @@ func (m *Model) resetQuery() {
 }
 
 func (m *Model) editQuery() tea.Cmd {
-	m.parkHierarchy()
+	m.parkView()
 	m.editing = true
-	m.input.SetValue(m.query)
+	query := m.workspaceBaseQuery(m.activeViewID())
+	if m.hierarchyActive() {
+		query = m.query
+	}
+	m.input.SetValue(query)
 	m.input.CursorEnd()
 	return m.input.Focus()
 }
@@ -178,6 +188,7 @@ func (m *Model) acceptList(msg task.FinishedMsg) tea.Cmd {
 		m.progress = command.NewSearchProgress("", false)
 	}
 	m.issues = append(m.issues, page.Issues...)
+	m.trimViewContexts(len(m.issues))
 	m.next, m.isLast, m.truncated = page.Pagination.NextPageToken, page.Pagination.IsLast, page.Truncated
 	if m.truncated {
 		m.err = fmt.Errorf("search incomplete (%s); refresh to restart", page.TruncatedReason)
@@ -222,10 +233,14 @@ func (m *Model) updateQuery(msg tea.KeyPressMsg) tea.Cmd {
 		if query == "" {
 			return nil
 		}
-		m.query, m.customQuery, m.editing = query, query, false
+		m.customQuery, m.editing = query, false
 		m.viewName = ""
 		m.input.Blur()
-		m.tabs.SetActive(slices.Index(m.tabs.Items(), "Search"))
+		m.activateView("search")
+		m.query, m.err = m.workspaceQuery("search")
+		if m.err != nil {
+			return nil
+		}
 		return m.newQuery()
 	}
 	var cmd tea.Cmd
@@ -233,4 +248,4 @@ func (m *Model) updateQuery(msg tea.KeyPressMsg) tea.Cmd {
 	return cmd
 }
 
-func (m *Model) emptySearch() bool { return m.tabs.ActiveItem() == "Search" && m.query == "" }
+func (m *Model) emptySearch() bool { return m.activeViewID() == "search" && m.query == "" }

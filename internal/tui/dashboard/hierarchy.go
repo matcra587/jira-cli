@@ -29,6 +29,7 @@ type hierarchyLocation struct {
 }
 
 type hierarchyFrame struct {
+	viewID                      string
 	observed                    bool
 	markers                     map[string]rowChange
 	autoPageCursor              string
@@ -60,7 +61,7 @@ type hierarchyResult struct {
 	read        core.IssueHierarchyRead
 }
 
-func (m *Model) hierarchyActive() bool { return m.tabs.ActiveItem() == hierarchyTab }
+func (m *Model) hierarchyActive() bool { return m.activeViewID() == "hierarchy" }
 
 func (m *Model) hierarchyRootQuery() string {
 	if value := m.options.SettingValues["tui_hierarchy_query"]; value != "" {
@@ -71,6 +72,7 @@ func (m *Model) hierarchyRootQuery() string {
 
 func (m *Model) hierarchySnapshot() hierarchyFrame {
 	return hierarchyFrame{
+		viewID:   m.activeViewID(),
 		observed: m.refresh.observed, markers: m.copyChangeMarkers(),
 		autoPageCursor: m.autoPageCursor,
 		tab:            m.tabs.ActiveItem(), query: m.query, title: m.viewName, selected: m.selectedKey(),
@@ -80,19 +82,33 @@ func (m *Model) hierarchySnapshot() hierarchyFrame {
 	}
 }
 
-func (m *Model) parkHierarchy() {
-	if m.hierarchyActive() {
-		frame := m.hierarchySnapshot()
-		m.hierarchy.parked = &frame
-	}
-}
-
 func (m *Model) restoreHierarchyFrame(frame hierarchyFrame) tea.Cmd {
-	m.tabs.SetActive(slices.Index(m.tabs.Items(), frame.tab))
+	if frame.viewID != "" && !m.viewExists(frame.viewID) {
+		m.notice = "The previous view was removed from the workspace."
+		return nil
+	}
+	if frame.viewID != "" {
+		m.activateView(frame.viewID)
+	} else {
+		m.tabs.SetActive(slices.Index(m.tabs.Items(), frame.tab))
+	}
 	m.query, m.viewName = frame.query, frame.title
+	if frame.viewID != "" && frame.viewID != "hierarchy" {
+		query, err := m.workspaceQuery(frame.viewID)
+		if err != nil {
+			m.err = err
+			return nil
+		}
+		if query != frame.query {
+			m.query = query
+			m.viewName = ""
+			return m.newQuery()
+		}
+	}
 	m.hierarchy.location = frame.location
 	m.hierarchy.selectAfterLoad = ""
-	if frame.tab == hierarchyTab && frame.location == nil && frame.query != m.hierarchyRootQuery() {
+	wasHierarchy := frame.viewID == "hierarchy" || frame.viewID == "" && frame.tab == hierarchyTab
+	if wasHierarchy && frame.location == nil && frame.query != m.hierarchyRootQuery() {
 		m.query = m.hierarchyRootQuery()
 		return m.newQuery()
 	}
@@ -113,7 +129,7 @@ func (m *Model) hierarchyHome() tea.Cmd {
 	} else {
 		m.hierarchy.back = nil
 	}
-	m.tabs.SetActive(slices.Index(m.tabs.Items(), hierarchyTab))
+	m.activateView("hierarchy")
 	m.hierarchy.location, m.hierarchy.parked = nil, nil
 	m.hierarchy.selectAfterLoad = ""
 	m.query, m.viewName = m.hierarchyRootQuery(), ""
@@ -181,7 +197,7 @@ func (m *Model) acceptHierarchy(msg task.FinishedMsg) tea.Cmd {
 	}
 	m.hierarchy.location = &hierarchyLocation{read: result.read, warning: warning}
 	m.hierarchy.selectAfterLoad = result.selectChild
-	m.tabs.SetActive(slices.Index(m.tabs.Items(), hierarchyTab))
+	m.activateView("hierarchy")
 	m.query, m.viewName = "parent = "+literal+" ORDER BY updated DESC", ""
 	m.notice = warning
 	return m.newQuery()
@@ -221,7 +237,7 @@ func (m *Model) hierarchyBack() tea.Cmd {
 	last := len(m.hierarchy.back) - 1
 	frame := m.hierarchy.back[last]
 	m.hierarchy.back = m.hierarchy.back[:last]
-	m.parkHierarchy()
+	m.parkView()
 	return m.restoreHierarchyFrame(frame)
 }
 

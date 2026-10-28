@@ -38,6 +38,7 @@ func (m *Model) changeDetailSection(delta int) tea.Cmd {
 }
 
 func (m *Model) resetComments() {
+	m.tasks.Start(task.Spec{Scope: "comments"})
 	m.commentsKey = ""
 	m.comments = nil
 	m.commentsTotal = 0

@@ -129,6 +129,7 @@ func TestReloadChangedProjectStartsWithoutOldRowsOrMarks(t *testing.T) {
 	m := model(t, issue("DEMO-1", "Old project"))
 	m.options.RuntimeScope = core.JiraScope{Site: m.site}
 	m.tabs.SetItems([]string{"My work", "Project", "Search"})
+	m.tabIDs = []string{"my-work", "project", "search"}
 	m.tabs.SetActive(1)
 	m.query = "project = OLD"
 	m.marks = map[string]bool{"DEMO-1": true}
@@ -138,6 +139,7 @@ func TestReloadChangedProjectStartsWithoutOldRowsOrMarks(t *testing.T) {
 	next.options.RuntimeScope = m.options.RuntimeScope
 	next.options.ProjectQuery = "project = NEW"
 	next.tabs.SetItems([]string{"My work", "Project", "Search"})
+	next.tabIDs = []string{"my-work", "project", "search"}
 	m.adoptRuntime(next)
 	if next.query != "project = NEW" || len(next.issues) != 0 || len(next.marks) != 0 || next.localFilter != "" {
 		t.Fatal("changed project reused old results, filters or bulk targets")

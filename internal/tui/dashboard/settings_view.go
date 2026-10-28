@@ -41,6 +41,9 @@ func (m *Model) rebuildSettings() {
 			value = strconv.FormatBool(enabled)
 		}
 		value = config.Redacted(s.key, value)
+		if s.key == "tui_workspace" {
+			value = "Views, tabs and lenses"
+		}
 		if s.key == "api_token" || s.key == "aliases" {
 			value = "managed separately"
 		}

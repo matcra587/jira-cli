@@ -63,6 +63,15 @@ func parseTUIRefreshInterval(value string) (int64, error) {
 }
 
 func prepareTUIPreferenceEnvironment(layer *koanf.Koanf) error {
+	if layer.Exists("tui_workspace") {
+		fields, err := workspaceSettingValue(layer.String("tui_workspace"))
+		if err != nil {
+			return err
+		}
+		if err := layer.Set("tui_workspace", fields); err != nil {
+			return err
+		}
+	}
 	for _, preference := range []struct {
 		key   string
 		parse func(string) (int64, error)

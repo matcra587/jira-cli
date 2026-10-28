@@ -440,6 +440,11 @@ func load(opts Options, readCredentials func(string) (credentials.Record, error)
 
 	// Environment.
 	layers[LayerEnv] = envLayer
+	if envLayer.Exists("tui_workspace") {
+		// References are validated as one object. Partial map merging could
+		// retain a landing view after the environment replaced its tabs.
+		merged.Delete("tui_workspace")
+	}
 	if err := merged.Merge(envLayer); err != nil {
 		return nil, fmt.Errorf("merge environment: %w", err)
 	}
@@ -460,6 +465,9 @@ func load(opts Options, readCredentials func(string) (credentials.Record, error)
 
 	var cfg Config
 	if err := unmarshalMerged(merged, &cfg); err != nil {
+		return nil, err
+	}
+	if err := cfg.TUIWorkspace.Validate(); err != nil {
 		return nil, err
 	}
 	if _, err := parseTUIPreviewSize(strconv.Itoa(cfg.TUIPreviewSize)); err != nil {
@@ -600,7 +608,15 @@ func envProvider(environ func() []string) *koanfenv.Env {
 // into true and silently enables a mode that refuses every write — a
 // surprising place to arrive at from a typo.
 func unmarshalFile(k *koanf.Koanf, cfg *Config) error {
+	if k.Exists("tui_workspace") {
+		if _, ok := k.Get("tui_workspace").(map[string]any); !ok {
+			return errors.New("tui_workspace must be a table")
+		}
+	}
 	if err := unmarshal(k, cfg, false); err != nil {
+		return err
+	}
+	if err := cfg.TUIWorkspace.Validate(); err != nil {
 		return err
 	}
 	if k.Exists("workday_seconds") {

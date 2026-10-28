@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/gechr/primer/task"
 
+	"github.com/matcra587/jira-cli/internal/config"
 	"github.com/matcra587/jira-cli/internal/core"
 	"github.com/matcra587/jira-cli/internal/envelope"
 )
@@ -74,6 +75,8 @@ func runtimeCommand(origin *Model, cmd tea.Cmd) tea.Cmd {
 
 // Retain local work as data, without retaining old clients or request closures.
 type runtimeWorkspace struct {
+	viewContexts    map[string]viewContext
+	lens            string
 	observed        bool
 	markers         map[string]rowChange
 	hierarchy       hierarchyWorkspace
@@ -104,6 +107,7 @@ type runtimeWorkspace struct {
 
 func (m *Model) localWorkspace() runtimeWorkspace {
 	return runtimeWorkspace{
+		viewContexts: m.viewContexts, lens: m.activeLens,
 		observed: m.refresh.observed, markers: m.copyChangeMarkers(),
 		descriptions: m.descriptionDrafts,
 		hierarchy:    m.hierarchy,
@@ -112,7 +116,7 @@ func (m *Model) localWorkspace() runtimeWorkspace {
 		lastBatch: m.lastBatch, bulkDraft: m.bulkDraft, bulkTargets: m.bulkDraftTargets,
 		issues: m.issues, selected: m.selectedKey(), query: m.customQuery, filter: m.localFilter,
 		activeQuery: m.query,
-		facet:       m.facet, viewName: m.viewName, tab: m.tabs.ActiveItem(),
+		facet:       m.facet, viewName: m.viewName, tab: m.activeViewID(),
 		detailKey: m.detailKey, detailSection: m.detailSection, detailFocused: m.detailFocused,
 		previewFocused: m.previewFocused, standalone: m.standalone,
 	}
@@ -126,6 +130,18 @@ func (m *Model) adoptRuntime(next *Model) (tea.Model, tea.Cmd) {
 	next.workspaces = m.workspaces
 	next.refresh.running, next.refresh.paused, next.refresh.blurred = m.refresh.running, m.refresh.paused, m.refresh.blurred
 	if saved, ok := m.workspaces[next.options.RuntimeScope]; ok {
+		next.viewContexts = saved.viewContexts
+		if next.viewContexts == nil {
+			next.viewContexts = make(map[string]viewContext)
+		}
+		for id := range next.viewContexts {
+			if !next.viewExists(id) {
+				delete(next.viewContexts, id)
+			}
+		}
+		if saved.lens == "" || slices.ContainsFunc(next.workspace.Lenses, func(lens config.WorkspaceSection) bool { return lens.ID == saved.lens }) {
+			next.activeLens = saved.lens
+		}
 		next.descriptionDrafts = saved.descriptions
 		next.drafts, next.fieldDrafts, next.labelDrafts = saved.drafts, saved.fieldDrafts, saved.labelDrafts
 		next.creation, next.recent = saved.creation, saved.recent
@@ -134,19 +150,16 @@ func (m *Model) adoptRuntime(next *Model) (tea.Model, tea.Cmd) {
 		next.customQuery, next.viewName = saved.query, saved.viewName
 		next.hierarchy = saved.hierarchy
 		next.hierarchy.selectAfterLoad = saved.selected
-		if i := slices.Index(next.tabs.Items(), saved.tab); i >= 0 {
+		if i := slices.Index(next.tabIDs, saved.tab); i >= 0 {
 			next.tabs.SetActive(i)
 		}
-		switch next.tabs.ActiveItem() {
-		case hierarchyTab:
+		next.query, next.err = next.workspaceQuery(next.activeViewID())
+		switch next.activeViewID() {
+		case "hierarchy":
 			next.query = next.hierarchyRootQuery()
 			if next.hierarchy.location != nil {
 				next.query = saved.activeQuery
 			}
-		case "Project":
-			next.query = next.options.ProjectQuery
-		case "Search":
-			next.query = saved.query
 		}
 		if next.query == saved.activeQuery {
 			next.issues, next.marks = saved.issues, saved.marks

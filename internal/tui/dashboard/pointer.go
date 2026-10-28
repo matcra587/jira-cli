@@ -28,11 +28,17 @@ func (m *Model) clickWorkspace(msg tea.MouseClickMsg) tea.Cmd {
 		return nil
 	}
 	if msg.Y == 1 {
+		if m.compactViewTabs() {
+			if msg.X >= 2 && msg.X < 2+m.pageWidth() {
+				m.openWorkspaceTabs()
+			}
+			return nil
+		}
 		index, found := labelAtCell(m.tabs.Items(), m.tabs.Separator, msg.X-2, m.pageWidth())
 		if !found || index == m.tabs.Active() {
 			return nil
 		}
-		m.parkHierarchy()
+		m.parkView()
 		m.tabs.SetActive(index)
 		return m.switchView()
 	}

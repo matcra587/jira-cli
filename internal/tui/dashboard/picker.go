@@ -100,6 +100,10 @@ func (p *pickerDialog) Update(msg tea.Msg) (dialog.Dialog, tea.Cmd, dialog.Resul
 }
 
 func (m *Model) pick(title, kind, target string, choices []choice) {
+	m.dialogs.Push(newPicker(title, kind, target, choices))
+}
+
+func newPicker(title, kind, target string, choices []choice) *pickerDialog {
 	choices = slices.Clone(choices)
 	entries := make([]palette.Entry, 0, len(choices))
 	used := make(map[string]bool)
@@ -116,7 +120,7 @@ func (m *Model) pick(title, kind, target string, choices []choice) {
 		entries = append(entries, palette.Entry{Name: label, Desc: c.description})
 	}
 	menu := palette.New("Type to filter", entries, commandStyles())
-	m.dialogs.Push(&pickerDialog{title: title, kind: kind, target: target, choices: choices, menu: menu, padRows: len(strings.Split(menu.View(), "\n"))})
+	return &pickerDialog{title: title, kind: kind, target: target, choices: choices, menu: menu, padRows: len(strings.Split(menu.View(), "\n"))}
 }
 
 func (p *pickerDialog) value() string {
@@ -128,6 +132,17 @@ func (p *pickerDialog) value() string {
 		}
 	}
 	return strings.TrimSpace(p.menu.Query())
+}
+
+func (p *pickerDialog) selectValue(value string) {
+	for i, c := range p.choices {
+		if c.value == value {
+			for range i {
+				p.menu.Update(key.Replay("down"))
+			}
+			return
+		}
+	}
 }
 
 // Primer's palette owns typed filtering but deliberately ignores PasteMsg.
