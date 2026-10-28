@@ -214,3 +214,20 @@ func renderWebURL(v *output.View, webURL string) error {
 	v.Line("Open in browser: " + webURL)
 	return nil
 }
+
+// ScreenOpen uses the ordinary browser policy for an explicit dashboard action.
+// The URL remains available on failure, and success only confirms process handoff.
+func ScreenOpen(ctx context.Context, site, key string) (string, error) {
+	return screenOpen(ctx, site, key, execOpener)
+}
+
+func screenOpen(ctx context.Context, site, key string, open browserOpener) (string, error) {
+	target, ok := cli.IssueBrowseURL(site, key)
+	if !ok {
+		return "", fmt.Errorf("issue has no valid browser URL")
+	}
+	if err := ctx.Err(); err != nil {
+		return target, err
+	}
+	return target, openInBrowser(open, target)
+}

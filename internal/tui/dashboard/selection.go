@@ -35,11 +35,18 @@ func (m *Model) markAll() {
 	if m.actionBusy || m.detailFocused || m.previewFocused {
 		return
 	}
-	all := len(m.issues) > 0 && len(m.markedKeys()) == len(m.issues)
+	all := len(m.visible) > 0
+	for _, source := range m.visible {
+		if !m.marks[m.issues[source].Key] {
+			all = false
+			break
+		}
+	}
 	if m.marks == nil {
 		m.marks = make(map[string]bool)
 	}
-	for _, issue := range m.issues {
+	for _, source := range m.visible {
+		issue := &m.issues[source]
 		if all {
 			delete(m.marks, issue.Key)
 		} else {
@@ -55,7 +62,8 @@ func (m *Model) invertMarks() {
 	if m.marks == nil {
 		m.marks = make(map[string]bool)
 	}
-	for _, issue := range m.issues {
+	for _, source := range m.visible {
+		issue := &m.issues[source]
 		if m.marks[issue.Key] {
 			delete(m.marks, issue.Key)
 		} else {
@@ -73,7 +81,8 @@ func (m *Model) markRange() {
 		return
 	}
 	anchor := cursor
-	for i, issue := range m.issues {
+	for i, source := range m.visible {
+		issue := &m.issues[source]
 		if issue.Key == m.markAnchor {
 			anchor = i
 			break
@@ -83,10 +92,10 @@ func (m *Model) markRange() {
 		m.marks = make(map[string]bool)
 	}
 	if m.markAnchor == "" {
-		m.markAnchor = m.issues[cursor].Key
+		m.markAnchor = m.issues[m.visible[cursor]].Key
 	}
 	for i := min(anchor, cursor); i <= max(anchor, cursor); i++ {
-		m.marks[m.issues[i].Key] = true
+		m.marks[m.issues[m.visible[i]].Key] = true
 	}
 }
 

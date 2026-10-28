@@ -1864,3 +1864,10 @@ Exercise mixed acknowledged/unconfirmed results, marked-selection retention,
 query changes during a batch, exact-target draft reuse and bounded searchable
 session history. Keep review and history controls visible at 40x12, 80x24 and
 159x45. Use synthetic HTTP fixtures for native write acceptance.
+
+Local TUI filter tests must preserve source issue identities across filtered
+selection, ranges, refresh, direct switching and empty results. Facets distinguish
+absent/null assignees and account IDs, combine with text and count duplicate
+labels once per issue. Mouse hit tests include margins, headers, density and
+modal focus. Browser tests inject the shared opener; clipboard acceptance uses
+a synthetic terminal rather than changing the development host clipboard.

@@ -48,7 +48,7 @@ func TestDashboardNativeMainPageSearchSelectionAndSettings(t *testing.T) {
 				http.Error(w, "bad body", 400)
 				return
 			}
-			if body.MaxResults != 50 || !reflect.DeepEqual(body.Fields, []string{"summary", "status", "issuetype", "priority", "assignee", "updated"}) {
+			if body.MaxResults != 50 || !reflect.DeepEqual(body.Fields, []string{"summary", "status", "issuetype", "priority", "assignee", "updated", "labels"}) {
 				t.Errorf("unexpected search shape: %+v", body)
 			}
 			queries = append(queries, body.JQL)
@@ -154,7 +154,8 @@ func TestDashboardNativeMainPageSearchSelectionAndSettings(t *testing.T) {
 				stage++
 			}
 		case 6:
-			if bytes.Contains(transcript.Bytes(), []byte("Settings saved.")) {
+			// A diff repaint can retain the S from Saving settings… on screen.
+			if bytes.Contains(transcript.Bytes(), []byte("ettings saved.")) {
 				input = "\x1b"
 				stage++
 				transcript.Reset()

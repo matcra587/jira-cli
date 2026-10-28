@@ -5,6 +5,7 @@ package contract
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -187,8 +188,10 @@ func TestDashboardNativeViewsSwitcherDetailsAndReviewedActions(t *testing.T) {
 		{"Assignment fixture refreshed", "c"},
 		{"Write a new Markdown comment", "\x1b[200~Native fixture comment\x1b[201~\x13"},
 		{"Post this new comment to DEMO-1?", "\r"},
-		{"Comment fixture refreshed", "g j "},
-		{"2 selected", "B"},
+		{"Comment fixture refreshed", "\x06\x1b[200~DEMO-2\x1b[201~\r "},
+		{"1 / 2 loaded", "\x06"},
+		{"Filter >", "\x1b"},
+		{"JQL", "\x01B"},
 		{"Bulk actions", "Comment\r"},
 		{"Bulk comment", "\x1b[200~Shared bulk fixture\x1b[201~\x13"},
 		{"Apply comment to these 2 issues?", "y"},
@@ -202,7 +205,8 @@ func TestDashboardNativeViewsSwitcherDetailsAndReviewedActions(t *testing.T) {
 		{"assign: 1 acknowledged", "L"},
 		{"Operation history", "b"},
 		{"DEMO-2 · unconfirmed", "\x1b"},
-		{"q quit", "q"},
+		{"q quit", "Y"},
+		{"\x1b]52;c;" + base64.StdEncoding.EncodeToString([]byte(server.URL+"/browse/DEMO-2")), "q"},
 	}
 	var transcript bytes.Buffer
 	stage := 0

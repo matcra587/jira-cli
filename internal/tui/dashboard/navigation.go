@@ -48,8 +48,8 @@ func (m *Model) openIssue(key string) tea.Cmd {
 		m.notice = "Enter an issue key."
 		return nil
 	}
-	for i, issue := range m.issues {
-		if issue.Key == key {
+	for i, source := range m.visible {
+		if m.issues[source].Key == key {
 			m.standalone = false
 			m.rows.SetCursor(i)
 			m.detailFocused = true
@@ -98,6 +98,12 @@ func (m *Model) showViews(views []SavedView) {
 func (m *Model) acceptPicker(d *pickerDialog) tea.Cmd {
 	value := d.value()
 	switch d.kind {
+	case "facet":
+		if facet, ok := d.facets[value]; ok {
+			m.facet = facet
+			return m.applyLocalFilter()
+		}
+		return nil
 	case "batch-history":
 		for _, entry := range m.operations {
 			if fmt.Sprint(entry.id) == value && entry.batch != nil {

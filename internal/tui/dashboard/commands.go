@@ -70,6 +70,9 @@ func (d *commandDialog) Update(msg tea.Msg) (dialog.Dialog, tea.Cmd, dialog.Resu
 
 func (m *Model) openCommands() {
 	entries := []palette.Entry{
+		{Name: "Open issue in browser", Desc: "Hand off the selected issue URL", Key: "O"},
+		{Name: "Copy issue key", Desc: "Send to the terminal clipboard", Key: "y"},
+		{Name: "Copy issue URL", Desc: "Send to the terminal clipboard", Key: "Y"},
 		{Name: "Operation history", Desc: "Acknowledgements and unconfirmed actions in this session", Key: "L"},
 		{Name: "Switch issue", Desc: "Recent issues, current results or an exact key", Key: "ctrl+o"},
 		{Name: "Focus list or preview", Desc: "Move keyboard focus between panes", Key: "ctrl+w"},
@@ -98,9 +101,13 @@ func (m *Model) openCommands() {
 	if len(m.markedKeys()) > 0 && !m.actionBusy && !m.options.Actions.ReadOnly && m.options.Actions.Write != nil {
 		entries = append(entries, palette.Entry{Name: "Bulk actions", Desc: "Review actions for the marked issue keys", Key: "B"})
 	}
+	if !m.detailFocused && !m.previewFocused {
+		entries = append(entries, palette.Entry{Name: "Filter loaded issues", Desc: "Narrow the loaded list without changing JQL", Key: "ctrl+f"}, palette.Entry{Name: "Filter by field", Desc: "Status, assignee and label facets", Key: "f"})
+		if !m.actionBusy {
+			entries = append(entries, palette.Entry{Name: "Select all visible issues", Desc: "Toggle selection for the filtered list", Key: "ctrl+a"}, palette.Entry{Name: "Invert selection", Desc: "Invert marks in the visible list", Key: "X"})
+		}
+	}
 	entries = append(entries,
-		palette.Entry{Name: "Select all loaded issues", Desc: "Toggle selection for the loaded list", Key: "ctrl+a"},
-		palette.Entry{Name: "Invert selection", Desc: "Invert marks in the loaded list", Key: "X"},
 		palette.Entry{Name: "Settings", Desc: "Customize the issue dashboard", Key: ","},
 		palette.Entry{Name: "Keyboard help", Desc: "All navigation shortcuts", Key: "?"},
 		palette.Entry{Name: "Quit", Desc: "Return to the terminal", Key: "q"},

@@ -19,6 +19,7 @@ import (
 // Actions are invocation-bound capabilities supplied by the CLI domain owners.
 // The view never constructs a client, resolves credentials, or owns a writer.
 type Actions struct {
+	Browse      func(string) (string, error)
 	ReadOnly    bool
 	Transitions func(string) ([]jira.IssueTransition, error)
 	Users       func(string) ([]*jira.User, error)

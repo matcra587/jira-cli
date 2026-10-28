@@ -13,6 +13,7 @@ import (
 func dashboardActions(ctx context.Context, client core.JiraClient, readOnly bool) dashboard.Actions {
 	return dashboard.Actions{
 		ReadOnly: readOnly,
+		Browse:   func(key string) (string, error) { return issuecmd.ScreenOpen(ctx, client.BaseURL(), key) },
 		Transitions: func(key string) ([]jira.IssueTransition, error) {
 			read, err := client.GetTransitions(ctx, key)
 			if err != nil {

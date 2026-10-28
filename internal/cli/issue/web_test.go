@@ -245,3 +245,22 @@ func TestOpenForHumanSuccessAddsNoWarning(t *testing.T) {
 		t.Errorf("got %d warnings after a successful open, want 0: %+v", len(warnings), warnings)
 	}
 }
+
+func TestScreenBrowserReusesExplicitOpenerAndCancellation(t *testing.T) {
+	t.Setenv("BROWSER", "fixture-browser")
+	var calls []recordedOpen
+	target, err := screenOpen(t.Context(), "https://example.atlassian.net/jira", "DEMO-1", fakeOpener(&calls, errors.New("handoff failed")))
+	if err == nil || target != "https://example.atlassian.net/jira/browse/DEMO-1" || len(calls) != 1 || calls[0].name != "fixture-browser" || len(calls[0].args) != 1 || calls[0].args[0] != target {
+		t.Fatal("screen browser bypassed shared explicit opener or lost fallback URL")
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	_, err = screenOpen(ctx, "https://example.atlassian.net", "DEMO-1", fakeOpener(&calls, nil))
+	if !errors.Is(err, context.Canceled) || len(calls) != 1 {
+		t.Fatal("canceled screen launched a browser")
+	}
+	_, err = screenOpen(t.Context(), "https://example.atlassian.net", "bad key", fakeOpener(&calls, nil))
+	if err == nil || len(calls) != 1 {
+		t.Fatal("unsafe issue key reached browser opener")
+	}
+}

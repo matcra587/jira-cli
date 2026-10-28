@@ -14,6 +14,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/gechr/primer/carousel"
 	"github.com/gechr/primer/dialog"
+	"github.com/gechr/primer/input"
 	"github.com/gechr/primer/list"
 	"github.com/gechr/primer/task"
 
@@ -104,6 +105,11 @@ type Model struct {
 	commentsLoading              bool
 	commentsErr                  error
 	standalone                   bool
+	visible                      []int
+	localFilter                  string
+	facet                        issueFacet
+	filtering                    bool
+	filterInput                  input.Line
 	marks                        map[string]bool
 	markAnchor                   string
 	operations                   []operation
@@ -129,7 +135,7 @@ func New(ctx context.Context, client Client, options Options) *Model {
 		query: myWorkQuery, customQuery: options.Query,
 		search: func(query, cursor string) (envelope.IssueListOutput, error) {
 			return command.WalkIssues(ctx, client, query,
-				[]string{"summary", "status", "issuetype", "priority", "assignee", "updated"},
+				[]string{"summary", "status", "issuetype", "priority", "assignee", "updated", "labels"},
 				cursor, command.SearchWalk{Limit: pageSize})
 		},
 		detail: func(key string) (detailResult, error) {
@@ -181,10 +187,10 @@ func (m *Model) load(more bool) tea.Cmd {
 
 func (m *Model) selected() *envelope.IssueView {
 	i, ok := m.rows.Selected()
-	if !ok || i >= len(m.issues) {
+	if !ok || i >= len(m.visible) {
 		return nil
 	}
-	return &m.issues[i]
+	return &m.issues[m.visible[i]]
 }
 
 func (m *Model) selectedKey() string {
@@ -235,6 +241,9 @@ func (m *Model) newQuery() tea.Cmd {
 	m.loading = false
 	m.issues, m.next, m.err = nil, "", nil
 	m.marks = nil
+	m.localFilter = ""
+	m.facet = issueFacet{}
+	m.filtering = false
 	m.markAnchor = ""
 	m.detailKey, m.detailIssue, m.detailErr = "", nil, nil
 	m.standalone = false
@@ -271,6 +280,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		switch msg.Scope {
+		case "browse":
+			m.acceptBrowse(msg)
 		case "bulk-choices":
 			m.acceptBulkChoices(msg)
 		case "bulk-write":
@@ -303,7 +314,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
 		}
-		if msg.String() == "q" && m.actionBusy && !m.dialogs.Active() {
+		if msg.String() == "q" && m.actionBusy && !m.dialogs.Active() && !m.filtering && !m.editing && m.settings == nil && !m.help {
 			m.notice = "A Jira action is running; wait for its outcome before quitting."
 			return m, nil
 		}
@@ -312,6 +323,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if m.settings != nil {
 			return m, m.updateSettings(msg)
+		}
+		if m.filtering {
+			return m, m.updateFilter(msg)
 		}
 		if m.editing {
 			return m, m.updateQuery(msg)
@@ -328,12 +342,25 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.settings != nil {
 			return m, m.updateSettings(msg)
 		}
+		if m.filtering {
+			return m, m.updateFilter(msg)
+		}
 		if m.editing {
 			var cmd tea.Cmd
 			m.input, cmd = m.input.Update(msg)
 			return m, cmd
 		}
+	case tea.MouseClickMsg:
+		m.interaction++
+		if m.dialogs.Active() {
+			return m, m.updateCommands(msg)
+		}
+		if m.settings != nil {
+			return m, m.updateSettings(msg)
+		}
+		return m, m.clickIssue(msg)
 	case tea.MouseWheelMsg:
+		m.interaction++
 		if m.settings != nil {
 			return m, m.updateSettings(msg)
 		}
@@ -409,12 +436,7 @@ func (m *Model) acceptList(msg task.FinishedMsg) tea.Cmd {
 	}
 	m.pruneMarks()
 	m.rebuildRows()
-	for i, issue := range m.issues {
-		if issue.Key == keep {
-			m.rows.SetCursor(i)
-			break
-		}
-	}
+	m.restoreCursor(keep)
 	if m.standalone && m.detailFocused {
 		return nil
 	}
@@ -450,6 +472,18 @@ func (m *Model) updateQuery(msg tea.KeyPressMsg) tea.Cmd {
 func (m *Model) updateKey(msg tea.KeyPressMsg) tea.Cmd {
 	key := msg.String()
 	switch key {
+	case "O":
+		return m.openBrowser()
+	case "y":
+		return m.copyIssue(false)
+	case "Y":
+		return m.copyIssue(true)
+	case "ctrl+f":
+		m.openFilter()
+		return nil
+	case "f":
+		m.openFacets()
+		return nil
 	case "B":
 		m.openBulkActions()
 		return nil

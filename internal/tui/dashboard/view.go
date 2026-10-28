@@ -61,6 +61,9 @@ func (m *Model) applyStyles() {
 
 func (m *Model) resize() {
 	m.input.SetWidth(max(1, m.width-9))
+	if m.filtering {
+		m.filterInput.SetWidth(max(1, m.pageWidth()-9))
+	}
 	m.rows.SetSize(m.listWidth(), max(1, (m.bodyHeight()-3)/m.rowStride()))
 	m.preview.SetWidth(max(1, m.previewWidth()-2))
 	m.preview.SetHeight(max(1, m.bodyHeight()-2))
@@ -69,6 +72,7 @@ func (m *Model) resize() {
 }
 
 func (m *Model) rebuildRows() {
+	m.rebuildVisible()
 	headers := []string{"ISSUE", "SUMMARY"}
 	if m.enabled("tui_status") && m.listWidth() >= 64 {
 		headers = append(headers, "STATUS")
@@ -84,10 +88,12 @@ func (m *Model) rebuildRows() {
 	rows := make([][]string, 0, len(m.issues)+1)
 	rows = append(rows, headers)
 	statusWidth := 0
-	for _, issue := range m.issues {
+	for _, source := range m.visible {
+		issue := &m.issues[source]
 		statusWidth = max(statusWidth, ansi.StringWidth(cli.Text(issue.Fields.Status.Value.Name.Value)))
 	}
-	for _, issue := range m.issues {
+	for _, source := range m.visible {
+		issue := &m.issues[source]
 		f := issue.Fields
 		cells := []string{cli.Text(issue.Key), textValue(f.Summary)}
 		if m.enabled("tui_status") && m.listWidth() >= 64 {
@@ -123,7 +129,7 @@ func (m *Model) rowsView() string {
 			marker = accent("› ")
 		}
 		mark := dim("[ ] ")
-		if m.marks[m.issues[i].Key] {
+		if m.marks[m.issues[m.visible[i]].Key] {
 			mark = accent("[x] ")
 		}
 		lines = append(lines, marker+mark+m.paintedRows[i])
@@ -255,6 +261,9 @@ func (m *Model) listView() string {
 		focus = accent("› ")
 	}
 	title := focus + cli.MarkupStrong(viewName) + dim(fmt.Sprintf("   %d loaded", len(m.issues)))
+	if m.localFilter != "" || m.facet.field != "" {
+		title = focus + cli.MarkupStrong(viewName) + dim(fmt.Sprintf("   %d / %d loaded", len(m.visible), len(m.issues)))
+	}
 	if selected := len(m.markedKeys()); selected > 0 {
 		title += accent(fmt.Sprintf(" · %d selected", selected))
 	}
@@ -265,8 +274,10 @@ func (m *Model) listView() string {
 		title += " · loading…"
 	}
 	body := m.rowsView()
-	if len(m.issues) == 0 {
+	if len(m.visible) == 0 {
 		switch {
+		case len(m.issues) > 0:
+			body = "\n  No loaded issues match the local filter.\n  Ctrl+F changes text; f changes the facet."
 		case m.loading:
 			body = "\n  Loading your issues…"
 		case m.err != nil:
@@ -313,11 +324,11 @@ func (m *Model) detailView() string {
 func (m *Model) helpView() string {
 	text := "DASHBOARD HELP\n\n" +
 		"Views     Tab / Shift+Tab switch views · v saved views and lenses\n" +
-		"Search    / edit JQL · Ctrl+S save the current search\n" +
+		"Search    / edit JQL · Ctrl+S save · Ctrl+F local text · f facet\n" +
 		"Issues    Ctrl+O switch issue · ↑↓ or j/k select\n" +
 		"Focus     Enter full details · Ctrl+W list/preview · Esc back\n" +
 		"Details   [ / ] switch Description, Comments, Activity and Links\n" +
-		"Links     o choose a linked issue\n" +
+		"Links     o linked issue · O browser · y copy key · Y copy URL\n" +
 		"Select    Space mark · Ctrl+A all/none · X invert · x range\n" +
 		"Actions   t transition · a assign · c comment · B marked actions\n" +
 		"History   L outcomes · b opens latest batch in history\n" +
@@ -349,6 +360,9 @@ func (m *Model) hints() string {
 	}
 	if m.detailFocused || m.previewFocused {
 		hints = []key.Hint{{Key: "↑↓", Desc: "scroll"}, {Key: "[ ]", Desc: "sections"}, {Key: "esc", Desc: "back"}, {Key: "ctrl+p", Desc: "commands"}, {Key: "q", Desc: "quit"}}
+	}
+	if m.filtering {
+		hints = []key.Hint{{Key: "enter", Desc: "keep filter"}, {Key: "esc", Desc: "clear text"}}
 	}
 	if m.editing {
 		hints = []key.Hint{{Key: "enter", Desc: "run query"}, {Key: "esc", Desc: "cancel"}}
@@ -386,6 +400,18 @@ func (m *Model) View() tea.View {
 	gap := max(2, m.pageWidth()-xansi.WcWidth.StringWidth(brand)-xansi.WcWidth.StringWidth(identity))
 	header := brand + strings.Repeat(" ", gap) + dim(identity)
 	query := dim("JQL  " + cli.Text(m.query))
+	if m.filtering {
+		query = m.filterInput.View()
+	} else if m.localFilter != "" || m.facet.field != "" {
+		parts := []string{}
+		if m.localFilter != "" {
+			parts = append(parts, cli.Text(m.localFilter))
+		}
+		if m.facet.field != "" {
+			parts = append(parts, cli.Text(m.facet.field+": "+m.facet.label))
+		}
+		query = dim("Local: " + strings.Join(parts, " · ") + " · Ctrl+F text · f facets")
+	}
 	if m.editing {
 		query = m.input.View()
 	}

@@ -21,6 +21,7 @@ type pickerDialog struct {
 	padRows             int
 	keys                []string
 	transitionIDs       map[string]map[string]string
+	facets              map[string]issueFacet
 }
 
 func (p *pickerDialog) Title() string     { return p.title }

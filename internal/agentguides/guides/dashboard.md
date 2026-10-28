@@ -50,6 +50,21 @@ terminals. Closing it preserves the issue selection, preview and query.
 ### Navigate the issue page
 
 *   Arrow keys or `j`/`k` select an issue. Page Up/Down move a page.
+    Click a row to select it; click the selected row again to open its details.
+    Mouse wheel scrolling follows the list or preview under the pointer.
+*   Ctrl+F filters loaded results as you type or paste, without changing JQL.
+    Enter keeps the filter; Esc clears its text. Primer matching uses smart case
+    and supports `!` negation, `^` prefix and `$` suffix. Modifier-only input
+    matches everything. The searchable text includes keys, summaries, status,
+    assignee display names and labels.
+*   `f` opens counted status, assignee and label facets. One facet combines with
+    the text filter; Clear facet removes it. Account IDs distinguish people with
+    the same display name. Missing assignees remain distinct from explicit null.
+    Counts cover loaded issues; unseen Jira matches are not locally filtered.
+*   `O` hands the selected issue to the configured browser through the ordinary
+    CLI browser policy. Success confirms process handoff, not page loading.
+    `y` sends its key and `Y` its URL to the terminal clipboard using OSC52;
+    terminal support is required, and sending does not confirm clipboard storage.
 *   Enter focuses the issue description. Esc returns to the list.
 *   `r` refreshes the view; `m` loads another bounded batch of results.
 *   Ctrl+O switches to recent issues, current results or an exact issue key.
@@ -85,8 +100,9 @@ when available.
 Space marks the selected issue; Ctrl+A marks all loaded issues or clears them,
 `X` inverts marks and `x` selects the range from the last Space anchor. Marks
 follow issue keys across reordering. A new query clears them, and a refreshed
-result drops marks for issues it no longer contains. Selection applies to loaded
-results only, not unseen Jira matches.
+result drops marks for issues it no longer contains. Select-all, invert and range apply to visible rows only. Marks hidden by a local
+filter remain included in the displayed selected count and explicit bulk target
+review. Selection never includes unseen Jira matches.
 
 From the list, `t`, `a` and `c` act on marked issues when any are marked. `B`
 opens the explicit bulk menu. Focused details retain their single-issue action.
