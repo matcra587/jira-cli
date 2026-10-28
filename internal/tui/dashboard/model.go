@@ -1,5 +1,3 @@
-// Package dashboard owns the issue home screen. Widgets come from Primer;
-// Jira reads and public configuration come from the ordinary CLI owners.
 package dashboard
 
 import (
@@ -20,6 +18,7 @@ import (
 
 	"github.com/matcra587/jira-cli/internal/cli"
 	"github.com/matcra587/jira-cli/internal/cli/command"
+	"github.com/matcra587/jira-cli/internal/config"
 	"github.com/matcra587/jira-cli/internal/core"
 	"github.com/matcra587/jira-cli/internal/envelope"
 	"github.com/matcra587/jira-cli/internal/jira"
@@ -44,6 +43,7 @@ type Client interface {
 type Options struct {
 	Project, ProjectQuery, Query string
 	Theme                        string
+	ThemeLabel, ThemeNotice      string
 	Settings                     map[string]bool
 	SettingSources               map[string]string
 	SettingValues                map[string]string
@@ -55,6 +55,10 @@ type Options struct {
 	BindContext                  func(context.Context)
 	LoadViews                    func() ([]SavedView, error)
 	SaveView                     func(string, string) error
+	LoadThemes                   func(string) ([]*config.SavedTheme, error)
+	ReadTheme                    func(string) (*config.ThemeFile, error)
+	WriteTheme                   func(string, *config.ThemeFile, *config.SavedTheme) (*config.SavedTheme, bool, error)
+	ExportTheme                  func(string, *config.ThemeFile) (bool, error)
 	Actions                      Actions
 }
 
@@ -325,6 +329,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.navigationResult(msg)
 		case "action-choices", "write":
 			return m, m.actionFinished(msg)
+		case themeTaskScope:
+			return m, m.acceptThemeTask(msg)
 		case settingsScope:
 			return m.acceptSettings(msg)
 		case listScope:

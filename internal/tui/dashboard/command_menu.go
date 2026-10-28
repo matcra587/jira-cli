@@ -1,7 +1,6 @@
 package dashboard
 
 import (
-	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -15,14 +14,15 @@ import (
 )
 
 type commandDialog struct {
-	menu    palette.Model
-	entries []palette.Entry
+	paletteState
 	padRows int
 }
 
 func newCommandDialog(entries []palette.Entry) *commandDialog {
-	entries = slices.Clone(entries)
-	return &commandDialog{menu: palette.New("Type to filter", entries, commandStyles()), entries: entries, padRows: max(12, len(entries)+5)}
+	return &commandDialog{
+		paletteState: newPaletteState(entries),
+		padRows:      max(12, len(entries)+5),
+	}
 }
 
 func (*commandDialog) Title() string     { return "Commands" }
@@ -73,28 +73,6 @@ func (d *commandDialog) Content(width int) string {
 		rows = append(rows, "")
 	}
 	return strings.Join(layout.NormalizeLines(rows, width), "\n")
-}
-
-// Walking a value copy uses the palette's own admitted matches without
-// duplicating its fuzzy-filter rules or disturbing the live query/cursor.
-func (d *commandDialog) visibleEntries() []palette.Entry {
-	menu := d.menu
-	for range len(d.entries) {
-		menu.Update(key.Replay("up"))
-	}
-	entries := make([]palette.Entry, 0, len(d.entries))
-	for range len(d.entries) {
-		entry, ok := menu.Selected()
-		if !ok {
-			break
-		}
-		entries = append(entries, entry)
-		menu.Update(key.Replay("down"))
-		if next, _ := menu.Selected(); next == entry {
-			break
-		}
-	}
-	return entries
 }
 
 func (*commandDialog) Footer() string {

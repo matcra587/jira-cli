@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"unicode"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/gechr/primer/dialog"
@@ -15,16 +16,22 @@ import (
 type choice struct{ label, description, value string }
 
 type pickerDialog struct {
-	restorePreview      func()
-	previewedTheme      string
-	creation            *creationDraft
-	title, kind, target string
-	menu                palette.Model
-	choices             []choice
-	padRows             int
-	keys                []string
-	transitionIDs       map[string]map[string]string
-	facets              map[string]issueFacet
+	initialThemes             bool
+	hintWidth, themeCursorRow int
+	manageThemes              bool
+	themes                    map[string]themeSelection
+	loading                   bool
+	notice, selectTheme       string
+	restorePreview            func()
+	previewedTheme            string
+	creation                  *creationDraft
+	title, kind, target       string
+	menu                      palette.Model
+	choices                   []choice
+	padRows                   int
+	keys                      []string
+	transitionIDs             map[string]map[string]string
+	facets                    map[string]issueFacet
 }
 
 // Primer v0.2.9 has no palette style setter. Rebuild through its public API,
@@ -48,7 +55,7 @@ func (p *pickerDialog) Title() string     { return p.title }
 func (p *pickerDialog) Hints() []key.Hint { return nil }
 func (p *pickerDialog) Footer() string {
 	if p.kind == "theme" {
-		return "↑↓ preview · enter keep · esc restore"
+		return p.themeFooter()
 	}
 	if p.kind == "issue" {
 		return "enter open · esc back"
@@ -57,13 +64,23 @@ func (p *pickerDialog) Footer() string {
 }
 
 func (p *pickerDialog) Content(width int) string {
+	if p.kind == "theme" {
+		return p.themeContent(width)
+	}
 	rows := strings.Split(p.menu.View(), "\n")
 	for len(rows) < max(12, p.padRows) {
 		rows = append(rows, "")
 	}
 	return strings.Join(layout.NormalizeLines(rows, width), "\n")
 }
-func (p *pickerDialog) ScrollTo() (int, int, bool) { return p.menu.CursorLine(), 1, true }
+
+func (p *pickerDialog) ScrollTo() (int, int, bool) {
+	if p.kind == "theme" {
+		return p.themeCursorRow, 1, true
+	}
+	return p.menu.CursorLine(), 1, true
+}
+
 func (p *pickerDialog) Update(msg tea.Msg) (dialog.Dialog, tea.Cmd, dialog.Result) {
 	if k, ok := msg.(tea.KeyPressMsg); ok {
 		switch k.String() {
@@ -76,11 +93,7 @@ func (p *pickerDialog) Update(msg tea.Msg) (dialog.Dialog, tea.Cmd, dialog.Resul
 		}
 	}
 	if paste, ok := msg.(tea.PasteMsg); ok {
-		for _, r := range paste.Content {
-			if r >= ' ' {
-				p.menu.Update(tea.KeyPressMsg{Code: r, Text: string(r)})
-			}
-		}
+		updatePalettePaste(&p.menu, paste.Content)
 		return p, nil, dialog.ResultNone
 	}
 	return p, p.menu.Update(msg), dialog.ResultNone
@@ -115,4 +128,14 @@ func (p *pickerDialog) value() string {
 		}
 	}
 	return strings.TrimSpace(p.menu.Query())
+}
+
+// Primer's palette owns typed filtering but deliberately ignores PasteMsg.
+// Dialogs share this translation, excluding terminal control characters.
+func updatePalettePaste(menu *palette.Model, text string) {
+	for _, r := range text {
+		if !unicode.IsControl(r) {
+			menu.Update(tea.KeyPressMsg{Code: r, Text: string(r)})
+		}
+	}
 }

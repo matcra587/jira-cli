@@ -26,6 +26,7 @@ var ErrThemeFileInvalid = errors.New("invalid custom theme file")
 // overrides clog syntax roles, and an absent EntityColors retains the preset.
 // Every color is a six-digit RGB value; this format contains no executable code.
 type ThemeFile struct {
+	Name         string
 	Base         string
 	Colors       map[string]string
 	Syntax       map[string]string
@@ -72,6 +73,15 @@ func parseThemeFile(data []byte) (*ThemeFile, error) {
 	result := &ThemeFile{Base: "dark", Colors: map[string]string{}, Syntax: map[string]string{}}
 	for key, value := range fields {
 		switch key {
+		case "name":
+			name, ok := value.(string)
+			if !ok {
+				return nil, errors.New("theme name must be text")
+			}
+			if err := ValidateThemeName(name); err != nil {
+				return nil, err
+			}
+			result.Name = name
 		case "base":
 			name, ok := value.(string)
 			if !ok {
@@ -145,6 +155,14 @@ func validThemeColor(text string) bool {
 // LoadThemeFile reads a named regular file without writing or consulting any
 // credential/config layer. It bounds bytes even when the file grows after stat.
 func LoadThemeFile(ctx context.Context, path string) (*ThemeFile, error) {
+	data, err := readThemeInput(ctx, path)
+	if err != nil {
+		return nil, err
+	}
+	return ParseThemeFile(data)
+}
+
+func readThemeInput(ctx context.Context, path string) ([]byte, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -174,5 +192,8 @@ func LoadThemeFile(ctx context.Context, path string) (*ThemeFile, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	return ParseThemeFile(data)
+	if len(data) > MaxThemeFileBytes {
+		return nil, ErrThemeFileInvalid
+	}
+	return data, nil
 }

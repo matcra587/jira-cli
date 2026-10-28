@@ -48,6 +48,7 @@ jira config theme --path '' --dry-run --output=json
 Create `palette.toml` before the custom-file example. A minimal palette is:
 
 ```toml
+name = "My light theme"
 base = "light"
 entity_colors = ["#2459B3", "#7047B5", "#006D75"]
 
@@ -62,6 +63,11 @@ markdown_code = "#006D75"
 key = "#2459B3"
 string = "#256D1B"
 ```
+
+`name` is optional display metadata for named custom themes. In the TUI,
+Settings → Theme discovers files in `themes` beside the selected configuration;
+create, duplicate, import, rename and export themes there without typing a palette
+path. Rename changes the display name and preserves the selected file path.
 
 `base` inherits a concrete bundled preset. `auto` is not a palette base.
 Omission selects dark. `[colors]` overrides

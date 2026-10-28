@@ -239,14 +239,44 @@ its results; Esc finishes search before a second Esc closes settings.
 
 Display preferences control the side-by-side preview, compact or comfortable
 row density, status, assignee and updated columns, and labels, priority and issue
-type in previews. The theme picker previews colors immediately as you move the
-highlight or filter presets. Enter keeps the highlighted theme in the settings
-draft; Esc restores the palette from before opening the picker. With no filter
-matches, the last preview remains until you choose a match or cancel. Ctrl+S
-saves the draft; saving a preset also clears the custom palette path in the same update. Columns still adapt
-to terminal space. Each row shows its effective source; environment overrides
+type in previews. The theme picker groups **Built-in themes** and **Your themes**,
+with one row per theme. Colors preview immediately as you move or filter; Enter
+keeps the highlighted selection in the settings draft. Esc restores both UI and
+syntax colors from before opening the picker. With no filter matches, the last
+preview remains until you choose a match or cancel. Ctrl+S in Settings saves
+the base preset and custom path together; a built-in selection clears that path.
+Columns still adapt to terminal space. Each row shows its effective source; environment overrides
 are visible and cannot be edited here. Press `d` to preview the selected
 setting's built-in default (`true` for dashboard booleans, `auto` for the theme).
+
+From the theme picker:
+
+*   Ctrl+N creates a named copy of the currently visible palette.
+*   Ctrl+D duplicates the highlighted theme. Built-ins and external custom files
+    also open as a new copy when you press Ctrl+E; managed custom themes edit in place.
+*   Ctrl+I imports a theme TOML file. Choose its name, then save it in the editor;
+    the original file is kept.
+*   Ctrl+R renames a custom theme without changing its file path or saved selection.
+*   Ctrl+X exports the highlighted theme to a new TOML file; existing files are kept.
+
+In the editor, Tab and Shift+Tab switch between Interface, Syntax and Palette.
+Type to filter roles; Enter edits the selected color, base preset or entity palette.
+The editor uses aligned Role, Color and Source columns, with one row per role.
+Color swatches show resolved values, and Base or Custom identifies inheritance.
+The selected role highlights in its own color with contrasting text. Terminal
+default roles use the normal selection color; swatch and source cells stay stable. Enter a full
+`#RRGGBB` color to preview it immediately; clear an override to inherit its base.
+Enter keeps the field edit, while Esc restores its previous value. Ctrl+S saves
+the theme file and selects it in the Settings draft. Esc in the editor discards
+its unsubmitted changes. Save Settings separately to keep the selected theme.
+Explicitly saved theme files remain available if you later cancel Settings.
+
+Your themes live in the `themes` directory beside the selected configuration.
+New names and exports refuse overwriting existing files. Changes made to a file
+after opening it refuse an edit; these snapshot checks are not filesystem
+compare-and-swap. Invalid theme files stay visible with an error and do not
+replace the current preview. **Theme file (advanced)** retains compatibility
+with existing custom paths; the picker also includes the configured external file.
 
 Every public scalar config setting is editable here, including project/type/board
 defaults, team account IDs, workday duration, paths, editor, glyphs, timeout,

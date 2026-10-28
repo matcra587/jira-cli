@@ -27,6 +27,7 @@ var ErrFileInvalid = errors.New("invalid configuration file")
 // Snapshot checks compare bytes, existence and resolved target, not inode
 // identity or a filesystem compare-and-swap against external writers.
 type File struct {
+	readInput           func(context.Context, string) ([]byte, error)
 	profileSelection    string
 	profileSelectionErr error
 	requested           string
@@ -43,6 +44,12 @@ func SelectedPath() (string, error) { return resolvePath("") }
 // OpenFile reads a raw snapshot. A missing file is an empty update target;
 // dangling symlinks are refused so an atomic replacement cannot detach them.
 func OpenFile(ctx context.Context, path string) (*File, error) {
+	return openFileWithReader(ctx, path, nil)
+}
+
+// Theme snapshots use their bounded regular-input reader for both capture and
+// conflict rechecks. Configuration keeps its existing native input contract.
+func openFileWithReader(ctx context.Context, path string, reader func(context.Context, string) ([]byte, error)) (*File, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -58,7 +65,12 @@ func OpenFile(ctx context.Context, path string) (*File, error) {
 	if err != nil {
 		return nil, fmt.Errorf("resolve config link: %w", err)
 	}
-	data, err := readFileInput(resolved)
+	var data []byte
+	if reader == nil {
+		data, err = readFileInput(resolved)
+	} else {
+		data, err = reader(ctx, resolved)
+	}
 	exists := err == nil
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, fmt.Errorf("read config: %w", err)
@@ -76,7 +88,7 @@ func OpenFile(ctx context.Context, path string) (*File, error) {
 		return nil, err
 	}
 	profile, profileErr := captureFileProfile()
-	return &File{requested: requested, path: resolved, original: data, exists: exists, missingCause: err, profileSelection: profile, profileSelectionErr: profileErr}, nil
+	return &File{readInput: reader, requested: requested, path: resolved, original: data, exists: exists, missingCause: err, profileSelection: profile, profileSelectionErr: profileErr}, nil
 }
 
 // ReadFile permits an absent default file but refuses an absent explicitly
@@ -111,7 +123,8 @@ func (f *File) Save(ctx context.Context, data []byte) (bool, error) {
 }
 
 // Ordinary saves always use ValidateFile. Recovery supplies its verified
-// preimage validator through this private boundary, retaining one writer.
+// preimage validator and the theme library supplies palette validation through
+// this private boundary, retaining one writer.
 func (f *File) saveValidated(ctx context.Context, data []byte, validate func([]byte) error) (bool, error) {
 	if err := ctx.Err(); err != nil {
 		return false, err
@@ -157,7 +170,12 @@ func (f *File) checkSnapshot(ctx context.Context) error {
 	if resolved != f.path {
 		return ErrFileChanged
 	}
-	current, err := readFileInput(f.path)
+	var current []byte
+	if f.readInput == nil {
+		current, err = readFileInput(f.path)
+	} else {
+		current, err = f.readInput(ctx, f.path)
+	}
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("re-read config: %w", err)
 	}

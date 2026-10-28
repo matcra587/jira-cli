@@ -11,7 +11,7 @@ var otherSettings = []setting{
 	{key: "workday_seconds", name: "Workday duration", group: "Defaults", description: "Positive number of seconds represented by 1d in worklog input."},
 	{key: "queries_path", name: "Saved queries directory", group: "Tools", description: "Directory containing named .jql searches."},
 	{key: "editor", name: "External editor", group: "Tools", description: "Editor command; parsed and resolved only when an editor is requested."},
-	{key: "theme_path", name: "Custom palette path", group: "Appearance", description: "Custom TOML palette path, relative to the selected config directory. Clear to use the named theme."},
+	{key: "theme_path", name: "Theme file (advanced)", group: "Appearance", description: "Compatibility path for a custom TOML theme. Prefer Theme to choose, import or create named themes. Relative paths use the selected config directory."},
 	{key: "glyphs", name: "Glyph set", group: "Appearance", description: "Use default symbols or Nerd Font glyphs."},
 	{key: "base_url", name: "Jira site URL", group: "Connection", description: "Jira site root, separate from the API gateway."},
 	{key: "cloud_id", name: "Cloud ID", group: "Connection", description: "Optional cloud ID for scoped-token API routing."},

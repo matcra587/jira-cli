@@ -79,8 +79,6 @@ func (d *labelsDialog) Footer() string {
 	return "\n" + renderDialogHints(width, hints)
 }
 
-func (d *labelsDialog) SetHintWidth(width int) { d.hintWidth = max(1, width) }
-
 func (d *labelsDialog) rebuild() {
 	rows := make([]string, len(d.labels))
 	for i, label := range d.labels {

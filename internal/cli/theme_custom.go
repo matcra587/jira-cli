@@ -4,9 +4,11 @@ import (
 	"encoding/hex"
 	"fmt"
 	"image/color"
+	"strings"
 
 	"charm.land/lipgloss/v2"
 	"github.com/gechr/clib/theme"
+	"github.com/gechr/clog"
 	clogtheme "github.com/gechr/clog/theme"
 
 	"github.com/matcra587/jira-cli/internal/config"
@@ -136,4 +138,127 @@ func customRGB(text string) (color.Color, error) {
 		return nil, fmt.Errorf("custom color must be #RRGGBB: %w", err)
 	}
 	return color.RGBA{R: bytes[0], G: bytes[1], B: bytes[2], A: 255}, nil
+}
+
+// Captured syntax state lets a picker restore a custom syntax palette exactly,
+// instead of reconstructing the base preset on cancel.
+var selectedSyntax *clogtheme.Theme
+
+func setSyntaxTheme(syntax *clogtheme.Theme) {
+	chosenMu.Lock()
+	selectedSyntax = syntax
+	chosenMu.Unlock()
+	clog.SetTheme(clogtheme.Single(syntax))
+}
+
+func previewPreparedTheme(next *theme.Theme, syntax *clogtheme.Theme) func() {
+	previous := ResolvedTheme()
+	chosenMu.RLock()
+	previousSyntax := selectedSyntax
+	chosenMu.RUnlock()
+	if previousSyntax == nil {
+		previousSyntax = syntaxThemeFor(previous)
+	}
+	setChosenTheme(next)
+	setSyntaxTheme(syntax)
+	return func() {
+		setChosenTheme(previous)
+		setSyntaxTheme(previousSyntax)
+	}
+}
+
+// PreviewThemeDefinition applies validated in-memory editor data without file
+// I/O. Both UI and syntax palettes restore exactly through the returned closure.
+func PreviewThemeDefinition(def *config.ThemeFile) (func(), error) {
+	if _, err := config.MarshalThemeFile(def); err != nil {
+		return nil, err
+	}
+	selected, syntax, err := customTheme(def)
+	if err != nil {
+		return nil, err
+	}
+	return previewPreparedTheme(selected, syntax), nil
+}
+
+// ThemeColorValues exposes resolved colors for editor swatches. Inherited roles
+// stay omitted from a saved definition until the user explicitly overrides one.
+func ThemeColorValues(def *config.ThemeFile) (map[string]string, error) {
+	selected, syntax, err := customTheme(def)
+	if err != nil {
+		return nil, err
+	}
+	return themeColorValues(selected, syntax), nil
+}
+
+func themeColorValues(selected *theme.Theme, syntax *clogtheme.Theme) map[string]string {
+	result := map[string]string{}
+	for role, binding := range customThemeBindings(selected) {
+		if binding.style == nil {
+			continue
+		}
+		foreground := binding.style.GetForeground()
+		if _, unset := foreground.(lipgloss.NoColor); unset {
+			continue
+		}
+		result["colors."+role] = themeRGB(foreground)
+	}
+	for role, value := range customSyntaxBindings(syntax) {
+		if value == nil || *value == nil {
+			continue
+		}
+		result["syntax."+role] = themeRGB(*value)
+	}
+	return result
+}
+
+func themeRGB(value color.Color) string {
+	r, g, b, _ := value.RGBA()
+	return fmt.Sprintf(
+		"#%02x%02x%02x",
+		r>>8,
+		g>>8,
+		b>>8,
+	)
+}
+
+// CurrentThemeDefinition duplicates the visible palette, including custom
+// overrides, into an independent portable theme for Create from current.
+func CurrentThemeDefinition() *config.ThemeFile {
+	selected := ResolvedTheme()
+	chosenMu.RLock()
+	syntax := selectedSyntax
+	chosenMu.RUnlock()
+	if syntax == nil {
+		syntax = syntaxThemeFor(selected)
+	}
+	def := &config.ThemeFile{
+		Base:   selected.String(),
+		Colors: map[string]string{},
+		Syntax: map[string]string{},
+	}
+	if def.Base == "" {
+		def.Base = "dark"
+	}
+	for role, value := range themeColorValues(selected, syntax) {
+		if name, ok := strings.CutPrefix(role, "colors."); ok {
+			def.Colors[name] = value
+		} else if name, ok := strings.CutPrefix(role, "syntax."); ok {
+			def.Syntax[name] = value
+		}
+	}
+	for _, value := range selected.EntityColors {
+		if value != nil {
+			def.EntityColors = append(def.EntityColors, themeRGB(value))
+		}
+	}
+	return def
+}
+
+// ColorSelectionStyle uses the same black/white contrast policy as value pills,
+// so a theme role can highlight itself without inheriting an unreadable color.
+func ColorSelectionStyle(background color.Color) lipgloss.Style {
+	if !StyleEnabled() {
+		return lipgloss.NewStyle()
+	}
+	return lipgloss.NewStyle().Background(background).Foreground(contrastForeground(background))
 }

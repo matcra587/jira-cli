@@ -748,6 +748,19 @@ read failures remain visible. Recent issues and comment drafts stay in session
 memory. Theme highlighting previews immediately through the existing palette
 owner without changing the accepted draft. Enter accepts; picker cancellation
 restores the exact palette from before opening it, including an existing draft.
-Settings cancellation restores the last saved baseline. Saving publishes theme name plus an empty custom path
-in one settings transaction. Retain accepted startup theme-environment ownership
+Settings cancellation restores the last saved baseline, including syntax colors.
+Settings save publishes the concrete base preset and selected custom path as one
+transaction; built-in selection clears the path. Named TOML themes live in
+`themes` beside the selected configuration. The optional `name` field is display
+metadata; renaming never moves the selected file. Discovery retains invalid
+or disappeared entries as visible failures without editable definitions, and
+bounds input before snapshot reads and rechecks. Cancellation aborts discovery
+without publishing a partial library, including the final read and skipped entries.
+Create/import/export use shared validated no-clobber publication; edit uses the
+captured snapshot, checking even unchanged candidates and matching post-save
+bytes before returning a new snapshot. Preserve publication outcomes after
+post-write failures; these checks do not establish filesystem compare-and-swap.
+Theme editor Save explicitly publishes its file; cancelling Settings does not
+remove an explicitly saved theme. Import retains source files and export refuses
+existing paths. Preserve literal path bytes in interactive file input. Retain accepted startup theme-environment ownership
 after library cleanup so the interactive row remains honestly locked.

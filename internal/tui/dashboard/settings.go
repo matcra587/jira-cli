@@ -32,7 +32,7 @@ var dashboardSettings = []setting{
 	{key: "tui_issue_type", name: "Show issue type", group: "Issue preview", description: "Include the issue type above the description."},
 	{key: "tui_compact", name: "Compact issue rows", group: "Appearance", description: "Use one line per issue. Turn off for more breathing room between rows."},
 	{key: "tui_updated", name: "Show updated", group: "Issue list", description: "Display the native update timestamp when the list has enough room."},
-	{key: "theme", name: "Theme", group: "Appearance", description: "Preview colors as you browse presets. Enter keeps a theme in the draft; Esc restores the prior palette. Saving a preset clears the saved custom palette path."},
+	{key: "theme", name: "Theme", group: "Appearance", description: "Choose built-in or custom themes with live previews. Enter keeps the selection in your settings draft; Esc restores the prior colors."},
 }
 
 type settingsPage struct {
@@ -43,6 +43,7 @@ type settingsPage struct {
 	baseline          map[string]bool
 	values, saved     map[string]string
 	editor            *settingInput
+	themeLabel        string
 	baselineTheme     string
 	restoreTheme      func()
 	themeDirty        bool
@@ -62,6 +63,8 @@ func (m *Model) openSettings() {
 		rows: list.New(), input: input, baseline: maps.Clone(m.preferences), baselineTheme: m.themeName, sources: maps.Clone(m.options.SettingSources),
 	}
 	m.settings.values = publicSettingValues(m.options.SettingValues)
+	m.settings.themeLabel = m.options.ThemeLabel
+	m.settings.notice = m.options.ThemeNotice
 	m.settings.saved = maps.Clone(m.settings.values)
 	m.settings.rows.Styles = m.rows.Styles
 	m.settings.rows.Styles.Cursor = m.settings.rows.Styles.Cursor.Transform(func(row string) string {
@@ -116,6 +119,12 @@ func (m *Model) rebuildSettings() {
 		}
 		if s.key == "theme" {
 			value = m.themeName
+			if p.values["theme_path"] != "" {
+				value = p.themeLabel
+				if value == "" {
+					value = "Custom theme"
+				}
+			}
 			if value == "" {
 				value = "auto"
 			}
@@ -179,146 +188,6 @@ func (m *Model) updateSettings(msg tea.Msg) tea.Cmd {
 		}
 		return nil
 	}
-	if press, ok := msg.(tea.KeyPressMsg); ok {
-		k := press.String()
-		if p.searching {
-			switch k {
-			case "esc", "enter", "down":
-				p.searching = false
-				p.input.Blur()
-				return nil
-			}
-		} else {
-			switch k {
-			case "esc":
-				m.preferences = maps.Clone(p.baseline)
-				m.themeName = p.baselineTheme
-				if p.restoreTheme != nil {
-					p.restoreTheme()
-				}
-				m.applyStyles()
-				m.dialogs = newCommandStack()
-				m.settings = nil
-				m.resize()
-				return nil
-			case "p":
-				p.preview = true
-				return nil
-			case "/":
-				p.searching = true
-				return p.input.Focus()
-			case "tab", "shift+tab":
-				if k == "tab" {
-					p.tabs.Next()
-				} else {
-					p.tabs.Prev()
-				}
-				p.rows.Top()
-				m.rebuildSettings()
-				return nil
-			case "up", "k":
-				p.rows.MoveUp(1)
-				return nil
-			case "down", "j":
-				p.rows.MoveDown(1)
-				return nil
-			case "pgup":
-				p.rows.PageUp()
-				return nil
-			case "pgdown":
-				p.rows.PageDown()
-				return nil
-			case "enter", "space", "d":
-				if i, ok := p.rows.Selected(); ok {
-					key := p.visible[i].key
-					if p.sources[key] == "env" {
-						p.notice = "Controlled by the environment; remove its JIRA_ override to edit here."
-						return nil
-					}
-					if p.sources[key] == "flag" {
-						p.notice = "Controlled by an invocation flag; remove that override to edit here."
-						return nil
-					}
-					p.notice = ""
-					if !strings.HasPrefix(key, "tui_") && key != "theme" {
-						m.editSetting(p.visible[i], k == "d")
-						return nil
-					}
-					if key == "theme" {
-						if k == "d" {
-							m.setPreviewTheme("auto")
-						} else {
-							m.pickTheme()
-						}
-						return nil
-					}
-					if k == "d" {
-						m.preferences[key] = true
-					} else {
-						m.preferences[key] = !m.preferences[key]
-					}
-					m.previewSettings()
-				}
-				return nil
-			case "ctrl+s":
-				if m.actionBusy || m.localSaveBusy {
-					p.notice = "Wait for the running write before saving or reloading."
-					return nil
-				}
-				if !m.settingsChanged() {
-					p.notice = "No unsaved changes."
-					return nil
-				}
-				if m.options.SaveSettings == nil {
-					p.notice = "Saving is unavailable in this session."
-					return nil
-				}
-				values := make(map[string]string)
-				for key, value := range p.values {
-					if value != p.saved[key] {
-						values[key] = value
-					}
-				}
-				for key, value := range m.preferences {
-					if value != p.baseline[key] {
-						values[key] = strconv.FormatBool(value)
-					}
-				}
-				if p.themeDirty {
-					values["theme"] = m.themeName
-					values["theme_path"] = p.values["theme_path"]
-				}
-				p.saving, p.notice = true, "Saving…"
-				save, reload := m.options.SaveSettings, m.options.ReloadSettings
-				return m.tasks.Start(task.Spec{Scope: settingsScope, Run: func() (any, error) {
-					if err := save(values); err != nil {
-						return nil, err
-					}
-					result := settingsSaved{published: true}
-					if reload != nil {
-						result = loadSettingsRuntime(reload)
-						result.published = true
-					}
-					return result, nil
-				}})
-			case "ctrl+r":
-				if m.actionBusy || m.localSaveBusy || m.options.ReloadSettings == nil {
-					p.notice = "Reload is unavailable while a write is running or no runtime factory is configured."
-					return nil
-				}
-				if m.settingsChanged() {
-					p.notice = "Save or cancel the settings draft before reloading."
-					return nil
-				}
-				p.saving, p.notice = true, "Reloading…"
-				reload := m.options.ReloadSettings
-				return m.tasks.Start(task.Spec{Scope: settingsScope, Run: func() (any, error) {
-					return loadSettingsRuntime(reload), nil
-				}})
-			}
-			return nil
-		}
-	}
 	if wheel, ok := msg.(tea.MouseWheelMsg); ok {
 		switch wheel.Button {
 		case tea.MouseWheelUp:
@@ -329,13 +198,178 @@ func (m *Model) updateSettings(msg tea.Msg) tea.Cmd {
 		return nil
 	}
 	if p.searching {
-		var cmd tea.Cmd
-		p.input, cmd = p.input.Update(msg)
-		p.rows.Top()
-		m.rebuildSettings()
-		return cmd
+		return m.updateSettingsSearch(msg)
+	}
+	if press, ok := msg.(tea.KeyPressMsg); ok {
+		return m.updateSettingsKey(press.String())
 	}
 	return nil
+}
+
+func (m *Model) updateSettingsSearch(msg tea.Msg) tea.Cmd {
+	p := m.settings
+	if press, ok := msg.(tea.KeyPressMsg); ok {
+		switch press.String() {
+		case "esc", "enter", "down":
+			p.searching = false
+			p.input.Blur()
+			return nil
+		}
+	}
+	var cmd tea.Cmd
+	p.input, cmd = p.input.Update(msg)
+	p.rows.Top()
+	m.rebuildSettings()
+	return cmd
+}
+
+func (m *Model) updateSettingsKey(k string) tea.Cmd {
+	p := m.settings
+	switch k {
+	case "esc":
+		m.preferences = maps.Clone(p.baseline)
+		m.themeName = p.baselineTheme
+		if p.restoreTheme != nil {
+			p.restoreTheme()
+		}
+		m.applyStyles()
+		m.dialogs = newCommandStack()
+		m.settings = nil
+		m.resize()
+		return nil
+	case "p":
+		p.preview = true
+		return nil
+	case "/":
+		p.searching = true
+		return p.input.Focus()
+	case "tab", "shift+tab":
+		if k == "tab" {
+			p.tabs.Next()
+		} else {
+			p.tabs.Prev()
+		}
+		p.rows.Top()
+		m.rebuildSettings()
+		return nil
+	case "up", "k":
+		p.rows.MoveUp(1)
+		return nil
+	case "down", "j":
+		p.rows.MoveDown(1)
+		return nil
+	case "pgup":
+		p.rows.PageUp()
+		return nil
+	case "pgdown":
+		p.rows.PageDown()
+		return nil
+	case "enter", "space", "d":
+		return m.activateSelectedSetting(k == "d")
+	case "ctrl+s":
+		return m.saveSettings()
+	case "ctrl+r":
+		return m.reloadSettings()
+	}
+	return nil
+}
+
+func (m *Model) activateSelectedSetting(reset bool) tea.Cmd {
+	p := m.settings
+	i, ok := p.rows.Selected()
+	if !ok {
+		return nil
+	}
+	key := p.visible[i].key
+	if p.sources[key] == "env" {
+		p.notice = "Controlled by the environment; remove its JIRA_ override to edit here."
+		return nil
+	}
+	if p.sources[key] == "flag" {
+		p.notice = "Controlled by an invocation flag; remove that override to edit here."
+		return nil
+	}
+	p.notice = ""
+	if !strings.HasPrefix(key, "tui_") && key != "theme" {
+		m.editSetting(p.visible[i], reset)
+		return nil
+	}
+	if key == "theme" {
+		if reset {
+			m.setPreviewTheme("auto")
+		} else {
+			return m.pickTheme()
+		}
+		return nil
+	}
+	if reset {
+		m.preferences[key] = true
+	} else {
+		m.preferences[key] = !m.preferences[key]
+	}
+	m.previewSettings()
+	return nil
+}
+
+func (m *Model) saveSettings() tea.Cmd {
+	p := m.settings
+	if m.actionBusy || m.localSaveBusy {
+		p.notice = "Wait for the running write before saving or reloading."
+		return nil
+	}
+	if !m.settingsChanged() {
+		p.notice = "No unsaved changes."
+		return nil
+	}
+	if m.options.SaveSettings == nil {
+		p.notice = "Saving is unavailable in this session."
+		return nil
+	}
+	values := make(map[string]string)
+	for key, value := range p.values {
+		if value != p.saved[key] {
+			values[key] = value
+		}
+	}
+	for key, value := range m.preferences {
+		if value != p.baseline[key] {
+			values[key] = strconv.FormatBool(value)
+		}
+	}
+	if p.themeDirty {
+		values["theme"] = m.themeName
+		values["theme_path"] = p.values["theme_path"]
+	}
+	p.saving, p.notice = true, "Saving…"
+	save, reload := m.options.SaveSettings, m.options.ReloadSettings
+	return m.tasks.Start(task.Spec{Scope: settingsScope, Run: func() (any, error) {
+		if err := save(values); err != nil {
+			return nil, err
+		}
+		result := settingsSaved{published: true}
+		if reload != nil {
+			result = loadSettingsRuntime(reload)
+			result.published = true
+		}
+		return result, nil
+	}})
+}
+
+func (m *Model) reloadSettings() tea.Cmd {
+	p := m.settings
+	if m.actionBusy || m.localSaveBusy || m.options.ReloadSettings == nil {
+		p.notice = "Reload is unavailable while a write is running or no runtime factory is configured."
+		return nil
+	}
+	if m.settingsChanged() {
+		p.notice = "Save or cancel the settings draft before reloading."
+		return nil
+	}
+	p.saving, p.notice = true, "Reloading…"
+	reload := m.options.ReloadSettings
+	return m.tasks.Start(task.Spec{Scope: settingsScope, Run: func() (any, error) {
+		return loadSettingsRuntime(reload), nil
+	}})
 }
 
 type settingsSaved struct {
@@ -376,6 +410,7 @@ func (m *Model) acceptSettings(msg task.FinishedMsg) (tea.Model, tea.Cmd) {
 		p.sources["theme"] = "file"
 	}
 	p.baselineTheme = m.themeName
+	m.options.ThemeLabel = p.themeLabel
 	p.restoreTheme = nil
 	p.themeDirty = false
 	m.options.SettingSources = maps.Clone(p.sources)
@@ -462,27 +497,22 @@ func (m *Model) settingsView() string {
 	}, "\n"), m.pageWidth(), m.height)
 }
 
-func (m *Model) pickTheme() {
-	choices := []choice{}
-	for _, name := range config.ThemeChoices() {
-		choices = append(choices, choice{label: name, value: name})
-	}
-	m.pick("Preview a theme", "theme", "", choices)
+func (m *Model) pickTheme() tea.Cmd {
+	m.pick("Choose a theme", "theme", "", nil)
+	p := m.dialogs.Top().(*pickerDialog)
+	p.manageThemes = m.options.WriteTheme != nil
+	p.initialThemes = true
+	m.fillThemePicker(p, nil, m.themeName)
+	return m.loadThemePicker(p)
 }
 
+// Preset resets leave the cached custom label intact; accepting a picker
+// selection owns replacing that label alongside its selected file path.
 func (m *Model) setPreviewTheme(name string) {
-	restore, err := cli.PreviewTheme(name)
-	if err != nil {
-		m.settings.notice = m.errorText(err)
-		return
-	}
-	if m.settings.restoreTheme == nil {
-		m.settings.restoreTheme = restore
-	}
-	m.themeName = name
-	m.settings.values["theme_path"] = ""
-	m.settings.themeDirty = true
-	m.refreshThemeStyles()
+	m.applyThemeSelection(themeSelection{
+		name: m.settings.themeLabel,
+		base: name,
+	})
 }
 
 func (m *Model) refreshThemeStyles() {
@@ -501,11 +531,16 @@ func (m *Model) previewHighlightedTheme(p *pickerDialog) {
 	if name == p.previewedTheme {
 		return
 	}
-	restore, err := cli.PreviewTheme(name)
-	if err != nil {
-		m.settings.notice = m.errorText(err)
+	selection, ok := p.themes[name]
+	if !ok {
 		return
 	}
+	restore, err := previewThemeSelection(selection)
+	if err != nil {
+		p.notice = m.errorText(err)
+		return
+	}
+	p.notice = ""
 	if p.restorePreview == nil {
 		p.restorePreview = restore
 	}

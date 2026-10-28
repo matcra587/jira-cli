@@ -290,6 +290,13 @@ func TestDashboardNativeViewsSwitcherDetailsAndReviewedActions(t *testing.T) {
 		{"Side-by-side preview", "/default_project\r\r"},
 		{"keep in draft", "FIXTURE\r\x13"},
 		{"Runtime reloaded.", "\x1b"},
+		{"q quit", ","},
+		{"Side-by-side preview", "/theme\r\r"},
+		{"ctrl+n new", "\x0e"},
+		{"New theme name", "Native palette\r"},
+		{"Edit theme · Native palette", "\x13"},
+		{"Native palette", "\r\x13"},
+		{"Runtime reloaded.", "\x1b"},
 		{"q quit", "q"},
 	}
 	var transcript bytes.Buffer
@@ -331,6 +338,14 @@ func TestDashboardNativeViewsSwitcherDetailsAndReviewedActions(t *testing.T) {
 			configured, err := config.Load(config.Options{Path: settings, Environ: func() []string { return nil }})
 			if err != nil || configured.Config.DefaultProject != "FIXTURE" || configured.Source("default_project") != config.LayerFile {
 				t.Fatalf("settings menu did not save the authored project: %v", err)
+			}
+			themePath := filepath.Join(dir, "themes", "Native palette.toml")
+			if configured.Config.ThemePath != themePath {
+				t.Fatalf("named theme selection was not saved: %q", configured.Config.ThemePath)
+			}
+			definition, err := config.LoadThemeFile(t.Context(), themePath)
+			if err != nil || definition.Name != "Native palette" {
+				t.Fatalf("native theme creation missing: %+v %v", definition, err)
 			}
 			if configured.Config.BaseURL != "" || configured.Config.Email != "" || !configured.Config.Keyring {
 				t.Fatal("settings save copied effective environment values into the file")

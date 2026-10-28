@@ -292,7 +292,15 @@ func (m *Model) acceptCreationChoices(msg task.FinishedMsg) tea.Cmd {
 }
 
 func (m *Model) creationLine(title, kind, description string) {
-	m.dialogs.Push(&creationText{draft: m.creation, textDialog: textDialog{title: title, kind: kind, description: description, line: input.NewLine("› ", "")}})
+	m.dialogs.Push(&creationText{
+		draft: m.creation,
+		textDialog: textDialog{
+			title:       title,
+			kind:        kind,
+			description: description,
+			line:        input.NewLine("› ", ""),
+		},
+	})
 }
 
 func (m *Model) acceptCreationPicker(d *pickerDialog, value string) tea.Cmd {
@@ -443,7 +451,17 @@ func (m *Model) updateCreationEditor(msg tea.Msg) tea.Cmd {
 			m.saveCreationEditor()
 			return m.prepareCreation()
 		case "f2":
-			d := &creationLabels{draft: m.creation, labelsDialog: labelsDialog{target: "New issue", labels: slices.Clone(m.creation.labels), original: slices.Clone(m.creation.labels), rows: m.newLabelRows(), line: input.NewLine("+ ", "Literal label"), adding: true}}
+			d := &creationLabels{
+				draft: m.creation,
+				labelsDialog: labelsDialog{
+					target:   "New issue",
+					labels:   slices.Clone(m.creation.labels),
+					original: slices.Clone(m.creation.labels),
+					rows:     m.newLabelRows(),
+					line:     input.NewLine("+ ", "Literal label"),
+					adding:   true,
+				},
+			}
 			d.hint = "Part of your new-issue draft."
 			d.acceptLabel = "keep"
 			d.line.SetValue(m.creation.pendingLabel)
@@ -452,7 +470,13 @@ func (m *Model) updateCreationEditor(msg tea.Msg) tea.Cmd {
 			m.dialogs.Push(d)
 			return nil
 		case "f3":
-			m.pickCreation("New issue · assignee", "create-assign-mode", []choice{{label: "Jira default", value: "omit"}, {label: "Unassign", value: "clear"}, {label: "Assign to me", value: "me"}, {label: "Find a person", value: "search"}, {label: "Use account ID", value: "id"}})
+			m.pickCreation("New issue · assignee", "create-assign-mode", []choice{
+				{label: "Jira default", value: "omit"},
+				{label: "Unassign", value: "clear"},
+				{label: "Assign to me", value: "me"},
+				{label: "Find a person", value: "search"},
+				{label: "Use account ID", value: "id"},
+			})
 			return nil
 		case "f4":
 			m.saveCreationEditor()
@@ -460,7 +484,14 @@ func (m *Model) updateCreationEditor(msg tea.Msg) tea.Cmd {
 			return m.creationProjects()
 		case "f5":
 			m.saveCreationEditor()
-			m.dialogs.Push(&creationDiscard{draft: m.creation, Confirm: cancelDefaultConfirm("Discard this session's unsubmitted summary, description, labels and assignee and start a new draft? No Jira issue will be created.", "Discard")})
+			m.dialogs.Push(&creationDiscard{
+				draft: m.creation,
+				Confirm: cancelDefaultConfirm(
+					"Discard this session's unsubmitted summary, description, labels and assignee and start a new draft? "+
+						"No Jira issue will be created.",
+					"Discard",
+				),
+			})
 			return nil
 		}
 	}
@@ -488,7 +519,13 @@ func (m *Model) prepareCreation() tea.Cmd {
 		draft.labelsSet = true
 		draft.pendingLabel = ""
 	}
-	authored := core.IssueCreationInput{ProjectID: draft.project.ID, IssueTypeID: draft.typeID, Summary: draft.summary, Markdown: draft.markdown, Assignee: draft.assignee}
+	authored := core.IssueCreationInput{
+		ProjectID:   draft.project.ID,
+		IssueTypeID: draft.typeID,
+		Summary:     draft.summary,
+		Markdown:    draft.markdown,
+		Assignee:    draft.assignee,
+	}
 	if draft.labelsSet {
 		labels := slices.Clone(draft.labels)
 		if labels == nil {
@@ -521,8 +558,23 @@ func (m *Model) acceptCreationPrepared(msg task.FinishedMsg) {
 		return
 	}
 	m.creation.notice = ""
-	description := "Create " + cli.Text(m.creation.typeName) + " in " + cli.Text(m.creation.project.Key) + "?\n\nSummary:\n" + cli.Text(prepared.input.Summary) + "\n\nDescription (Markdown):\n" + cli.TextBlock(prepared.input.Markdown) + "\n\nLabels:\n" + cli.TextBlock(creationLabelsText(prepared.input.Labels)) + "\n\nAssignee: " + cli.Text(creationAssigneeText(prepared.input.Assignee)) + "\n\nProject ID: " + cli.Text(prepared.input.ProjectID) + " · type ID: " + cli.Text(prepared.input.IssueTypeID) + "\nCreation is submitted once. Inspect an uncertain attempt before creating again."
-	m.dialogs.Push(&creationReview{Confirm: cancelDefaultConfirm(description, "Create"), prepared: prepared})
+	m.dialogs.Push(&creationReview{
+		Confirm:  cancelDefaultConfirm(creationReviewDescription(prepared), "Create"),
+		prepared: prepared,
+	})
+}
+
+func creationReviewDescription(prepared creationPrepared) string {
+	draft, authored := prepared.draft, prepared.input
+	return strings.Join([]string{
+		"Create " + cli.Text(draft.typeName) + " in " + cli.Text(draft.project.Key) + "?",
+		"Summary:\n" + cli.Text(authored.Summary),
+		"Description (Markdown):\n" + cli.TextBlock(authored.Markdown),
+		"Labels:\n" + cli.TextBlock(creationLabelsText(authored.Labels)),
+		"Assignee: " + cli.Text(creationAssigneeText(authored.Assignee)),
+		"Project ID: " + cli.Text(authored.ProjectID) + " · type ID: " + cli.Text(authored.IssueTypeID) +
+			"\nCreation is submitted once. Inspect an uncertain attempt before creating again.",
+	}, "\n\n")
 }
 
 func (m *Model) submitCreation(d *creationReview) tea.Cmd {

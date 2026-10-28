@@ -10,7 +10,6 @@ import (
 	"sync"
 
 	"github.com/gechr/clib/theme"
-	"github.com/gechr/clog"
 	clogtheme "github.com/gechr/clog/theme"
 
 	"github.com/matcra587/jira-cli/internal/config"
@@ -188,7 +187,7 @@ func applyThemeName(name string) (used, knownToBoth bool) {
 	var clogT clogtheme.Theme
 	clogKnows := clogT.UnmarshalText([]byte(name)) == nil
 	if clogKnows {
-		clog.SetTheme(clogtheme.Single(&clogT))
+		setSyntaxTheme(&clogT)
 	}
 	var clibT theme.Theme
 	clibKnows := clibT.UnmarshalText([]byte(name)) == nil
@@ -427,7 +426,7 @@ func readThemeFromConfig() *theme.Theme {
 		selected, syntax, err = customTheme(definition)
 		if err == nil {
 			setChosenTheme(selected)
-			clog.SetTheme(clogtheme.Single(syntax))
+			setSyntaxTheme(syntax)
 			return selected
 		}
 	}
@@ -467,7 +466,6 @@ func themeFromColorFGBG() *theme.Theme {
 // probing the terminal, changing environment variables or writing settings.
 // A single screen owns previews and restores its prior palette on cancellation.
 func PreviewTheme(name string) (func(), error) {
-	previous := currentTheme()
 	var next *theme.Theme
 	if name == "" || config.IsAutomaticTheme(name) {
 		next = automaticTheme()
@@ -477,8 +475,7 @@ func PreviewTheme(name string) (func(), error) {
 			return nil, err
 		}
 	}
-	setChosenTheme(next)
-	return func() { setChosenTheme(previous) }, nil
+	return previewPreparedTheme(next, syntaxThemeFor(next)), nil
 }
 
 // PrepareRuntimeTheme validates a replacement without changing active styles.
@@ -498,7 +495,7 @@ func PrepareRuntimeTheme(ctx context.Context, name, customPath string) (func(), 
 		}
 		return func() {
 			setChosenTheme(selected)
-			clog.SetTheme(clogtheme.Single(syntax))
+			setSyntaxTheme(syntax)
 		}, nil
 	}
 	selected := automaticTheme()
@@ -511,7 +508,7 @@ func PrepareRuntimeTheme(ctx context.Context, name, customPath string) (func(), 
 	syntax := syntaxThemeFor(selected)
 	return func() {
 		setChosenTheme(selected)
-		clog.SetTheme(clogtheme.Single(syntax))
+		setSyntaxTheme(syntax)
 	}, nil
 }
 

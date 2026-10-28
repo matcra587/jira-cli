@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"charm.land/lipgloss/v2"
 	"github.com/gechr/clib/theme"
 	clogtheme "github.com/gechr/clog/theme"
 
@@ -154,5 +155,67 @@ func TestExplicitThemeEnvironmentWinsWithoutReadingCustomFile(t *testing.T) {
 	selected := ResolvedTheme()
 	if selected.String() != "monokai" || len(TakeWarnings()) != 0 {
 		t.Fatal("named environment override loaded a losing custom file")
+	}
+}
+
+func TestThemeDefinitionPreviewRestoresCustomUIAndSyntaxTogether(t *testing.T) {
+	original := ResolvedTheme()
+	chosenMu.RLock()
+	originalSyntax := selectedSyntax
+	chosenMu.RUnlock()
+	t.Cleanup(func() {
+		setChosenTheme(original)
+		if originalSyntax != nil {
+			setSyntaxTheme(originalSyntax)
+		}
+	})
+	def := &config.ThemeFile{Base: "dark", Colors: map[string]string{"blue": "#123456"}, Syntax: map[string]string{"number": "#abcdef"}}
+	restore, err := PreviewThemeDefinition(def)
+	if err != nil {
+		t.Fatal(err)
+	}
+	custom, customSyntax := ResolvedTheme(), selectedSyntax
+	assertCustomColor(t, custom.Blue.GetForeground(), "#123456")
+	assertCustomColor(t, customSyntax.Number, "#abcdef")
+	nested, err := PreviewTheme("light")
+	if err != nil {
+		t.Fatal(err)
+	}
+	nested()
+	if ResolvedTheme() != custom || selectedSyntax != customSyntax {
+		t.Fatal("nested preview did not restore both custom palettes")
+	}
+	invalid := config.CloneThemeFile(def)
+	invalid.Colors["blue"] = "invalid"
+	if _, err := PreviewThemeDefinition(invalid); err == nil || ResolvedTheme() != custom || selectedSyntax != customSyntax {
+		t.Fatal("invalid preview damaged valid theme")
+	}
+	clone := CurrentThemeDefinition()
+	clone.Colors["blue"] = "#654321"
+	if def.Colors["blue"] != "#123456" {
+		t.Fatal("current-theme duplicate shares source data")
+	}
+	restore()
+	if ResolvedTheme() != original {
+		t.Fatal("outer preview did not restore UI")
+	}
+}
+
+func TestCurrentThemeDuplicationKeepsUnsetForegroundsInherited(t *testing.T) {
+	restore, err := PreviewTheme("dark")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(restore)
+	selected := ResolvedTheme()
+	def := CurrentThemeDefinition()
+	for role, binding := range customThemeBindings(selected) {
+		if binding.style != nil {
+			if _, unset := binding.style.GetForeground().(lipgloss.NoColor); unset {
+				if _, exists := def.Colors[role]; exists {
+					t.Fatalf("unset %s foreground became an explicit color", role)
+				}
+			}
+		}
 	}
 }

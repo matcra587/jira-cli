@@ -5,9 +5,11 @@ import (
 	"errors"
 	"maps"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
+	"github.com/matcra587/jira-cli/internal/cli"
 	"github.com/matcra587/jira-cli/internal/config"
 )
 
@@ -133,6 +135,27 @@ func TestDashboardSettingsAndQueriesUseScreenCancellation(t *testing.T) {
 	if err := options.SaveView("canceled", "project = DEMO"); !errors.Is(err, context.Canceled) {
 		t.Fatal("query publication outlived the screen", err)
 	}
+	if _, err := options.LoadThemes(""); !errors.Is(err, context.Canceled) {
+		t.Fatal("theme discovery outlived the screen", err)
+	}
+	if _, err := options.ReadTheme(filepath.Join(t.TempDir(), "missing.toml")); !errors.Is(err, context.Canceled) {
+		t.Fatal("theme import outlived the screen", err)
+	}
+	definition := &config.ThemeFile{Base: "dark"}
+	if _, published, err := options.WriteTheme(
+		"Canceled",
+		definition,
+		nil,
+	); published || !errors.Is(err, context.Canceled) {
+		t.Fatal("theme publication outlived the screen", published, err)
+	}
+	exported := filepath.Join(t.TempDir(), "canceled.toml")
+	if published, err := options.ExportTheme(exported, definition); published || !errors.Is(err, context.Canceled) {
+		t.Fatal("theme export outlived the screen", published, err)
+	}
+	if _, err := os.Stat(exported); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("canceled theme export published a file", err)
+	}
 	bytes, err := os.ReadFile(path)
 	if err != nil || len(bytes) != 0 {
 		t.Fatal("canceled screen changed its configuration")
@@ -182,5 +205,63 @@ func TestDashboardRefusesDifferentFileThanItsResolvedConfiguration(t *testing.T)
 	}
 	if _, err := dashboardOptions(t.Context(), resolved); !errors.Is(err, config.ErrFileChanged) {
 		t.Fatalf("settings accepted a different preimage from its resolved values: %v", err)
+	}
+}
+
+func TestDashboardNamedThemeMetadataSurvivesReopeningOptions(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "settings.toml")
+	themeDir := filepath.Join(dir, "themes")
+	saved, _, err := config.SaveTheme(t.Context(), themeDir, "Ocean", &config.ThemeFile{Base: "dark"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := config.SaveTheme(t.Context(), themeDir, "Sea", saved.Definition, saved); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("theme='dark'\ntheme_path='themes/Ocean.toml'\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for range 2 {
+		resolved, err := config.Load(config.Options{Path: path, Environ: func() []string { return nil }})
+		if err != nil {
+			t.Fatal(err)
+		}
+		options, err := dashboardOptions(t.Context(), resolved)
+		if err != nil || options.ThemeLabel != "Sea" {
+			t.Fatal("saved display name lost at runtime creation", options.ThemeLabel, err)
+		}
+		entries, err := options.LoadThemes(options.SettingValues["theme_path"])
+		if err != nil || len(entries) != 1 || !entries[0].Active || entries[0].Name != "Sea" {
+			t.Fatal("relative selection not bound to active library entry", entries, err)
+		}
+	}
+}
+
+func TestDashboardWinningThemeEnvironmentDoesNotReadBypassedCustomFile(t *testing.T) {
+	if os.Getenv("JIRA_TUI_THEME_OVERRIDE_PROBE") != "1" {
+		binary, err := os.Executable()
+		if err != nil {
+			t.Fatal(err)
+		}
+		cmd := exec.CommandContext(t.Context(), binary, "-test.run=^TestDashboardWinningThemeEnvironmentDoesNotReadBypassedCustomFile$", "-test.count=1")
+		cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + t.TempDir(), "XDG_CONFIG_HOME=" + t.TempDir(), "JIRA_THEME=nord", "JIRA_TUI_THEME_OVERRIDE_PROBE=1"}
+		if output, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("theme override probe: %v\n%s", err, output)
+		}
+		return
+	}
+	cli.ConfigureTheme()
+	path := filepath.Join(t.TempDir(), "settings.toml")
+	if err := os.WriteFile(path, []byte("theme='dark'\ntheme_path='missing-custom.toml'\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	resolved, err := config.Load(config.Options{Path: path, Environ: func() []string { return nil }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	options, err := dashboardOptions(t.Context(), resolved)
+	if err != nil || options.Theme != "nord" || options.ThemeLabel != "nord" || options.ThemeNotice != "" || options.SettingSources["theme"] != "env" {
+		t.Fatalf("bypassed custom metadata hid winning theme: %+v %v", options, err)
 	}
 }

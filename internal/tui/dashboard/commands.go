@@ -97,6 +97,37 @@ func (m *Model) openCommands() {
 }
 
 func (m *Model) updateCommands(msg tea.Msg) tea.Cmd {
+	if k, ok := msg.(tea.KeyPressMsg); ok {
+		switch d := m.dialogs.Top().(type) {
+		case *pickerDialog:
+			if d.kind == "theme" {
+				if m.localSaveBusy {
+					return nil
+				}
+				if k.String() == "enter" {
+					if selection, ok := d.themes[d.value()]; ok && selection.err != nil {
+						d.notice = m.errorText(selection.err)
+						return nil
+					}
+				}
+				switch k.String() {
+				case "ctrl+n", "ctrl+d", "ctrl+e", "ctrl+r", "ctrl+i", "ctrl+x":
+					return m.themePickerAction(d, k.String())
+				}
+			}
+		case *themeEditorDialog:
+			if m.localSaveBusy {
+				return nil
+			}
+			switch k.String() {
+			case "enter":
+				m.editThemeColor(d)
+				return nil
+			case "ctrl+s":
+				return m.saveThemeEditor(d)
+			}
+		}
+	}
 	manualScroll := false
 	switch m.dialogs.Top().(type) {
 	case *writeReview, *operationDialog, *bulkReview, *creationReview, *creationOutcomeDialog, *descriptionReview, *descriptionReload:
@@ -120,6 +151,12 @@ func (m *Model) updateCommands(msg tea.Msg) tea.Cmd {
 	}
 	if result != dialog.ResultNone {
 		switch d := closed.(type) {
+		case *themeEditorDialog:
+			if d.restore != nil {
+				d.restore()
+				m.refreshThemeStyles()
+				d.parent.restyle()
+			}
 		case *commandDialog:
 			m.dialogs.SetFrame(commandFrame())
 		case *writeReview:
@@ -170,6 +207,8 @@ func (m *Model) updateCommands(msg tea.Msg) tea.Cmd {
 		return cmd
 	}
 	switch d := closed.(type) {
+	case *themeInputDialog:
+		return tea.Batch(cmd, m.acceptThemeInput(d))
 	case *descriptionDialog:
 		return tea.Batch(cmd, m.acceptDescriptionEditor(d))
 	case *descriptionReview:

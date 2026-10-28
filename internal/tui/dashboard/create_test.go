@@ -272,3 +272,59 @@ func TestCreationEditorGeometryAndCursorAtSupportedSizes(t *testing.T) {
 		}
 	}
 }
+
+func TestCreationReviewRequiresSummaryAndRetainsPendingLabelOnFailure(t *testing.T) {
+	m := creationModel(t)
+	startCreation(t, m)
+	m.creation.pendingLabel = "kept"
+	cmd := m.prepareCreation()
+	if cmd != nil || !strings.Contains(m.creation.notice, "Summary is required") ||
+		m.creation.pendingLabel != "kept" {
+		t.Fatal("empty-summary review consumed pending authored input")
+	}
+	m.creation.summary = "Reviewed summary"
+	m.creation.labels = []string{"kept"}
+	m.options.Actions.PrepareCreate = func(input core.IssueCreationInput) (jira.IssueWriteRequest, error) {
+		if !input.Labels.Set || input.Labels.Null || len(input.Labels.Value) != 1 || input.Labels.Value[0] != "kept" {
+			t.Fatal("pending label was omitted or duplicated")
+		}
+		return jira.IssueWriteRequest{}, errors.New("preparation refused")
+	}
+	applyCommand(m, m.prepareCreation())
+	if m.creation.pendingLabel != "" || !m.creation.labelsSet ||
+		!strings.Contains(m.creation.notice, "preparation refused") ||
+		m.dialogs.Active() || m.creationEditor == nil {
+		t.Fatal("failed review lost the editable authored draft")
+	}
+}
+
+func TestCreationReviewKeepsAuthoredParagraphsAndNativeFieldFacts(t *testing.T) {
+	m := creationModel(t)
+	startCreation(t, m)
+	m.creation.summary = "New summary"
+	m.creation.markdown = "First **paragraph**.\n\n  Second paragraph."
+	m.creation.labelsSet = true
+	m.creation.assignee = jira.NullableNull[string]()
+	applyCommand(m, m.prepareCreation())
+	review := m.dialogs.Top().(*creationReview)
+	want := `Create Task in DEMO?
+
+Summary:
+New summary
+
+Description (Markdown):
+First **paragraph**.
+
+  Second paragraph.
+
+Labels:
+No labels (explicit empty array)
+
+Assignee: Unassigned (explicit null)
+
+Project ID: 10402 · type ID: 10002
+Creation is submitted once. Inspect an uncertain attempt before creating again.`
+	if got := xansi.Strip(review.Content(400)); !strings.Contains(got, want) {
+		t.Fatalf("review changed authored text or field facts:\n%s", got)
+	}
+}

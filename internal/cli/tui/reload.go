@@ -2,7 +2,6 @@ package tui
 
 import (
 	"context"
-	"path/filepath"
 
 	"github.com/matcra587/jira-cli/internal/cli"
 	"github.com/matcra587/jira-cli/internal/cli/command"
@@ -37,10 +36,7 @@ func runtimeReloader(parent context.Context, deps Deps) func() (*dashboard.Model
 		if err != nil {
 			return nil, err
 		}
-		palettePath := resolved.Config.ThemePath
-		if palettePath != "" && !filepath.IsAbs(palettePath) {
-			palettePath = filepath.Join(filepath.Dir(resolved.Path), palettePath)
-		}
+		palettePath := themePathForConfig(resolved.Path, resolved.Config.ThemePath)
 		// Startup environment themes retain their ownership after library cleanup.
 		applyTheme := func() {}
 		if cli.ThemeEnvironmentName() == "" {

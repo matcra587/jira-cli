@@ -123,7 +123,9 @@ func (m *Model) acceptPicker(d *pickerDialog) tea.Cmd {
 	case "bulk-mode", "bulk-assign-mode", "bulk-assign", "bulk-transition":
 		return m.acceptBulkPicker(d, value)
 	case "theme":
-		m.setPreviewTheme(value)
+		if selection, ok := d.themes[value]; ok {
+			m.applyThemeSelection(selection)
+		}
 		return nil
 	case "issue":
 		return m.openIssue(value)

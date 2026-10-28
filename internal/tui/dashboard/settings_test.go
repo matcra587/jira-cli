@@ -201,3 +201,82 @@ func TestSettingsFramesKeepSaveAndBackHintsVisible(t *testing.T) {
 		}
 	}
 }
+
+func TestPresetResetPreservesCachedCustomLabelAndRestoresPalette(t *testing.T) {
+	m := model(t)
+	restore, err := cli.PreviewTheme("dark")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(restore)
+	original := cli.ResolvedTheme()
+	m.openSettings()
+	const cachedLabel = "Custom label retained for advanced path edits"
+	m.settings.themeLabel = cachedLabel
+	m.settings.values["theme_path"] = "custom.toml"
+
+	m.setPreviewTheme("light")
+	resetSelection := m.themeName == "light" && m.settings.values["theme_path"] == ""
+	if !resetSelection || !m.settings.themeDirty {
+		t.Fatal("preset reset did not retain the existing base/path update")
+	}
+	if m.settings.themeLabel != cachedLabel {
+		t.Fatal("preset reset changed the cached custom label")
+	}
+	accepted := cli.ResolvedTheme()
+	m.setPreviewTheme("not-a-preset")
+	retainedSelection := m.themeName == "light" && m.settings.themeLabel == cachedLabel
+	if cli.ResolvedTheme() != accepted || !retainedSelection {
+		t.Fatal("invalid preset changed the accepted state")
+	}
+	m.Update(key.Replay("esc"))
+	if cli.ResolvedTheme() != original {
+		t.Fatal("canceling the preset reset did not restore the original palette")
+	}
+}
+
+func TestSettingsRefusalsPreserveDraftAndInvocationOwnership(t *testing.T) {
+	m := model(t)
+	m.options.SettingSources = map[string]string{"default_project": "flag"}
+	m.openSettings()
+	m.settings.input.SetValue("Default project")
+	m.rebuildSettings()
+	m.Update(key.Replay("d"))
+	if m.settings.editor != nil || m.settingsChanged() || !strings.Contains(m.settings.notice, "invocation flag") {
+		t.Fatal("reset bypassed the invocation-owned project")
+	}
+	m.Update(key.Replay("ctrl+s"))
+	if m.settings.notice != "No unsaved changes." {
+		t.Fatal("clean draft did not take precedence over unavailable saving")
+	}
+	m.preferences["tui_status"] = !m.preferences["tui_status"]
+	m.Update(key.Replay("ctrl+s"))
+	if m.settings.saving || m.settings.notice != "Saving is unavailable in this session." ||
+		!m.settingsChanged() {
+		t.Fatal("unavailable saving consumed or locked the draft")
+	}
+	m.Update(key.Replay("ctrl+r"))
+	if !strings.Contains(m.settings.notice, "no runtime factory") || !m.settingsChanged() {
+		t.Fatal("unavailable runtime did not retain the unsaved draft")
+	}
+}
+
+func TestSettingsSearchWheelRetainsSearchUntilDownAccepts(t *testing.T) {
+	m := model(t)
+	m.openSettings()
+	m.Update(key.Replay("/"))
+	m.Update(tea.PasteMsg{Content: "tui"})
+	m.Update(tea.MouseWheelMsg{Button: tea.MouseWheelDown})
+	if !m.settings.searching || m.settings.input.Value() != "tui" {
+		t.Fatal("scrolling consumed the active settings search")
+	}
+	selected, ok := m.settings.rows.Selected()
+	if !ok || selected == 0 {
+		t.Fatal("search scrolling did not move selection")
+	}
+	m.Update(key.Replay("down"))
+	next, ok := m.settings.rows.Selected()
+	if m.settings.searching || !ok || next != selected {
+		t.Fatal("accepting search also navigated the selected setting")
+	}
+}

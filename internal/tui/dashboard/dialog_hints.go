@@ -19,6 +19,14 @@ func renderDialogHints(width int, hints []key.Hint) string {
 // symmetric padding, so its title, fields and pinned footer share an origin.
 // Narrow screens reclaim that padding rather than compressing the controls.
 func (m *Model) prepareDialogLayout() {
+	if p, ok := m.dialogs.Top().(*pickerDialog); ok && p.kind == "theme" {
+		p.hintWidth = max(1, min(64, m.pageWidth()-12))
+		return
+	}
+	if editor, ok := m.dialogs.Top().(*themeEditorDialog); ok {
+		editor.hintWidth = max(1, min(64, m.pageWidth()-12))
+		return
+	}
 	var labels *labelsDialog
 	var review *writeReview
 	switch d := m.dialogs.Top().(type) {
@@ -51,5 +59,5 @@ func (m *Model) prepareDialogLayout() {
 		m.dialogs.SetFrame(dialogFramePadding(64, 24, padding))
 		labels.framePadding = padding
 	}
-	labels.SetHintWidth(hintWidth)
+	labels.hintWidth = hintWidth
 }
