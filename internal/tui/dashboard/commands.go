@@ -16,16 +16,20 @@ import (
 )
 
 func newCommandStack() *dialog.Stack {
+	return dialog.New(commandFrame())
+}
+
+func commandFrame() dialog.Frame {
 	styles := dialog.Styles{Box: lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(1, 2)}
 	if cli.StyleEnabled() {
 		theme := cli.ResolvedTheme()
 		styles.Box = styles.Box.BorderForeground(theme.Blue.GetForeground())
 		styles.Title, styles.HintKey, styles.HintText = *theme.Bold, *theme.Blue, *theme.Dim
 	}
-	return dialog.New(dialog.NewFrame(dialog.FrameConfig{
+	return dialog.NewFrame(dialog.FrameConfig{
 		Styles: styles, MaxWidth: 76, MaxHeight: 24,
 		WidthFraction: .95, HeightFraction: .95, Margin: 1,
-	}))
+	})
 }
 
 type commandDialog struct {
@@ -143,11 +147,18 @@ func (m *Model) updateCommands(msg tea.Msg) tea.Cmd {
 		}
 	}
 	cmd, closed, result := m.dialogs.Update(msg)
+	if p, ok := m.dialogs.Top().(*pickerDialog); ok && p.kind == "theme" && result == dialog.ResultNone {
+		m.previewHighlightedTheme(p)
+	}
 	if result != dialog.ResultNone {
 		switch d := closed.(type) {
 		case *descriptionDialog:
 			m.keepDescriptionDraft(d)
 		case *pickerDialog:
+			if d.restorePreview != nil {
+				d.restorePreview()
+				m.refreshThemeStyles()
+			}
 			if result == dialog.ResultClose && d.kind == "create-type" && d.creation == m.creation {
 				m.creation.project = core.IssueCreateProjectRead{}
 				m.creation.typeID = ""

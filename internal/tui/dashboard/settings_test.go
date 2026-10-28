@@ -9,7 +9,91 @@ import (
 	tea "charm.land/bubbletea/v2"
 	xansi "github.com/charmbracelet/x/ansi"
 	"github.com/gechr/primer/key"
+
+	"github.com/matcra587/jira-cli/internal/cli"
 )
+
+func TestThemePickerHighlightsPreviewWithoutAccepting(t *testing.T) {
+	styled := cli.StyleEnabled()
+	cli.SetStyleEnabled(true)
+	t.Cleanup(func() { cli.SetStyleEnabled(styled) })
+	m := model(t)
+	restore, err := cli.PreviewTheme("dark")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(restore)
+	original := cli.ResolvedTheme()
+	m.openSettings()
+	name := m.themeName
+	m.pickTheme()
+	p := m.dialogs.Top().(*pickerDialog)
+	m.Update(tea.PasteMsg{Content: "light"})
+	preview := cli.ResolvedTheme()
+	if preview == original || p.previewedTheme != p.value() || p.menu.Query() != "light" {
+		t.Fatal("filter highlight did not preview a palette while retaining the query")
+	}
+	if !strings.Contains(p.menu.View(), preview.Blue.Render("/ light")) {
+		t.Fatal("the open picker retained its old query color")
+	}
+	if m.themeName != name || m.settingsChanged() || m.dialogs.Top() != p {
+		t.Fatal("highlight accepted a theme or replaced the open picker")
+	}
+	m.Update(key.Replay("down"))
+	if p.menu.CursorLine() <= 2 || cli.ResolvedTheme() == preview || p.previewedTheme != p.value() {
+		t.Fatal("arrow navigation did not preview the selected theme or retain its cursor")
+	}
+	m.Update(tea.PasteMsg{Content: "doesnotexist"})
+	if _, ok := p.menu.Selected(); ok {
+		t.Fatal("fixture should have no matching theme")
+	}
+	m.Update(key.Replay("esc"))
+	if cli.ResolvedTheme() != original || m.themeName != name || m.settingsChanged() {
+		t.Fatal("canceling the picker did not restore the exact prior palette")
+	}
+}
+
+func TestEnvironmentThemeCannotOpenPreviewPicker(t *testing.T) {
+	m := model(t)
+	m.options.SettingSources = map[string]string{"theme": "env"}
+	m.openSettings()
+	m.settings.input.SetValue("Theme")
+	m.rebuildSettings()
+	m.Update(key.Replay("enter"))
+	if m.dialogs.Top() != nil || m.settingsChanged() || !strings.Contains(m.settings.notice, "environment") {
+		t.Fatal("theme preview bypassed environment ownership")
+	}
+}
+
+func TestThemePickerAcceptAndNestedCancel(t *testing.T) {
+	m := model(t)
+	restore, err := cli.PreviewTheme("dark")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(restore)
+	original := cli.ResolvedTheme()
+	m.openSettings()
+	m.pickTheme()
+	m.Update(tea.PasteMsg{Content: "light"})
+	p := m.dialogs.Top().(*pickerDialog)
+	selected := p.value()
+	m.Update(key.Replay("enter"))
+	accepted := cli.ResolvedTheme()
+	if m.themeName != selected || !m.settings.themeDirty || m.dialogs.Top() != nil {
+		t.Fatal("Enter did not accept the highlighted theme into the settings draft")
+	}
+	m.pickTheme()
+	m.Update(tea.PasteMsg{Content: "dark"})
+	m.Update(key.Replay("esc"))
+	if cli.ResolvedTheme() != accepted || m.themeName != selected || !m.settings.themeDirty {
+		t.Fatal("picker cancellation discarded the previously accepted settings draft")
+	}
+	m.Update(key.Replay("esc"))
+	if cli.ResolvedTheme() != original {
+		t.Fatal("settings cancellation did not restore its original palette")
+	}
+}
 
 func TestSettingsPreviewCancelAndSearchOwnInput(t *testing.T) {
 	m := model(t, issue("DEMO-1", "Retained selection"))

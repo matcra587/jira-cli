@@ -481,6 +481,40 @@ func PreviewTheme(name string) (func(), error) {
 	return func() { setChosenTheme(previous) }, nil
 }
 
+// PrepareRuntimeTheme validates a replacement without changing active styles.
+// The returned closure applies only already-prepared data on the UI loop.
+func PrepareRuntimeTheme(ctx context.Context, name, customPath string) (func(), error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if customPath != "" {
+		definition, err := config.LoadThemeFile(ctx, customPath)
+		if err != nil {
+			return nil, err
+		}
+		selected, syntax, err := customTheme(definition)
+		if err != nil {
+			return nil, err
+		}
+		return func() {
+			setChosenTheme(selected)
+			clog.SetTheme(clogtheme.Single(syntax))
+		}, nil
+	}
+	selected := automaticTheme()
+	if name != "" && !config.IsAutomaticTheme(name) {
+		selected = &theme.Theme{}
+		if err := selected.UnmarshalText([]byte(name)); err != nil {
+			return nil, err
+		}
+	}
+	syntax := syntaxThemeFor(selected)
+	return func() {
+		setChosenTheme(selected)
+		clog.SetTheme(clogtheme.Single(syntax))
+	}, nil
+}
+
 // ThemeEnvironmentName retains an accepted startup override after library
 // environment cleanup, so interactive settings can show its real ownership.
 func ThemeEnvironmentName() string {

@@ -142,11 +142,16 @@ func (m *Model) acceptPicker(d *pickerDialog) tea.Cmd {
 func (m *Model) acceptText(d *textDialog) tea.Cmd {
 	switch d.kind {
 	case "save-view":
+		if m.localSaveBusy {
+			m.notice = "A saved-view publication is still running."
+			return nil
+		}
 		if m.options.SaveView == nil {
 			m.notice = "Saving views is unavailable."
 			return nil
 		}
 		name, query := strings.TrimSpace(d.value()), d.target
+		m.localSaveBusy = true
 		return m.tasks.Start(task.Spec{Scope: "save-view", Run: func() (any, error) { return name, m.options.SaveView(name, query) }})
 	default:
 		return m.acceptActionText(d)
@@ -154,6 +159,9 @@ func (m *Model) acceptText(d *textDialog) tea.Cmd {
 }
 
 func (m *Model) navigationResult(msg task.FinishedMsg) tea.Cmd {
+	if msg.Scope == "save-view" {
+		m.localSaveBusy = false
+	}
 	if msg.Err != nil {
 		m.notice = m.errorText(msg.Err)
 		return nil

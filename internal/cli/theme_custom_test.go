@@ -26,6 +26,25 @@ func assertCustomColor(t *testing.T, actual color.Color, text string) {
 	}
 }
 
+func TestRuntimeThemePreparationIsLocalAndAdoptionIsExplicit(t *testing.T) {
+	original := currentTheme()
+	t.Cleanup(func() { setChosenTheme(original) })
+	path := filepath.Join(t.TempDir(), "custom.toml")
+	if err := os.WriteFile(path, []byte("base='dark'\n[colors]\nblue='#123456'\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	apply, err := PrepareRuntimeTheme(t.Context(), "light", path)
+	if err != nil || currentTheme() != original {
+		t.Fatalf("theme preparation changed active state: %v", err)
+	}
+	apply()
+	assertCustomColor(t, ResolvedTheme().Blue.GetForeground(), "#123456")
+	selected := currentTheme()
+	if _, err := PrepareRuntimeTheme(t.Context(), "dark", path+"-missing"); err == nil || currentTheme() != selected {
+		t.Fatal("failed theme preparation damaged the active palette")
+	}
+}
+
 func TestCustomThemeAppliesEveryDeclaredStyleAndSyntaxRole(t *testing.T) {
 	t.Parallel()
 	definition := &config.ThemeFile{Base: "light", Colors: map[string]string{}, Syntax: map[string]string{}, EntityColors: []string{"#123456", "#abcdef"}}

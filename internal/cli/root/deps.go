@@ -85,6 +85,7 @@ type Deps struct {
 	LoginTarget           func(context.Context, core.LoginIdentityBinding) (core.AccountIdentityTarget, error)
 	IdentityTarget        func(context.Context, core.AccountIdentityScope) (core.AccountIdentityTarget, error)
 	ResolveConfig         func(context.Context) (*config.Resolved, error)
+	ReloadTUI             func(context.Context) (*config.Resolved, core.JiraClient, error)
 	WorkdaySeconds        func() (int, error)
 	ValidateLoginScope    func(context.Context, string) error
 
@@ -169,6 +170,7 @@ func defaultDeps() *Deps {
 		LoginTarget:          settings.loginTarget,
 		IdentityTarget:       settings.identityTarget,
 		ResolveConfig:        resolved,
+		ReloadTUI:            settings.reloadTUI,
 		WorkdaySeconds:       settings.workdaySeconds,
 		ValidateLoginScope:   settings.validateLoginScope,
 		Detect: func() cli.Detection {

@@ -3,12 +3,66 @@ package tui
 import (
 	"context"
 	"errors"
+	"maps"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/matcra587/jira-cli/internal/config"
 )
+
+func TestDashboardProjectsEveryPublicScalarAndSavesProfileBatch(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.toml")
+	const authored = "format_version=1\ndefault_profile='work'\n[aliases]\nquick='version'\n[profiles.work]\nbase_url='https://example.invalid'\n[profiles.other]\nbase_url='https://other.invalid'\n"
+	if err := os.WriteFile(path, []byte(authored), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	load := func() *config.Resolved {
+		t.Helper()
+		resolved, err := config.Load(config.Options{Path: path, Environ: func() []string { return []string{"JIRA_DEFAULT_BOARD=environment-board"} }})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return resolved
+	}
+	options, err := dashboardOptions(t.Context(), load())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(options.SettingValues) != len(config.WritableSettingKeys()) {
+		t.Fatal("public setting projection is incomplete")
+	}
+	for _, key := range config.WritableSettingKeys() {
+		if _, ok := options.SettingValues[key]; !ok || options.SettingSources[key] == "" {
+			t.Fatalf("missing effective value or source for %s", key)
+		}
+	}
+	if _, ok := options.SettingValues["api_token"]; ok {
+		t.Fatal("credential entered the screen options")
+	}
+	if options.SettingSources["default_board"] != "env" {
+		t.Fatal("environment ownership disappeared")
+	}
+	if err := options.SaveSettings(map[string]string{"default_project": "DEMO", "timeout": "30s", "read_only": "true", "team_account_ids": `["person-1","person-2"]`}); err != nil {
+		t.Fatal(err)
+	}
+	resolved := load()
+	if resolved.Config.DefaultProject != "DEMO" || !resolved.Config.ReadOnly || resolved.Config.Timeout.String() != "30s" || len(resolved.Config.TeamAccountIDs) != 2 || !maps.Equal(resolved.Config.Aliases, map[string]string{"quick": "version"}) {
+		t.Fatal("batch save lost scalar types or aliases")
+	}
+	file, err := config.OpenFile(t.Context(), path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	board, err := file.Setting("default_board")
+	if err != nil || board.Present {
+		t.Fatal("save published an untouched environment value")
+	}
+	other, err := config.Load(config.Options{Path: path, Profile: "other", Environ: func() []string { return nil }})
+	if err != nil || other.Config.BaseURL != "https://other.invalid" || other.Config.DefaultProject != "" {
+		t.Fatal("batch save modified the other profile")
+	}
+}
 
 func TestDashboardSettingsPublishAndRefuseExternalEdits(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "settings.toml")
@@ -82,5 +136,51 @@ func TestDashboardSettingsAndQueriesUseScreenCancellation(t *testing.T) {
 	bytes, err := os.ReadFile(path)
 	if err != nil || len(bytes) != 0 {
 		t.Fatal("canceled screen changed its configuration")
+	}
+}
+
+func TestDashboardSettingsWritesRemainBoundToSelectedNondefaultProfile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.toml")
+	const authored = "format_version=1\ndefault_profile='other'\n[profiles.work]\nbase_url='https://work.invalid'\n[profiles.other]\nbase_url='https://other.invalid'\n"
+	if err := os.WriteFile(path, []byte(authored), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	load := func(profile string) *config.Resolved {
+		t.Helper()
+		resolved, err := config.Load(config.Options{Path: path, Profile: profile, Environ: func() []string { return nil }})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return resolved
+	}
+	options, err := dashboardOptions(t.Context(), load("work"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, values := range []map[string]string{{"default_project": "NEW"}, {"timeout": "30s"}} {
+		if err := options.SaveSettings(values); err != nil {
+			t.Fatal(err)
+		}
+	}
+	work, other := load("work"), load("other")
+	if work.Config.DefaultProject != "NEW" || work.Config.Timeout.String() != "30s" || other.Config.DefaultProject != "" || other.Config.Timeout != 0 {
+		t.Fatal("initial or reopened settings snapshot drifted to the saved default profile")
+	}
+}
+
+func TestDashboardRefusesDifferentFileThanItsResolvedConfiguration(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.toml")
+	if err := os.WriteFile(path, []byte("default_project='OLD'\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	resolved, err := config.Load(config.Options{Path: path, Environ: func() []string { return nil }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("default_project='NEW'\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := dashboardOptions(t.Context(), resolved); !errors.Is(err, config.ErrFileChanged) {
+		t.Fatalf("settings accepted a different preimage from its resolved values: %v", err)
 	}
 }

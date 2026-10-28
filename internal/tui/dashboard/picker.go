@@ -15,6 +15,8 @@ import (
 type choice struct{ label, description, value string }
 
 type pickerDialog struct {
+	restorePreview      func()
+	previewedTheme      string
 	creation            *creationDraft
 	title, kind, target string
 	menu                palette.Model
@@ -25,9 +27,29 @@ type pickerDialog struct {
 	facets              map[string]issueFacet
 }
 
+// Primer v0.2.9 has no palette style setter. Rebuild through its public API,
+// preserving the filter and cursor while applying the highlighted palette.
+func (p *pickerDialog) restyle() {
+	query, cursor := p.menu.Query(), p.menu.CursorLine()
+	entries := make([]palette.Entry, 0, len(p.choices))
+	for _, c := range p.choices {
+		entries = append(entries, palette.Entry{Name: c.label, Desc: c.description})
+	}
+	p.menu = palette.New("Type to filter", entries, commandStyles())
+	for _, r := range query {
+		p.menu.Update(tea.KeyPressMsg{Code: r, Text: string(r)})
+	}
+	for i := 2; i < cursor; i++ {
+		p.menu.Update(key.Replay("down"))
+	}
+}
+
 func (p *pickerDialog) Title() string     { return p.title }
 func (p *pickerDialog) Hints() []key.Hint { return nil }
 func (p *pickerDialog) Footer() string {
+	if p.kind == "theme" {
+		return "↑↓ preview · enter keep · esc restore"
+	}
 	if p.kind == "issue" {
 		return "enter open · esc back"
 	}

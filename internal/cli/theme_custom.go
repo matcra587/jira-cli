@@ -50,14 +50,7 @@ func customTheme(def *config.ThemeFile) (*theme.Theme, *clogtheme.Theme, error) 
 		}
 		options = append(options, theme.WithEntityColors(values...))
 	}
-	syntax := clogtheme.Dark()
-	if base.Background == theme.BackgroundLight {
-		syntax = clogtheme.Light()
-	}
-	var named clogtheme.Theme
-	if err := named.UnmarshalText([]byte(def.Base)); err == nil {
-		syntax = &named
-	}
+	syntax := syntaxThemeFor(&base)
 	syntaxBindings := customSyntaxBindings(syntax)
 	for role, text := range def.Syntax {
 		target, ok := syntaxBindings[role]
@@ -71,6 +64,17 @@ func customTheme(def *config.ThemeFile) (*theme.Theme, *clogtheme.Theme, error) 
 		*target = value
 	}
 	return base.With(options...), syntax, nil
+}
+
+func syntaxThemeFor(selected *theme.Theme) *clogtheme.Theme {
+	var named clogtheme.Theme
+	if err := named.UnmarshalText([]byte(selected.String())); err == nil {
+		return &named
+	}
+	if selected.Background == theme.BackgroundLight {
+		return clogtheme.Light()
+	}
+	return clogtheme.Dark()
 }
 
 type customStyleBinding struct {

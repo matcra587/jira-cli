@@ -154,8 +154,7 @@ func TestDashboardNativeMainPageSearchSelectionAndSettings(t *testing.T) {
 				stage++
 			}
 		case 6:
-			// A diff repaint can retain the S from Saving settings… on screen.
-			if bytes.Contains(transcript.Bytes(), []byte("ettings saved.")) {
+			if bytes.Contains(transcript.Bytes(), []byte("Runtime reloaded.")) {
 				input = "\x1b"
 				stage++
 				transcript.Reset()
@@ -190,10 +189,10 @@ func TestDashboardNativeMainPageSearchSelectionAndSettings(t *testing.T) {
 			}
 			mu.Lock()
 			defer mu.Unlock()
-			if !reflect.DeepEqual(queries, []string{initialQuery, editedQuery}) {
+			if !reflect.DeepEqual(queries, []string{initialQuery, editedQuery, editedQuery}) {
 				t.Fatalf("queries=%q", queries)
 			}
-			if len(requests) != 5 {
+			if len(requests) != 6 {
 				t.Fatalf("unexpected dashboard request count: %v", requests)
 			}
 			return

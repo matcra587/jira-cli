@@ -12,10 +12,10 @@ import (
 	"github.com/matcra587/jira-cli/internal/tui/dashboard"
 )
 
-// dashboardOptions projects only public display values out of ordinary config.
+// dashboardOptions projects public settings out of ordinary config.
 // The captured file snapshot owns conflicts; a successful save advances it.
 func dashboardOptions(ctx context.Context, resolved *config.Resolved) (dashboard.Options, error) {
-	file, err := config.OpenFile(ctx, resolved.Path)
+	file, err := resolved.OpenSettingsFile(ctx)
 	if err != nil {
 		return dashboard.Options{}, err
 	}
@@ -24,6 +24,12 @@ func dashboardOptions(ctx context.Context, resolved *config.Resolved) (dashboard
 	// stays fixed while publication and query I/O inherit the screen lifetime.
 	options.BindContext = func(session context.Context) { ctx = session }
 	c := resolved.Config
+	options.SettingValues = make(map[string]string)
+	values := c.Values()
+	for _, key := range config.WritableSettingKeys() {
+		options.SettingValues[key] = values[key]
+		options.SettingSources[key] = string(resolved.Source(key))
+	}
 	options.Theme = c.Theme
 	if name := cli.ThemeEnvironmentName(); name != "" {
 		options.Theme = name
@@ -41,7 +47,11 @@ func dashboardOptions(ctx context.Context, resolved *config.Resolved) (dashboard
 	for key := range options.Settings {
 		options.SettingSources[key] = string(resolved.Source(key))
 	}
+	var snapshotErr error
 	options.SaveSettings = func(values map[string]string) error {
+		if snapshotErr != nil {
+			return snapshotErr
+		}
 		update, err := file.PrepareSettings(values)
 		if err != nil {
 			return err
@@ -49,11 +59,14 @@ func dashboardOptions(ctx context.Context, resolved *config.Resolved) (dashboard
 		if _, err := update.Save(ctx); err != nil {
 			return err
 		}
+		// A successful publication stays successful even if the next snapshot
+		// cannot be opened. The next save/reload reports that separate failure.
 		next, err := config.OpenFile(ctx, resolved.Path)
 		if err != nil {
-			return err
+			snapshotErr = err
+			return nil
 		}
-		file = next
+		file, snapshotErr = next.SelectProfile(resolved.Profile)
 		return nil
 	}
 	options.LoadViews = func() ([]dashboard.SavedView, error) {

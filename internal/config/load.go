@@ -71,7 +71,8 @@ type Resolved struct {
 	// It is never included in public settings or warning text.
 	CredentialError error `json:"-"`
 
-	sources map[string]Layer
+	sources      map[string]Layer
+	fileSnapshot *File
 }
 
 // Source returns the layer that set key, or LayerUnknown when no layer
@@ -521,6 +522,7 @@ func load(opts Options, readCredentials func(string) (credentials.Record, error)
 		path = opts.authoredPath
 	}
 	return &Resolved{
+		fileSnapshot:     opts.Snapshot,
 		Profile:          profile,
 		DefaultProfile:   doc.defaultProfile,
 		NamedProfiles:    doc.named,

@@ -21,6 +21,7 @@ type Deps struct {
 	JiraClient    func(context.Context) (core.JiraClient, error)
 	Preferences   func() (core.IssuePreferences, error)
 	ResolveConfig func(context.Context) (*config.Resolved, error)
+	Reload        func(context.Context) (*config.Resolved, core.JiraClient, error)
 }
 
 // New builds the explicit dashboard entry point. Bare jira retains discovery.
@@ -39,6 +40,7 @@ func New(deps Deps) *cobra.Command {
 			"Choose Description in the e menu to edit native anchored Markdown while preserving protected regions and unknown ADF. Ctrl+S prepares review; F4 reloads after confirmation. Description replacement is unconditional and concurrent edits can still race the final read. " +
 			"Use n to create an issue with project/type choices, summary and Markdown description; F2 edits labels, F3 assignee and F4 context. Ctrl+S reviews before a single submission. " +
 			"Use Tab to switch views, / to edit JQL, Enter to focus a preview, Ctrl+P for commands, comma for settings, and ? for help. " +
+			"Settings edits public config values with validation; Ctrl+S saves and hot-reloads the selected profile, and Ctrl+R reloads without saving. Display preferences preview immediately. A failed reload retains the old connection and blocks Jira actions until retry succeeds. Tokens and aliases retain their dedicated auth and alias workflows. " +
 			"Requires interactive input and output in human mode. For scripts and agents use jira issue list or jira issue view.",
 		Example: "  jira tui\n  jira tui --jql='assignee = currentUser() ORDER BY updated DESC'\n  jira --profile=work tui",
 		Flags: func(cmd *cobra.Command) {
@@ -84,9 +86,14 @@ func New(deps Deps) *cobra.Command {
 			return envelope.TUIOutput{View: "issues"}, err
 		},
 		Screen: func(ctx context.Context, _ envelope.TUIOutput) tea.Model {
+			parent := ctx
+			ctx, cancel := context.WithCancel(parent)
 			options.Actions = dashboardActions(ctx, client, options.Actions.ReadOnly)
 			options.Project, options.ProjectQuery, options.Query = project, projectQuery, strings.TrimSpace(query)
-			return dashboard.New(ctx, client, options)
+			options.StopRuntime = cancel
+			options.RuntimeScope = scopeOf(client)
+			options.ReloadSettings = runtimeReloader(parent, deps)
+			return dashboard.WithRuntime(dashboard.New(ctx, client, options))
 		},
 	})
 }

@@ -46,6 +46,11 @@ type Options struct {
 	Theme                        string
 	Settings                     map[string]bool
 	SettingSources               map[string]string
+	SettingValues                map[string]string
+	RuntimeScope                 core.JiraScope
+	StopRuntime                  func()
+	ApplyRuntime                 func()
+	ReloadSettings               func() (*Model, error)
 	SaveSettings                 func(map[string]string) error
 	BindContext                  func(context.Context)
 	LoadViews                    func() ([]SavedView, error)
@@ -70,6 +75,9 @@ type Model struct {
 	options                      Options
 	preferences                  map[string]bool
 	themeName                    string
+	reloadFailure                string
+	localSaveBusy                bool
+	workspaces                   map[core.JiraScope]runtimeWorkspace
 	interaction                  uint64
 	bulkNoticeRequest            uint64
 	editReadRequest              uint64
@@ -318,7 +326,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "action-choices", "write":
 			return m, m.actionFinished(msg)
 		case settingsScope:
-			m.acceptSettings(msg)
+			return m.acceptSettings(msg)
 		case listScope:
 			return m, m.acceptList(msg)
 		case detailScope:
@@ -338,6 +346,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.interaction++
 		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
+		}
+		if msg.String() == "q" && m.localSaveBusy && !m.dialogs.Active() && m.settings == nil && !m.editing && !m.filtering {
+			m.notice = "A saved-view publication is running; wait for its outcome before quitting."
+			return m, nil
 		}
 		if msg.String() == "q" && m.actionBusy && !m.dialogs.Active() && !m.filtering && !m.editing && m.settings == nil && !m.help {
 			m.notice = "A Jira action is running; wait for its outcome before quitting."

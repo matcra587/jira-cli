@@ -297,7 +297,7 @@ func newProgramWithTheme(deps *Deps, stdout, stderr io.Writer, resolveTheme func
 		}
 	}
 	program.Root.AddCommand(issuecmd.New(issueDeps), issuecmd.NewOpen(issueDeps))
-	program.Root.AddCommand(tuicmd.New(tuicmd.Deps{JiraClient: deps.JiraClient, Preferences: deps.BuildPreferences, ResolveConfig: deps.ResolveConfig}))
+	program.Root.AddCommand(tuicmd.New(tuicmd.Deps{JiraClient: deps.JiraClient, Preferences: deps.BuildPreferences, ResolveConfig: deps.ResolveConfig, Reload: deps.ReloadTUI}))
 
 	// Credentials. Constructors, not instances: nothing opens the
 	// keyring or a network client until a RunE that needs one runs.

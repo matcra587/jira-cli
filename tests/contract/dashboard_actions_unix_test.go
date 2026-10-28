@@ -22,6 +22,7 @@ import (
 	"golang.org/x/sys/unix"
 	"golang.org/x/term"
 
+	"github.com/matcra587/jira-cli/internal/config"
 	"github.com/matcra587/jira-cli/tests/internal/nativepty"
 )
 
@@ -285,7 +286,11 @@ func TestDashboardNativeViewsSwitcherDetailsAndReviewedActions(t *testing.T) {
 		{"New issue · assignee", "account ID\r"},
 		{"Use an exact account ID. Jira decides assignability.", "account-7\r\x13"},
 		{"Review new issue", "y"},
-		{"Description for DEMO-4", "q"},
+		{"Description for DEMO-4", ","},
+		{"Side-by-side preview", "/default_project\r\r"},
+		{"keep in draft", "FIXTURE\r\x13"},
+		{"Runtime reloaded.", "\x1b"},
+		{"q quit", "q"},
 	}
 	var transcript bytes.Buffer
 	stage := 0
@@ -322,6 +327,13 @@ func TestDashboardNativeViewsSwitcherDetailsAndReviewedActions(t *testing.T) {
 			saved, err := os.ReadFile(filepath.Join(queries, "Fixture view.jql"))
 			if err != nil || strings.TrimSpace(string(saved)) != initialQuery {
 				t.Fatal("saved view did not retain authored JQL")
+			}
+			configured, err := config.Load(config.Options{Path: settings, Environ: func() []string { return nil }})
+			if err != nil || configured.Config.DefaultProject != "FIXTURE" || configured.Source("default_project") != config.LayerFile {
+				t.Fatalf("settings menu did not save the authored project: %v", err)
+			}
+			if configured.Config.BaseURL != "" || configured.Config.Email != "" || !configured.Config.Keyring {
+				t.Fatal("settings save copied effective environment values into the file")
 			}
 			mu.Lock()
 			defer mu.Unlock()

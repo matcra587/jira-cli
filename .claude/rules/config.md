@@ -715,10 +715,28 @@ for `command.OnceContextValues` and the synchronous OS-keyring limitation.
 global declarations at the document root, including named-profile files. Ordinary
 environment precedence applies. The dashboard projects these public values and
 sources from the invocation's resolved settings; it does not expose credentials.
-Its searchable settings page previews changes, discards unsaved changes on exit,
+Its searchable settings page exposes every config key, edits all public writable
+scalars through `ValidateSettingValue`, and explains the dedicated auth and alias
+owners for tokens and aliases. It projects only writable public values into
+screen state; never pass token values or alias definitions to the scalar editor.
+Display preferences and named themes preview immediately. After publication,
+reopen the pinned selected profile through a fresh composition-root resolver and
+ordinary client factory. Adopt its client, read-only policy, timeout, project
+scope, query paths, glyphs and prepared palette inside the running Tea session.
+Do not imply credential migration/verification or invent consumers for retained
+metadata. Ctrl+R retries reload without publication, including explicit external
+file changes; no automatic file watcher is enabled.
+Give initial and replacement runtimes separate child read contexts; cancel the
+old runtime only after a replacement is prepared, and reject old task/timer
+messages across model replacements. Keep local drafts/history scoped by public
+site/account/API identity. Save/reload cannot overlap an admitted Jira write.
+Preserve a successful publication when snapshot reopening or runtime preparation
+fails. Keep the old connection for reads, block Jira actions, and show a persistent
+saved-versus-active failure indicator until explicit reload succeeds.
+The page discards unsaved changes on exit,
 and publishes only changed keys together on Ctrl+S using `File.PrepareSettings`.
 Keep the captured snapshot until successful publication, then advance it. Failed
-publication retains the draft and directs inspection before retrying. Environment
+publication retains the draft and directs inspection before retrying. Environment and flag
 values remain visible but locked. These new keys do not silently migrate deferred
 v0.15 preferences or enable polling.
 
@@ -727,7 +745,9 @@ reuse the shared validated no-clobber publication owner with query admission,
 not configuration TOML admission. Never overwrite an existing name or symlink.
 Missing query directories yield an empty menu alongside built-in lenses; other
 read failures remain visible. Recent issues and comment drafts stay in session
-memory. Theme selection uses the existing palette owner, restores the exact
-previous palette on cancel, and publishes theme name plus an empty custom path
+memory. Theme highlighting previews immediately through the existing palette
+owner without changing the accepted draft. Enter accepts; picker cancellation
+restores the exact palette from before opening it, including an existing draft.
+Settings cancellation restores the last saved baseline. Saving publishes theme name plus an empty custom path
 in one settings transaction. Retain accepted startup theme-environment ownership
 after library cleanup so the interactive row remains honestly locked.

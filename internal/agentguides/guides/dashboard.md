@@ -217,17 +217,53 @@ not provide remote compare-and-swap or lost-update protection.
 
 Press `,` or choose Settings from the command picker. Search with `/`, select
 with arrow keys or `j`/`k`, and change a boolean with Enter or Space. Tab and
-Shift+Tab switch between All, Appearance, Issue list and Issue preview. Search
-matches setting names, groups and descriptions. Enter returns from search to
+Shift+Tab switch between All, Appearance, Issue list, Issue preview, Defaults,
+Tools, Connection, Authentication and Identity. Search matches config keys,
+setting names, groups and descriptions. Enter returns from search to
 its results; Esc finishes search before a second Esc closes settings.
 
 Display preferences control the side-by-side preview, compact or comfortable
 row density, status, assignee and updated columns, and labels, priority and issue
-type in previews. The theme row opens a preset picker and previews the selected
-palette; saving a preset also clears the custom palette path in the same update. Columns still adapt
+type in previews. The theme picker previews colors immediately as you move the
+highlight or filter presets. Enter keeps the highlighted theme in the settings
+draft; Esc restores the palette from before opening the picker. With no filter
+matches, the last preview remains until you choose a match or cancel. Ctrl+S
+saves the draft; saving a preset also clears the custom palette path in the same update. Columns still adapt
 to terminal space. Each row shows its effective source; environment overrides
 are visible and cannot be edited here. Press `d` to preview the selected
-setting's built-in default (`true` for booleans, `auto` for the theme).
+setting's built-in default (`true` for dashboard booleans, `auto` for the theme).
+
+Every public scalar config setting is editable here, including project/type/board
+defaults, team account IDs, workday duration, paths, editor, glyphs, timeout,
+read-only access, connection and credential-provider metadata, and cached public
+identity. Booleans toggle with Enter or Space. Other values open an editor:
+Enter keeps the value in the settings draft, Esc cancels that field, and arrow
+keys choose enumerated values. Empty strings clear optional values. Team account
+IDs use a JSON array. Invalid values stay in the editor with an explanation.
+
+Display preferences and named themes preview in this session. Ctrl+S saves and
+reloads the selected profile in the running TUI, including its client, transport
+read-only policy and timeout, project tab, query paths, glyphs and custom palette.
+Environment and invocation-flag overrides retain their precedence and stay locked
+in the menu. Reload does not move credentials, verify identity, or turn metadata
+preferences into automatic refresh or other unavailable features. API tokens remain
+managed by `jira auth login`; aliases use `jira alias set` or `jira alias import`
+for command-tree validation. Their settings entries explain these dedicated
+workflows without opening a scalar editor or exposing tokens.
+
+Ctrl+R reloads the selected profile without publishing settings. Save or cancel a
+settings draft first. This also picks up external file changes; automatic file
+watching is not enabled. Reload and save wait until running Jira writes finish.
+The config path, selected profile, captured environment and flag overrides remain
+bound to the invocation even if the file's default profile changes.
+
+On successful reload, reads from the prior runtime are canceled and late results
+are ignored. Local drafts, creation work and operation history stay scoped to the
+site, account and API route; changing scope parks that work until you return.
+If publication succeeds but reload fails, the file remains saved. The old
+connection remains active for reads, Jira actions are blocked, and a persistent
+banner reports the mismatch. Fix the settings or their dependencies, then use
+Ctrl+R to retry reload without saving again.
 
 ## Save
 
@@ -236,9 +272,10 @@ Esc returns from that preview to Settings with the draft intact.
 
 The session keeps its query, navigation, comment drafts and up to 20 recent
 issues in memory and restores the terminal
-when closed. Settings changes preview immediately. Ctrl+S saves changed settings
+when closed. Display changes preview immediately. Ctrl+S saves changed settings
 together through the ordinary config file owner; Esc discards changes since the
 last successful save. A failed save retains the draft and does not report success.
+A separate reload failure does not erase a successful publication.
 Inspect the config before retrying after a publication error.
 
 The public boolean keys are `tui_preview`, `tui_status`, `tui_assignee`,

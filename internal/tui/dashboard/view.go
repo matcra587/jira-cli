@@ -464,6 +464,9 @@ func (m *Model) View() tea.View {
 		content = m.dialogs.View(content, m.pageWidth(), m.height)
 	}
 	lines := strings.Split(content, "\n")
+	if m.reloadFailure != "" && len(lines) > 0 {
+		lines[0] = layout.NormalizeLine(accent("JIRA")+" · reload failed; writes blocked · Active: "+cli.Text(m.site)+" · "+cli.Text(m.options.RuntimeScope.Account), m.pageWidth())
+	}
 	for i := range lines {
 		lines[i] = "  " + lines[i] + "  "
 	}

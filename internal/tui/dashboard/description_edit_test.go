@@ -40,6 +40,22 @@ func descriptionModel(t *testing.T) *Model {
 	return m
 }
 
+func TestDescriptionDraftSurvivesSameScopeRuntimeReload(t *testing.T) {
+	m := descriptionModel(t)
+	openDescription(m)
+	editor := m.dialogs.Top().(*descriptionDialog)
+	changed := strings.Replace(editor.value(), "alpha", "local alpha", 1)
+	replaceDescriptionInput(m, changed)
+	m.Update(key.Replay("esc"))
+	m.openSettings()
+	next := descriptionModel(t)
+	m.adoptRuntime(next)
+	retained := next.descriptionDrafts[descriptionIdentityOf(editor.draft.session)]
+	if retained == nil || retained.markdown != changed {
+		t.Fatal("runtime reload discarded an anchored description draft")
+	}
+}
+
 func openDescription(m *Model) {
 	press(m, 'e')
 	for _, r := range "Description" {

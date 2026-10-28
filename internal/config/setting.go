@@ -1,9 +1,28 @@
 package config
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"slices"
 )
+
+// OpenSettingsFile binds publication to the exact authored bytes underlying
+// this resolution. A later external file cannot become its save preimage.
+func (r *Resolved) OpenSettingsFile(ctx context.Context) (*File, error) {
+	if r.fileSnapshot == nil {
+		return nil, fmt.Errorf("%w: resolved configuration has no file snapshot", ErrFileInvalid)
+	}
+	file, err := OpenFile(ctx, r.Path)
+	if err != nil {
+		return nil, err
+	}
+	if file.Exists() != r.fileSnapshot.Exists() || !bytes.Equal(file.original, r.fileSnapshot.original) ||
+		r.fileSnapshot.requested != "" && file.Path() != r.fileSnapshot.Path() {
+		return nil, ErrFileChanged
+	}
+	return file.SelectProfile(r.Profile)
+}
 
 // StoredSetting describes one declared setting. Present distinguishes an
 // absent key from an explicitly stored empty string, false or zero. Values
