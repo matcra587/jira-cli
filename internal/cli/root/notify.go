@@ -66,7 +66,13 @@ func guardNotifications(program *cobra.Program) {
 		// Conductor's NotifySkip matches only the leading verb, so a nested
 		// local inspection needs its canonical command path checked here.
 		path := cmd.CommandPath()
-		localInspection := path == cmd.Root().Name()+" cache inspect" || path == cmd.Root().Name()+" issue input prepare"
+		localInspection := false
+		switch path {
+		case cmd.Root().Name() + " cache inspect",
+			cmd.Root().Name() + " issue input prepare",
+			cmd.Root().Name() + " api endpoints":
+			localInspection = true
+		}
 		if dryRun || noInput || agent.Is() || localInspection {
 			program.Runtime.App.Updater = nil
 		} else {

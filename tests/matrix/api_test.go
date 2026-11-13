@@ -86,3 +86,26 @@ func TestRawAPIFlagEffects(t *testing.T) {
 		})
 	}
 }
+
+func TestAPIEndpointCatalogFlagEffects(t *testing.T) {
+	t.Parallel()
+	all := fwSuccess(t, fwExec(t, "", nil, "", "api", "endpoints", "--query=/rest/api/3/issue"))
+	get := fwSuccess(t, fwExec(t, "", nil, "", "api", "endpoints", "--method=get", "--query=/rest/api/3/issue"))
+	allRows := fwAt(t, all.Data, "operations").([]any)
+	getRows := fwAt(t, get.Data, "operations").([]any)
+	if len(getRows) == 0 || len(getRows) >= len(allRows) {
+		t.Fatal("method did not narrow the catalog")
+	}
+	for _, row := range getRows {
+		if row.(map[string]any)["method"] != "GET" {
+			t.Fatal("method filter returned another method")
+		}
+	}
+	selected := fwSuccess(t, fwExec(t, "", nil, "", "api", "endpoints", "--method=get", "--query=getCurrentUser"))
+	rows := fwAt(t, selected.Data, "operations").([]any)
+	if len(rows) != 1 || rows[0].(map[string]any)["path"] != "/rest/api/3/myself" {
+		t.Fatal("query did not select the known operation")
+	}
+	Prove(t, "jira api endpoints", "method", "method filter narrows the same query to GET operations without Jira")
+	Prove(t, "jira api endpoints", "query", "operation-ID query returns the independently known current-account path")
+}

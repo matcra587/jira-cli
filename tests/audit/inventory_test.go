@@ -39,7 +39,7 @@ func TestInventoryReconcilesCleanAndExact(t *testing.T) {
 		"jira adf convert|", "jira adf edit apply|", "jira adf edit merge|", "jira adf edit prepare|", "jira adf explain-node|", "jira adf lint|", "jira adf render|", "jira adf validate|",
 		"jira agent adf-matrix|", "jira agent export|", "jira agent fieldtypes|", "jira agent guide|", "jira agent schema|",
 		"jira alias delete|", "jira alias import|", "jira alias list|", "jira alias set|",
-		"jira api delete|", "jira api get|", "jira api head|", "jira api options|",
+		"jira api delete|", "jira api endpoints|", "jira api get|", "jira api head|", "jira api options|",
 		"jira api patch|", "jira api post|", "jira api put|",
 		"jira auth login|", "jira auth logout|", "jira auth status|", "jira auth token|", "jira auth whoami|", "jira auth whoami|--save",
 		"jira boards list|",

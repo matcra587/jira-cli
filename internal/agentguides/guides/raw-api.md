@@ -3,7 +3,7 @@ slug: raw-api
 title: Send an explicit scoped Jira API request
 description: Use native platform or Agile requests when a domain command cannot express the task.
 when_to_use: When inspecting an unsupported endpoint, sending an exact native body, or recovering an HTTP receipt.
-commands: [jira api get, jira api head, jira api options, jira api post, jira api put, jira api patch, jira api delete]
+commands: [jira api endpoints, jira api get, jira api head, jira api options, jira api post, jira api put, jira api patch, jira api delete]
 order: 30
 ---
 
@@ -18,6 +18,37 @@ Live requests need the site, credentials and permissions described in
 Preconditions. A local `--dry-run` needs no credentials or network.
 
 ## Run
+
+### Discover documented endpoints locally
+
+```sh
+jira api endpoints --method=get --query=attachment --output=json
+jira api endpoints --query=/rest/agile/1.0/board --output=compact
+jira api endpoints --method=get --query=getCurrentUser --jq '.data.operations[].path'
+```
+
+Discovery and shell endpoint completion use the same bundled catalog from the
+release's pinned Platform and Agile OpenAPI documents. They need no credentials,
+configuration, network or cache warmup. Completion filters by the method already
+selected in `jira api get`, `post`, and the other method commands.
+
+`operations` contains path templates, methods, operation IDs, summaries,
+deprecation flags and source families. `sources` records each pinned document's
+URL, version and SHA-256; `catalog_version` identifies the catalog format.
+JSON returns these under `data`; compact returns the object directly.
+`--method` accepts all/get/head/options/post/put/patch/delete, case-insensitively;
+the default is all. `--query` matches a case-insensitive substring of the path,
+operation ID or summary. Results are sorted by path then method. No match
+returns an empty array with success. Only explicitly documented methods appear;
+a supported raw method can have no catalog entries.
+
+Replace brace-delimited parameters with actual values before executing a
+request. The catalog is documentation, not proof of tenant availability,
+permissions, field validity or write authorization. Valid literal endpoints
+absent from the catalog remain usable. Upgrade the CLI to update the pinned
+catalog; `jira cache clear` only affects scoped tenant metadata.
+
+### Send an explicit request
 
 ```sh
 jira api get /rest/api/3/issue/KEY-123 --query fields=summary,status --output=json

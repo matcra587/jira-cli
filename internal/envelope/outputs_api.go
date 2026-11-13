@@ -1,6 +1,17 @@
 package envelope
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"github.com/matcra587/jira-cli/internal/jira"
+)
+
+// APIEndpointsOutput is local public documentation, not an HTTP observation.
+type APIEndpointsOutput struct {
+	CatalogVersion int                     `json:"catalog_version"`
+	Sources        []jira.APICatalogSource `json:"sources"`
+	Operations     []jira.APIOperation     `json:"operations"`
+}
 
 // APIOutput reports an explicitly addressed request and its HTTP receipt.
 // Base64 is the canonical byte representation; optional JSON and UTF-8 text
@@ -68,6 +79,9 @@ func apiSchemaOverrides() map[string]any {
 }
 
 func init() {
+	Register("api.endpoints", APIEndpointsOutput{}, map[string]any{
+		"description": "Offline method/path templates from pinned platform and Agile OpenAPI documents. Advisory only: not evidence of site availability, permission or write authorization.",
+	})
 	overrides := apiSchemaOverrides()
 	for _, op := range []string{"api.get", "api.head", "api.options"} {
 		Register(op, APIOutput{}, overrides)

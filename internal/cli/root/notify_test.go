@@ -77,6 +77,7 @@ func TestPassiveUpdateSkipsDiscoveryAndPreview(t *testing.T) {
 		{name: "release notes alias", args: []string{"rn", "--latest"}},
 		{name: "guide", args: []string{"guide", "--output=json"}},
 		{name: "agent", args: []string{"agent", "schema", "--output=json"}},
+		{name: "API endpoints", args: []string{"api", "endpoints", "--output=human"}},
 		{name: "update", args: []string{"update", "--force"}},
 		{name: "update alias", args: []string{"up", "--force"}},
 		{name: "preview", args: []string{"probe", "--dry-run"}},

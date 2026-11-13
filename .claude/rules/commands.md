@@ -295,6 +295,11 @@ only in the change that registers its kind.
     through `cache.RecentIssueKeys`. Mixed attachment and transition grammars use
     their contextual predictors, not a whole-command filesystem fallback. Empty
     history offers nothing. `jira user search` remains the explicit user lookup.
+*   `apiendpoint_METHOD` is bound to each raw API method's argument metadata.
+    It uses the same bundled, generated Platform/Agile catalog as `jira api endpoints`;
+    no profile, credentials, cache warmup or HTTP is needed. List only documented
+    method/path pairs and preserve literal template braces. The catalog is advisory,
+    never a raw-path allowlist, permission inventory or write-policy owner.
 *   Transition target hints use per-issue observations from successful explicit
     `issue transition list` reads, never the global status catalog. Require fresh
     five-minute observations; reject malformed, future and cross-scope data.

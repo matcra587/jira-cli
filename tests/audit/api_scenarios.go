@@ -10,6 +10,13 @@ import (
 )
 
 func init() {
+	scenarios = append(scenarios,
+		Scenario{ID: "api.endpoints-success", Op: "api.endpoints", Category: CategorySuccess, Args: []string{"api", "endpoints", "--method=get", "--query=getCurrentUser"}},
+		Scenario{ID: "api.endpoints-failure", Op: "api.endpoints", Category: CategoryFailure, Args: []string{"api", "endpoints", "--method=trace"}, ExpectExit: 3, ExpectCode: "flag_value_invalid"},
+		Scenario{ID: "api.endpoints-help", Op: "api.endpoints", Category: CategoryHelp, Args: []string{"api", "endpoints", "--help"}},
+	)
+	stylingExpected["api.endpoints"] = false
+	successDataShape["api.endpoints"] = struct{ required, optional []string }{required: []string{"catalog_version", "sources", "operations"}}
 	stubServers["raw-api"] = func() http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			if req.URL.Path != "/rest/api/3/fixture" {

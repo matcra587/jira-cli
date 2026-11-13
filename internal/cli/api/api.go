@@ -48,6 +48,7 @@ func New(deps Deps) *cobra.Command {
 	cmd.AddCommand(methodCommand(deps, http.MethodPut, command.Spec[envelope.APIMutationOutput]{Op: "api.put", Human: render, WritesJira: true, Passthrough: true, RetainOnError: retainMutation}, wrapMutation))
 	cmd.AddCommand(methodCommand(deps, http.MethodPatch, command.Spec[envelope.APIMutationOutput]{Op: "api.patch", Human: render, WritesJira: true, Passthrough: true, RetainOnError: retainMutation}, wrapMutation))
 	cmd.AddCommand(methodCommand(deps, http.MethodDelete, command.Spec[envelope.APIMutationOutput]{Op: "api.delete", Human: render, WritesJira: true, Passthrough: true, RetainOnError: retainMutation}, wrapMutation))
+	cmd.AddCommand(newEndpoints())
 	return cmd
 }
 
@@ -61,6 +62,9 @@ func wrapMutation(out envelope.APIOutput, dry bool) envelope.APIMutationOutput {
 const apiHelp = "Send a request to /rest/api/... or /rest/agile/... on the configured site. " +
 	"Absolute URLs, encoded path segments and embedded query strings are refused. " +
 	"Use repeated --query name=value flags for query parameters.\n\n" +
+	"Find documented path templates offline with `jira api endpoints`. Endpoint completion uses the same bundled catalog, " +
+	"filtered by the selected method, without credentials or cache warmup. Replace template parameters before sending a request. " +
+	"Catalog coverage is advisory: literal endpoints absent from it remain usable.\n\n" +
 	"--input FILE (or - for piped standard input) sends exact bytes, up to 1 MiB. " +
 	"JSON is the default content type; use --content-type for other bodies. " +
 	"Raw bodies are not converted or checked against a domain schema.\n\n" +
@@ -99,7 +103,7 @@ func methodCommand[T any](deps Deps, method string, spec command.Spec[T], wrap f
 	spec.Short = "Send an explicit " + method + " request"
 	spec.Long = apiHelp
 	spec.Example = methodExample(method)
-	spec.Args = command.ArgSpec{Min: 1, Max: 1, Positions: []command.Arg{{Name: "ENDPOINT"}}}
+	spec.Args = command.ArgSpec{Min: 1, Max: 1, Positions: []command.Arg{{Name: "ENDPOINT", Predictor: "apiendpoint_" + name}}}
 	spec.Flags = func(c *cobra.Command) {
 		cmd = c
 		command.AddStringArrayVar(c, &in.query, flagQuery, nil, "Add a literal query name=value (repeatable; commas are preserved)", command.FlagOpts{Terse: "Query parameter", Placeholder: "name=value"})

@@ -4,6 +4,9 @@
 // OpenAPI document in spec/; fields.go hand-curates the parts the spec
 // leaves untyped and carries the raw-capture machinery that keeps
 // unmodeled data alive through a round-trip.
+// The generated API catalog supplies advisory method/path documentation from
+// both pinned specifications without embedding their full schema documents.
 package jira
 
 //go:generate go run github.com/matcra587/jira-cli/cmd/gen-wire -spec spec/platform.json -out wire_gen.go
+//go:generate go run github.com/matcra587/jira-cli/cmd/gen-api-catalog -spec-dir spec -out api_catalog_gen.go

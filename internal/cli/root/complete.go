@@ -19,6 +19,7 @@ import (
 	"github.com/matcra587/jira-cli/internal/adf"
 	"github.com/matcra587/jira-cli/internal/agentguides"
 	"github.com/matcra587/jira-cli/internal/cli"
+	apicmd "github.com/matcra587/jira-cli/internal/cli/api"
 	cachecmd "github.com/matcra587/jira-cli/internal/cli/cache"
 	"github.com/matcra587/jira-cli/internal/cli/command"
 	completioncmd "github.com/matcra587/jira-cli/internal/cli/completion"
@@ -109,7 +110,7 @@ func withCompletionContext(functions map[string]func([]string) []string) map[str
 }
 
 var completionKinds = func() map[string]completionPredictor {
-	kinds := withCompletionContext(map[string]func(args []string) []string{
+	functions := map[string]func(args []string) []string{
 		command.NoCompletionPredictor: func(_ []string) []string { return nil },
 		"shell":                       func(_ []string) []string { return completioncmd.Shells() },
 		"adftype":                     func(_ []string) []string { return adf.SupportIdentities() },
@@ -144,7 +145,11 @@ var completionKinds = func() map[string]completionPredictor {
 		"cachestatus":        func(args []string) []string { return metadataCandidates(args, "statuses") },
 		"cachepriority":      func(args []string) []string { return metadataCandidates(args, "priorities") },
 		"cacheresolution":    func(args []string) []string { return metadataCandidates(args, "resolutions") },
-	})
+	}
+	for _, method := range apicmd.Methods() {
+		functions["apiendpoint_"+strings.ToLower(method)] = apiEndpointPredictor(method)
+	}
+	kinds := withCompletionContext(functions)
 	kinds["word_attachment"] = attachmentWordCandidates
 	kinds["word_file_csv"] = csvFileWordCandidates
 	kinds["word_configvalue"] = configWordCandidates

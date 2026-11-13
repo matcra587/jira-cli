@@ -95,6 +95,9 @@ documented raw-output exception and emit identical bytes in every output mode.
 *   **Metadata caching** uses core interfaces and adapters, scoped to public
     site/account identity. The cache command family and offline completion
     predictors share these owners; completion never resolves credentials.
+    Public endpoint discovery is a separate bundled catalog generated from the
+    pinned Platform/Agile specs. `jira api endpoints` and method-bound completion
+    share it without runtime storage or downloads; it never authorizes a request.
 *   **Lossless editing** uses ADF preservation and bound sessions plus durable
     issue drafts. A fresh read, merge or later verification is not evidence of
     server-enforced lost-update protection.

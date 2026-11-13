@@ -722,6 +722,14 @@ establish live acceptance. There are no `test:live` or `test:integration` tasks.
 
 ## Contract tests are black-box
 
+API endpoint discovery binds source digests, method/query selection, explicit
+empty arrays and typed refusals through the binary in all output modes without
+credentials or cache creation. Execute generated shell routing for method-specific
+path suggestions and literal template braces. Raw API fixtures absent from the
+catalog must remain usable. Regeneration freshness compares the generated source
+against both pinned specs; plant valid stale output and observe that guard fail
+by name, then restore it. Cross-platform completion acceptance remains separate.
+
 Issue-view header cases distinguish absent, null, empty and populated native
 fields through the binary. Bind exact human rows and glance cells, native
 JSON/compact field maps, requested fields and the single issue read.
