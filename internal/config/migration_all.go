@@ -51,7 +51,7 @@ func (m *ProfileMigration) Candidate() ([]byte, error) {
 // selector explicitly limits legacy conversion; a flat source becomes default.
 // UUID assignment is public metadata and performs no provider/environment reads.
 func PrepareProfileMigration(ctx context.Context, data []byte, path, selected string, options LegacyMigrationOptions) (*ProfileMigration, error) {
-	policy := legacyMigrationVersion
+	policy := legacyMigrationRuntimeTUIVersion
 	if options.DeferTUI {
 		policy = legacyMigrationDeferredTUIVersion
 	}
@@ -95,7 +95,7 @@ func prepareProfileMigration(ctx context.Context, data []byte, path, selected st
 		m.sourceKind, m.defaultProfile = "flat", "default"
 		m.profiles = []string{"default"}
 		profile := maps.Clone(flat)
-		splitMigrationGlobals(profile, globals)
+		splitMigrationGlobals(profile, globals, policy)
 		if editor, ok := profile["editor"]; ok {
 			globals["editor"] = editor
 			delete(profile, "editor")
@@ -141,7 +141,7 @@ func prepareProfileMigration(ctx context.Context, data []byte, path, selected st
 			if err != nil {
 				return nil, ErrLegacyConfig
 			}
-			splitMigrationGlobals(profile, globals)
+			splitMigrationGlobals(profile, globals, policy)
 			id := ids[name]
 			if ids == nil {
 				id = uuid.NewString()
@@ -178,10 +178,16 @@ func prepareProfileMigration(ctx context.Context, data []byte, path, selected st
 	return m, ctx.Err()
 }
 
-func splitMigrationGlobals(profile, globals map[string]any) {
+func splitMigrationGlobals(profile, globals map[string]any, policy int) {
 	// Editor remains in each profile: legacy profiles may override the global
 	// editor. Flattening that fallback into each profile preserves its behavior.
-	for _, key := range []string{"theme", "theme_path", "glyphs", "queries_path", "aliases"} {
+	for key := range profile {
+		if !globalSetting(key) || key == "editor" {
+			continue
+		}
+		if policy < legacyMigrationRuntimeTUIVersion && !slices.Contains([]string{"theme", "theme_path", "glyphs", "queries_path", "aliases"}, key) {
+			continue
+		}
 		if value, ok := profile[key]; ok {
 			globals[key] = value
 			delete(profile, key)

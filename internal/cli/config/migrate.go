@@ -32,6 +32,9 @@ func newMigrate(deps Deps) *cobra.Command {
 			"--source selects the explicit input; --config selects the destination. A flat input becomes the default profile. " +
 			"--source-profile explicitly selects a legacy subset. Global --profile selects runtime settings and does not filter migration. " +
 			"The source default and all supported preferences are retained.\n\n" +
+			"Legacy TUI preview layout, refresh cadence, custom views/lenses and compatible shortcuts convert into current dashboard settings. " +
+			"Old built-in tabs other than Search, TUI-only icons, unsupported actions, shortcut conflicts and incompatible values remain unmapped. " +
+			"Preview sizes outside 25–75% are not clamped; the old absent/zero size retains 50%.\n\n" +
 			"Migration does not warm board caches. Before using a retained default_board with structured issue filters, " +
 			"run issue list --board NAME --refresh --as-jql for that profile. Explicit --jql and --saved override default_board.\n\n" +
 			"--dry-run reads local files only and creates nothing. It does not inspect credentials. " +
@@ -228,6 +231,9 @@ func renderMigrateHuman(v *output.View, env envelope.Envelope) error {
 	}
 	if len(out.Deferred) != 0 {
 		v.Line("TUI settings deferred; retained only in original source/recovery:", strings.Join(out.Deferred, ", "))
+	}
+	if len(out.Mapped) != 0 {
+		v.Line("mapped settings:", strings.Join(out.Mapped, ", "))
 	}
 	if out.RecoveryPublished {
 		v.Line("configuration recovery:", cli.Text(out.Recovery.Configuration))

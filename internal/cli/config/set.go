@@ -112,6 +112,8 @@ func settingFileError(err error) error {
 	switch {
 	case errors.Is(err, cfg.ErrFileChanged):
 		return configError(cli.CodeConfigChanged, "config changed before save; nothing was replaced; inspect the selected file before retrying")
+	case errors.Is(err, cfg.ErrMigrationRequired):
+		return err
 	case errors.Is(err, cfg.ErrFileInvalid):
 		return configError(cli.CodeConfigInvalid, err.Error())
 	default:

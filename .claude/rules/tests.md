@@ -1326,12 +1326,19 @@ explicit remote previews publish the resolved ID plus original query context.
 Explicit TUI deferral tests must exercise the actual command with and without
 `--defer-tui`, not only the mapper. Check typed deferred names without values,
 preview absence of directory/provider effects, exact source recovery, no inert
-TUI destination keys, and fresh recorded-policy rollback for distinct and same
+TUI destination keys under policy 9, and fresh recorded-policy rollback for distinct and same
 source/target paths. Preserve unknown-schema and malformed-shape refusal. Keep
 an independently delivered policy-8 fixture from the previous committed producer;
 only fixture paths and enclosing artifact hashes may be rehomed. Policies 1–8
 must retain strict TUI refusal. Future-version refusal uses an unsupported version,
 not the next version after the default producer when opt-in policies exist.
+
+Policy-11 TUI migration guards must load the actual published settings through
+the current configuration owner, bind preserved JQL, references and shortcuts,
+and freshly reopen recorded-policy rollback for same/distinct destinations.
+Verify 50% absent/zero preview size, disabled refresh, no silent size clamp,
+unsupported built-ins and conflicting keys. Legacy-format failure advice must
+appear in human and machine output without writes or credential resolution.
 
 The `defer-tui` matrix proof must execute both admission states and check that
 neither preview publishes settings or recovery. Human and compact previews must

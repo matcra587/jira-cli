@@ -51,6 +51,9 @@ func newGet() *cobra.Command {
 			}
 			setting, err := file.Setting(key)
 			if err != nil {
+				if errors.Is(err, cfg.ErrMigrationRequired) {
+					return zero, err
+				}
 				if errors.Is(err, cfg.ErrFileInvalid) {
 					return zero, configError(cli.CodeConfigInvalid, err.Error())
 				}

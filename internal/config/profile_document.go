@@ -72,6 +72,19 @@ func decodeProfileDocument(data []byte, values bool) (*profileDocument, error) {
 	if fields == nil {
 		fields = map[string]any{}
 	}
+	if _, current := fields["format_version"]; !current {
+		legacyFields, canonicalErr := canonicalLegacyTable(fields)
+		if canonicalErr == nil {
+			_, profiles := legacyFields["profiles"]
+			_, tui := legacyFields["tui"]
+			_, theme := legacyFields["theme"].(map[string]any)
+			if profiles || tui || theme {
+				if _, _, legacyErr := decodeLegacyMigration(data); legacyErr == nil {
+					return nil, ErrMigrationRequired
+				}
+			}
+		}
+	}
 	doc := &profileDocument{fields: fields}
 	_, versionPresent := fields["format_version"]
 	_, profilesPresent := fields["profiles"]

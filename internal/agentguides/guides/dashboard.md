@@ -105,8 +105,10 @@ separate fields. Mouse clicks and wheel scrolling use the rendered pane areas. A
 Column headings identify issue keys, summaries and status. My work omits the
 redundant assignee column. Status pills share a width and retain their category
 color when selected. The dashboard uses the CLI's resolved theme and color policy.
-Legacy TUI preference migration remains deferred; the current menu does not
-silently consume old `tui.sections` or `tui.lenses` declarations.
+Use `config migrate` to convert supported legacy TUI preferences into current
+settings. The dashboard does not consume old blocks directly. Migration previews
+list unsupported declarations; `--defer-tui` retains all TUI settings in recovery
+instead of activating them.
 
 ### Review Jira actions
 

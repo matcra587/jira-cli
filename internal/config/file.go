@@ -20,6 +20,9 @@ var ErrFileChanged = errors.New("configuration changed before save")
 // ErrFileInvalid identifies a candidate that cannot be saved as configuration.
 var ErrFileInvalid = errors.New("invalid configuration file")
 
+// ErrMigrationRequired distinguishes a recognized old format from malformed settings.
+var ErrMigrationRequired = fmt.Errorf("%w: legacy configuration requires migration; preview with jira config migrate --source FILE --config FILE --dry-run", ErrFileInvalid)
+
 // File owns an immutable snapshot of the selected configuration file. It reads
 // only authored bytes, without defaults, environment values or credentials.
 // It permits opening an invalid file so an editor can repair it. Saves require

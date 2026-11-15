@@ -60,6 +60,9 @@ func fileError(err error) error {
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return err
 	}
+	if errors.Is(err, config.ErrMigrationRequired) {
+		return err
+	}
 	code := cli.CodeConfigInvalid
 	if errors.Is(err, config.ErrFileChanged) {
 		code = cli.CodeConfigChanged

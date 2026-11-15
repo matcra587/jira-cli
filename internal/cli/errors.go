@@ -10,6 +10,7 @@ import (
 
 	adapterjira "github.com/matcra587/jira-cli/internal/adapters/jira"
 	"github.com/matcra587/jira-cli/internal/attachmentfiles"
+	"github.com/matcra587/jira-cli/internal/config"
 	"github.com/matcra587/jira-cli/internal/core"
 	"github.com/matcra587/jira-cli/internal/output"
 )
@@ -360,12 +361,21 @@ func MapError(err error) Classification {
 	case errors.Is(err, context.Canceled):
 		return newError("canceled", messageErr)
 	}
+
 	var writeErr *output.WriteError
 	if errors.As(err, &writeErr) {
 		// The work may have completed; only reporting it failed. Exit 8
 		// keeps that distinct from every Jira-side class so an agent
 		// never auto-retries a mutation off the back of a broken pipe.
 		return newError(CodeOutputWriteFailed, err)
+	}
+	if errors.Is(err, config.ErrMigrationRequired) {
+		e := newError(CodeConfigInvalid, err)
+		e.Field = FlagConfig
+		e.Hint = "Preview conversion with jira config migrate --source FILE --config FILE --dry-run; review unmapped preferences before applying with an explicit recovery directory."
+		e.Next = "jira config migrate"
+		e.Doc = "jira agent guide migrate-configuration"
+		return e
 	}
 	// Filter faults that happen at RENDER time are sentinel-wrapped by the
 	// output layer rather than typed there, because internal/output must

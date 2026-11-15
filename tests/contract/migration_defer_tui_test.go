@@ -56,18 +56,18 @@ func TestMigrationDeferredTUIRequiresExplicitChoiceAndRetainsExactRecovery(t *te
 			}
 			base := []string{"config", "migrate", "--source=" + source, "--config=" + target, "--recovery-dir=" + recovery}
 			strict := invoke(append(slices.Clone(base), "--dry-run")...)
-			if len(strict.Deferred) != 0 || strict.Ready || !slices.Equal(strict.Unmapped, []string{"tui.default_tab", "tui.refresh_interval", "tui.tabs"}) {
+			if len(strict.Deferred) != 0 || strict.Ready || !slices.Contains(strict.Mapped, "tui_refresh_interval") || !slices.Equal(strict.Unmapped, []string{"tui.default_tab", "tui.tabs"}) {
 				t.Fatal("ordinary conversion silently deferred TUI")
 			}
 			preview := invoke(append(slices.Clone(base), "--defer-tui", "--dry-run")...)
-			if !slices.Equal(preview.Deferred, strict.Unmapped) || !preview.Ready || len(preview.Unmapped) != 0 || preview.RecoveryPublished || preview.Receipt != nil {
+			if !slices.Equal(preview.Deferred, []string{"tui.default_tab", "tui.refresh_interval", "tui.tabs"}) || !preview.Ready || len(preview.Unmapped) != 0 || preview.RecoveryPublished || preview.Receipt != nil {
 				t.Fatal("explicit preview not ready or had effects")
 			}
 			if _, err := os.Stat(recovery); !os.IsNotExist(err) {
 				t.Fatal("preview created recovery")
 			}
 			out := invoke(append(slices.Clone(base), "--defer-tui", "--yes")...)
-			if !slices.Equal(out.Deferred, strict.Unmapped) || !out.RecoveryPublished || out.Receipt == nil || out.Receipt.Status != "applied" || out.Receipt.CredentialState != "external" {
+			if !slices.Equal(out.Deferred, preview.Deferred) || !out.RecoveryPublished || out.Receipt == nil || out.Receipt.Status != "applied" || out.Receipt.CredentialState != "external" {
 				t.Fatal("live migration lost receipt")
 			}
 			candidate, err := os.ReadFile(target)

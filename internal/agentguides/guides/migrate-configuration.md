@@ -17,13 +17,38 @@ select migration input. Keep the entire original source in protected recovery.
 
 ### Check whether the source can be converted
 
-Preview first. `data.unmapped` lists declarations whose runtime mappings remain
-unfinished. `data.ready=false` blocks live conversion. For CLI-only conversion,
+An ordinary command encountering recognized legacy settings refuses to run and
+suggests `config migrate`. Machine failures include `next: jira config migrate`
+and a preview hint. Detection never changes the file. Existing flat settings
+remain supported; a missing file is not a migration requirement.
+
+Preview first. `data.mapped` lists destination names without values.
+`data.unmapped` lists declarations without a supported runtime mapping;
+`data.ready=false` blocks live conversion. For CLI-only conversion,
 explicit `--defer-tui` retains recognized global TUI settings in exact source
 recovery bytes. `data.deferred` lists their declaration names without values.
 Those declarations do not become active settings. Unknown declarations and
-invalid declaration types or structures still block conversion. Without this
-option, TUI declarations remain unmapped.
+invalid declaration types or structures still block conversion.
+
+Without `--defer-tui`, supported TUI preferences become active dashboard settings:
+
+*   Preview visibility and dock (auto/left/right/bottom/hidden), and sizes from
+    25–75%. Absent or zero legacy size retains the old 50% default; incompatible
+    sizes remain unmapped rather than being clamped.
+*   Refresh cadence, including disabled refresh, and its focus-refresh behavior.
+    The new dashboard refreshes the active loaded window rather than every old tab.
+*   Custom sections and lenses retain their titles and exact JQL, with stable
+    positional IDs such as `legacy-sections-1`. Custom lens sets retain the first
+    lens as the fallback startup selection. Lens JQL must omit ORDER BY.
+*   Tab order and startup references that name Search or custom sections, and
+    shortcuts whose actions and keys pass current workspace validation.
+
+Old Issues/Epics/Activity/Settings tabs have no direct workspace equivalent.
+TUI-only icon preferences do not automatically change the CLI-wide glyph policy.
+Unsupported actions, conflicting shortcuts, invalid workspace references and
+incompatible values remain unmapped. Resolve these declarations in a separate
+source copy, or explicitly defer all TUI settings and configure the new dashboard
+through Settings. Recovery retains the complete source selected for conversion.
 
 Legacy theme paths retain literal ~ and $ characters.
 Relative names resolve against the explicit legacy source directory.
@@ -37,8 +62,8 @@ The live conversion example needs an unused recovery directory and `--yes` in
 headless mode. Read Preconditions before conversion or rollback.
 
 ```sh
-jira config migrate --source=old.toml --defer-tui --config=settings.toml --dry-run --output=json
-jira config migrate --source=old.toml --defer-tui --config=settings.toml --recovery-dir=recovery --yes --no-input --output=json
+jira config migrate --source=old.toml --config=settings.toml --dry-run --output=json
+jira config migrate --source=old.toml --config=settings.toml --recovery-dir=recovery --yes --no-input --output=json
 jira config rollback --journal=recovery/migration.json --dry-run --output=json
 jira config rollback --journal=recovery/migration.json --yes --no-input --output=json
 ```

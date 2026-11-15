@@ -38,6 +38,8 @@ func init() {
 	Register("config.migrate", ConfigMigrateOutput{}, map[string]any{
 		"description": "Convert all legacy profiles or a flat configuration into named profiles with protected recovery and per-resource provider backups.",
 		"properties": map[string]any{
+			"mapped":             map[string]any{"description": "Destination setting names, including supported legacy TUI preferences converted to active dashboard settings. Values are omitted."},
+			"unmapped":           map[string]any{"description": "Source declaration names without a supported runtime mapping, including incompatible TUI layout, view or shortcut declarations. Any entry blocks live conversion."},
 			"deferred":           map[string]any{"description": "Recognized TUI declaration names explicitly retained in original source/recovery bytes for later migration; values never enter runtime settings or output."},
 			"ready":              map[string]any{"description": "Whether every declaration is mapped or explicitly deferred; deferred preferences are not active and previews never verify credentials."},
 			"recovery_published": map[string]any{"description": "Whether the configuration recovery artifact was published, even if journal creation later failed."},

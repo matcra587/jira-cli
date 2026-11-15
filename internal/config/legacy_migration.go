@@ -76,6 +76,7 @@ type LegacyMigration struct {
 const (
 	legacyMigrationVersion            = 8
 	legacyMigrationDeferredTUIVersion = 9
+	legacyMigrationRuntimeTUIVersion  = 11
 )
 
 // LegacyMigrationOptions selects explicit retention of preferences outside the CLI runtime.
@@ -148,7 +149,7 @@ func prepareLegacyMigration(ctx context.Context, data []byte, sourcePath, profil
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	if version < 1 || version > legacyMigrationDeferredTUIVersion {
+	if version < 1 || version > legacyMigrationRuntimeTUIVersion || version == namedMigrationVersion {
 		return nil, ErrLegacyConfig
 	}
 	legacy, fields, err := decodeLegacyMigration(data)
@@ -291,9 +292,12 @@ func prepareLegacyMigration(ctx context.Context, data []byte, sourcePath, profil
 			m.unmapped = append(m.unmapped, "profiles."+profile+"."+key)
 		}
 	}
-	if tui, ok := fields["tui"].(map[string]any); ok {
+	if version == legacyMigrationRuntimeTUIVersion {
+		tui, _ := fields["tui"].(map[string]any)
+		m.unmapped = append(m.unmapped, migrateLegacyTUI(legacy.TUI, tui, next)...)
+	} else if tui, ok := fields["tui"].(map[string]any); ok {
 		for key := range tui {
-			if version >= legacyMigrationDeferredTUIVersion {
+			if version == legacyMigrationDeferredTUIVersion {
 				m.deferred = append(m.deferred, "tui."+key)
 			} else {
 				m.unmapped = append(m.unmapped, "tui."+key)

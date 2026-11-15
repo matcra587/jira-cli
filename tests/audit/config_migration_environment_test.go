@@ -55,6 +55,8 @@ func TestEnvironmentMigrationOutputAudit(t *testing.T) {
 		t.Fatal(err)
 	}
 	recipes := []Scenario{
+		{ID: "config-migrate-tui-success", Op: "config.migrate", Category: CategorySuccess, Args: []string{"config", "migrate", "--source=old.toml", "--config=new.toml", "--recovery-dir=recovery", "--yes", "--no-input"}, Files: map[string]string{"old.toml": migrationFixture + "secret_backend='env'\n[tui]\npreview='left'\npreview_size=55\nrefresh_interval=90\n"}},
+		{ID: "config-migrate-tui-preview", Op: "config.migrate", Category: CategoryDryRun, Args: []string{"config", "migrate", "--source=old.toml", "--config=new.toml", "--dry-run"}, Files: map[string]string{"old.toml": migrationFixture + "secret_backend='env'\n[tui]\npreview='hidden'\npreview_size=0\nrefresh_interval=0\n"}},
 		{ID: "config-migrate-environment-success", Op: "config.migrate", Category: CategorySuccess, Args: []string{"config", "migrate", "--source=old.toml", "--config=new.toml", "--recovery-dir=recovery", "--yes", "--no-input"}, Files: map[string]string{"old.toml": migrationFixture + "secret_backend='env'\n"}},
 		{ID: "config-migrate-environment-preview", Op: "config.migrate", Category: CategoryDryRun, Args: []string{"config", "migrate", "--source=old.toml", "--config=new.toml", "--dry-run"}, Files: map[string]string{"old.toml": migrationFixture + "secret_backend='env'\n"}},
 		{ID: "config-rollback-environment-success", Op: "config.rollback", Category: CategorySuccess, Args: []string{"config", "rollback", "--journal=recovery/migration.json", "--yes", "--no-input"}, Files: map[string]string{"old.toml": migrationFixture + "secret_backend='env'\n"}, SetupArgs: []string{"config", "migrate", "--source=old.toml", "--config=new.toml", "--recovery-dir=recovery", "--yes", "--no-input"}},

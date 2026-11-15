@@ -299,7 +299,7 @@ func (r legacyRecoveryRecord) validate(ctx context.Context) error {
 		}
 	}
 	if r.Version == namedMigrationVersion {
-		if r.MappingVersion != legacyMigrationVersion && r.MappingVersion != legacyMigrationDeferredTUIVersion {
+		if r.MappingVersion != legacyMigrationVersion && r.MappingVersion != legacyMigrationDeferredTUIVersion && r.MappingVersion != legacyMigrationRuntimeTUIVersion {
 			return ErrLegacyRecovery
 		}
 		migration, err := prepareProfileMigration(ctx, r.Source.Contents, r.Source.Path, r.SourceProfile, r.MappingVersion, r.ProfileIDs)

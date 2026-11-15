@@ -70,7 +70,7 @@ the authored query path without resolving it.
 `LegacyMigration.Candidate` refuses zero preparations and unresolved `Unmapped`
 preferences. Missing runtime mappings and unresolved relative path origins must
 remain visible and block partial publication. Explicit policy-9 TUI deferral is
-the sole exception described below. Original recovery
+the retention exception described below; current named migration uses policy 11. Original recovery
 bytes remain private; internal preparation state is not an envelope payload.
 File/credential publication, recoverable preimages and rollback are separate
 required migration stages; preparation alone does not deliver the migration CLI.
@@ -474,7 +474,7 @@ publication remains one candidate through PrepareSetting/PrepareSettings.
 
 These selected-profile fields had no CLI polling/team-filter consumers in the
 reviewed v0.15 source; do not invent automatic loops or broaden/narrow searches.
-Global TUI refresh and other TUI state are separate unfinished requirements.
+Global TUI settings follow the policy-11 runtime mapping described below.
 Mapping policy 6 retains selected client metadata and authored team presence;
 policies 1–5 keep original candidate derivation and unsupported-field refusals.
 
@@ -560,10 +560,24 @@ the shared preparation, recovery and transaction owners. `config migrate
 --defer-tui` records mapping policy 9 and reports recognized global TUI declaration
 names in `deferred`. Retain their exact values only in original source/recovery
 bytes; never publish inert TUI settings or claim they became active. Ordinary
-conversion remains strict policy 8. Policies 1–8 preserve their exact derivation
-and TUI refusal; rederivation uses the recorded policy. Unknown declarations and
-malformed shapes still refuse. The restored dashboard does not yet consume these
-legacy TUI settings; their runtime mapping remains a separate milestone.
+named conversion uses policy 11; lower-level historical single-profile preparation
+retains policy 8. Policies 1–9 and named records with mapping policies 8/9 preserve
+their exact candidate derivation; rederivation uses the recorded policy. Unknown
+declarations and malformed shapes still refuse.
+
+Policy 11 maps supported legacy preview visibility/dock, 25–75% size and refresh
+cadence through current validators. Preserve old absent/zero preview size as 50%;
+nonpositive refresh disables timed and focus refresh. Do not silently clamp sizes.
+Custom sections/lenses retain exact title/JQL and deterministic positional IDs;
+custom lens sets start on the matched or first lens. Search/custom tab references
+and compatible renamed actions use Workspace validation before publication.
+Unsupported built-in tabs, TUI-only icons, conflicting/unsupported shortcuts and
+incompatible workspace values remain unmapped. `--defer-tui` still chooses policy 9
+and retains all TUI declarations without activation. TUI destination settings are
+global across named profiles. No provider or Jira I/O occurs during preparation.
+Recognized legacy runtime files return ErrMigrationRequired with preview advice;
+current/flat settings and missing files do not require conversion. Detection never
+writes or triggers migration. Human and machine failures retain the remedy.
 
 Windows configuration paths resolve existing objects through owned native
 metadata handles before appending missing descendants. Directory junctions are
@@ -683,11 +697,11 @@ clib presets. Mapping policy 5 retains selected legacy automatic themes; policie
 Legacy theme paths are literal data. Mapping policy 8 retains names containing
 ~ or $ and anchors relative names to the explicit legacy source directory; never
 expand them through home or environment state. Policies 1–7 retain their original
-candidate derivation and special-path refusal. Global TUI runtime mappings remain separate; explicit deferral follows the recorded mapping policy.
+candidate derivation and special-path refusal. Global TUI runtime mappings follow policy 11; explicit deferral follows recorded policy 9.
 
 The selected refresh_interval and team_account_ids fields had no CLI polling/team-filter consumers in the
 reviewed v0.15 source; do not invent automatic loops or broaden/narrow searches.
-Global TUI refresh and other TUI runtime state remain outside CLI conversion.
+Global TUI settings follow the policy-11 runtime mapping described below.
 Mapping policy 6 retains selected client metadata and authored team presence;
 policies 1–5 keep original candidate derivation and unsupported-field refusals.
 
@@ -733,7 +747,7 @@ duplicate IDs/titles, invalid references and ordering in lenses. IDs survive
 renames; removal clears references. The shared file owner publishes the complete
 candidate once. Startup choices affect fresh launch; collections hot reload
 without navigating away from a still-available active view. Legacy TUI migration
-remains explicitly deferred; this object does not silently activate old blocks.
+uses explicit config migrate policy 11; this object never loads old blocks directly.
 
 Workspace `keys` maps known stable actions to one through four canonical key
 names. The shared action catalog, Primer Registry and Bubbles matching drive
