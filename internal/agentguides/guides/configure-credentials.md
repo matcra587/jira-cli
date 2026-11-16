@@ -257,3 +257,12 @@ Use `migrate-configuration` to retain legacy profiles and explicitly roll back.
 ## Next
 
 Use `machine-output` to inspect failure frames and `safe-mutation` before writes.
+
+Go applications can reuse saved sign-ins through
+`github.com/matcra587/jira-cli/auth` and `github.com/matcra587/jira-cli/api`.
+`auth.ListProfiles` reads public metadata without credentials; create a fresh
+`api.NewClientWithContext` for each check or sync batch. Construction does not
+verify the remote account. Read `/rest/api/3/myself`, validate its native
+`accountId`, and bind application data to the selected site/account. Keep
+pagination, scheduling and storage in the calling application. See
+[the Go client guide](https://github.com/matcra587/jira-cli/blob/main/docs/go-client.md).

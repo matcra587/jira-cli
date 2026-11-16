@@ -10,6 +10,7 @@ structured output.
 *   [Find a workflow](internal/agentguides/guides)
 *   [Set up profiles and authentication](internal/agentguides/guides/configure-credentials.md)
 *   [Use jira with a coding agent](skills/jira-how-to/SKILL.md)
+*   [Use saved Jira sign-ins from Go](docs/go-client.md)
 *   [Read release notes](CHANGELOG.md)
 *   [Contribute](CONTRIBUTING.md)
 

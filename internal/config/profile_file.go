@@ -21,6 +21,7 @@ type Profile struct {
 	Selected      bool
 	BaseURL       string
 	Email         string
+	CloudID       string
 	SecretBackend core.CredentialBackend
 	CredentialID  string
 }
@@ -86,10 +87,20 @@ func (f *File) Profiles() ([]Profile, error) {
 		profiles = append(profiles, Profile{
 			Name: name, Default: name == doc.defaultProfile,
 			Selected: name == selected, BaseURL: Redacted("base_url", decoded.BaseURL),
-			Email: decoded.Email, SecretBackend: backend, CredentialID: decoded.CredentialID,
+			Email: decoded.Email, CloudID: decoded.CloudID, SecretBackend: backend, CredentialID: decoded.CredentialID,
 		})
 	}
 	return profiles, nil
+}
+
+// NamedProfiles reports the authored format even when its profile table is
+// empty. Metadata discovery must not invent a flat login for that document.
+func (f *File) NamedProfiles() (bool, error) {
+	doc, err := decodeProfileDocument(f.original, false)
+	if err != nil {
+		return false, err
+	}
+	return doc.named, nil
 }
 
 // selectedFields separates the full document from the selected authored view.

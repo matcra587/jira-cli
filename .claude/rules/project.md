@@ -19,6 +19,7 @@ deep rules live in [commands.md](commands.md), [output.md](output.md),
 
 | Path | Role |
 |------|------|
+| `auth/`, `api/` | public Go profile discovery, credential snapshots and bounded native requests |
 | `cmd/jira/` | signal context and process exit; calls `root.Run` |
 | `internal/cli/root/` | Conductor/Cobra composition, lazy injected factories, aliases, completion dispatch, output selection and failure boundary |
 | `internal/cli/command/` | typed `Spec`, invocation facts, validation, flag/argument metadata, variants, keyed work and envelope emission |
@@ -44,7 +45,8 @@ deep rules live in [commands.md](commands.md), [output.md](output.md),
 | `ruleguard/rules.go` | custom lint rules enforcing shared boundaries |
 | `tests/` | unit, contract, integration, guardrail, flag-matrix, output-audit and opt-in live acceptance |
 
-The module exports no public library API. Core declares consumer seams;
+The module exports a small Go client through `auth` and `api`; native requests
+reuse the CLI's configuration, credential-provider and transport owners. Core declares consumer seams;
 adapters implement them. The composition root supplies lazy constructors to
 commands. Extend these owners rather than constructing clients, credential
 stores or output policies independently inside handlers.
