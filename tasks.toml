@@ -7,11 +7,11 @@ run = "mise tasks"
 
 [check]
 description = "Run local verification checks"
-# An empty file-task spec can fall back to raw argv on mise 2026.9.11.
-# Keep a concrete help flag on workflows that accept no arguments.
+# An empty spec falls back to raw argv. Declare zero accepted arguments to
+# engage validation while leaving -h/--help to mise's built-in help handler.
 usage = '''
 unknown_flags "error"
-flag "-h --help" help="Show task help"
+arg "[args]..." var_max=0 hide=#true
 '''
 depends = ["fmt:check", "lint", "rumdl", "vet", "test"]
 
@@ -19,7 +19,7 @@ depends = ["fmt:check", "lint", "rumdl", "vet", "test"]
 description = "Run CI-equivalent checks"
 usage = '''
 unknown_flags "error"
-flag "-h --help" help="Show task help"
+arg "[args]..." var_max=0 hide=#true
 '''
 # Finish manifest publication before checks read the module graph.
 # Build before acceptance, then keep its bounded binary builds separate from
@@ -38,7 +38,7 @@ run = [
 description = "Apply automatic formatting and lint fixes"
 usage = '''
 unknown_flags "error"
-flag "-h --help" help="Show task help"
+arg "[args]..." var_max=0 hide=#true
 '''
 run = [{ task = "fmt" }, { tasks = ["lint:fix", "rumdl:fix"] }]
 
@@ -57,7 +57,7 @@ run = ["goreleaser check", "goreleaser healthcheck"]
 description = "Run the full local preflight used before publishing releases"
 usage = '''
 unknown_flags "error"
-flag "-h --help" help="Show task help"
+arg "[args]..." var_max=0 hide=#true
 '''
 run = [{ task = "ci" }, { task = "release:check" }, { task = "release:build" }]
 
@@ -258,7 +258,7 @@ run = "go generate ./..."
 description = "Remove build and coverage outputs"
 usage = '''
 unknown_flags "error"
-flag "-h --help" help="Show task help"
+arg "[args]..." var_max=0 hide=#true
 '''
 run = "rm -rf bin dist coverage.out"
 

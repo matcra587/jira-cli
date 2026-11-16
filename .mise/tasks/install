@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # [MISE] description="Install binary to GOPATH/bin"
 # [USAGE] unknown_flags "error"
-# [USAGE] flag "-h --help" help="Show task help"
+# [USAGE] arg "[args]..." var_max=0 hide=#true
 set -euo pipefail
 
 # shellcheck source=.mise/tasks/lib/build-env.sh

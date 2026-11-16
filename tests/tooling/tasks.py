@@ -215,9 +215,13 @@ if name == 'changie' and args[:1] == ['batch'] and failure == 'batch':
             "release:preflight",
         ):
             with self.subTest(task=task):
-                self.trace.unlink(missing_ok=True)
-                self.succeeds("run", task, "--help")
-                self.assertEqual(self.calls(), [], task + " help entered a tool")
+                for help_flag in ("--help", "-h"):
+                    self.trace.unlink(missing_ok=True)
+                    output = self.succeeds("run", task, help_flag)
+                    self.assertIn("Usage:", output)
+                    self.assertEqual(
+                        self.calls(), [], task + " " + help_flag + " entered a tool"
+                    )
                 for argument in ("--unknown", "extra"):
                     result = self.run_mise("run", task, argument)
                     self.assertNotEqual(result.returncode, 0)

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # [USAGE] unknown_flags "error"
-# [USAGE] flag "-h --help" help="Show task help"
-# A concrete flag prevents mise's empty-spec raw-argv fallback.
+# [USAGE] arg "[args]..." var_max=0 hide=#true
+# Zero accepted arguments engage validation without replacing built-in help.
 set -euo pipefail
 
 query="${DEPS_UPDATE_QUERY:-patch}"
