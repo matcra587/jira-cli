@@ -2006,14 +2006,15 @@ func checkSuccessSchemaTruth(cap Capture, m command.Meta) (bool, string) {
 			return false, "latest release notes must contain one structured release"
 		}
 		release, ok := releases[0].(map[string]any)
-		if !ok || release["version"] != "0.16.0-beta.4" || release["tag"] != "v0.16.0-beta.4" || release["date"] != "2026-10-28" || release["url"] != "https://github.com/matcra587/jira-cli/releases/tag/v0.16.0-beta.4" {
+		if !ok || release["version"] != "0.16.0" || release["tag"] != "v0.16.0" || release["date"] != "2026-11-15" || release["url"] != "https://github.com/matcra587/jira-cli/releases/tag/v0.16.0" {
 			return false, "latest release notes lost embedded version or heading metadata"
 		}
 		wantSections := []struct {
 			kind  string
 			count int
 		}{
-			{kind: "Fixed", count: 1},
+			{kind: "Added", count: 2},
+			{kind: "Dependencies", count: 1},
 		}
 		sections, ok := release["sections"].([]any)
 		if !ok || len(sections) != len(wantSections) {
