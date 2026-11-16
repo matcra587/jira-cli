@@ -12,6 +12,7 @@ import (
 	"github.com/gechr/clive/updater"
 
 	"github.com/matcra587/jira-cli/internal/adapters"
+	"github.com/matcra587/jira-cli/internal/adapters/credentialstore"
 	adapterjira "github.com/matcra587/jira-cli/internal/adapters/jira"
 	"github.com/matcra587/jira-cli/internal/adapters/keyring"
 	adapteronepassword "github.com/matcra587/jira-cli/internal/adapters/onepassword"
@@ -23,7 +24,6 @@ import (
 	updatecmd "github.com/matcra587/jira-cli/internal/cli/update"
 	"github.com/matcra587/jira-cli/internal/config"
 	"github.com/matcra587/jira-cli/internal/core"
-	"github.com/matcra587/jira-cli/internal/credentials"
 	"github.com/matcra587/jira-cli/internal/selfupdate"
 )
 
@@ -382,10 +382,7 @@ func credentialStore() (core.CredentialStore, error) {
 }
 
 func credentialStoreFromResolved(resolved *config.Resolved) core.CredentialStore {
-	if resolved.NamedProfiles && resolved.Config.SecretBackend == core.CredentialBackendKeyring && resolved.Config.CredentialID == "" {
-		return core.NoCredentialStore{}
-	}
-	return credentialStoreFor(resolved.Config)
+	return credentialstore.FromResolved(resolved)
 }
 
 // siteInfoWithoutStore resolves as siteInfo does but with the credential
@@ -501,20 +498,7 @@ func metadataCacheScope(ctx context.Context, deps *Deps, local bool) (cachecmd.M
 // credentialStoreFor selects a provider using only local public preferences.
 // SDK construction and authentication are deferred until a credential operation.
 func credentialStoreFor(settings config.Config) core.CredentialStore {
-	switch settings.SecretBackend {
-	case core.CredentialBackendOnePassword:
-		return adapteronepassword.New(adapteronepassword.Config{
-			Account: settings.OnePasswordAccount, Vault: settings.OnePasswordVault,
-			Item: settings.OnePasswordItem, IntegrationVersion: clive.Current(),
-		})
-	case core.CredentialBackendEnvironment:
-		return core.EnvironmentCredentialStore{}
-	default:
-		if !settings.Keyring {
-			return core.NoCredentialStore{}
-		}
-		return credentials.Select(keyring.New(), settings.CredentialID)
-	}
+	return credentialstore.New(settings)
 }
 
 // Migration uses recorded public scope, independently of current settings and
