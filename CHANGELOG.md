@@ -1,6 +1,18 @@
 # Release Notes
 
 
+## [0.16.2](https://github.com/matcra587/jira-cli/releases/tag/v0.16.2) — 2026-11-16
+
+### Fixed
+
+- Stop probing consumed export staging paths after successful replacement while retaining publication and cleanup receipts.
+
+### Security
+
+- Require native Sigstore verification of archive-update checksum manifests against the exact release workflow and tag before downloading an executable.
+- Bound native Jira JSON response reads to 16 MiB before decoding, including issue details, search, counts and JQL metadata.
+- Limit deeply nested human ADF rendering with an explicit recovery placeholder while preserving the complete native document.
+
 ## [0.16.1](https://github.com/matcra587/jira-cli/releases/tag/v0.16.1) — 2026-11-16
 
 ### Added

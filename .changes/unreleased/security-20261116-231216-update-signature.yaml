@@ -1,3 +1,0 @@
-kind: security
-body: Require native Sigstore verification of archive-update checksum manifests against the exact release workflow and tag before downloading an executable.
-time: 2026-11-16T23:12:16.684191341-05:00
