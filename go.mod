@@ -15,7 +15,7 @@ require (
 	github.com/danieljoos/wincred v1.2.3
 	github.com/gechr/clib v0.8.2
 	github.com/gechr/clive v0.4.13
-	github.com/gechr/clog v0.17.4
+	github.com/gechr/clog v0.18.1
 	github.com/gechr/conductor v0.1.20
 	github.com/gechr/primer v0.2.9
 	github.com/gechr/x v0.7.2
