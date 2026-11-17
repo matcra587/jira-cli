@@ -1,3 +1,0 @@
-kind: dependencies
-body: Update golang.org/x/net to v0.62.0 and golang.org/x/crypto to v0.59.0, with required support modules, to clear the reported HTML-parser and deprecated OpenPGP advisories.
-time: 2026-11-17T00:01:56.68555164-05:00
