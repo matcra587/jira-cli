@@ -61,7 +61,7 @@ func TestDashboardNativePreviewLayoutChoiceSizeAndZoom(t *testing.T) {
 			terminal.sendWait("/\x15^tui_preview_size \r", "Preferred preview percentage")
 			terminal.sendWait("\r", "cancel edit")
 			terminal.sendWait("\x15\x1b[200~55\x1b[201~\r", "unsaved")
-			terminal.sendWait("\x13", "Saved and active")
+			terminal.sendWait("\x13", "Runtime reloaded.")
 			load := func() *config.Resolved {
 				t.Helper()
 				resolved, err := config.Load(config.Options{Path: path, Environ: func() []string { return nil }})

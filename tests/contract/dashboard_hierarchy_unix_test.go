@@ -105,7 +105,7 @@ func TestDashboardNativeHierarchyAndRootTypeSettings(t *testing.T) {
 	terminal.sendWait("\r", "f2 issue type")
 	terminal.sendWait("\x1bOQ", "Hierarchy root type")
 	terminal.sendWait("\x1b[200~Initiative\x1b[201~\r", "unsaved")
-	terminal.sendWait("\x13", "Saved and active")
+	terminal.sendWait("\x13", "Runtime reloaded.")
 	resolved, err := config.Load(config.Options{Path: path, Environ: func() []string { return nil }})
 	if err != nil || string(resolved.Config.TUIHierarchyQuery) != `issuetype = "100" ORDER BY updated DESC` {
 		t.Fatal("native root type did not persist", err)
