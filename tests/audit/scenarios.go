@@ -1119,7 +1119,9 @@ func serveSearchApproximateCount(w http.ResponseWriter, r *http.Request) {
 var scenarios = []Scenario{
 	{ID: "tui-headless", Op: "tui", Category: CategoryFailure, Args: []string{"tui"}, ExpectExit: 3, ExpectCode: "dashboard_terminal_required"},
 	{ID: "tui-help", Op: "tui", Category: CategoryHelp, Args: []string{"tui", "--help"}},
-	{ID: "release-notes-latest", Op: "release.notes", Category: CategorySuccess, Args: []string{"release-notes", "--latest"}},
+	// Keep exact content expectations on a frozen artifact; the flag matrix
+	// independently checks --latest against complete release history.
+	{ID: "release-notes-known-version", Op: "release.notes", Category: CategorySuccess, Args: []string{"release-notes", "0.16.0"}},
 	{ID: "release-notes-unknown-version", Op: "release.notes", Category: CategoryFailure, Args: []string{"release-notes", "missing"}, ExpectExit: 3, ExpectCode: "arg_value_invalid"},
 	{ID: "release-notes-help", Op: "release.notes", Category: CategoryHelp, Args: []string{"release-notes", "--help"}},
 	{

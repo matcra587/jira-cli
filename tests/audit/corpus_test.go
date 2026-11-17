@@ -2003,31 +2003,31 @@ func checkSuccessSchemaTruth(cap Capture, m command.Meta) (bool, string) {
 	case "release.notes":
 		releases, ok := data["releases"].([]any)
 		if !ok || len(releases) != 1 {
-			return false, "latest release notes must contain one structured release"
+			return false, "selected release notes must contain one structured release"
 		}
 		release, ok := releases[0].(map[string]any)
-		if !ok || release["version"] != "0.16.1" || release["tag"] != "v0.16.1" || release["date"] != "2026-11-16" || release["url"] != "https://github.com/matcra587/jira-cli/releases/tag/v0.16.1" {
-			return false, "latest release notes lost embedded version or heading metadata"
+		if !ok || release["version"] != "0.16.0" || release["tag"] != "v0.16.0" || release["date"] != "2026-11-15" || release["url"] != "https://github.com/matcra587/jira-cli/releases/tag/v0.16.0" {
+			return false, "selected release notes lost embedded version or heading metadata"
 		}
 		wantSections := []struct {
 			kind  string
 			count int
 		}{
-			{kind: "Added", count: 1},
-			{kind: "Fixed", count: 1},
+			{kind: "Added", count: 2},
+			{kind: "Dependencies", count: 1},
 		}
 		sections, ok := release["sections"].([]any)
 		if !ok || len(sections) != len(wantSections) {
-			return false, "latest release notes lost its change sections"
+			return false, "selected release notes lost its change sections"
 		}
 		for i, want := range wantSections {
 			section, ok := sections[i].(map[string]any)
 			if !ok || section["kind"] != want.kind {
-				return false, "latest release notes lost its ordered change kinds"
+				return false, "selected release notes lost its ordered change kinds"
 			}
 			changes, ok := section["changes"].([]any)
 			if !ok || len(changes) != want.count {
-				return false, "latest release notes lost change entries"
+				return false, "selected release notes lost change entries"
 			}
 			for _, change := range changes {
 				if text, ok := change.(string); !ok || strings.TrimSpace(text) == "" {

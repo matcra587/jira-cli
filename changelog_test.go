@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
+
+	"golang.org/x/mod/semver"
 )
 
 func TestEmbeddedReleaseCatalog(t *testing.T) {
@@ -44,8 +46,13 @@ func TestEmbeddedReleaseCatalog(t *testing.T) {
 			t.Fatalf("embedded artifact %s missing from catalog", path)
 		}
 	}
-	if got[0].Tag != "v0.16.1" || got[len(got)-1].Tag != "v0.1.0" {
-		t.Fatal("catalog endpoints do not match released history")
+	if got[len(got)-1].Tag != "v0.1.0" {
+		t.Fatal("catalog oldest release does not match released history")
+	}
+	for i := 1; i < len(got); i++ {
+		if semver.Compare(got[i-1].Tag, got[i].Tag) < 0 {
+			t.Fatalf("catalog is not newest first: %s precedes %s", got[i-1].Tag, got[i].Tag)
+		}
 	}
 	positions := make(map[string]int, len(got))
 	for i, release := range got {

@@ -439,6 +439,10 @@ identities. Bind version-conflict/missing-version reasons and typed current fiel
 attribution, not merely exit codes. Piped/no-pager checks do not credit interactive
 pagers, styled terminals or native platform acceptance.
 
+Keep exact release-note audit content bound to a fixed historical version.
+Test `--latest` against the complete first history entry, and catalog ordering
+across all adjacent versions; do not hard-code the current newest release.
+
 Epic list/board acceptance uses independent native rows, child statuses and
 literal lane-specific expected output. Bind exact authenticated search bodies,
 page sizes, query quoting, continuation and request counts. Legacy list reads
