@@ -14,7 +14,7 @@ require (
 	github.com/charmbracelet/x/ansi v0.11.9
 	github.com/danieljoos/wincred v1.2.3
 	github.com/gechr/clib v0.8.7
-	github.com/gechr/clive v0.4.13
+	github.com/gechr/clive v0.4.16
 	github.com/gechr/clog v0.18.1
 	github.com/gechr/conductor v0.1.20
 	github.com/gechr/primer v0.2.9

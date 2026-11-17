@@ -191,8 +191,8 @@ github.com/felixge/httpsnoop v1.1.0 h1:3YtUj32ZZkqZtt3sZZsClsymw/QDuVfpNhoA31zeO
 github.com/felixge/httpsnoop v1.1.0/go.mod h1:Zqxgdd+1Rkcz8euOqdr7lqgCRJztwr5hp9vDSi5UZCE=
 github.com/gechr/clib v0.8.7 h1:wQTIF39dZODuVCW1G9ICIqcVyp5kciPqRgy58mG06nQ=
 github.com/gechr/clib v0.8.7/go.mod h1:MGJwATG4xPBjW+ZvqxqrAn1kjokz387pjziXjaG5I/E=
-github.com/gechr/clive v0.4.13 h1:tcOxkh05x/Hlf2yES+miMs2Ot7hi8lt2t3/Vvj5534E=
-github.com/gechr/clive v0.4.13/go.mod h1:9A1utCDtiYj8r/cJO+4zwQagj6sDbwpJk9ub0Z+4pPo=
+github.com/gechr/clive v0.4.16 h1:RWZq8ewdz/kSeEictq/2nE6NA/hZ4oHBKkvTyeA4uV0=
+github.com/gechr/clive v0.4.16/go.mod h1:OCSoKWs+mFPrzTdzmiEq47kKanG92dC8zisse7p52bo=
 github.com/gechr/clog v0.18.1 h1:WZdKYqLkuMxIqkNFLyP3Am96zquoJzni1CmmgpacLa4=
 github.com/gechr/clog v0.18.1/go.mod h1:+xoypKtW6XMAzI0a468+UlmQ1jm7RD1VD7MHptrS970=
 github.com/gechr/conductor v0.1.20 h1:9grywXz2LI1tWzl2jcDHJbbkjLbZ60s7jHdn4autC9o=
