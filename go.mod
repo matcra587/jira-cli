@@ -5,24 +5,24 @@ go 1.27.4
 
 require (
 	charm.land/bubbles/v2 v2.2.1
-	charm.land/bubbletea/v2 v2.1.0
+	charm.land/bubbletea/v2 v2.1.1
 	charm.land/huh/v2 v2.0.3
-	charm.land/lipgloss/v2 v2.0.6
+	charm.land/lipgloss/v2 v2.1.0
 	github.com/1password/onepassword-sdk-go v0.4.1
 	github.com/agnivade/levenshtein v1.2.2
 	github.com/charmbracelet/colorprofile v0.4.3
 	github.com/charmbracelet/x/ansi v0.11.9
 	github.com/danieljoos/wincred v1.2.3
-	github.com/gechr/clib v0.8.2
-	github.com/gechr/clive v0.4.13
-	github.com/gechr/clog v0.17.4
-	github.com/gechr/conductor v0.1.20
-	github.com/gechr/primer v0.2.9
-	github.com/gechr/x v0.6.4
+	github.com/gechr/clib v0.8.5
+	github.com/gechr/clive v0.4.14
+	github.com/gechr/clog v0.17.6
+	github.com/gechr/conductor v0.1.21
+	github.com/gechr/primer v0.2.12
+	github.com/gechr/x v0.6.5
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/google/go-github/v88 v88.0.0
 	github.com/google/uuid v1.6.0
-	github.com/itchyny/gojq v0.12.19
+	github.com/itchyny/gojq v0.12.20
 	github.com/knadh/koanf/parsers/toml v0.1.0
 	github.com/knadh/koanf/providers/confmap v1.0.1
 	github.com/knadh/koanf/providers/env/v2 v2.0.2
@@ -32,13 +32,13 @@ require (
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
 	github.com/sigstore/sigstore-go v1.4.0
 	github.com/spf13/cobra v1.10.2
-	github.com/spf13/pflag v1.0.10
+	github.com/spf13/pflag v1.1.0
 	github.com/theupdateframework/go-tuf/v2 v2.4.2
-	github.com/yuin/goldmark v1.8.6
+	github.com/yuin/goldmark v1.8.7
 	github.com/zalando/go-keyring v0.2.8
 	go.uber.org/goleak v1.3.0
-	go.yaml.in/yaml/v3 v3.0.5
-	golang.org/x/mod v0.42.0
+	go.yaml.in/yaml/v3 v3.0.6
+	golang.org/x/mod v0.43.0
 	golang.org/x/sync v0.25.0
 	golang.org/x/sys v0.50.0
 	golang.org/x/term v0.48.0
