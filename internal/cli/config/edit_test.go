@@ -523,6 +523,35 @@ func TestRejectedEditIsKeptBesideTheConfig(t *testing.T) {
 	}
 }
 
+func TestRejectedEditReplacesSymlinkWithoutChangingTarget(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+	target := filepath.Join(dir, "other.txt")
+	const original = "unrelated contents\n"
+	const rejected = "base_url = \"not a url\"\n"
+	if err := os.WriteFile(target, []byte(original), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, path+".rejected"); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	if _, err := editFile(t.Context(), path, replaceWith(t, rejected)); err == nil {
+		t.Fatal("an invalid edit was accepted")
+	}
+	contents, err := os.ReadFile(target)
+	if err != nil || string(contents) != original {
+		t.Fatalf("rejected edit changed symlink target: %q, %v", contents, err)
+	}
+	info, err := os.Lstat(path + ".rejected")
+	if err != nil || !info.Mode().IsRegular() {
+		t.Fatalf("rejected edit did not replace the symlink: %v, %v", info, err)
+	}
+	contents, err = os.ReadFile(path + ".rejected")
+	if err != nil || string(contents) != rejected {
+		t.Fatalf("rejected copy = %q, %v", contents, err)
+	}
+}
+
 func code(e *cli.InputError) string {
 	if e == nil {
 		return ""

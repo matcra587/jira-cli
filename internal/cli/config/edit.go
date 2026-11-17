@@ -337,7 +337,7 @@ func keepRejected(configPath string, contents []byte) (string, error) {
 	kept := configPath + ".rejected"
 	// Replace the name atomically instead of following a pre-existing link
 	// or retaining a previous recovery file's permissive mode.
-	if err := xos.AtomicWrite(kept, contents, 0o600); err != nil {
+	if err := xos.AtomicWrite(kept, contents, 0o600, xos.WithNoFollow()); err != nil {
 		return "", err
 	}
 	return kept, nil

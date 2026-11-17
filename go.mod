@@ -7,7 +7,7 @@ require (
 	charm.land/bubbles/v2 v2.2.1
 	charm.land/bubbletea/v2 v2.1.0
 	charm.land/huh/v2 v2.0.3
-	charm.land/lipgloss/v2 v2.0.6
+	charm.land/lipgloss/v2 v2.1.1
 	github.com/1password/onepassword-sdk-go v0.4.1
 	github.com/agnivade/levenshtein v1.2.2
 	github.com/charmbracelet/colorprofile v0.4.3
@@ -18,7 +18,7 @@ require (
 	github.com/gechr/clog v0.17.4
 	github.com/gechr/conductor v0.1.20
 	github.com/gechr/primer v0.2.9
-	github.com/gechr/x v0.6.4
+	github.com/gechr/x v0.7.2
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/google/go-github/v88 v88.0.0
 	github.com/google/uuid v1.6.0

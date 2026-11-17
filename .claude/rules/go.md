@@ -94,6 +94,11 @@ gechr deps are pre-1.0: version bumps are deliberate, dedicated changes with
 an API-diff review — never a side effect of unrelated work. The pinned
 version often trails the library; check what the pin actually provides.
 
+`x/os.AtomicWrite` follows symlinks by default from v0.7.0. Configuration
+publication and rejected-edit recovery explicitly use `WithNoFollow` to retain
+name replacement after their own path selection. Keep syncs enabled; `WithNoSync`
+cannot preserve their durability contract.
+
 The licensed `internal/cli/completion/native` Bash/PowerShell/Zsh backports are a specific
 exception for demonstrated defects in the published clib generators. They use
 `complete.WithShellGenerator` on each generator, retain the reviewed native implementations, and delegate

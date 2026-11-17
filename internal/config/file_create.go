@@ -100,7 +100,7 @@ func (f *File) createValidated(ctx context.Context, data []byte, validate func([
 	if err := staged.Close(); err != nil {
 		return false, fmt.Errorf("close config staging file: %w", err)
 	}
-	if err := xos.AtomicWrite(name, data, 0o600); err != nil {
+	if err := xos.AtomicWrite(name, data, 0o600, xos.WithNoFollow()); err != nil {
 		return false, fmt.Errorf("stage config creation: %w", err)
 	}
 	if err := ctx.Err(); err != nil {

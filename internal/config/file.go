@@ -156,7 +156,7 @@ func (f *File) saveValidated(ctx context.Context, data []byte, validate func([]b
 	if err := ctx.Err(); err != nil {
 		return false, err
 	}
-	if err := xos.AtomicWrite(f.path, data, 0o600); err != nil {
+	if err := xos.AtomicWrite(f.path, data, 0o600, xos.WithNoFollow()); err != nil {
 		return false, fmt.Errorf("save config: %w", err)
 	}
 	return true, nil
