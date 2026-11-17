@@ -1,3 +1,0 @@
-kind: fixed
-body: Reject legacy --assignee me with an explicit --assignee @me replacement suggestion before contacting Jira, including in dry runs.
-time: 2026-11-16T22:14:22.077252647-05:00

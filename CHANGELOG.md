@@ -1,6 +1,16 @@
 # Release Notes
 
 
+## [0.16.1](https://github.com/matcra587/jira-cli/releases/tag/v0.16.1) — 2026-11-16
+
+### Added
+
+- Reuse saved Jira profiles from Go applications through public auth and api packages, with credential-free discovery, fresh authenticated clients and bounded native requests.
+
+### Fixed
+
+- Reject legacy --assignee me with an explicit --assignee @me replacement suggestion before contacting Jira, including in dry runs.
+
 ## [0.16.0](https://github.com/matcra587/jira-cli/releases/tag/v0.16.0) — 2026-11-15
 
 This is the stable release of the 0.16 line, including the restored dashboard and native Jira output contracts developed in the prereleases.

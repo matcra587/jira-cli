@@ -1,3 +1,0 @@
-kind: added
-body: Reuse saved Jira profiles from Go applications through public auth and api packages, with credential-free discovery, fresh authenticated clients and bounded native requests.
-time: 2026-11-15T23:14:44.880510771-05:00
