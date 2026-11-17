@@ -16,6 +16,13 @@
 ### Dependencies
 
 - Update golang.org/x/net to v0.62.0 and golang.org/x/crypto to v0.59.0, with required support modules, to clear the reported HTML-parser and deprecated OpenPGP advisories.
+- Update gechr/x to v0.7.2 for hardened terminal parsing and explicit atomic-write symlink policy.
+- Update gechr/clog to v0.18.1.
+- Update gechr/clib to v0.8.7.
+- Update gechr/clive to v0.4.16.
+- Update gechr/conductor to v0.1.23.
+- Update gechr/primer to v0.2.14.
+- Update Lip Gloss, gojq, pflag, Goldmark, YAML and Go module support for rendering, query evaluation and parsing fixes.
 
 ## [0.16.1](https://github.com/matcra587/jira-cli/releases/tag/v0.16.1) — 2026-11-16
 
