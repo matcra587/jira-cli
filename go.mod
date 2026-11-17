@@ -16,7 +16,7 @@ require (
 	github.com/gechr/clib v0.8.7
 	github.com/gechr/clive v0.4.16
 	github.com/gechr/clog v0.18.1
-	github.com/gechr/conductor v0.1.20
+	github.com/gechr/conductor v0.1.23
 	github.com/gechr/primer v0.2.9
 	github.com/gechr/x v0.7.2
 	github.com/go-viper/mapstructure/v2 v2.5.0
