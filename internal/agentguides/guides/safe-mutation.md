@@ -43,6 +43,10 @@ their first position. The selector cap counts 100 unique lines.
 
 ### Resolve an assignee or the current account
 
+Use `--assignee @me` for the authenticated account. The legacy spelling
+`--assignee me` is refused locally with a replacement suggestion, including in
+dry runs. Other literal account IDs and native JSON account IDs remain literal.
+
 The `--assignee` flag also accepts a bare email. A live run or
 `--validate-remote` resolves the unique visible active user search match before
 composing the issue request. A local preview leaves the email unresolved and

@@ -78,6 +78,14 @@ func accountLookups(fields []AccountField, validateRemote bool) ([]pendingAccoun
 	pending := make([]pendingAccountLookup, 0)
 	for i, field := range fields {
 		value := *field.Value
+		// Reserve the legacy assignee shorthand without guessing opaque ID syntax.
+		if field.Flag == FlagAssignee && value == "me" {
+			refusal := cli.NewInputError(cli.CodeFlagValueInvalid,
+				"--assignee me is no longer supported; use --assignee @me for the authenticated account")
+			refusal.Field = field.Flag
+			refusal.Suggestions = []string{"--assignee @me"}
+			return nil, refusal
+		}
 		if field.LookupQuery {
 			query := strings.TrimSpace(value)
 			if query == "" {

@@ -79,6 +79,51 @@ func TestAssigneeEmailMalformedInputRefusesBeforeClient(t *testing.T) {
 	}
 }
 
+func TestAssigneeLegacyMeRefusesBeforeClient(t *testing.T) {
+	t.Parallel()
+	for _, preview := range []bool{false, true} {
+		for _, remote := range []bool{false, true} {
+			t.Run("preview="+strconv.FormatBool(preview)+"/remote="+strconv.FormatBool(remote), func(t *testing.T) {
+				t.Parallel()
+				value := "me"
+				fields := []AccountField{{Flag: FlagAssignee, Value: &value, AllowEmail: true}}
+				assertRefusal := func(err error) {
+					t.Helper()
+					got := cli.MapError(err)
+					if got.Code != cli.CodeFlagValueInvalid || got.Field != FlagAssignee {
+						t.Fatalf("missing assignee refusal: %+v", got)
+					}
+					if got.Message != "--assignee me is no longer supported; use --assignee @me for the authenticated account" {
+						t.Fatalf("missing replacement explanation: %q", got.Message)
+					}
+					if len(got.Suggestions) != 1 || got.Suggestions[0] != "--assignee @me" {
+						t.Fatalf("missing replacement suggestion: %v", got.Suggestions)
+					}
+				}
+				assertRefusal(ValidateAccountLookups(fields))
+				_, err := ResolveAccounts(
+					t.Context(),
+					func(context.Context) (core.JiraClient, error) {
+						t.Fatal("legacy spelling opened a client")
+						return nil, nil
+					},
+					func() (core.IssuePreferences, error) {
+						t.Fatal("legacy spelling read cached preferences")
+						return core.IssuePreferences{}, nil
+					},
+					preview,
+					remote,
+					fields,
+				)
+				assertRefusal(err)
+				if value != "me" {
+					t.Fatal("refusal rewrote the account field")
+				}
+			})
+		}
+	}
+}
+
 func TestAssigneeEmailFailureLeavesMixedAccountFieldsUnchanged(t *testing.T) {
 	t.Parallel()
 	for _, cancelAfterRead := range []bool{false, true} {

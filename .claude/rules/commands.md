@@ -723,6 +723,9 @@ all bound account fields unchanged until every requested remote lookup succeeds,
 check cancellation after reads. Bare previews retain email with an unresolved
 warning and open no client or cached preferences unless @me also needs them.
 Native payload account IDs are never interpreted as email lookup requests.
+The exact legacy `--assignee me` spelling refuses locally with
+`flag_value_invalid` and a `--assignee @me` suggestion before client construction.
+Do not infer account-ID validity from its shape or reinterpret native JSON IDs.
 
 Watcher add/remove accepts explicit --user-query name/email searches through
 command.AccountField.LookupQuery and the shared account resolver. --user stays
