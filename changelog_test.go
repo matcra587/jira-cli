@@ -44,7 +44,7 @@ func TestEmbeddedReleaseCatalog(t *testing.T) {
 			t.Fatalf("embedded artifact %s missing from catalog", path)
 		}
 	}
-	if got[0].Tag != "v0.16.0" || got[len(got)-1].Tag != "v0.1.0" {
+	if got[0].Tag != "v0.16.1" || got[len(got)-1].Tag != "v0.1.0" {
 		t.Fatal("catalog endpoints do not match released history")
 	}
 	positions := make(map[string]int, len(got))
