@@ -57,6 +57,7 @@ type releaseAsset struct {
 type GitHubSource struct {
 	api    *github.Client
 	assets *http.Client
+	verify func(context.Context, string, []byte, []byte) error
 }
 
 // NewGitHubSource constructs the release reader. An injected client's transport
@@ -89,7 +90,19 @@ func NewGitHubSource(client *http.Client) (*GitHubSource, error) {
 	if err != nil {
 		return nil, fmt.Errorf("construct release reader: %w", err)
 	}
-	return &GitHubSource{api: api, assets: assets}, nil
+	return &GitHubSource{
+		api:    api,
+		assets: assets,
+		verify: func(ctx context.Context, version string, manifest, signature []byte) error {
+			return verifyReleaseSignature(
+				ctx,
+				transport,
+				version,
+				manifest,
+				signature,
+			)
+		},
+	}, nil
 }
 
 // Latest freezes the published stable release and its assets in one API read.

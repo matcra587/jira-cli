@@ -148,6 +148,13 @@ linters:
             # Clive's selected release SDK supplies bounded, quiet API discovery
             # and asset IDs for the guarded self-update publication adapter.
             - github.com/google/go-github/v88/github
+            # Native release verification checks Sigstore bundles and exact
+            # workflow/tag identity against authenticated TUF trust material.
+            - github.com/sigstore/sigstore-go/pkg/bundle
+            - github.com/sigstore/sigstore-go/pkg/root
+            - github.com/sigstore/sigstore-go/pkg/tuf
+            - github.com/sigstore/sigstore-go/pkg/verify
+            - github.com/theupdateframework/go-tuf/v2/metadata/fetcher
             # Pollable duplicates of inherited Unix stdin: cancellation must
             # interrupt native pipe reads without closing borrowed descriptors.
             # gechr/x 0.6.0 has no descriptor duplication primitive.

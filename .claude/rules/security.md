@@ -103,6 +103,15 @@ Human ADF walkers share a depth budget across fresh subwalkers and fallback
 traversals, render a recovery placeholder at the limit and never rewrite native
 document bytes.
 
+Archive self-update authenticates the frozen checksum manifest with its Sigstore
+bundle before downloading or staging the archive. Require the GitHub Actions
+issuer and exact repository release-workflow/tag identity, certificate timestamps
+and transparency evidence. Sigstore trust metadata uses authenticated TUF,
+fixed anonymous HTTPS scope, bounded fetching and invocation cancellation; keep
+trust material in memory. Preview/help paths do not initialize trust or require
+external verification executables. Verification does not establish that a
+compromised trusted signing workflow produced benign code.
+
 GitHub Actions are SHA-pinned and zizmor-audited (pedantic); releases are
 GoReleaser-built and cosign-signed. `mise run ci` includes Go lint/gosec and
 govulncheck. hk pre-commit runs the ordinary linters; pre-push and `hk check`

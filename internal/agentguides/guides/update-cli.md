@@ -47,7 +47,16 @@ Managed installations return their local hint even in a preview.
 An explicit terminal invocation authorizes an update without another prompt.
 Pipes, agent sessions and `--no-input` require `--force` on live archive or
 Homebrew updates. `--yes` is the hidden compatibility alias. These flags do not
-bypass installation ownership, checksums or an intervening executable change.
+bypass installation ownership, signatures, checksums or an intervening executable change.
+
+Archive updates require `checksums.txt.sigstore.json`. The CLI verifies the signed
+checksum manifest against Sigstore trust metadata and the exact repository release
+workflow and tag before downloading the archive. This verification is native and
+does not require a `cosign` executable. Trust metadata is fetched anonymously from
+`tuf-repo-cdn.sigstore.dev`, authenticated with Sigstore's embedded TUF trust anchor,
+and held in memory without creating a local trust cache. Missing, untrusted or
+mismatched signatures refuse the update. Availability previews do not fetch trust
+metadata or signature bundles.
 
 The following command authorizes a live update:
 

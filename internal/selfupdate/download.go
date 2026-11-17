@@ -36,8 +36,8 @@ func (c *Candidate) Close() error {
 	return errors.Join(c.File.Close(), os.RemoveAll(c.directory))
 }
 
-// Download verifies the frozen archive against its frozen checksums asset before
-// extraction. Only the packaged jira/jira.exe regular member is accepted, even
+// Download authenticates the frozen checksum manifest and verifies the archive
+// before extraction. Only the packaged jira/jira.exe regular member is accepted, even
 // when the installed executable was renamed. Clive's internal extractor has no
 // public descriptor seam, expansion bound or duplicate-member refusal.
 func (s *GitHubSource) Download(ctx context.Context, release Release, goos, arch string) (*Candidate, error) {
@@ -55,6 +55,17 @@ func (s *GitHubSource) Download(ctx context.Context, release Release, goos, arch
 	}
 	var manifest bytes.Buffer
 	if err := s.download(ctx, checksums, &manifest, maxChecksumBytes); err != nil {
+		return nil, err
+	}
+	signatureAsset, err := release.asset("checksums.txt.sigstore.json", maxSignatureBytes)
+	if err != nil {
+		return nil, fmt.Errorf("%w: signature bundle: %w", ErrIntegrity, err)
+	}
+	var signature bytes.Buffer
+	if err := s.download(ctx, signatureAsset, &signature, maxSignatureBytes); err != nil {
+		return nil, err
+	}
+	if err := s.verify(ctx, release.Version, manifest.Bytes(), signature.Bytes()); err != nil {
 		return nil, err
 	}
 	expected, err := checksumFor(manifest.Bytes(), name)

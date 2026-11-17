@@ -234,8 +234,16 @@ handle this for you; the one-line installer prints a PATH-fix hint; for
 ## Update jira
 
 Use `jira update --help` to inspect the built-in update command and its supported
-installation channels. You can also update through the channel that installed
-the binary:
+installation channels.
+
+Built-in archive updates verify the published Sigstore checksum bundle against
+the exact repository release workflow and tag before downloading the executable.
+Verification is native; no `cosign` executable is required. It fetches authenticated
+trust metadata from `tuf-repo-cdn.sigstore.dev` in memory and refuses missing or
+untrusted signatures. `--dry-run` checks availability without fetching signatures
+or trust metadata.
+
+You can also update through the channel that installed the binary:
 
 === "Homebrew"
 

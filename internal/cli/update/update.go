@@ -72,7 +72,9 @@ func New(deps Deps) *cobra.Command {
 		Op: "update", Use: "update", Aliases: []string{"up"},
 		Short: "Update jira-cli through its installation owner",
 		Long: "Inspect the latest published jira-cli release and update this executable. No Jira authentication is needed.\n\n" +
-			"Published archives are checksum-verified and replace the running executable's resolved path. Homebrew upgrades only " +
+			"Published archives require a signed checksum manifest from the exact tagged release workflow, " +
+			"verified natively against Sigstore trust metadata before download and replacement. " +
+			"Homebrew upgrades only " +
 			"the verified matcra587/tap/jira formula; old kegs and shadowing PATH copies are preserved. Scoop, mise and go install " +
 			"installations return their own update command without contacting GitHub. Unknown installations are refused.\n\n" +
 			"--dry-run reads release availability without downloading or installing. Unlike Jira mutation previews, it contacts " +

@@ -98,7 +98,7 @@ func (b observedBody) Close() error {
 }
 
 func TestReleaseDownloadCancellation(t *testing.T) {
-	for _, phase := range []string{"before_download", "after_checksum", "during_archive", "after_archive"} {
+	for _, phase := range []string{"before_download", "after_checksum", "after_signature", "during_archive", "after_archive"} {
 		t.Run(phase, func(t *testing.T) {
 			f := newReleaseFixture(t, xos.PlatformLinux, xos.ArchAMD64, tarFixture(t, archiveMember{name: "jira", body: "new executable"}))
 			release, err := f.source.Latest(t.Context())
@@ -115,6 +115,10 @@ func TestReleaseDownloadCancellation(t *testing.T) {
 				if phase == "after_checksum" {
 					suffix = "/assets/11"
 				}
+				if phase == "after_signature" {
+					suffix = "/assets/12"
+				}
+				verify := f.source.verify
 				f.source, err = NewGitHubSource(&http.Client{Transport: responseBodyTransport{
 					base: f.source.assets.Transport, suffix: suffix, body: func(body io.ReadCloser) io.ReadCloser {
 						observed := observedBody{ReadCloser: body, close: func() error { closed = true; cancel(); return nil }}
@@ -131,12 +135,13 @@ func TestReleaseDownloadCancellation(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
+				f.source.verify = verify
 			}
 			candidate, err := f.source.Download(ctx, release, xos.PlatformLinux, xos.ArchAMD64)
 			if candidate != nil || !errors.Is(err, context.Canceled) || (phase != "before_download" && !closed) {
 				t.Fatalf("canceled download candidate=%v err=%v closed=%t", candidate, err, closed)
 			}
-			if phase == "before_download" || phase == "after_checksum" {
+			if phase == "before_download" || phase == "after_checksum" || phase == "after_signature" {
 				f.assertRequestCount(t, "/assets/10", 0)
 			}
 			f.assertPrivateCleanup(t)
@@ -145,7 +150,7 @@ func TestReleaseDownloadCancellation(t *testing.T) {
 }
 
 func TestReleaseDownloadCloseFailure(t *testing.T) {
-	for _, suffix := range []string{"/assets/10", "/assets/11"} {
+	for _, suffix := range []string{"/assets/10", "/assets/11", "/assets/12"} {
 		t.Run(suffix, func(t *testing.T) {
 			f := newReleaseFixture(t, xos.PlatformLinux, xos.ArchAMD64, tarFixture(t, archiveMember{name: "jira", body: "exe"}))
 			release, err := f.source.Latest(t.Context())
@@ -153,6 +158,7 @@ func TestReleaseDownloadCloseFailure(t *testing.T) {
 				t.Fatal(err)
 			}
 			closeFailure := errors.New("injected response close failure")
+			verify := f.source.verify
 			f.source, err = NewGitHubSource(&http.Client{Transport: responseBodyTransport{
 				base: f.source.assets.Transport, suffix: suffix, body: func(body io.ReadCloser) io.ReadCloser {
 					return observedBody{ReadCloser: body, close: func() error { return closeFailure }}
@@ -161,6 +167,7 @@ func TestReleaseDownloadCloseFailure(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			f.source.verify = verify
 			candidate, err := f.source.Download(t.Context(), release, xos.PlatformLinux, xos.ArchAMD64)
 			if candidate != nil || !errors.Is(err, closeFailure) {
 				t.Fatalf("close failure candidate=%v err=%v", candidate, err)

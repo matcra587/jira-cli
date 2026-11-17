@@ -62,7 +62,13 @@ func newReleaseFixture(t *testing.T, goos, arch string, archive []byte) *release
 	}
 	f.assets["10"] = archive
 	f.assets["11"] = fmt.Appendf(nil, "%x  %s\n", sha256.Sum256(archive), name)
+	f.assets["12"] = []byte("fixture signature")
 	f.metadata = fmt.Appendf(nil, `{"id":100,"tag_name":"v1.2.3","draft":false,"prerelease":false,"published_at":"2026-01-01T00:00:00Z","assets":[{"id":10,"name":%q,"state":"uploaded","size":%d},{"id":11,"name":"checksums.txt","state":"uploaded","size":%d}]}`, name, len(archive), len(f.assets["11"]))
+	f.changeMetadata(t, func(metadata map[string]any) {
+		metadata["assets"] = append(metadata["assets"].([]any), map[string]any{
+			"id": 12, "name": "checksums.txt.sigstore.json", "state": "uploaded", "size": len(f.assets["12"]),
+		})
+	})
 	server := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		if request.Header.Get("Authorization") != "" || request.Header.Get("Cookie") != "" {
 			t.Error("anonymous release request carried authentication")
@@ -105,6 +111,14 @@ func newReleaseFixture(t *testing.T, goos, arch string, archive []byte) *release
 	f.source, err = NewGitHubSource(&http.Client{Transport: mappedReleaseTransport{base: server.Client().Transport, server: location}})
 	if err != nil {
 		t.Fatal(err)
+	}
+	// Archive/publication fixtures isolate their own behavior from signature
+	// cryptography. signature_test.go verifies real published bundles separately.
+	f.source.verify = func(ctx context.Context, _ string, _, signature []byte) error {
+		if string(signature) != "fixture signature" {
+			return ErrIntegrity
+		}
+		return ctx.Err()
 	}
 	return f
 }

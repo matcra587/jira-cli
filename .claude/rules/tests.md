@@ -13,6 +13,10 @@ Security boundary changes compare independently authored ordinary responses and
 request traces before/after, including JSON, compact and human output. Prove new
 refusals fail by name on the pre-fix source and pass after repair. Size-limit
 cases include exact-limit valid JSON, streamed overflow and unknown members.
+Release verification uses a fixed published manifest/bundle and captured public
+trust root offline; tampering and another tag must refuse. Archive fixture
+verification stubs do not establish cryptographic acceptance. Keep real trust
+retrieval and isolated signature tests separate from live executable publication.
 
 Sparse-response guards distinguish absent, null, empty and nonempty values through
 the real binary in human, JSON and compact modes. Cover identity and issue headers,
