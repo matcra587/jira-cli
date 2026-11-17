@@ -125,7 +125,11 @@ func publishExportArtifact(ctx context.Context, root *os.Root, artifact ExportAr
 	if err != nil {
 		return false, err
 	}
+	tempOwned := true
 	defer func() {
+		if !tempOwned {
+			return
+		}
 		if cleanupErr := root.Remove(temp); cleanupErr != nil && !errors.Is(cleanupErr, os.ErrNotExist) {
 			err = errors.Join(err, cleanupErr)
 		}
@@ -151,6 +155,9 @@ func publishExportArtifact(ctx context.Context, root *os.Root, artifact ExportAr
 	if err != nil {
 		return false, err
 	}
+	// Rename consumed the staging entry; cleanup must not probe or remove a
+	// new entry another actor might subsequently create at that old name.
+	tempOwned = !force
 	if !xos.IsUnix() {
 		return true, nil
 	}
