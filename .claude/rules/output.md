@@ -202,6 +202,14 @@ write failure as secondary context; it does not try the failed stream again.
 
 ## Human output
 
+Terminal program status uses native clog OSC 7501 reporting through an
+invocation-bound output owner. Activate only after final human-mode, style and
+agent resolution, on terminal stderr outside `TERM=dumb` and `--quiet`. Reuse the logger's exact
+output for live-animation serialization. Report only generic app/state facts;
+finish from the actual exit result, and never report success on panic. Shared
+forms mark blocked before rendering and resume after their renderer has joined.
+Machine/jq output and completion callbacks never activate this capability.
+
 *   Root wiring (`internal/cli/root/root.go`): clog is pinned to **stderr**
     with `SetEnvPrefix("JIRA")` and colour from `--color`; a context logger is
     seeded so command code uses `clog.Ctx(ctx)`. `quietLevelLabels()` drops

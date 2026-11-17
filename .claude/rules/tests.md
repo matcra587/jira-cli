@@ -9,6 +9,10 @@ paths:
 
 # Tests
 
+Terminal status guards capture actual PTY control records and real command/form
+lifecycles. Cover success, failure, cancellation and quiet machine/jq/agent,
+redirected and dumb-terminal paths. A non-TTY buffer alone cannot prove reporting.
+
 Security boundary changes compare independently authored ordinary responses and
 request traces before/after, including JSON, compact and human output. Prove new
 refusals fail by name on the pre-fix source and pass after repair. Size-limit

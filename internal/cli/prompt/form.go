@@ -3,6 +3,8 @@ package prompt
 import (
 	"context"
 	"errors"
+
+	"github.com/matcra587/jira-cli/internal/output"
 )
 
 // RunForm runs a form with the caller's context and preserves its error.
@@ -17,6 +19,8 @@ func RunForm(ctx context.Context, form interface {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	resumeStatus := output.WaitForProgramInput(ctx)
+	defer resumeStatus()
 	err := form.RunWithContext(ctx)
 	if contextErr := ctx.Err(); contextErr != nil {
 		if IsInputFailure(err) {

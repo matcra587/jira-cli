@@ -107,6 +107,9 @@ crash, and carries no stack or generic "try again" hint.
 ## Gotchas
 
 *   **Stop spinners before rendering a form** (see commands.md).
+*   **Use `RunForm` for terminal status.** It marks its bound invocation as
+    waiting for input before rendering and restores work after the form returns.
+    Keep reports generic; question text and entered values never enter status.
 *   **`huh` v2 only** — `charm.land/huh/v2`. The v1 packages drag a second
     rendering stack in beside the one clib already brings.
 *   **A prompt is not a substitute for a flag.** Every prompt must have a

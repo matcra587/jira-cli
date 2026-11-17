@@ -119,10 +119,20 @@ func resolveProgramTheme(program *concobra.Program) {
 // itself rather than as whatever flag cobra would have parsed first.
 func execute(ctx context.Context, program *concobra.Program, sink *failureSink, args []string) int {
 	sink.seed(program.Root, args)
+	ctx, finishStatus := output.WithProgramStatus(ctx, program.Root.ErrOrStderr())
+	state := clog.ProgramStateError
+	defer func() { finishStatus(state) }()
 	if err := checkCommandPath(program.Root, args); err != nil {
 		return sink.exitCodeContext(ctx, err)
 	}
-	return program.Run(ctx, args)
+	code := program.Run(ctx, args)
+	switch code {
+	case cli.ExitOK:
+		state = clog.ProgramStateDone
+	case cli.ExitCanceled:
+		state = clog.ProgramStateIdle
+	}
+	return code
 }
 
 // NewProgram assembles the conductor program around the injected deps and
@@ -694,7 +704,9 @@ func newRoot(deps *Deps, sink *failureSink, renderer *help.Renderer) *cobra.Comm
 	// human help and machine discovery share construction and output policy.
 	var cmd *cobra.Command
 	cmd = command.MustNew(command.Spec[envelope.AgentSchemaOutput]{
-		Op: "root", Use: name, Short: description, Long: description,
+		Op: "root", Use: name, Short: description,
+		Long: description + "\n\nSupporting terminals receive command status " +
+			"reports for styled human output, including when a prompt needs input.",
 		Passthrough: true,
 		HumanHelp:   func(w io.Writer) error { return renderBareHelp(cmd, renderer, w) },
 		Example: "$ jira --output=json\n\n" +
@@ -777,6 +789,15 @@ func newRoot(deps *Deps, sink *failureSink, renderer *help.Renderer) *cobra.Comm
 		sink.op = opName(cmd)
 		sink.command = cmd
 		sink.resolved = true
+		if format == output.FormatHuman && cli.StyleEnabled() && !sink.detect().Agent {
+			quiet, err := cmd.Root().PersistentFlags().GetBool("quiet")
+			if err != nil {
+				return err
+			}
+			if !quiet {
+				output.StartProgramStatus(ctx)
+			}
+		}
 		return nil
 	}
 	// Every pflag parse failure leaves the dispatch layer typed — code,

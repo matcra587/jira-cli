@@ -15,6 +15,14 @@ for bare operation data on success. Failures retain full frames in both modes.
 Auto mode selects compact output for detected agents, JSON for other pipes and
 human output at a terminal. Explicit modes override detection.
 
+Styled human command execution reports working, done, error or canceled/idle state to
+supporting terminals through OSC 7501 on terminal stderr. Shared forms report
+blocked while waiting for input. These advisory reports contain only the app
+and state, with no Jira content or progress percentage. JSON, compact, jq and
+detected-agent runs emit no status reports. The resolved color policy,
+`--quiet`, redirected stderr and `TERM=dumb` can also suppress them; plain
+output remains free of terminal controls.
+
 Keep the full receipt before filtering it. Exit zero does not establish success
 for every batch target. Save explains how to inspect individual outcomes.
 
