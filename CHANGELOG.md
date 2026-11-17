@@ -1,6 +1,15 @@
 # Release Notes
 
 
+## [0.16.3](https://github.com/matcra587/jira-cli/releases/tag/v0.16.3) — 2026-11-17
+
+### Added
+
+- Report command and prompt status to supporting terminals in human mode, with clean machine output.
+- Show measured bulk result progress and partial-failure counts in supporting terminals.
+- Show self-update download progress and distinct signature, verification and installation stages in supporting terminals.
+- Show cache priming stages and measured resource progress during refresh, including reuse and partial failures, while deferring progress updates during interactive prompts.
+
 ## [0.16.2](https://github.com/matcra587/jira-cli/releases/tag/v0.16.2) — 2026-11-17
 
 ### Fixed
