@@ -13,7 +13,7 @@ require (
 	github.com/charmbracelet/colorprofile v0.4.3
 	github.com/charmbracelet/x/ansi v0.11.9
 	github.com/danieljoos/wincred v1.2.3
-	github.com/gechr/clib v0.8.2
+	github.com/gechr/clib v0.8.7
 	github.com/gechr/clive v0.4.13
 	github.com/gechr/clog v0.18.1
 	github.com/gechr/conductor v0.1.20
@@ -32,7 +32,7 @@ require (
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
 	github.com/sigstore/sigstore-go v1.4.0
 	github.com/spf13/cobra v1.10.2
-	github.com/spf13/pflag v1.0.10
+	github.com/spf13/pflag v1.1.0
 	github.com/theupdateframework/go-tuf/v2 v2.4.2
 	github.com/yuin/goldmark v1.8.6
 	github.com/zalando/go-keyring v0.2.8
