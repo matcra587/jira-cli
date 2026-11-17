@@ -87,7 +87,9 @@ func runList(ctx context.Context, deps Deps, inputs []string, o listOptions) (en
 	var outcomes []listOutcome
 	_, spinErr := command.Spin(ctx, "Loading worklogs", func(ctx context.Context) (struct{}, error) {
 		outcomes = make([]listOutcome, len(keys))
+		recordResult := command.TrackResults(ctx, len(keys), core.ProgressBulkResults)
 		xsync.Parallel(o.keyed.Parallelism, len(keys), func(i int) {
+			defer func() { recordResult(outcomes[i].result.OK) }()
 			key := keys[i]
 			data, err := readWorklogs(ctx, client, key, o)
 			outcomes[i].result.Issue.Key = key

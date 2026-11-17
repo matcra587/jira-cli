@@ -4,6 +4,7 @@ package output
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"io"
 	"strings"
@@ -11,6 +12,8 @@ import (
 
 	"github.com/gechr/clog"
 	"golang.org/x/sys/unix"
+
+	"github.com/matcra587/jira-cli/internal/core"
 )
 
 func TestProgramStatusTerminalLifecycleAndNestedInput(t *testing.T) {
@@ -43,6 +46,60 @@ func TestProgramStatusTerminalLifecycleAndNestedInput(t *testing.T) {
 	if string(raw) != want {
 		t.Fatalf("terminal lifecycle = %q, want %q", raw, want)
 	}
+}
+
+func TestProgramStatusBulkProgressAndFinalFailureSummary(t *testing.T) {
+	t.Setenv("TERM", "xterm")
+	master, terminal := documentTestTerminal(t)
+	ctx, finish := WithProgramStatus(t.Context(), terminal)
+	StartProgramStatus(ctx)
+	for i := int64(0); i <= 2; i++ {
+		core.ObserveProgress(ctx, core.Progress{Phase: core.ProgressBulkResults, Completed: i, Total: 2, Failed: i / 2, Complete: i == 2})
+	}
+	finish(clog.ProgramStateDone)
+	if err := terminal.Close(); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := io.ReadAll(master)
+	if err != nil && !errors.Is(err, unix.EIO) {
+		t.Fatal(err)
+	}
+	reports := decodeProgramReports(t, raw)
+	if len(reports) != 5 || reports[1]["progress"] != "0" || reports[2]["progress"] != "50" || reports[3]["progress"] != "100" {
+		t.Fatalf("missing measured bulk progress: %+v", reports)
+	}
+	last := reports[4]
+	if last["state"] != "done" || last["title"] != "Bulk results" || last["msg"] != "2/2 results, 1 failed" {
+		t.Fatalf("completion lost partial failures: %+v", last)
+	}
+}
+
+func decodeProgramReports(t *testing.T, raw []byte) []map[string]string {
+	t.Helper()
+	var reports []map[string]string
+	for _, part := range strings.Split(string(raw), "\x1b]7501;")[1:] {
+		body, _, found := strings.Cut(part, "\a")
+		if !found {
+			t.Fatal("unterminated status record")
+		}
+		report := make(map[string]string)
+		for _, field := range strings.Split(body, ":") {
+			key, value, found := strings.Cut(field, "=")
+			if !found {
+				t.Fatalf("malformed status field %q", field)
+			}
+			if key == "title" || key == "msg" {
+				decoded, err := base64.StdEncoding.DecodeString(value)
+				if err != nil {
+					t.Fatal(err)
+				}
+				value = string(decoded)
+			}
+			report[key] = value
+		}
+		reports = append(reports, report)
+	}
+	return reports
 }
 
 func TestProgramStatusCanceledInputDoesNotResumeWork(t *testing.T) {

@@ -209,6 +209,10 @@ output for live-animation serialization. Report only generic app/state facts;
 finish from the actual exit result, and never report success on panic. Shared
 forms mark blocked before rendering and resume after their renderer has joined.
 Machine/jq output and completion callbacks never activate this capability.
+Domain progress uses the core context observer and the shared output formatter.
+Count frozen fan-out result rows after assignment, retain failed-row counts and
+preserve native scheduling and receipt order. Never include keys or Jira text.
+Coalesce terminal updates by phase/percentage while retaining the final counts.
 
 *   Root wiring (`internal/cli/root/root.go`): clog is pinned to **stderr**
     with `SetEnvPrefix("JIRA")` and colour from `--color`; a context logger is

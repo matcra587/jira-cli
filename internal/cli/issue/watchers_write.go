@@ -516,7 +516,9 @@ func watcherWriteFanOut(
 		// key i, which needs no lock: x/sync.Parallel hands each call a
 		// distinct index and the slice was sized up front. Order therefore
 		// comes from the ARGV, never from which write finished first.
+		recordResult := command.TrackResults(ctx, len(keys), core.ProgressBulkResults)
 		xsync.Parallel(opts.parallelism, len(keys), func(i int) {
+			defer func() { recordResult(outcomes[i].result.OK) }()
 			outcomes[i] = writeOneWatcher(ctx, client, keys[i], verb, opts)
 		})
 		return struct{}{}, nil

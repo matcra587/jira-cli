@@ -71,8 +71,8 @@ func (f *fakeCommentAddClient) AddComment(_ context.Context, key string, req jir
 	}}, nil
 }
 
-// postedKeys returns the recorded keys, sorted, so an assertion about
-// WHICH keys were posted to does not depend on completion order.
+// postedKeys returns recorded call order. Sort a copy when comparing target
+// membership across concurrent fan-outs; request order is not result order.
 func (f *fakeCommentAddClient) postedKeys() []string {
 	f.mu.Lock()
 	defer f.mu.Unlock()

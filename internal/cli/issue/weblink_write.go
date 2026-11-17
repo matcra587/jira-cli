@@ -270,7 +270,9 @@ func weblinkAddFanOut(
 	outcomes := make([]weblinkAddOutcome, len(keys))
 	// ONE spinner around the whole fan-out, for commentAddFanOut's reason.
 	_, err := command.Spin(ctx, weblinkAddSpinnerLabel(keys), func(ctx context.Context) (struct{}, error) {
+		recordResult := command.TrackResults(ctx, len(keys), core.ProgressBulkResults)
 		xsync.Parallel(parallelism, len(keys), func(i int) {
+			defer func() { recordResult(outcomes[i].result.OK) }()
 			outcomes[i] = attachWeblink(ctx, client, keys[i], req)
 		})
 		return struct{}{}, nil

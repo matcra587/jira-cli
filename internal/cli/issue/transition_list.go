@@ -65,7 +65,9 @@ func runTransitionList(ctx context.Context, deps Deps, keys []string, parallelis
 	store := transitionHintCache(ctx, deps)
 	outcomes := make([]transitionReadOutcome, len(keys))
 	_, err = command.Spin(ctx, fmt.Sprintf("Loading transitions for %d issues", len(keys)), func(ctx context.Context) (struct{}, error) {
+		recordResult := command.TrackResults(ctx, len(keys), core.ProgressBulkResults)
 		xsync.Parallel(parallelism, len(keys), func(i int) {
+			defer func() { recordResult(outcomes[i].result.OK) }()
 			outcomes[i] = readTransitionList(ctx, client, keys[i])
 		})
 		return struct{}{}, nil

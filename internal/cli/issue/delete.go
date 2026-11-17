@@ -349,7 +349,9 @@ func deleteFanOut(
 ) ([]envelope.KeyedResult[envelope.IssueDeleteData], error) {
 	outcomes := make([]deleteOutcome, len(keys))
 	_, err := command.Spin(ctx, deleteSpinnerLabel(keys), func(ctx context.Context) (struct{}, error) {
+		recordResult := command.TrackResults(ctx, len(keys), core.ProgressBulkResults)
 		xsync.Parallel(parallelism, len(keys), func(i int) {
+			defer func() { recordResult(outcomes[i].result.OK) }()
 			outcomes[i] = deleteOne(ctx, client, keys[i], deleteSubtasks)
 		})
 		return struct{}{}, nil

@@ -589,7 +589,9 @@ func cloneFanOut(
 		schemas := sync.OnceValues(func() (map[string]string, error) {
 			return readCloneFieldSchemas(ctx, client)
 		})
+		recordResult := command.TrackResults(ctx, len(keys), core.ProgressBulkResults)
 		xsync.Parallel(opts.parallelism, len(keys), func(i int) {
+			defer func() { recordResult(outcomes[i].result.OK) }()
 			outcomes[i] = cloneOne(ctx, client, keys[i], opts, overrides, schemas)
 		})
 		return struct{}{}, nil

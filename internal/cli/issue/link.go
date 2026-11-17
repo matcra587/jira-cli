@@ -198,7 +198,9 @@ func runLinkList(ctx context.Context, deps Deps, keys []string, parallelism int)
 		// front. Order therefore comes from the ARGV, never from which
 		// read finished first, which is the ordering guarantee
 		// envelope.KeyedResults publishes.
+		recordResult := command.TrackResults(ctx, len(keys), core.ProgressBulkResults)
 		xsync.Parallel(parallelism, len(keys), func(i int) {
+			defer func() { recordResult(outcomes[i].result.OK) }()
 			outcomes[i] = readLinks(ctx, client, keys[i])
 		})
 		return struct{}{}, nil

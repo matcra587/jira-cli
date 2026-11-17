@@ -184,7 +184,9 @@ func runEditInput(ctx context.Context, deps Deps, inv command.Invocation, select
 	}
 	outcomes := make([]editInputOutcome, len(targets.Keys))
 	_, err := command.Spin(ctx, "Reading input metadata for "+human.Pluralize(len(targets.Keys), "issue", "issues"), func(ctx context.Context) (struct{}, error) {
+		recordResult := command.TrackResults(ctx, len(targets.Keys), core.ProgressBulkResults)
 		xsync.Parallel(parallelism, len(targets.Keys), func(i int) {
+			defer func() { recordResult(outcomes[i].result.OK) }()
 			outcomes[i] = readEditInput(ctx, client, targets.Keys[i], setupErr)
 		})
 		return struct{}{}, nil

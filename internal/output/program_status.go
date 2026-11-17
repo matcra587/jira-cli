@@ -2,11 +2,15 @@ package output
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"math/bits"
 	"os"
 	"sync"
 
 	"github.com/gechr/clog"
+
+	"github.com/matcra587/jira-cli/internal/core"
 )
 
 type programStatusKey struct{}
@@ -17,6 +21,8 @@ type programStatus struct {
 	active   bool
 	finished bool
 	waiting  int
+	progress core.Progress
+	last     clog.ProgramStatus
 }
 
 // WithProgramStatus binds terminal status to one invocation. Reports remain
@@ -38,7 +44,12 @@ func WithProgramStatus(ctx context.Context, destination io.Writer) (context.Cont
 			status = &programStatus{output: out}
 		}
 	}
-	return context.WithValue(ctx, programStatusKey{}, status), func(state clog.ProgramState) {
+	ctx = context.WithValue(ctx, programStatusKey{}, status)
+	var observer func(core.Progress)
+	if status != nil {
+		observer = status.observe
+	}
+	return core.WithProgressObserver(ctx, observer), func(state clog.ProgramState) {
 		if status == nil {
 			return
 		}
@@ -97,8 +108,52 @@ func WaitForProgramInput(ctx context.Context) func() {
 // Clog owns encoding and serialization with its live terminal output.
 func (s *programStatus) report(state clog.ProgramState) {
 	report := clog.ProgramStatus{State: state, App: "jira"}
+	applyProgramProgress(&report, s.progress)
 	if state == clog.ProgramStateBlocked {
 		report.Kind = clog.ProgramStatusKindQuestion
 	}
+	// Coalesce large walks to percentage/stage changes. The newest counts
+	// remain stored for the final summary, including partial failures.
+	if state == clog.ProgramStateWorking && s.last.State == state &&
+		report.Title == s.last.Title && report.HasProgress == s.last.HasProgress &&
+		report.Progress == s.last.Progress {
+		return
+	}
+	s.last = report
 	s.output.SetProgramStatus(report)
+}
+
+func (s *programStatus) observe(progress core.Progress) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.active || s.finished {
+		return
+	}
+	s.progress = progress
+	state := clog.ProgramStateWorking
+	if s.waiting > 0 {
+		state = clog.ProgramStateBlocked
+	}
+	s.report(state)
+}
+
+func applyProgramProgress(report *clog.ProgramStatus, progress core.Progress) {
+	switch progress.Phase {
+	case core.ProgressBulkResults:
+		report.Title = "Bulk results"
+		report.Message = fmt.Sprintf("%d/%d results, %d failed", progress.Completed, progress.Total, progress.Failed)
+	default:
+		return
+	}
+	if progress.Total <= 0 {
+		return
+	}
+	done := min(max(progress.Completed, 0), progress.Total)
+	// Multiply without overflow or float rounding to premature completion.
+	high, low := bits.Mul64(uint64(done), 100)
+	percent, _ := bits.Div64(high, low, uint64(progress.Total))
+	report.Progress, report.HasProgress = int(percent), true
+	if !progress.Complete {
+		report.Progress = min(report.Progress, 99)
+	}
 }

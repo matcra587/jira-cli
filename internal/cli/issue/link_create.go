@@ -707,7 +707,9 @@ func linkCreateFanOut(
 	// reason: a spinner owns the terminal's live region and several
 	// drawing at once interleave into corruption.
 	_, err := command.Spin(ctx, linkCreateSpinnerLabel(keys, resolved.relation, to), func(ctx context.Context) (struct{}, error) {
+		recordResult := command.TrackResults(ctx, len(keys), core.ProgressBulkResults)
 		xsync.Parallel(parallelism, len(keys), func(i int) {
+			defer func() { recordResult(outcomes[i].result.OK) }()
 			outcomes[i] = linkOne(ctx, client, keys[i], to, resolved, comment)
 		})
 		return struct{}{}, nil

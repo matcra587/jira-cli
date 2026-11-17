@@ -126,7 +126,9 @@ func runMembership(ctx context.Context, deps Deps, inv command.Invocation, input
 			}
 		}
 		outcomes = make([]membershipOutcome, len(keys))
+		recordResult := command.TrackResults(ctx, len(keys), core.ProgressBulkResults)
 		xsync.Parallel(o.keyed.Parallelism, len(keys), func(i int) {
+			defer func() { recordResult(outcomes[i].result.OK) }()
 			outcomes[i] = membershipOne(ctx, client, keys[i], parent, request, inv.DryRun, o.mut)
 		})
 		return struct{}{}, nil

@@ -127,7 +127,9 @@ func runWeblinkList(ctx context.Context, deps Deps, keys []string, parallelism i
 	// a spinner owns the terminal's live region and several drawing at
 	// once interleave into corruption.
 	_, err = command.Spin(ctx, weblinkSpinnerLabel(keys), func(ctx context.Context) (struct{}, error) {
+		recordResult := command.TrackResults(ctx, len(keys), core.ProgressBulkResults)
 		xsync.Parallel(parallelism, len(keys), func(i int) {
+			defer func() { recordResult(outcomes[i].result.OK) }()
 			outcomes[i] = readWeblinks(ctx, client, keys[i])
 		})
 		return struct{}{}, nil

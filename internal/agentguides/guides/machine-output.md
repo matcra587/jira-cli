@@ -18,7 +18,9 @@ human output at a terminal. Explicit modes override detection.
 Styled human command execution reports working, done, error or canceled/idle state to
 supporting terminals through OSC 7501 on terminal stderr. Shared forms report
 blocked while waiting for input. These advisory reports contain only the app
-and state, with no Jira content or progress percentage. JSON, compact, jq and
+and state, with no Jira content. Keyed bulk reads and writes add measured result-row
+progress and failed-row counts, including partial failures. A completed result is
+not proof of a successful Jira write; inspect the receipt. JSON, compact, jq and
 detected-agent runs emit no status reports. The resolved color policy,
 `--quiet`, redirected stderr and `TERM=dumb` can also suppress them; plain
 output remains free of terminal controls.

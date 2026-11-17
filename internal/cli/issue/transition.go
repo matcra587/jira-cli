@@ -659,7 +659,9 @@ func remotePreviewFanOut(
 ) ([]envelope.KeyedResult[envelope.IssueTransitionData], error) {
 	outcomes := make([]transitionOutcome, len(keys))
 	_, err := command.Spin(ctx, previewSpinnerLabel(keys), func(ctx context.Context) (struct{}, error) {
+		recordResult := command.TrackResults(ctx, len(keys), core.ProgressBulkResults)
 		xsync.Parallel(parallelism, len(keys), func(i int) {
+			defer func() { recordResult(outcomes[i].result.OK) }()
 			outcomes[i] = previewOne(ctx, client, keys[i], plan)
 		})
 		return struct{}{}, nil
@@ -748,7 +750,9 @@ func transitionFanOut(
 		// outcomes[i] from the goroutine handling key i, which needs no
 		// lock: x/sync.Parallel hands each call a distinct index and the
 		// slice was sized up front.
+		recordResult := command.TrackResults(ctx, len(keys), core.ProgressBulkResults)
 		xsync.Parallel(parallelism, len(keys), func(i int) {
+			defer func() { recordResult(outcomes[i].result.OK) }()
 			outcomes[i] = transitionOne(ctx, client, keys[i], plan)
 		})
 		return struct{}{}, nil

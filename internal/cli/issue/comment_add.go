@@ -430,7 +430,9 @@ func commentAddFanOut(
 		// hands each call a distinct index and the slice was sized up
 		// front. Order therefore comes from the ARGV, never from which
 		// post finished first.
+		recordResult := command.TrackResults(ctx, len(keys), core.ProgressBulkResults)
 		xsync.Parallel(parallelism, len(keys), func(i int) {
+			defer func() { recordResult(outcomes[i].result.OK) }()
 			outcomes[i] = postComment(ctx, client, keys[i], req)
 		})
 		return struct{}{}, nil

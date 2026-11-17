@@ -444,7 +444,9 @@ func editFanOut(
 		// hands each call a distinct index and the slice was sized up
 		// front. Order therefore comes from the ARGV, never from which PUT
 		// finished first.
+		recordResult := command.TrackResults(ctx, len(keys), core.ProgressBulkResults)
 		xsync.Parallel(opts.parallelism, len(keys), func(i int) {
+			defer func() { recordResult(outcomes[i].result.OK) }()
 			var preflight *envelope.IssueFieldPreflight
 			if opts.validateRemote {
 				var err error
