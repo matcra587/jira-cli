@@ -48,29 +48,39 @@ func TestProgramStatusTerminalLifecycleAndNestedInput(t *testing.T) {
 	}
 }
 
-func TestProgramStatusBulkProgressAndFinalFailureSummary(t *testing.T) {
-	t.Setenv("TERM", "xterm")
-	master, terminal := documentTestTerminal(t)
-	ctx, finish := WithProgramStatus(t.Context(), terminal)
-	StartProgramStatus(ctx)
-	for i := int64(0); i <= 2; i++ {
-		core.ObserveProgress(ctx, core.Progress{Phase: core.ProgressBulkResults, Completed: i, Total: 2, Failed: i / 2, Complete: i == 2})
-	}
-	finish(clog.ProgramStateDone)
-	if err := terminal.Close(); err != nil {
-		t.Fatal(err)
-	}
-	raw, err := io.ReadAll(master)
-	if err != nil && !errors.Is(err, unix.EIO) {
-		t.Fatal(err)
-	}
-	reports := decodeProgramReports(t, raw)
-	if len(reports) != 5 || reports[1]["progress"] != "0" || reports[2]["progress"] != "50" || reports[3]["progress"] != "100" {
-		t.Fatalf("missing measured bulk progress: %+v", reports)
-	}
-	last := reports[4]
-	if last["state"] != "done" || last["title"] != "Bulk results" || last["msg"] != "2/2 results, 1 failed" {
-		t.Fatalf("completion lost partial failures: %+v", last)
+func TestProgramStatusResultProgressAndFinalFailureSummary(t *testing.T) {
+	for _, tt := range []struct {
+		phase          core.ProgressPhase
+		title, message string
+	}{
+		{core.ProgressBulkResults, "Bulk results", "2/2 results, 1 failed"},
+		{core.ProgressCacheResources, "Cache refresh", "2/2 resource results, 1 failed"},
+	} {
+		t.Run(tt.title, func(t *testing.T) {
+			t.Setenv("TERM", "xterm")
+			master, terminal := documentTestTerminal(t)
+			ctx, finish := WithProgramStatus(t.Context(), terminal)
+			StartProgramStatus(ctx)
+			for i := int64(0); i <= 2; i++ {
+				core.ObserveProgress(ctx, core.Progress{Phase: tt.phase, Completed: i, Total: 2, Failed: i / 2, Complete: i == 2})
+			}
+			finish(clog.ProgramStateDone)
+			if err := terminal.Close(); err != nil {
+				t.Fatal(err)
+			}
+			raw, err := io.ReadAll(master)
+			if err != nil && !errors.Is(err, unix.EIO) {
+				t.Fatal(err)
+			}
+			reports := decodeProgramReports(t, raw)
+			if len(reports) != 5 || reports[1]["progress"] != "0" || reports[2]["progress"] != "50" || reports[3]["progress"] != "100" {
+				t.Fatalf("missing measured bulk progress: %+v", reports)
+			}
+			last := reports[4]
+			if last["state"] != "done" || last["title"] != tt.title || last["msg"] != tt.message {
+				t.Fatalf("completion lost partial failures: %+v", last)
+			}
+		})
 	}
 }
 
@@ -156,5 +166,27 @@ func TestProgramStatusCanceledInputDoesNotResumeWork(t *testing.T) {
 	}
 	if strings.Count(string(raw), "state=working") != 1 || !strings.HasSuffix(string(raw), "\x1b]7501;state=idle:app=jira\a") {
 		t.Fatalf("canceled input resumed or completed work: %q", raw)
+	}
+}
+
+func TestProgramProgressWaitsForPromptRendererToReturn(t *testing.T) {
+	t.Setenv("TERM", "xterm")
+	master, terminal := documentTestTerminal(t)
+	ctx, finish := WithProgramStatus(t.Context(), terminal)
+	StartProgramStatus(ctx)
+	resume := WaitForProgramInput(ctx)
+	core.ObserveProgress(ctx, core.Progress{Phase: core.ProgressCacheResources, Completed: 1, Total: 2})
+	resume()
+	finish(clog.ProgramStateDone)
+	if err := terminal.Close(); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := io.ReadAll(master)
+	if err != nil && !errors.Is(err, unix.EIO) {
+		t.Fatal(err)
+	}
+	reports := decodeProgramReports(t, raw)
+	if len(reports) != 4 || reports[1]["state"] != "blocked" || reports[2]["progress"] != "50" {
+		t.Fatalf("progress wrote inside a prompt or lost deferred counts: %+v", reports)
 	}
 }

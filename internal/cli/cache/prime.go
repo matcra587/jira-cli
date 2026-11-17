@@ -36,7 +36,7 @@ type PrimeDeps struct {
 type primeOptions struct {
 	force, unbounded bool
 	ttlMinutes       int
-	withoutSpinner   bool
+	aggregate        bool
 }
 
 func addPrimers(cmd *cobra.Command, deps PrimeDeps) {
@@ -106,6 +106,12 @@ func runPrime(ctx context.Context, deps PrimeDeps, inv command.Invocation, resou
 	if deps.Scope == nil {
 		return out, cacheIO(core.ErrCacheManagementUnsupported)
 	}
+	observe := func(phase core.ProgressPhase) {
+		if !opts.aggregate {
+			core.ObserveProgress(ctx, core.Progress{Phase: phase})
+		}
+	}
+	observe(core.ProgressCacheInspect)
 	scope, err := deps.Scope(ctx, inv.DryRun)
 	if err != nil {
 		return out, cacheIO(err)
@@ -122,6 +128,13 @@ func runPrime(ctx context.Context, deps PrimeDeps, inv command.Invocation, resou
 		}
 		out.CacheMetadata = value
 		out.FromCache = !written.IsZero() && state != "malformed"
+		if ctx.Err() == nil {
+			if inv.DryRun {
+				observe(core.ProgressCachePreview)
+			} else {
+				observe(core.ProgressCacheReused)
+			}
+		}
 		return out, ctx.Err()
 	}
 	if err := ctx.Err(); err != nil {
@@ -141,6 +154,7 @@ func runPrime(ctx context.Context, deps PrimeDeps, inv command.Invocation, resou
 		return out, err
 	}
 	out.Attempted = true
+	observe(core.ProgressCacheRead)
 	fetch := func(ctx context.Context) (MetadataValue, error) {
 		var boards BoardMetadataFetcher
 		if deps.FetchBoards != nil {
@@ -150,7 +164,7 @@ func runPrime(ctx context.Context, deps PrimeDeps, inv command.Invocation, resou
 		}
 		return FetchMetadata(ctx, client, boards, resource.Name, opts.unbounded)
 	}
-	if opts.withoutSpinner {
+	if opts.aggregate {
 		out.CacheMetadata, err = fetch(ctx)
 	} else {
 		out.CacheMetadata, err = command.Spin(ctx, "Reading "+resource.Name+" metadata", fetch)
@@ -165,11 +179,15 @@ func runPrime(ctx context.Context, deps PrimeDeps, inv command.Invocation, resou
 	if err := ctx.Err(); err != nil {
 		return out, err
 	}
+	observe(core.ProgressCacheSave)
 	if err := scope.Store.Set(resource.Key(scope.Site), raw); err != nil {
 		return out, cacheIO(err)
 	}
 	out.Saved = true
 	out.WrittenAt = time.Now().UTC().Format(time.RFC3339Nano)
+	if ctx.Err() == nil {
+		observe(core.ProgressCacheSaved)
+	}
 	return out, ctx.Err()
 }
 

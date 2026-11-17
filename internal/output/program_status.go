@@ -131,11 +131,12 @@ func (s *programStatus) observe(progress core.Progress) {
 		return
 	}
 	s.progress = progress
-	state := clog.ProgramStateWorking
+	// Huh owns terminal rendering during input. Retain concurrent observations
+	// for resume/finalization without inserting controls into its frames.
 	if s.waiting > 0 {
-		state = clog.ProgramStateBlocked
+		return
 	}
-	s.report(state)
+	s.report(clog.ProgramStateWorking)
 }
 
 func applyProgramProgress(report *clog.ProgramStatus, progress core.Progress) {
@@ -162,6 +163,21 @@ func applyProgramProgress(report *clog.ProgramStatus, progress core.Progress) {
 		report.Title, report.Message = "Update", "Update installed"
 	case core.ProgressUpdateBrew:
 		report.Title, report.Message = "Update", "Updating with Homebrew"
+	case core.ProgressCacheResources:
+		report.Title = "Cache refresh"
+		report.Message = fmt.Sprintf("%d/%d resource results, %d failed", progress.Completed, progress.Total, progress.Failed)
+	case core.ProgressCacheInspect:
+		report.Title, report.Message = "Cache", "Inspecting cached metadata"
+	case core.ProgressCacheRead:
+		report.Title, report.Message = "Cache", "Reading metadata"
+	case core.ProgressCacheSave:
+		report.Title, report.Message = "Cache", "Saving metadata"
+	case core.ProgressCacheSaved:
+		report.Title, report.Message = "Cache", "Metadata cached"
+	case core.ProgressCacheReused:
+		report.Title, report.Message = "Cache", "Reusing fresh metadata"
+	case core.ProgressCachePreview:
+		report.Title, report.Message = "Cache", "Cache preview complete"
 	default:
 		return
 	}

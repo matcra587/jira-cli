@@ -94,11 +94,13 @@ func runRefresh(ctx context.Context, deps PrimeDeps, inv command.Invocation, opt
 		}
 		return original.JiraClient(ctx)
 	})
-	opts.withoutSpinner = true
+	opts.aggregate = true
 	out.Results = make([]envelope.ResourceResult[envelope.CachePrimeOutput], len(selected))
 	raw := make([]error, len(selected))
 	return command.Spin(ctx, "Refreshing metadata", func(ctx context.Context) (envelope.CacheRefreshOutput, error) {
+		recordResult := command.TrackResults(ctx, len(selected), core.ProgressCacheResources)
 		xsync.Parallel(keyed.Parallelism, len(selected), func(i int) {
+			defer func() { recordResult(out.Results[i].OK) }()
 			data, failure := runPrime(ctx, deps, inv, selected[i], opts)
 			row := envelope.ResourceResult[envelope.CachePrimeOutput]{Resource: selected[i].Name, OK: failure == nil, Data: &data}
 			if failure != nil {

@@ -205,7 +205,7 @@ write failure as secondary context; it does not try the failed stream again.
 Terminal program status uses native clog OSC 7501 reporting through an
 invocation-bound output owner. Activate only after final human-mode, style and
 agent resolution, on terminal stderr outside `TERM=dumb` and `--quiet`. Reuse the logger's exact
-output for live-animation serialization. Report only generic app/state facts;
+output for live-animation serialization. Report only generic states, stages and aggregate counts;
 finish from the actual exit result, and never report success on panic. Shared
 forms mark blocked before rendering and resume after their renderer has joined.
 Machine/jq output and completion callbacks never activate this capability.
@@ -216,6 +216,10 @@ Coalesce terminal updates by phase/percentage while retaining the final counts.
 Update transfer counts observe accepted bytes through the existing bounded writer.
 Signature, archive verification and publication remain separate phases with no
 invented percentage. Report installed only from a confirmed publication receipt.
+Cache refresh tracks frozen resource-result counts, including reuse and failures.
+Suppress per-resource stages inside aggregate refreshes. Single-resource primers
+distinguish inspection, reads, saving, fresh reuse and local previews without
+inventing collection totals or claiming storage before acknowledgment.
 
 *   Root wiring (`internal/cli/root/root.go`): clog is pinned to **stderr**
     with `SetEnvPrefix("JIRA")` and colour from `--color`; a context logger is

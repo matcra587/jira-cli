@@ -22,6 +22,13 @@ check several resources together. Use `cache clear` to remove entries. Clearing
 does not refresh them. Recent issue keys and transition hints have separate
 rules below.
 
+Supporting styled human terminals report cache inspection, fetching and storage
+as separate stages. Fresh hits report reuse and previews report local inspection;
+neither claims a fetch or save. Refresh progress counts the selected resource
+results, including reused and failed resources, without per-resource stages
+overwriting the aggregate. A finished percentage is not proof that every resource
+was fetched or saved; inspect each result. Machine output remains unchanged.
+
 Previews, inspection and completion need public `base_url` and `email` values
 from settings or the environment. Check Preconditions before running the
 examples. Fetching new metadata requires authentication. These local reads and

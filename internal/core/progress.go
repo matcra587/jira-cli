@@ -16,6 +16,13 @@ const (
 	ProgressUpdateInstall
 	ProgressUpdateInstalled
 	ProgressUpdateBrew
+	ProgressCacheResources
+	ProgressCacheInspect
+	ProgressCacheRead
+	ProgressCacheSave
+	ProgressCacheSaved
+	ProgressCacheReused
+	ProgressCachePreview
 )
 
 // Progress is an advisory observation. Counts describe completed result rows
