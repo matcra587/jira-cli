@@ -29,6 +29,8 @@ jira version
 
 Tool requests use `latest`; exact versions and verified platform artifacts are committed in `mise/mise.lock`. Project installs require matching locks. Update deliberately with `mise lock --bump`, review the lock diff and run the affected checks. Go module tools remain owned by `go.mod` and run through `go tool`.
 
+Development and production share the lockfile. Refreshing one environment preserves tools declared by the other; remove obsolete tool entries deliberately when retiring them. Build, cleanup and GoReleaser tasks share a lock for this checkout's `dist/`, so separate mise runs cannot change those outputs concurrently. Independent worktrees retain their own build locks.
+
 Configuration lives in `mise/config.toml` and `mise/conf.d/`. `.miserc.toml` selects `development` by default, including checks and release tooling. `mise -E production run build` selects the shared Go toolchain for a build without developer tools. This selection does not isolate inherited global tools or tasks. Native scripts live in `mise/tasks/`, with shared helpers in `mise/lib/`. Keep local configuration and lock overrides untracked.
 
 > [!TIP]
@@ -60,7 +62,9 @@ For tighter loops while editing:
 
 | Task | What it does |
 |---|---|
-| `mise run check` | fmt-check + lint + rumdl + vet + tests |
+| `mise run check` | formatting, Go/Markdown/shell/mise checks, vet and tests |
+| `mise run mise:check` | native configuration formatting and task validation in development and production |
+| `mise run shell:check` | ShellCheck for shell tasks, helpers, installer and release fixtures |
 | `mise run test` | tests with coverage (fast) |
 | `mise run test:race` | the same suite under the race detector |
 | `mise run audit` | the output-contract audit on its own; hermetic, stub-driven, runs the real binary |

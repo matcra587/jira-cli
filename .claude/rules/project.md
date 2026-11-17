@@ -133,6 +133,8 @@ documented raw-output exception and emit identical bytes in every output mode.
     fragments. `mise -E production` selects the shared build toolchain; full CI
     and release preflight require development. Refresh versions explicitly with
     `mise lock --bump` and review coupled hk schema and CI linter pins.
+    Preserve lock entries outside the selected environment with
+    `lockfile_auto_prune = false`; retire obsolete tools deliberately.
     CI caches verified mise downloads, never installed tool trees; release tools
     remain uncached. Native file tasks live in `mise/tasks/` and helpers in
     `mise/lib/`, outside discovery. Do not add redundant task includes.
@@ -140,12 +142,17 @@ documented raw-output exception and emit identical bytes in every output mode.
     binary under `dist/` with version flags. `mise run install` replaces the
     installed binary in an explicit `GOBIN` or Go's usual `GOPATH/bin`; mise
     does not override `GOBIN`. Use installation only when it is part of the task.
+    Build, cleanup and GoReleaser tasks share the checkout's `dist/` lock;
+    keep independent worktrees able to build independently.
 *   File tasks own native `# [MISE]`/`# [USAGE]` metadata; `mise/conf.d/tasks.development.toml` owns
     direct commands and ordered orchestration. Keep parsed values in quoted
     `usage_*` variables. Build through Go's cache without timestamp skipping,
     tidy before building, and keep acceptance builds, lint and race phases
     separate in CI. Finish formatting before Go lint fixes. Python tooling
     uses uv and Python 3.15; exercise `mise run test:tasks`.
+    `mise run check` includes `mise:check` for native formatting and validation
+    in development and production, and `shell:check` for the shell owners.
+    Keep Python tasks out of ShellCheck's file selection.
 *   `mise/conf.d/tasks.development.toml` defines `mise run check`, `test`, `test:race`, `test:matrix`,
     `audit`, `test:live:guards`, and the wider `ci` gate. Native platform gates
     have explicit host requirements. Cross-compilation does not prove native

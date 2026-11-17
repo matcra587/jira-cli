@@ -13,7 +13,15 @@ usage = '''
 unknown_flags "error"
 arg "[args]..." var_max=0 hide=#true
 '''
-depends = ["fmt:check", "lint", "rumdl", "vet", "test"]
+depends = [
+  "fmt:check",
+  "lint",
+  "rumdl",
+  "shell:check",
+  "mise:check",
+  "vet",
+  "test",
+]
 
 [tasks.ci]
 description = "Run CI-equivalent checks"
@@ -25,13 +33,20 @@ arg "[args]..." var_max=0 hide=#true
 # Build before acceptance, then keep its bounded binary builds separate from
 # each other, the linters and race instrumentation. Cache misses must work too.
 run = [
-    { task = "tidy" },
-    { task = "build" },
-    { task = "test:matrix" },
-    { task = "audit" },
-    { task = "check" },
-    { task = "test:race" },
-    { tasks = ["test:live:guards", "test:hooks", "test:release", "test:tasks", "workflow:lint", "security"] },
+  { task = "tidy" },
+  { task = "build" },
+  { task = "test:matrix" },
+  { task = "audit" },
+  { task = "check" },
+  { task = "test:race" },
+  { tasks = [
+    "test:live:guards",
+    "test:hooks",
+    "test:release",
+    "test:tasks",
+    "workflow:lint",
+    "security",
+  ] },
 ]
 
 [tasks.fix]
@@ -63,10 +78,12 @@ run = [{ task = "ci" }, { task = "release:check" }, { task = "release:build" }]
 
 [tasks."release:build"]
 description = "Build binaries with GoReleaser without publishing"
+lock = "{{ config_root }}/dist"
 run = "goreleaser build --snapshot --clean"
 
 [tasks."release:snapshot"]
 description = "Build a full snapshot release locally"
+lock = "{{ config_root }}/dist"
 run = "goreleaser release --snapshot --clean --skip=sign"
 
 [tasks.test]
@@ -217,7 +234,23 @@ run = "go tool govulncheck ./..."
 
 [tasks."workflow:lint"]
 description = "Lint GitHub Actions workflows"
-run = ["actionlint .github/workflows/*.yml", "zizmor --persona pedantic .github/"]
+run = [
+  "actionlint .github/workflows/*.yml",
+  "zizmor --persona pedantic .github/",
+]
+
+[tasks."shell:check"]
+description = "Check shell tasks, shared helpers, installer and release fixtures"
+run = "shellcheck -x docs/install.sh mise/lib/*.sh mise/tasks/build mise/tasks/install mise/tasks/release mise/tasks/version tests/release/pipeline.sh"
+
+[tasks."mise:check"]
+description = "Check mise formatting and task definitions in both environments"
+run = [
+  "mise fmt --check",
+  "mise -E production fmt --check",
+  "mise tasks validate",
+  "mise -E production tasks validate",
+]
 
 [tasks.pre-commit]
 description = "Run hk pre-commit hook"
@@ -256,6 +289,7 @@ run = "go generate ./..."
 
 [tasks.clean]
 description = "Remove build and coverage outputs"
+lock = "{{ config_root }}/dist"
 usage = '''
 unknown_flags "error"
 arg "[args]..." var_max=0 hide=#true
@@ -270,10 +304,7 @@ run = 'go run ./cmd/check-changie "${usage_commit_msg_file?}"'
 [tasks."release-notes"]
 description = "Batch unreleased fragments into a version and regenerate the changelog"
 usage = 'arg "<version>" help="Release version, e.g. v0.7.8"'
-run = [
-    'changie batch -- "${usage_version?}"',
-    "changie merge",
-]
+run = ['changie batch -- "${usage_version?}"', "changie merge"]
 
 [tasks."test:keyring:windows"]
 description = "Verify isolated native Windows credential recovery (Windows only)"
@@ -298,7 +329,7 @@ run = "go test -v -tags=nativefilesystem -count=1 -timeout=3m -run='^(TestNative
 [tasks."test:attachment:windows"]
 description = "Verify literal Windows attachment destinations and native directory completion"
 run = [
-    "go test -v -tags=nativefilesystem -count=1 -timeout=3m -run='^TestLiteralFile' ./internal/nativepath",
-    "go test -v -tags=nativefilesystem -count=1 -timeout=3m -run='^TestNativePublicWindowsAttachment(Directories|Filenames|LiteralOverwriteDoesNotReplaceSibling|MetadataFilenames)$' ./tests/contract",
-    "go test -v -tags=nativeconsole -count=1 -timeout=3m -run='^(TestContextualPowerShellPathCompletionExecutesLiteralArgv|TestNativeWindowsElvishInsertion)$/^download' ./tests/contract",
+  "go test -v -tags=nativefilesystem -count=1 -timeout=3m -run='^TestLiteralFile' ./internal/nativepath",
+  "go test -v -tags=nativefilesystem -count=1 -timeout=3m -run='^TestNativePublicWindowsAttachment(Directories|Filenames|LiteralOverwriteDoesNotReplaceSibling|MetadataFilenames)$' ./tests/contract",
+  "go test -v -tags=nativeconsole -count=1 -timeout=3m -run='^(TestContextualPowerShellPathCompletionExecutesLiteralArgv|TestNativeWindowsElvishInsertion)$/^download' ./tests/contract",
 ]

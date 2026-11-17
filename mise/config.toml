@@ -3,6 +3,8 @@ min_version = "2026.11.9"
 
 [settings]
 lockfile = true
+# Development and production select different tools from the same lockfile.
+lockfile_auto_prune = false
 go.set_gobin = false
 
 [tool_config]

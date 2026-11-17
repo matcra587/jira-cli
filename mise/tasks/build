@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # [MISE] description="Build the binary"
 # [MISE] alias="b"
+# [MISE] lock="{{ config_root }}/dist"
 # [USAGE] unknown_flags "error"
 # [USAGE] arg "[args]..." var_max=0 hide=#true
 # Zero accepted arguments engage validation without replacing built-in help.

@@ -157,9 +157,9 @@ if name == 'changie' and args[:1] == ['batch'] and failure == 'batch':
             """
             audit build check check-changie ci clean default deps deps:update
             deps:update:minor docs:build docs:serve fix fmt fmt:check fmt:file
-            generate install lint lint:fix pre-commit release release-notes
+            generate install lint lint:fix mise:check pre-commit release release-notes
             release:build release:check release:preflight release:snapshot
-            rumdl rumdl:fix run security test test:all test:attachment:windows
+            rumdl rumdl:fix run security shell:check test test:all test:attachment:windows
             test:cache-sync test:config:windows test:draft:windows
             test:editor:windows test:hooks test:input:windows test:keyring
             test:keyring:windows test:live:guards test:matrix test:query-swap
