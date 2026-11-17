@@ -2,7 +2,8 @@ package core
 
 import "net/url"
 
-// DefaultMaxAPIResponseBytes is the raw CLI's default response capture bound.
+// DefaultMaxAPIResponseBytes bounds typed native JSON reads and the raw CLI's
+// default response capture. Raw API callers may explicitly choose another bound.
 // Exceeding a bound must retain a marked partial receipt, never truncate silently.
 const DefaultMaxAPIResponseBytes = 16 << 20
 

@@ -1,6 +1,7 @@
 package jira
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,7 +16,11 @@ var ErrSearchResponseInvalid = errors.New("search response invalid")
 
 func decodeSearchPage(body io.Reader, maxResults int) (*wire.SearchResults, error) {
 	var page wire.SearchResults
-	decoder := json.NewDecoder(body)
+	raw, err := readNativeJSONResponse(body)
+	if err != nil {
+		return nil, fmt.Errorf("%w: read page: %w", ErrSearchResponseInvalid, err)
+	}
+	decoder := json.NewDecoder(bytes.NewReader(raw))
 	if err := decoder.Decode(&page); err != nil {
 		return nil, fmt.Errorf("%w: decode page: %w", ErrSearchResponseInvalid, err)
 	}

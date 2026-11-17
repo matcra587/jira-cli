@@ -18,6 +18,11 @@ human output at a terminal. Explicit modes override detection.
 Keep the full receipt before filtering it. Exit zero does not establish success
 for every batch target. Save explains how to inspect individual outcomes.
 
+Typed native JSON reads refuse responses larger than 16 MiB before decoding,
+including issue details, search, counts and JQL metadata. Narrow fields or page
+sizes when a reply exceeds the bound. Raw `api` requests retain their explicit
+response-capture limit option.
+
 ## Run
 
 The ADF examples need `notes.md` and `document.json` as described in Preconditions.

@@ -304,7 +304,7 @@ func (c *Client) getIssue(ctx context.Context, key string, fields []string, veri
 		return core.IssueRead{Issue: issue, Retry: info}, nil
 	}
 	var issue wire.IssueBean
-	if err := json.NewDecoder(resp.Body).Decode(&issue); err != nil {
+	if err := decodeNativeJSONResponse(resp.Body, &issue); err != nil {
 		return core.IssueRead{}, fmt.Errorf("get issue: decode response: %w", err)
 	}
 	return core.IssueRead{Issue: &issue, Retry: info}, nil
@@ -339,7 +339,11 @@ func (c *Client) CurrentUser(ctx context.Context) (core.UserRead, error) {
 		return core.UserRead{}, c.apiError(resp, info)
 	}
 	var raw json.RawMessage
-	decoder := json.NewDecoder(resp.Body)
+	body, err := readNativeJSONResponse(resp.Body)
+	if err != nil {
+		return core.UserRead{}, fmt.Errorf("%w: read account: %w", ErrCurrentUserResponseInvalid, err)
+	}
+	decoder := json.NewDecoder(bytes.NewReader(body))
 	if err := decoder.Decode(&raw); err != nil {
 		return core.UserRead{}, fmt.Errorf("%w: decode account: %w", ErrCurrentUserResponseInvalid, err)
 	}
@@ -395,7 +399,7 @@ func (c *Client) GetWatchers(ctx context.Context, key string) (core.WatcherRead,
 		return core.WatcherRead{}, c.apiError(resp, info)
 	}
 	var watchers wire.Watchers
-	if err := json.NewDecoder(resp.Body).Decode(&watchers); err != nil {
+	if err := decodeNativeJSONResponse(resp.Body, &watchers); err != nil {
 		return core.WatcherRead{}, fmt.Errorf("get watchers: decode response: %w", err)
 	}
 	return core.WatcherRead{Watchers: &watchers, Retry: info}, nil
@@ -628,7 +632,7 @@ func (c *Client) GetIssueLinkTypes(ctx context.Context) (core.LinkTypeRead, erro
 		return core.LinkTypeRead{}, c.apiError(resp, info)
 	}
 	var types wire.IssueLinkTypes
-	if err := json.NewDecoder(resp.Body).Decode(&types); err != nil {
+	if err := decodeNativeJSONResponse(resp.Body, &types); err != nil {
 		return core.LinkTypeRead{}, fmt.Errorf("get issue link types: decode response: %w", err)
 	}
 	return core.LinkTypeRead{Types: &types, Retry: info}, nil
@@ -965,7 +969,7 @@ func (c *Client) CountIssues(ctx context.Context, jql string) (core.IssueCountRe
 		return core.IssueCountRead{}, c.apiError(resp, info)
 	}
 	var results wire.SearchCountResults
-	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
+	if err := decodeNativeJSONResponse(resp.Body, &results); err != nil {
 		return core.IssueCountRead{}, fmt.Errorf("count issues: decode response: %w", err)
 	}
 	return core.IssueCountRead{Count: results.Count, Retry: info}, nil
@@ -995,7 +999,7 @@ func (c *Client) GetFilter(ctx context.Context, id string) (core.FilterRead, err
 		return core.FilterRead{}, c.apiError(resp, info)
 	}
 	var filter wire.Filter
-	if err := json.NewDecoder(resp.Body).Decode(&filter); err != nil {
+	if err := decodeNativeJSONResponse(resp.Body, &filter); err != nil {
 		return core.FilterRead{}, fmt.Errorf("get filter: decode response: %w", err)
 	}
 	return core.FilterRead{Filter: &filter, Retry: info}, nil
@@ -1018,7 +1022,7 @@ func (c *Client) GetBoardConfiguration(ctx context.Context, boardID int64) (core
 		return core.BoardConfigurationRead{}, c.apiError(resp, info)
 	}
 	var cfg wire.BoardConfiguration
-	if err := json.NewDecoder(resp.Body).Decode(&cfg); err != nil {
+	if err := decodeNativeJSONResponse(resp.Body, &cfg); err != nil {
 		return core.BoardConfigurationRead{}, fmt.Errorf("get board configuration: decode response: %w", err)
 	}
 	return core.BoardConfigurationRead{Configuration: &cfg, Retry: info}, nil

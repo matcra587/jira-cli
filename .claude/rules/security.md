@@ -95,6 +95,11 @@ string, envelope field, or command argument as a bug, not a filtering gap.
 
 ## Supply chain
 
+Native JSON success readers bound actual streamed bytes at the shared 16 MiB
+capture limit before decoding. Preserve native unknown fields, exact numbers,
+nulls and each reader's existing protocol checks; record/page limits do not bound
+response bytes. Raw API requests keep their explicit capture-limit contract.
+
 GitHub Actions are SHA-pinned and zizmor-audited (pedantic); releases are
 GoReleaser-built and cosign-signed. `mise run ci` includes Go lint/gosec and
 govulncheck. hk pre-commit runs the ordinary linters; pre-push and `hk check`

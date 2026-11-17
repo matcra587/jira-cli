@@ -1,0 +1,3 @@
+kind: security
+body: Bound native Jira JSON response reads to 16 MiB before decoding, including issue details, search, counts and JQL metadata.
+time: 2026-11-16T23:12:56.686133576-05:00

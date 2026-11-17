@@ -1,6 +1,7 @@
 package jira
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -70,7 +71,11 @@ func (c *Client) GetJQLReference(ctx context.Context) (core.JQLReferenceRead, er
 }
 
 func decodeJQLJSON(body io.Reader) (json.RawMessage, error) {
-	decoder := json.NewDecoder(body)
+	data, err := readNativeJSONResponse(body)
+	if err != nil {
+		return nil, fmt.Errorf("%w: read: %w", ErrJQLResponseInvalid, err)
+	}
+	decoder := json.NewDecoder(bytes.NewReader(data))
 	var raw, trailing json.RawMessage
 	if err := decoder.Decode(&raw); err != nil {
 		return nil, fmt.Errorf("%w: decode: %w", ErrJQLResponseInvalid, err)
