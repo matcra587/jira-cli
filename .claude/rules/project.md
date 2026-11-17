@@ -160,6 +160,13 @@ documented raw-output exception and emit identical bytes in every output mode.
 *   Make coherent Conventional Commits with normal hk hooks. `hk.pkl` defines
     formatting, lint, Markdown and secret checks. Check scoped rules explicitly
     when a tool's default exclusions omit them. Keep private evidence excluded.
+    Go analysis selectors include module/toolchain inputs; formatter selectors
+    remain source-only. Preserve builtin command effects and literal argv in
+    custom commands. Keep the exclusive publishing brake first. Hook checks
+    cover mise configuration and shell scripts through the shared owners.
+    `test:hooks` disables evaluated-config caching because its formatter
+    fixtures read the current manifests during evaluation. hk's embedded Pkl
+    evaluator owns configuration loading; no standalone Pkl tool is needed.
 *   Local release tags and CI share `mise/lib/release-version.sh`.
     Prereleases must neither become stable latest nor update Homebrew/Scoop;
     guard packaging-token creation as well as publication. Keep the main-only

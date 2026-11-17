@@ -78,16 +78,51 @@ local gofumpt = (Builtins.go_fumpt) {
     }
 }
 
-// The builtin already runs `cd {{workspace}} && golangci-lint run ./...`;
-// only the ordering against gofumpt is ours.
+// Whole-module checks also depend on manifests and the selected toolchain.
+// Keep the formatter's source-only selection independent of these triggers.
+local goAnalysisInputs = List(
+    "**/*.go", "go.mod", "go.sum", "mise/mise.lock",
+    "mise/config.toml", "mise/conf.d/tools.toml", "mise/conf.d/tools.development.toml"
+)
+
 local golangciLint = (Builtins.golangci_lint) {
+    glob = goAnalysisInputs + List(".golangci.yml", ".golangci.yaml")
     depends = List("gofumpt")
 }
 
+local miseInputs = (Builtins.mise.glob as List<String>) +
+    List(".miserc.toml", "mise/conf.d/*.toml")
+
 local linters = new Mapping<String, Step> {
     ["gofumpt"] = gofumpt
-    ["go-vet"] = Builtins.go_vet
+    ["go-vet"] = (Builtins.go_vet) { glob = goAnalysisInputs }
     ["golangci-lint"] = golangciLint
+    ["mise"] = (Builtins.mise) {
+        glob = miseInputs
+        // mise formats the loaded project configuration, beyond matched files.
+        exclusive = true
+    }
+    ["mise-validate"] = new Step {
+        glob = miseInputs + List("mise/tasks/**")
+        depends = "mise"
+        check = new CommandSpec {
+            command = new Command { argv = List("mise", "run", "mise:check") }
+            // Task execution may provision missing tools before validation.
+            effect = "write"
+        }
+    }
+    ["shellcheck"] = (Builtins.shellcheck) {
+        check = new CommandSpec {
+            command = new Command { argv = List("shellcheck", "-x", "{{files}}") }
+            effect = "read"
+        }
+        check_diff = new CommandSpec {
+            command = new Command {
+                argv = List("shellcheck", "-x", "--format=diff", "{{files}}")
+            }
+            effect = "read"
+        }
+    }
     ["rumdl"] = (Builtins.rumdl) {
         // docs/reference/ is generated at build time and gitignored, but the hk
         // rumdl builtin globs the working tree (not git), so exclude the raw
@@ -105,7 +140,11 @@ local linters = new Mapping<String, Step> {
 local linters_with_security = (linters) {
     // `go tool` because govulncheck lives in go.mod's tools block, not PATH.
     ["govulncheck"] = (Builtins.go_vuln_check) {
-        check = "cd {{workspace}} && go tool govulncheck ./..."
+        glob = goAnalysisInputs
+        check = new CommandSpec {
+            command = new Command { argv = List("go", "tool", "govulncheck", "./...") }
+            effect = "write"
+        }
         exclusive = true
     }
 }
@@ -125,7 +164,10 @@ local linters_with_security = (linters) {
 // Exclusive so it lands before the linters spend a minute on a push that
 // was never going to happen. Remove the marker to publish.
 local noPush = new Step {
-    check = "test ! -f .no-push || { echo 'hk: refusing to push — .no-push marker present in this worktree; remove it to publish'; exit 1; }"
+    check = new CommandSpec {
+        command = "test ! -f .no-push || { echo 'hk: refusing to push — .no-push marker present in this worktree; remove it to publish'; exit 1; }"
+        effect = "read"
+    }
     exclusive = true
 }
 
@@ -136,8 +178,9 @@ hooks {
         steps = linters
     }
     ["pre-push"] {
-        steps = (linters_with_security) {
+        steps = new Mapping<String, Step> {
             ["no-push"] = noPush
+            ...linters_with_security
         }
     }
     ["check"] {
@@ -151,7 +194,14 @@ hooks {
         steps {
             ["conventional"] = Builtins.check_conventional_commit
             ["betterleaks"] = new Step {
-                check = "betterleaks stdin --no-banner < {{commit_msg_file}}"
+                check = new CommandSpec {
+                    command = new Command {
+                        // Positional argv keeps the message path literal in sh.
+                        argv = List("sh", "-c", "exec betterleaks stdin --no-banner < \"$1\"",
+                            "hk-commit-msg", "{{commit_msg_file}}")
+                    }
+                    effect = "read"
+                }
             }
             // A feat/fix must ship a changie fragment (or an explicit
             // `Changelog: skip` trailer) so nothing user-facing is missed from
@@ -159,7 +209,12 @@ hooks {
             // Go program — see mise/conf.d/tasks.development.toml) so it stays discoverable in
             // `mise tasks`.
             ["check-changie"] = new Step {
-                check = "mise run check-changie {{commit_msg_file}}"
+                check = new CommandSpec {
+                    command = new Command {
+                        argv = List("mise", "run", "check-changie", "{{commit_msg_file}}")
+                    }
+                    effect = "write"
+                }
             }
         }
     }

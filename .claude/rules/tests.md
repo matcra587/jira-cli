@@ -715,6 +715,12 @@ and require unchanged human previews to say they would keep the identity.
     with coverage. `mise run ci` adds the race detector, tagged hermetic gates
     and the other checks declared in `mise/conf.d/tasks.development.toml`. Native gates require their
     selected host and remain separate from cross-compilation.
+*   `mise run test:hooks` freshly evaluates hk configuration with warnings
+    denied, exercises the actual module-owned formatter, then runs owned Git
+    fixtures for dependency/config selection, literal message paths, declared
+    command effects and refusal before linter execution. Tool observers prove
+    invocation and ordering, not successful Go analysis. Keep user Git/hk
+    configuration isolated; do not install hooks globally for these tests.
 
 ## Suite map
 

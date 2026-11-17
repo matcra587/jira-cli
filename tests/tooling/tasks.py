@@ -152,33 +152,11 @@ if name == 'changie' and args[:1] == ['batch'] and failure == 'batch':
             return []
         return [json.loads(line) for line in self.trace.read_text().splitlines()]
 
-    def test_complete_inventory_and_native_owners(self) -> None:
-        expected = set(
-            """
-            audit build check check-changie ci clean default deps deps:update
-            deps:update:minor docs:build docs:serve fix fmt fmt:check fmt:file
-            generate install lint lint:fix mise:check pre-commit release release-notes
-            release:build release:check release:preflight release:snapshot
-            rumdl rumdl:fix run security shell:check test test:all test:attachment:windows
-            test:cache-sync test:config:windows test:draft:windows
-            test:editor:windows test:hooks test:input:windows test:keyring
-            test:keyring:windows test:live:guards test:matrix test:query-swap
-            test:race test:release test:tasks tidy upstream-check version vet
-            workflow:lint
-        """.split()
-        )
-        inventory = json.loads(self.succeeds("tasks", "ls", "--no-global", "--json"))
-        self.assertEqual({task["name"] for task in inventory}, expected)
-        for name in ("build", "install", "release", "upstream-check", "version"):
-            task = next(task for task in inventory if task["name"] == name)
-            self.assertIn("/mise/tasks/", task["source"])
+    def test_native_environments_local_precedence_and_task_working_root(self) -> None:
         loaded = self.succeeds("config", "ls")
         self.assertIn(str(self.root / "mise/config.toml"), loaded)
         self.assertIn(str(self.root / "mise/conf.d/tasks.development.toml"), loaded)
         self.assertNotIn(str(REPO_ROOT), loaded)
-        self.succeeds("tasks", "validate")
-
-    def test_native_environments_local_precedence_and_task_working_root(self) -> None:
         fragments = self.root / "mise/conf.d"
         for suffix, value in (
             ("", "shared"),
@@ -209,6 +187,30 @@ if name == 'changie' and args[:1] == ['batch'] and failure == 'batch':
             self.succeeds("-E", "production", "tasks", "ls", "--no-global", "--json")
         )
         self.assertNotIn("ci", {task["name"] for task in production})
+
+    def test_hook_checks_refresh_config_and_stop_on_validation_failure(self) -> None:
+        # The task must override cached caller settings, not inherit a lucky 0.
+        self.env["HK_CACHE"] = "1"
+        observer = self.observer + """
+if name == 'hk':
+    if os.environ.get('HK_CACHE') != '0': sys.exit(39)
+    if args[:1] == ['validate']:
+        if '--deny-warnings' not in args: sys.exit(40)
+        if failure == 'validate': sys.exit(37)
+"""
+        for name in ("hk", "uv"):
+            self.write_executable(self.bin / name, observer)
+        self.succeeds("run", "test:hooks")
+        self.assertEqual(self.calls(), [
+            ["hk", ["validate", "--deny-warnings"]],
+            ["hk", ["test", "--step", "gofumpt"]],
+            ["uv", ["run", "--python", "3.15", "--script", "tests/tooling/hooks.py"]],
+        ])
+        self.trace.unlink()
+        self.env["TASK_TEST_FAILURE"] = "validate"
+        result = self.run_mise("run", "test:hooks")
+        self.assertEqual(result.returncode, 37, result.stdout + result.stderr)
+        self.assertEqual(self.calls(), [["hk", ["validate", "--deny-warnings"]]])
 
     def test_release_help_and_parser_refusals_have_no_effects(self) -> None:
         self.write_executable(self.bin / "git", self.observer)

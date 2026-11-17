@@ -113,7 +113,12 @@ run = "go test -v -tags=live -count=1 ./tests/live"
 
 [tasks."test:hooks"]
 description = "Validate hook configuration and native formatter cases"
-run = ["hk validate", "hk test --step gofumpt"]
+env = { HK_CACHE = "0" }
+run = [
+  "hk validate --deny-warnings",
+  "hk test --step gofumpt",
+  "uv run --python 3.15 --script tests/tooling/hooks.py",
+]
 
 [tasks."test:release"]
 description = "Verify stable and prerelease routing without publishing"

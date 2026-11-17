@@ -146,13 +146,17 @@ jira-cli is built for agents, so AI-assisted PRs are welcome. The bar is the sam
 
 ## Pre-commit hooks
 
-**Optional**, but it catches what CI checks locally, before you raise the PR. The repo ships an [`hk`](https://github.com/jdx/hk) hook configuration in `hk.pkl`; on commit it runs `gofumpt`, `go vet`, `golangci-lint`, `rumdl`, and `betterleaks`, plus `actionlint` and `zizmor` over the GitHub Actions workflows. On push it adds `govulncheck`. On the message it checks the conventional-commit format, scans it for leaked identifiers, and requires that a user-facing `feat`/`fix` ships a changelog fragment (see [Changelog](#changelog)). Install it once per checkout:
+**Optional.** The repository's [`hk`](https://github.com/jdx/hk) configuration runs the applicable Go, Markdown, shell, mise and workflow checks on commits, along with secret scanning. Go analysis also runs for dependency and toolchain changes; changing the linter configuration runs the linter. Pushes add `govulncheck`, with a local `.no-push` marker checked before the linters. Message hooks check Conventional Commits, scan the message, and require a changelog fragment for user-facing `feat`/`fix` changes (see [Changelog](#changelog)). CI also runs the wider matrix, race, acceptance and release gates.
+
+Install mise-aware hooks once per checkout:
 
 ```sh
-hk install
+mise exec -- hk install --mise
 ```
 
-The hook globs the working tree, not just staged files, so a stale file elsewhere in the repo can fail the commit.
+Pre-commit hooks stash unstaged work and check the staged versions of selected paths, then restore that work. Formatters operate on whole files; Go analysis checks whole packages and may report problems in other files. `hk check --plan` previews the selection. Existing global hk installation remains a personal choice; the installer detects it and avoids duplicate local hooks.
+
+`mise run test:hooks` validates the configuration with warnings treated as failures, runs the native formatter cases, and verifies hook selection, ordering and literal arguments in isolated fixtures. It disables hk's evaluated-config cache so the formatter fixtures use the current `go.mod` and `go.sum`. hk evaluates Pkl internally; the standalone Pkl CLI is not required.
 
 ## Docs site
 
