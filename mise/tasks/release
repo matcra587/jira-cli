@@ -6,8 +6,8 @@
 # [USAGE] arg "[commit]" help="Already-pushed commit on main (default: HEAD)"
 set -euo pipefail
 
-# shellcheck source=.mise/tasks/lib/release-version.sh
-source "${BASH_SOURCE[0]%/*}/lib/release-version.sh"
+# shellcheck source=mise/lib/release-version.sh
+source "${BASH_SOURCE[0]%/*}/../lib/release-version.sh"
 
 fail() {
 	echo "release failed: $*" >&2

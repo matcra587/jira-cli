@@ -2,8 +2,8 @@
 set -euo pipefail
 
 repo_root="$(cd "${BASH_SOURCE[0]%/*}/../.." && pwd)"
-# shellcheck source=.mise/tasks/lib/release-version.sh
-source "$repo_root/.mise/tasks/lib/release-version.sh"
+# shellcheck source=mise/lib/release-version.sh
+source "$repo_root/mise/lib/release-version.sh"
 
 fail() {
 	printf 'FAIL: %s\n' "$*" >&2
@@ -95,11 +95,11 @@ git_fixture() {
 }
 git_fixture init --bare --quiet "$fixture_root/origin.git"
 git_fixture init --initial-branch=main --quiet "$fixture_root/task"
-mkdir -p "$fixture_root/task/.mise/tasks/lib" "$fixture_root/bin"
-cp "$repo_root/.mise/tasks/release" "$fixture_root/task/.mise/tasks/release"
-cp "$repo_root/.mise/tasks/lib/release-version.sh" "$fixture_root/task/.mise/tasks/lib/release-version.sh"
-: >"$fixture_root/task/.mise.toml"
-git_fixture -C "$fixture_root/task" add .mise .mise.toml
+mkdir -p "$fixture_root/task/mise/tasks" "$fixture_root/task/mise/lib" "$fixture_root/bin"
+cp "$repo_root/mise/tasks/release" "$fixture_root/task/mise/tasks/release"
+cp "$repo_root/mise/lib/release-version.sh" "$fixture_root/task/mise/lib/release-version.sh"
+: >"$fixture_root/task/mise/config.toml"
+git_fixture -C "$fixture_root/task" add mise
 git_fixture -C "$fixture_root/task" commit --quiet -m 'release fixture'
 git_fixture -C "$fixture_root/task" remote add origin "$fixture_root/origin.git"
 git_fixture -C "$fixture_root/task" push --quiet origin main

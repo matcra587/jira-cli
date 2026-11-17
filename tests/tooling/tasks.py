@@ -23,8 +23,8 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MISE = shutil.which("mise")
-with (REPO_ROOT / "tasks.toml").open("rb") as task_file:
-    TASKS = tomllib.load(task_file)
+with (REPO_ROOT / "mise/conf.d/tasks.development.toml").open("rb") as task_file:
+    TASKS = tomllib.load(task_file)["tasks"]
 
 
 def toml_value(value: Any) -> str:
@@ -78,16 +78,14 @@ class NativeTaskTests(unittest.TestCase):
             TASK_TEST_TRACE=str(self.trace),
             PATH=str(self.bin) + os.pathsep + self.env["PATH"],
         )
-        shutil.copyfile(REPO_ROOT / "tasks.toml", self.root / "tasks.toml")
-        shutil.copytree(REPO_ROOT / ".mise", self.root / ".mise")
-        self.config = {
-            "env": {
-                "BINARY_NAME": "jira",
-                "DIST_DIR": "./dist",
-                "GOTOOLCHAIN": "local",
-            },
-            "task_config": {"includes": ["tasks.toml", ".mise/tasks"]},
-        }
+        shutil.copytree(REPO_ROOT / "mise", self.root / "mise")
+        shutil.copyfile(REPO_ROOT / ".miserc.toml", self.root / ".miserc.toml")
+        # Keep the real discovery layout and task owners; application tools are
+        # independent observers, not installations or native-platform evidence.
+        for fragment in (self.root / "mise/conf.d").glob("tools*.toml"):
+            fragment.write_text("")
+        with (self.root / "mise/config.toml").open("rb") as config_file:
+            self.config = tomllib.load(config_file)
         self.write_config(self.config)
         self.observer = f"""#!{sys.executable}
 import json, os, sys
@@ -119,11 +117,12 @@ if name == 'changie' and args[:1] == ['batch'] and failure == 'batch':
         for command in ("go", "changie", "uvx", "goreleaser", "rumdl"):
             self.write_executable(self.bin / command, self.observer)
 
-    def write_config(self, config: dict[str, Any]) -> None:
+    def write_config(self, config: dict[str, Any], *, local: bool = False) -> None:
         content = "\n".join(
             f"{key} = {toml_value(value)}" for key, value in config.items()
         )
-        (self.root / ".mise.toml").write_text(content + "\n")
+        filename = "config.development.local.toml" if local else "config.toml"
+        (self.root / "mise" / filename).write_text(content + "\n")
 
     def write_executable(self, path: Path, content: str) -> None:
         path.write_text(content)
@@ -168,15 +167,48 @@ if name == 'changie' and args[:1] == ['batch'] and failure == 'batch':
             workflow:lint
         """.split()
         )
-        inventory = json.loads(self.succeeds("tasks", "--local", "--json"))
+        inventory = json.loads(self.succeeds("tasks", "ls", "--no-global", "--json"))
         self.assertEqual({task["name"] for task in inventory}, expected)
         for name in ("build", "install", "release", "upstream-check", "version"):
             task = next(task for task in inventory if task["name"] == name)
-            self.assertIn("/.mise/tasks/", task["source"])
+            self.assertIn("/mise/tasks/", task["source"])
         loaded = self.succeeds("config", "ls")
-        self.assertIn(str(self.root / ".mise.toml"), loaded)
+        self.assertIn(str(self.root / "mise/config.toml"), loaded)
+        self.assertIn(str(self.root / "mise/conf.d/tasks.development.toml"), loaded)
         self.assertNotIn(str(REPO_ROOT), loaded)
         self.succeeds("tasks", "validate")
+
+    def test_native_environments_local_precedence_and_task_working_root(self) -> None:
+        fragments = self.root / "mise/conf.d"
+        for suffix, value in (
+            ("", "shared"),
+            (".development", "development"),
+            (".development.local", "personal development"),
+        ):
+            (fragments / f"scope{suffix}.toml").write_text(
+                f'[env]\nTASK_TEST_SCOPE = "{value}"\n'
+            )
+        self.write_executable(
+            self.bin / "scope-probe",
+            f"#!{sys.executable}\nimport json, os\n"
+            "print(json.dumps([os.environ['TASK_TEST_SCOPE'], os.getcwd()]))\n",
+        )
+        self.config["tasks"] = {"scope-probe": {"run": "scope-probe"}}
+        self.write_config(self.config)
+        subdir = self.root / "nested directory"
+        subdir.mkdir()
+        self.assertEqual(
+            json.loads(self.succeeds("run", "scope-probe", cwd=subdir)),
+            ["personal development", str(self.root)],
+        )
+        self.assertEqual(
+            json.loads(self.succeeds("-E", "production", "run", "scope-probe", cwd=subdir)),
+            ["shared", str(self.root)],
+        )
+        production = json.loads(
+            self.succeeds("-E", "production", "tasks", "ls", "--no-global", "--json")
+        )
+        self.assertNotIn("ci", {task["name"] for task in production})
 
     def test_release_help_and_parser_refusals_have_no_effects(self) -> None:
         self.write_executable(self.bin / "git", self.observer)
@@ -329,7 +361,7 @@ if name == 'changie' and args[:1] == ['batch'] and failure == 'batch':
                 self.assertTrue(all(args[0] == "list" for _, args in self.calls()))
 
     def test_upstream_native_flags_and_help_without_network(self) -> None:
-        task = self.root / ".mise/tasks/upstream-check.py"
+        task = self.root / "mise/tasks/upstream-check.py"
         header = task.read_text().split('"""', 1)[0]
         # Substitute the network worker, retaining its actual launcher, runtime
         # metadata and native Usage declarations.
@@ -356,7 +388,7 @@ if name == 'changie' and args[:1] == ['batch'] and failure == 'batch':
     def test_serial_phases_and_failed_prerequisites(self) -> None:
         # File tasks take precedence over inline fixtures. Replace the build
         # owner here so its ordering and failure can be observed independently.
-        (self.root / ".mise/tasks/build").unlink()
+        (self.root / "mise/tasks/build").unlink()
         cases = {
             "ci": [
                 "tidy",
@@ -387,7 +419,9 @@ if name == 'changie' and args[:1] == ['batch'] and failure == 'batch':
                         if index == failed_index:
                             command += "\nexit 37"
                         tasks[child] = {"run": command}
-                    self.write_config({"tasks": tasks})
+                    # An environment fragment overrides shared config; use a
+                    # native environment-local override for these phase probes.
+                    self.write_config({"tasks": tasks}, local=True)
                     result = self.run_mise("run", parent)
                     observed = self.trace.read_text().splitlines()
                     self.assertEqual(

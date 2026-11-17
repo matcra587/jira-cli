@@ -9,8 +9,8 @@
 # inputs too, so a source-mtime/glob gate cannot safely skip this command.
 set -euo pipefail
 
-# shellcheck source=.mise/tasks/lib/build-env.sh
-source .mise/tasks/lib/build-env.sh
+# shellcheck source=mise/lib/build-env.sh
+source mise/lib/build-env.sh
 
 mkdir -p "${DIST_DIR:?DIST_DIR is required}"
 go build -ldflags "$(jira_ldflags)" -o "$(jira_binary_path)" ./cmd/jira

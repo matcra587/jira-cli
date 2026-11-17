@@ -713,7 +713,7 @@ and require unchanged human previews to say they would keep the identity.
     output, not internal call sequences.
 *   `mise run test` runs the untagged suite, including binary contract tests,
     with coverage. `mise run ci` adds the race detector, tagged hermetic gates
-    and the other checks declared in `tasks.toml`. Native gates require their
+    and the other checks declared in `mise/conf.d/tasks.development.toml`. Native gates require their
     selected host and remain separate from cross-compilation.
 
 ## Suite map

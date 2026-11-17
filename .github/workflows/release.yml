@@ -39,6 +39,7 @@ jobs:
         # @clover: constraint=major tags=mise-action
         uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # v5.2.9
         with:
+          version: 2026.11.9
           github_token: ${{ secrets.GITHUB_TOKEN }}
           install_args: --locked
           cache: false
@@ -48,7 +49,7 @@ jobs:
         env:
           TAG_NAME: ${{ github.ref_name }}
         run: |
-          source .mise/tasks/lib/release-version.sh
+          source mise/lib/release-version.sh
           prerelease="$(release_prerelease "${TAG_NAME}")"
           echo "prerelease=${prerelease}" >>"${GITHUB_OUTPUT}"
 

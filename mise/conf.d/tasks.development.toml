@@ -1,11 +1,11 @@
-#:schema https://mise.en.dev/schema/mise-task.json
+#:schema https://mise.jdx.dev/schema/mise.json
 
-[default]
+[tasks.default]
 description = "List available tasks"
 quiet = true
 run = "mise tasks"
 
-[check]
+[tasks.check]
 description = "Run local verification checks"
 # An empty spec falls back to raw argv. Declare zero accepted arguments to
 # engage validation while leaving -h/--help to mise's built-in help handler.
@@ -15,7 +15,7 @@ arg "[args]..." var_max=0 hide=#true
 '''
 depends = ["fmt:check", "lint", "rumdl", "vet", "test"]
 
-[ci]
+[tasks.ci]
 description = "Run CI-equivalent checks"
 usage = '''
 unknown_flags "error"
@@ -34,7 +34,7 @@ run = [
     { tasks = ["test:live:guards", "test:hooks", "test:release", "test:tasks", "workflow:lint", "security"] },
 ]
 
-[fix]
+[tasks.fix]
 description = "Apply automatic formatting and lint fixes"
 usage = '''
 unknown_flags "error"
@@ -42,18 +42,18 @@ arg "[args]..." var_max=0 hide=#true
 '''
 run = [{ task = "fmt" }, { tasks = ["lint:fix", "rumdl:fix"] }]
 
-[run]
+[tasks.run]
 description = "Build and run"
 alias = "r"
 depends = ["build"]
 raw_args = true
 run = '"${DIST_DIR}/${BINARY_NAME}-$(go env GOOS)-$(go env GOARCH)"'
 
-["release:check"]
+[tasks."release:check"]
 description = "Run GoReleaser config and environment checks"
 run = ["goreleaser check", "goreleaser healthcheck"]
 
-["release:preflight"]
+[tasks."release:preflight"]
 description = "Run the full local preflight used before publishing releases"
 usage = '''
 unknown_flags "error"
@@ -61,52 +61,52 @@ arg "[args]..." var_max=0 hide=#true
 '''
 run = [{ task = "ci" }, { task = "release:check" }, { task = "release:build" }]
 
-["release:build"]
+[tasks."release:build"]
 description = "Build binaries with GoReleaser without publishing"
 run = "goreleaser build --snapshot --clean"
 
-["release:snapshot"]
+[tasks."release:snapshot"]
 description = "Build a full snapshot release locally"
 run = "goreleaser release --snapshot --clean --skip=sign"
 
-[test]
+[tasks.test]
 description = "Run tests with coverage"
 alias = "t"
 run = "go test -v -cover ./..."
 
-["test:all"]
+[tasks."test:all"]
 description = "Run all tests without cache"
 run = "go test -count=1 ./..."
 
-["test:race"]
+[tasks."test:race"]
 description = "Run tests with race detection"
 env = { CGO_ENABLED = "1" }
 run = "go test -v -race -cover ./..."
 
-["test:matrix"]
+[tasks."test:matrix"]
 description = "Run every required command/flag acceptance pair"
 run = "go test -v -tags=flagmatrix -count=1 ./tests/matrix"
 
-["test:live:guards"]
+[tasks."test:live:guards"]
 description = "Run hermetic live-test ownership and cleanup guards"
 # CI must never inherit opt-in for real Jira writes. Run the complete tagged
 # package so new guards participate without extending a test-name filter.
 env = { JIRA_LIVE_ACCEPTANCE = "0" }
 run = "go test -v -tags=live -count=1 ./tests/live"
 
-["test:hooks"]
+[tasks."test:hooks"]
 description = "Validate hook configuration and native formatter cases"
 run = ["hk validate", "hk test --step gofumpt"]
 
-["test:release"]
+[tasks."test:release"]
 description = "Verify stable and prerelease routing without publishing"
 run = "bash tests/release/pipeline.sh"
 
-["test:tasks"]
+[tasks."test:tasks"]
 description = "Verify native task arguments, ordering and failure paths"
 run = "uv run --python 3.15 --script tests/tooling/tasks.py"
 
-["test:keyring"]
+[tasks."test:keyring"]
 description = "Verify Linux authentication against a private native keyring"
 run = """
 if [ "$(go env GOHOSTOS)" != "linux" ]; then
@@ -116,7 +116,7 @@ fi
 go test -v -tags=nativekeyring -count=1 -timeout=3m -run='^TestNativeKeyring' ./tests/contract
 """
 
-["test:cache-sync"]
+[tasks."test:cache-sync"]
 description = "Verify Linux cache publication with native sync fault injection"
 run = """
 if [ "$(go env GOHOSTOS)" != "linux" ]; then
@@ -130,7 +130,7 @@ fi
 go test -v -tags=nativecachesync -count=1 -timeout=3m -run='^TestDiskCacheNativeSync' ./internal/adapters
 """
 
-["test:query-swap"]
+[tasks."test:query-swap"]
 description = "Verify Linux saved-query reads during native pathname replacement"
 run = """
 if [ "$(go env GOHOSTOS)" != "linux" ] || [ "$(go env GOOS)" != "linux" ]; then
@@ -146,11 +146,11 @@ go test -v -tags=queryswap -count=1 -timeout=60s -run='^TestSavedQueryFileSwapKe
 # checklist. Hermetic — httptest loopback only, guarded by an unroutable
 # proxy. Regenerate the committed baseline deliberately with
 # AUDIT_UPDATE_MATRIX=1 in the same change that moves a cell.
-[audit]
+[tasks.audit]
 description = "Run the output-contract audit suite"
 run = "go test -tags=outputaudit -count=1 ./tests/audit/"
 
-[fmt]
+[tasks.fmt]
 description = "Format repository Go source with gofumpt"
 run = '''
 #!/usr/bin/env bash
@@ -164,7 +164,7 @@ done |
 xargs -0 sh -c 'if [ "$#" -gt 0 ]; then exec go tool gofumpt -w -- "$@"; fi' --
 '''
 
-["fmt:check"]
+[tasks."fmt:check"]
 description = "Check Go formatting"
 # The || exit 1 matters: command substitution swallows a missing or crashing
 # gofumpt, and an empty capture would pass the gate vacuously.
@@ -185,76 +185,76 @@ out="$(
 test -z "$out"
 '''
 
-["fmt:file"]
+[tasks."fmt:file"]
 description = "Format Go file(s) with gofumpt"
 raw_args = true
 run = "go tool gofumpt -w"
 
-[lint]
+[tasks.lint]
 description = "Run golangci-lint"
 run = "golangci-lint run ./..."
 
-["lint:fix"]
+[tasks."lint:fix"]
 description = "Run golangci-lint with auto-fix"
 run = "golangci-lint run --fix"
 
-[rumdl]
+[tasks.rumdl]
 description = "Lint markdown files with rumdl"
 run = "rumdl check"
 
-["rumdl:fix"]
+[tasks."rumdl:fix"]
 description = "Fix markdown files with rumdl"
 raw_args = true
 run = "rumdl fmt"
 
-[vet]
+[tasks.vet]
 description = "Run go vet"
 run = "go vet ./..."
 
-[security]
+[tasks.security]
 description = "Run govulncheck"
 run = "go tool govulncheck ./..."
 
-["workflow:lint"]
+[tasks."workflow:lint"]
 description = "Lint GitHub Actions workflows"
 run = ["actionlint .github/workflows/*.yml", "zizmor --persona pedantic .github/"]
 
-[pre-commit]
+[tasks.pre-commit]
 description = "Run hk pre-commit hook"
 run = "hk run pre-commit"
 
-[deps]
+[tasks.deps]
 description = "Download Go module dependencies"
 run = "go mod download"
 
-["docs:build"]
+[tasks."docs:build"]
 description = "Build the documentation site with strict validation"
 run = "uvx --python 3.15 --from zensical==0.0.72 zensical build --clean --strict -f zensical.toml"
 
-["docs:serve"]
+[tasks."docs:serve"]
 description = "Serve the documentation site with live reload"
 raw_args = true
 run = "uvx --python 3.15 --from zensical==0.0.72 zensical serve -f zensical.toml"
 
-["deps:update"]
+[tasks."deps:update"]
 description = "Update direct Go dependencies to latest patch releases"
 env = { DEPS_UPDATE_QUERY = "patch" }
-file = ".mise/lib/deps-update.sh"
+file = "mise/lib/deps-update.sh"
 
-["deps:update:minor"]
+[tasks."deps:update:minor"]
 description = "Update direct Go dependencies to latest minor and patch releases"
 env = { DEPS_UPDATE_QUERY = "latest" }
-file = ".mise/lib/deps-update.sh"
+file = "mise/lib/deps-update.sh"
 
-[tidy]
+[tasks.tidy]
 description = "Tidy Go modules and verify no drift"
 run = ["go mod tidy", "git diff --exit-code -- go.mod go.sum"]
 
-[generate]
+[tasks.generate]
 description = "Run go generate"
 run = "go generate ./..."
 
-[clean]
+[tasks.clean]
 description = "Remove build and coverage outputs"
 usage = '''
 unknown_flags "error"
@@ -262,12 +262,12 @@ arg "[args]..." var_max=0 hide=#true
 '''
 run = "rm -rf bin dist coverage.out"
 
-["check-changie"]
+[tasks."check-changie"]
 description = "Fail a feat/fix commit that ships no changelog fragment"
 usage = 'arg "<commit_msg_file>" help="Path to the commit message file to check"'
 run = 'go run ./cmd/check-changie "${usage_commit_msg_file?}"'
 
-["release-notes"]
+[tasks."release-notes"]
 description = "Batch unreleased fragments into a version and regenerate the changelog"
 usage = 'arg "<version>" help="Release version, e.g. v0.7.8"'
 run = [
@@ -275,27 +275,27 @@ run = [
     "changie merge",
 ]
 
-["test:keyring:windows"]
+[tasks."test:keyring:windows"]
 description = "Verify isolated native Windows credential recovery (Windows only)"
 run = "go test -v -tags=nativekeyring -count=1 -timeout=3m ./tests/integration"
 
-["test:editor:windows"]
+[tasks."test:editor:windows"]
 description = "Verify the supervisor and public editors in isolated native Windows consoles"
 run = "go test -v -tags=nativeconsole -count=1 -timeout=3m -run='^(TestNativeWindowsEditorConsole|TestNativePublicWindowsEditors)$' ./internal/cli/command ./tests/contract"
 
-["test:input:windows"]
+[tasks."test:input:windows"]
 description = "Verify native accessible console input and shared ownership in isolated Windows consoles"
 run = "go test -v -tags=nativeconsole -count=1 -timeout=6m -run='^(TestNativeWindowsAccessibleConsole|TestNativeWindowsConsoleOwner|TestNativePublicWindowsInput|TestWindowsConsoleReadOutcomePreservesIndependentFailures|TestWindowsTerminalContextKeepsOrdinaryReaders|TestWindowsConsoleCancellationRetainsNativeThreadFailure)$' ./internal/cli/input ./internal/cli/prompt ./tests/contract"
 
-["test:config:windows"]
+[tasks."test:config:windows"]
 description = "Verify native junction snapshots and public configuration recovery on Windows"
 run = "go test -v -tags=nativefilesystem -count=1 -timeout=3m -run='^(TestNativeWindowsConfigurationJunctions|TestNativePublicWindowsConfigurationJunctions|TestWindowsPathSpellingPreservesIdentity|TestNativeConfigurationPathOnlyAdmitsInitialAbsence)$' ./internal/nativepath ./internal/config ./tests/contract"
 
-["test:draft:windows"]
+[tasks."test:draft:windows"]
 description = "Verify native draft paths, junction refusal and public draft workflows on Windows"
 run = "go test -v -tags=nativefilesystem -count=1 -timeout=3m -run='^(TestNativeWindowsDraftPaths|TestNativePublicWindowsDraftPaths)$' ./internal/issueedit ./tests/contract"
 
-["test:attachment:windows"]
+[tasks."test:attachment:windows"]
 description = "Verify literal Windows attachment destinations and native directory completion"
 run = [
     "go test -v -tags=nativefilesystem -count=1 -timeout=3m -run='^TestLiteralFile' ./internal/nativepath",

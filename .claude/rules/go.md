@@ -9,13 +9,15 @@ paths:
 
 # Go conventions
 
-The minimum compiler patch and mise development pin include standard-library
-security fixes. Update them together and regenerate Go's artifact locks through
-`mise lock go`, retaining every supported platform. Verify locked checksums
+The minimum compiler patch includes standard-library security fixes. The mise
+development request follows `latest`; its exact compiler is committed in
+`mise/mise.lock` and must satisfy the module minimum. Refresh it explicitly with
+`mise lock --bump go`, retaining every supported platform. Review minimum-version
+changes separately from selecting a newer development compiler. Verify locked checksums
 against the official release manifest and run the actual `go tool govulncheck`
 gate with the selected compiler; JSON scan output alone does not establish a
 clean security gate. Keep application dependency updates separate.
-Check the pinned linter against the selected compiler's export data. When a
+Check the locked linter against the selected compiler's export data. When a
 compatible release is required, align its mise and CI pins and regenerate its
 platform locks; do not disable checks to accommodate an incompatible linter.
 

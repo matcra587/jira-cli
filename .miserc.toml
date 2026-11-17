@@ -1,0 +1,4 @@
+# Discovery settings are read before configuration fragments.
+env = ["development"]
+env_conf_d = true
+auto_env = true

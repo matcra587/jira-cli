@@ -35,13 +35,25 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      # Cache only downloads; locked installs verify their checksums and unpack
+      # fresh tool installations. Go's build/module caches remain separate.
+      - name: Cache mise downloads
+        # @clover: constraint=major tags=cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/mise/downloads-cas
+          key: mise-downloads-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise/mise.lock') }}
+          restore-keys: |
+            mise-downloads-${{ runner.os }}-${{ runner.arch }}-
+
       - name: Install mise
         # @clover: constraint=major tags=mise-action
         uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # v5.2.9
         with:
+          version: 2026.11.9
           github_token: ${{ secrets.GITHUB_TOKEN }}
           install_args: --locked
-          cache: true
+          cache: false
 
       # Caching lives here rather than in the release workflow so release
       # artifacts are never built from cached state: this job only validates.
@@ -64,9 +76,9 @@ jobs:
             ~/go/pkg/mod
             ~/.cache/go-build
             ~/.cache/golangci-lint
-          key: go-${{ runner.os }}-${{ hashFiles('go.sum', 'mise.lock') }}-${{ steps.cache-date.outputs.date }}
+          key: go-${{ runner.os }}-${{ hashFiles('go.sum', 'mise/mise.lock') }}-${{ steps.cache-date.outputs.date }}
           restore-keys: |
-            go-${{ runner.os }}-${{ hashFiles('go.sum', 'mise.lock') }}-
+            go-${{ runner.os }}-${{ hashFiles('go.sum', 'mise/mise.lock') }}-
             go-${{ runner.os }}-
 
       # -count=1 disables Go's test-result caching (build caching is
@@ -103,13 +115,24 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Restore mise downloads
+        # PRs consume the download cache without publishing their own entries.
+        # @clover: constraint=major tags=cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/mise/downloads-cas
+          key: mise-downloads-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise/mise.lock') }}
+          restore-keys: |
+            mise-downloads-${{ runner.os }}-${{ runner.arch }}-
+
       - name: Install mise
         # @clover: constraint=major tags=mise-action
         uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # v5.2.9
         with:
+          version: 2026.11.9
           github_token: ${{ secrets.GITHUB_TOKEN }}
           install_args: --locked
-          cache: true
+          cache: false
 
       - name: Build before acceptance guards
         run: mise run build

@@ -1,0 +1,16 @@
+#:schema https://mise.jdx.dev/schema/mise.json
+# Upgrade through mise lock --bump; installations use the committed lock.
+[tools]
+golangci-lint = "latest"
+actionlint = "latest"
+betterleaks = "latest"
+goreleaser = "latest"
+changie = "latest"
+jq = "latest"
+cosign = "latest"
+zizmor = "latest"
+rumdl = "latest"
+hk = "latest"
+pkl = "latest"
+shellcheck = "latest"
+uv = "latest"

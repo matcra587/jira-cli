@@ -1,0 +1,15 @@
+#:schema https://mise.jdx.dev/schema/mise.json
+min_version = "2026.11.9"
+
+[settings]
+lockfile = true
+go.set_gobin = false
+
+[tool_config]
+locked = true
+
+[env]
+HK_MISE = 1
+BINARY_NAME = "jira"
+DIST_DIR = "./dist"
+GOTOOLCHAIN = "local"

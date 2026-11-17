@@ -1,0 +1,4 @@
+#:schema https://mise.jdx.dev/schema/mise.json
+# Exact compiler versions and platform artifacts live in mise/mise.lock.
+[tools]
+go = "latest"

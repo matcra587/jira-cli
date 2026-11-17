@@ -5,8 +5,8 @@
 # [USAGE] arg "[args]..." var_max=0 hide=#true
 set -euo pipefail
 
-# shellcheck source=.mise/tasks/lib/build-env.sh
-source .mise/tasks/lib/build-env.sh
+# shellcheck source=mise/lib/build-env.sh
+source mise/lib/build-env.sh
 
 cat <<EOF
 Version:    $(jira_version)

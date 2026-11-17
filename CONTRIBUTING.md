@@ -14,7 +14,7 @@ Two things hold for every change: CI must pass (`mise run ci`), and review comme
 
 ## Prerequisites
 
-*   [mise](https://mise.jdx.dev) provisions the pinned toolchain (Go, the linters, everything else). Nothing else to install by hand.
+*   [mise](https://mise.jdx.dev) 2026.11.9 or newer provisions the locked toolchain (Go, the linters, everything else). Nothing else to install by hand.
 *   Nothing else. The tree builds with `CGO_ENABLED=0`.
 
 ## Setup
@@ -25,7 +25,11 @@ mise --cd jira-cli --locked run install
 jira version
 ```
 
-`--cd` runs in the freshly cloned directory, so there's no separate `cd`. `mise run install` auto-provisions the pinned toolchain before the task (`--locked` requires it to be pre-resolved in `mise.lock`), then runs `go install ./cmd/jira` with the version ldflag set, so `jira version` reports the exact `git describe` build. Without that ldflag a build falls back to whatever Go records in its build info, which yields a `-dev` version string.
+`--cd` runs in the freshly cloned directory, so there's no separate `cd`. `mise run install` auto-provisions the locked toolchain before the task, then runs `go install ./cmd/jira` with the version ldflag set, so `jira version` reports the exact `git describe` build. It honors your existing `GOBIN` or uses Go's normal `GOPATH/bin`; the installed CLI persists when you change Go versions. Ensure that destination is on your `PATH`. Without the ldflag a build falls back to whatever Go records in its build info, which yields a `-dev` version string.
+
+Tool requests use `latest`; exact versions and verified platform artifacts are committed in `mise/mise.lock`. Project installs require matching locks. Update deliberately with `mise lock --bump`, review the lock diff and run the affected checks. Go module tools remain owned by `go.mod` and run through `go tool`.
+
+Configuration lives in `mise/config.toml` and `mise/conf.d/`. `.miserc.toml` selects `development` by default, including checks and release tooling. `mise -E production run build` selects the shared Go toolchain for a build without developer tools. This selection does not isolate inherited global tools or tasks. Native scripts live in `mise/tasks/`, with shared helpers in `mise/lib/`. Keep local configuration and lock overrides untracked.
 
 > [!TIP]
 > `mise run build` writes a release-shaped binary to `./dist/jira-<goos>-<goarch>`. It always enters Go's build cache so embedded guides, schemas and Git version changes cannot leave a stale binary behind.
