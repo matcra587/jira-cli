@@ -99,6 +99,9 @@ Native JSON success readers bound actual streamed bytes at the shared 16 MiB
 capture limit before decoding. Preserve native unknown fields, exact numbers,
 nulls and each reader's existing protocol checks; record/page limits do not bound
 response bytes. Raw API requests keep their explicit capture-limit contract.
+Human ADF walkers share a depth budget across fresh subwalkers and fallback
+traversals, render a recovery placeholder at the limit and never rewrite native
+document bytes.
 
 GitHub Actions are SHA-pinned and zizmor-audited (pedantic); releases are
 GoReleaser-built and cosign-signed. `mise run ci` includes Go lint/gosec and

@@ -51,6 +51,10 @@ jira boards list --refresh --all --jq '.data.boards[].id'
 
 ### Read human output
 
+Human ADF rendering stops excessive nesting with a `nesting limit` placeholder.
+The preserved native document remains unchanged; use native JSON output to inspect
+the complete content.
+
 Human `adf render`, issue descriptions and comment bodies share native terminal
 rendering: panel frames, status badges and tables with merged cells. Cell text
 wraps without truncation. Section titles also wrap at the terminal width, keeping

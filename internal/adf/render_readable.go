@@ -149,7 +149,7 @@ func (w *walker) renderTaskItem(n *Node, prefix string) {
 		return
 	}
 	cont := prefix + strings.Repeat(" ", ansi.StringWidth(marker))
-	sub := &walker{styler: w.styler, width: w.width}
+	sub := &walker{styler: w.styler, width: w.width, depth: w.depth}
 	sub.renderReadableChildren(n.Content(), cont)
 	separate := w.width > 0 && w.width <= ansi.StringWidth(cont)
 	if w.width > 0 {
@@ -190,6 +190,10 @@ func (w *walker) renderDecisionItem(n *Node, prefix string) {
 // Retain their identity and descendant text instead of silently losing the body.
 // Consecutive inline leaves share one run, preserving their original spacing.
 func (w *walker) renderReadableChildren(nodes []Node, prefix string) {
+	if !w.enter(prefix) {
+		return
+	}
+	defer func() { w.depth-- }()
 	for i := 0; i < len(nodes); {
 		if i > 0 {
 			w.buf.WriteByte('\n')

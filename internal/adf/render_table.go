@@ -114,7 +114,7 @@ func (w *walker) renderTable(n *Node, prefix string) {
 		widths[c] = 2
 	}
 	for _, cell := range cells {
-		sub := &walker{styler: w.styler}
+		sub := &walker{styler: w.styler, depth: w.depth}
 		sub.blocks(cell.node.Content(), "")
 		cell.text = strings.TrimRight(sub.buf.String(), "\n")
 
@@ -269,6 +269,10 @@ func tableHeaderSeparator(widths []int, row, next []*terminalCell) string {
 }
 
 func (w *walker) renderTableFallbackNode(n *Node, prefix string) {
+	if !w.enter(prefix) {
+		return
+	}
+	defer func() { w.depth-- }()
 	switch NodeType(n.Type()) {
 	case NodeTypeTableCell, NodeTypeTableHeader:
 		// The containing row already emitted the cell label and raw attrs.

@@ -75,6 +75,20 @@ type walker struct {
 	styler Styler
 	width  int
 	buf    strings.Builder
+	depth  int
+}
+
+const maxRenderDepth = 128
+
+// enter bounds every recursive rendering path, including fallback walkers.
+// Native nodes are never rewritten; machine output retains the full document.
+func (w *walker) enter(prefix string) bool {
+	if w.depth >= maxRenderDepth {
+		w.renderPlaceholder(NewNode("nesting limit"), prefix)
+		return false
+	}
+	w.depth++
+	return true
 }
 
 // blockRenderer draws one block-level node at the given indent prefix —
@@ -131,6 +145,10 @@ func (w *walker) blocks(nodes []Node, prefix string) {
 }
 
 func (w *walker) block(n *Node, prefix string) {
+	if !w.enter(prefix) {
+		return
+	}
+	defer func() { w.depth-- }()
 	fn, ok := blockDispatch[NodeType(n.Type())]
 	if !ok {
 		w.renderPlaceholder(n, prefix)
@@ -245,7 +263,7 @@ func (w *walker) renderCodeBlock(n *Node, prefix string) {
 // blocks() would otherwise not know to prefix EVERY line, including
 // ones a nested renderer writes many calls later.
 func (w *walker) renderBlockquote(n *Node, prefix string) {
-	sub := &walker{styler: w.styler, width: w.width}
+	sub := &walker{styler: w.styler, width: w.width, depth: w.depth}
 	sub.blocks(n.Content(), prefix+"> ")
 	w.buf.WriteString(sub.buf.String())
 }
@@ -295,7 +313,7 @@ func (w *walker) renderList(items []Node, prefix string, marker func(i int) stri
 	for i := range items {
 		m := marker(i)
 		contPrefix := prefix + strings.Repeat(" ", ansi.StringWidth(m))
-		sub := &walker{styler: w.styler, width: w.width}
+		sub := &walker{styler: w.styler, width: w.width, depth: w.depth}
 		sub.blocks(items[i].Content(), contPrefix)
 		w.buf.WriteString(overlayMarker(sub.buf.String(), contPrefix, prefix+m))
 	}
