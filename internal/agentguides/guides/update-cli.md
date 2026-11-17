@@ -16,6 +16,12 @@ the running executable's resolved path. Homebrew upgrades the verified
 their own update command without checking releases or running the installer.
 Unknown installations refuse an automatic update.
 
+Supporting styled human terminals show release checking, signature verification,
+measured archive download progress, extraction and installation stages. Download
+percentages count accepted archive bytes, not installation completion. Verification
+and publication remain separate, indeterminate stages; uncertain receipts never
+produce an installed-status claim. Machine output remains unchanged.
+
 ### Understand passive update hints
 
 Ordinary Jira commands can show a cached update hint after human terminal output.

@@ -7,6 +7,15 @@ type ProgressPhase uint8
 
 const (
 	ProgressBulkResults ProgressPhase = iota + 1
+	ProgressUpdateDiscover
+	ProgressUpdateChecksums
+	ProgressUpdateVerifyManifest
+	ProgressUpdateDownload
+	ProgressUpdateVerifyArchive
+	ProgressUpdateExtract
+	ProgressUpdateInstall
+	ProgressUpdateInstalled
+	ProgressUpdateBrew
 )
 
 // Progress is an advisory observation. Counts describe completed result rows

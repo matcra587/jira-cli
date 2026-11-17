@@ -15,6 +15,8 @@ import (
 	"strings"
 
 	xos "github.com/gechr/x/os"
+
+	"github.com/matcra587/jira-cli/internal/core"
 )
 
 const (
@@ -53,6 +55,7 @@ func (s *GitHubSource) Download(ctx context.Context, release Release, goos, arch
 	if err != nil {
 		return nil, err
 	}
+	core.ObserveProgress(ctx, core.Progress{Phase: core.ProgressUpdateChecksums})
 	var manifest bytes.Buffer
 	if err := s.download(ctx, checksums, &manifest, maxChecksumBytes); err != nil {
 		return nil, err
@@ -65,6 +68,7 @@ func (s *GitHubSource) Download(ctx context.Context, release Release, goos, arch
 	if err := s.download(ctx, signatureAsset, &signature, maxSignatureBytes); err != nil {
 		return nil, err
 	}
+	core.ObserveProgress(ctx, core.Progress{Phase: core.ProgressUpdateVerifyManifest})
 	if err := s.verify(ctx, release.Version, manifest.Bytes(), signature.Bytes()); err != nil {
 		return nil, err
 	}
@@ -93,13 +97,20 @@ func (s *GitHubSource) Download(ctx context.Context, release Release, goos, arch
 	}
 	defer archive.Close() //nolint:errcheck // success close is checked before handing off candidate
 	hash := sha256.New()
-	if err := s.download(ctx, archiveAsset, io.MultiWriter(archive, hash), maxArchiveBytes); err != nil {
+	core.ObserveProgress(ctx, core.Progress{Phase: core.ProgressUpdateDownload, Total: archiveAsset.size})
+	progress := &downloadProgressWriter{destination: io.MultiWriter(archive, hash), observe: func(count int64) {
+		core.ObserveProgress(ctx, core.Progress{Phase: core.ProgressUpdateDownload, Completed: count, Total: archiveAsset.size})
+	}}
+	if err := s.download(ctx, archiveAsset, progress, maxArchiveBytes); err != nil {
 		return nil, err
 	}
+	core.ObserveProgress(ctx, core.Progress{Phase: core.ProgressUpdateDownload, Completed: archiveAsset.size, Total: archiveAsset.size, Complete: true})
+	core.ObserveProgress(ctx, core.Progress{Phase: core.ProgressUpdateVerifyArchive})
 	actual := hex.EncodeToString(hash.Sum(nil))
 	if actual != expected {
 		return nil, fmt.Errorf("%w: archive SHA-256 differs from checksums.txt", ErrIntegrity)
 	}
+	core.ObserveProgress(ctx, core.Progress{Phase: core.ProgressUpdateExtract})
 	if _, err := archive.Seek(0, io.SeekStart); err != nil {
 		return nil, fmt.Errorf("rewind verified archive: %w", err)
 	}
@@ -129,6 +140,24 @@ func (s *GitHubSource) Download(ctx context.Context, release Release, goos, arch
 	keepFile = true
 	owned = false
 	return &Candidate{File: file, SHA256: hex.EncodeToString(hash.Sum(nil)), ArchiveSHA256: actual, directory: directory}, nil
+}
+
+// downloadProgressWriter observes bytes accepted by the existing archive/hash
+// writers. x has no callback counting writer; preserve every short write and
+// original error for the bounded download owner to classify.
+type downloadProgressWriter struct {
+	destination io.Writer
+	observe     func(int64)
+	written     int64
+}
+
+func (w *downloadProgressWriter) Write(data []byte) (int, error) {
+	n, err := w.destination.Write(data)
+	w.written += int64(n)
+	if n > 0 {
+		w.observe(w.written)
+	}
+	return n, err
 }
 
 func checksumFor(manifest []byte, name string) (string, error) {

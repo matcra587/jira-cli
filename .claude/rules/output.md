@@ -213,6 +213,9 @@ Domain progress uses the core context observer and the shared output formatter.
 Count frozen fan-out result rows after assignment, retain failed-row counts and
 preserve native scheduling and receipt order. Never include keys or Jira text.
 Coalesce terminal updates by phase/percentage while retaining the final counts.
+Update transfer counts observe accepted bytes through the existing bounded writer.
+Signature, archive verification and publication remain separate phases with no
+invented percentage. Report installed only from a confirmed publication receipt.
 
 *   Root wiring (`internal/cli/root/root.go`): clog is pinned to **stderr**
     with `SetEnvPrefix("JIRA")` and colour from `--color`; a context logger is

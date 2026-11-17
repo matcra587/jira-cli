@@ -102,6 +102,40 @@ func decodeProgramReports(t *testing.T, raw []byte) []map[string]string {
 	return reports
 }
 
+func TestProgramStatusUpdatePhasesClearDownloadPercentage(t *testing.T) {
+	t.Setenv("TERM", "xterm")
+	master, terminal := documentTestTerminal(t)
+	ctx, finish := WithProgramStatus(t.Context(), terminal)
+	StartProgramStatus(ctx)
+	for _, phase := range []core.ProgressPhase{core.ProgressUpdateChecksums, core.ProgressUpdateVerifyManifest, core.ProgressUpdateDownload, core.ProgressUpdateVerifyArchive, core.ProgressUpdateExtract, core.ProgressUpdateInstall, core.ProgressUpdateInstalled} {
+		progress := core.Progress{Phase: phase}
+		if phase == core.ProgressUpdateDownload {
+			progress.Completed, progress.Total = 1, 2
+		}
+		core.ObserveProgress(ctx, progress)
+	}
+	finish(clog.ProgramStateDone)
+	if err := terminal.Close(); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := io.ReadAll(master)
+	if err != nil && !errors.Is(err, unix.EIO) {
+		t.Fatal(err)
+	}
+	reports := decodeProgramReports(t, raw)
+	if len(reports) != 9 || reports[2]["msg"] != "Verifying release signature" || reports[3]["progress"] != "50" {
+		t.Fatalf("update phases disappeared: %+v", reports)
+	}
+	for _, report := range reports[4:] {
+		if _, stale := report["progress"]; stale {
+			t.Fatalf("download percentage survived verification/publication: %+v", reports)
+		}
+	}
+	if reports[8]["state"] != "done" || reports[8]["msg"] != "Update installed" {
+		t.Fatalf("missing final observed installation: %+v", reports[8])
+	}
+}
+
 func TestProgramStatusCanceledInputDoesNotResumeWork(t *testing.T) {
 	t.Setenv("TERM", "xterm")
 	master, terminal := documentTestTerminal(t)

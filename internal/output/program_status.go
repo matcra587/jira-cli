@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/gechr/clog"
+	"github.com/gechr/x/human"
 
 	"github.com/matcra587/jira-cli/internal/core"
 )
@@ -115,7 +116,7 @@ func (s *programStatus) report(state clog.ProgramState) {
 	// Coalesce large walks to percentage/stage changes. The newest counts
 	// remain stored for the final summary, including partial failures.
 	if state == clog.ProgramStateWorking && s.last.State == state &&
-		report.Title == s.last.Title && report.HasProgress == s.last.HasProgress &&
+		report.Title == s.last.Title && (report.HasProgress || report.Message == s.last.Message) && report.HasProgress == s.last.HasProgress &&
 		report.Progress == s.last.Progress {
 		return
 	}
@@ -142,6 +143,25 @@ func applyProgramProgress(report *clog.ProgramStatus, progress core.Progress) {
 	case core.ProgressBulkResults:
 		report.Title = "Bulk results"
 		report.Message = fmt.Sprintf("%d/%d results, %d failed", progress.Completed, progress.Total, progress.Failed)
+	case core.ProgressUpdateDiscover:
+		report.Title, report.Message = "Update", "Checking releases"
+	case core.ProgressUpdateChecksums:
+		report.Title, report.Message = "Update", "Reading signed checksums"
+	case core.ProgressUpdateVerifyManifest:
+		report.Title, report.Message = "Update", "Verifying release signature"
+	case core.ProgressUpdateDownload:
+		report.Title = "Update download"
+		report.Message = fmt.Sprintf("%s/%s received", human.FormatIECBytes(float64(progress.Completed)), human.FormatIECBytes(float64(progress.Total)))
+	case core.ProgressUpdateVerifyArchive:
+		report.Title, report.Message = "Update", "Verifying downloaded archive"
+	case core.ProgressUpdateExtract:
+		report.Title, report.Message = "Update", "Extracting verified executable"
+	case core.ProgressUpdateInstall:
+		report.Title, report.Message = "Update", "Installing executable"
+	case core.ProgressUpdateInstalled:
+		report.Title, report.Message = "Update", "Update installed"
+	case core.ProgressUpdateBrew:
+		report.Title, report.Message = "Update", "Updating with Homebrew"
 	default:
 		return
 	}

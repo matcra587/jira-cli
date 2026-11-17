@@ -11,6 +11,7 @@ import (
 
 	"github.com/matcra587/jira-cli/internal/cli"
 	"github.com/matcra587/jira-cli/internal/cli/command"
+	"github.com/matcra587/jira-cli/internal/core"
 	"github.com/matcra587/jira-cli/internal/envelope"
 	"github.com/matcra587/jira-cli/internal/output"
 	"github.com/matcra587/jira-cli/internal/selfupdate"
@@ -138,6 +139,7 @@ func run(ctx context.Context, deps Deps, inv command.Invocation, force bool) (ou
 	if err != nil {
 		return out, updateFailure(err)
 	}
+	core.ObserveProgress(ctx, core.Progress{Phase: core.ProgressUpdateDiscover})
 	release, err := source.Latest(ctx)
 	if err != nil {
 		return out, updateFailure(err)
@@ -152,12 +154,16 @@ func run(ctx context.Context, deps Deps, inv command.Invocation, force bool) (ou
 		return out, nil
 	}
 	if brew != nil {
+		core.ObserveProgress(ctx, core.Progress{Phase: core.ProgressUpdateBrew})
 		result, updateErr := brew.Update(ctx)
 		out.Attempted, out.Updated, out.Uncertain = result.Attempted, result.Updated, result.Uncertain
 		out.Brew = &envelope.BrewUpdate{Before: brewInstallation(result.Before), Shadow: result.Shadow}
 		if result.After != nil {
 			after := brewInstallation(*result.After)
 			out.Brew.After = &after
+		}
+		if updateErr == nil && result.Updated && !result.Uncertain {
+			core.ObserveProgress(ctx, core.Progress{Phase: core.ProgressUpdateInstalled})
 		}
 		return out, updateFailure(updateErr)
 	}
@@ -174,12 +180,16 @@ func run(ctx context.Context, deps Deps, inv command.Invocation, force bool) (ou
 		return out, err
 	}
 	out.Attempted = true
+	core.ObserveProgress(ctx, core.Progress{Phase: core.ProgressUpdateInstall})
 	publication, err := target.Publish(ctx, candidate.File, candidate.SHA256)
 	out.Publication = &envelope.UpdatePublication{
 		Published: publication.Published, Durable: publication.Durable, Uncertain: publication.Uncertain,
 		Backup: publication.Backup, Bytes: publication.Bytes, SHA256: publication.SHA256,
 	}
 	out.Updated, out.Uncertain = publication.Published, publication.Uncertain
+	if err == nil && publication.Published && publication.Durable && !publication.Uncertain {
+		core.ObserveProgress(ctx, core.Progress{Phase: core.ProgressUpdateInstalled})
+	}
 	return out, updateFailure(err)
 }
 
